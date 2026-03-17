@@ -5,13 +5,17 @@ app.use(express.json());
 
 const VERIFY_TOKEN = "sol_verify_123";
 
-app.get("/", (req, res) => {
-  console.log("GET / hit");
+app.get("/webhook", (req, res) => {
+  console.log("GET /webhook hit");
   console.log("Query:", req.query);
 
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
+
+  console.log("hub.mode:", mode);
+  console.log("hub.verify_token:", token);
+  console.log("hub.challenge:", challenge);
 
   if (mode === "subscribe" && token === VERIFY_TOKEN) {
     console.log("Webhook verified successfully");
@@ -22,8 +26,8 @@ app.get("/", (req, res) => {
   return res.sendStatus(403);
 });
 
-app.post("/", (req, res) => {
-  console.log("POST / hit");
+app.post("/webhook", (req, res) => {
+  console.log("POST /webhook hit");
   console.log(JSON.stringify(req.body, null, 2));
   return res.sendStatus(200);
 });
