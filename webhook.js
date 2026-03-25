@@ -111,6 +111,45 @@ function detectLanguageCommand(text) {
   return null;
 }
 
+function detectRestartCommand(text) {
+  const t = normalizeText(text);
+
+  const restartPhrases = [
+    "start over",
+    "restart"
+  ];
+
+  return restartPhrases.includes(t);
+}
+
+function detectMenuCommand(text) {
+  const t = normalizeText(text);
+
+  const menuPhrases = [
+    "menu",
+    "main menu",
+    "menu principal",
+    "menú",
+    "menu please"
+  ];
+
+  return menuPhrases.includes(t);
+}
+
+function detectExitCommand(text) {
+  const t = normalizeText(text);
+
+  const exitPhrases = [
+    "exit",
+    "goodbye",
+    "bye",
+    "adios",
+    "hasta luego"
+  ];
+
+  return exitPhrases.includes(t);
+}
+
 function isGreetingReentry(text) {
   const t = normalizeText(text);
 
@@ -182,29 +221,6 @@ function detectIntent(text) {
   }
 
   return null;
-}
-
-function isExplicitReset(text) {
-  const t = normalizeText(text);
-
-  const resetPhrases = [
-    "olvida eso",
-    "olvidalo",
-    "cancel that",
-    "never mind",
-    "start over",
-    "restart",
-    "menu",
-    "main menu",
-    "otra cosa",
-    "another question",
-    "cambiar tema",
-    "change topic",
-    "idioma",
-    "language"
-  ];
-
-  return resetPhrases.some((phrase) => t.includes(phrase));
 }
 
 function isLikelyContinuation(text) {
@@ -325,28 +341,31 @@ app.post("/webhook", async (req, res) => {
     console.log(`[SESSION BEFORE]`, getSessionSummary(session));
 
     const languageCommand = detectLanguageCommand(userText);
-    const explicitReset = isExplicitReset(userText);
+    const restartCommand = detectRestartCommand(userText);
+    const menuCommand = detectMenuCommand(userText);
+    const exitCommand = detectExitCommand(userText);
     const greetingReentry = isGreetingReentry(userText);
     const detectedIntent = detectIntent(userText);
 
     const forceLaunch =
       session.state === "idle" ||
-      explicitReset ||
-      languageCommand !== null ||
+      restartCommand ||
       (greetingReentry && !session.active_request);
 
     // ---- REQUEST CONTROL ----
-    if (explicitReset || languageCommand !== null) {
+    if (restartCommand) {
       updateSession(userID, {
         active_request: null,
         state: "idle"
       });
 
-      console.log(
-        `[REQUEST RESET] user=${userID} reason=${
-          languageCommand ? `language_command:${languageCommand}` : "explicit_reset_phrase"
-        }`
-      );
+      console.log(`[REQUEST RESET] user=${userID} reason=restart_command`);
+    } else if (menuCommand) {
+      updateSession(userID, {
+        active_request: null
+      });
+
+      console.log(`[REQUEST RESET] user=${userID} reason=menu_command`);
     } else {
       const currentSession = sessions[userID];
 
@@ -388,18 +407,32 @@ app.post("/webhook", async (req, res) => {
       detectedIntent === "reservation" ||
       detectedIntent === "complaint";
 
+    let forwardedText = userText;
+
+    if (menuCommand) {
+      forwardedText = "main menu";
+    } else if (languageCommand === "en") {
+      forwardedText = "english";
+    } else if (languageCommand === "es") {
+      forwardedText = "español";
+    } else if (exitCommand) {
+      forwardedText = "goodbye";
+    }
+
     const vfAction =
       forceLaunch || shouldForceIntentLaunch
         ? { type: "launch" }
         : {
             type: "text",
-            payload: userText
+            payload: forwardedText
           };
 
     console.log(
       `[VOICEFLOW REQUEST] user=${userID} session_id=${sessions[userID].session_id} action=${vfAction.type}${
         languageCommand ? ` language=${languageCommand}` : ""
-      }${shouldForceIntentLaunch ? ` intent_launch=${detectedIntent}` : ""}`
+      }${menuCommand ? ` menu_command=true` : ""}${
+        shouldForceIntentLaunch ? ` intent_launch=${detectedIntent}` : ""
+      }${exitCommand ? ` exit_command=true` : ""}`
     );
 
     // ---- CALL VOICEFLOW ----
