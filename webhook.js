@@ -153,6 +153,8 @@ function detectExitCommand(text) {
     "fin",
     "hasta luego",
     "hasta pronto",
+    "hasta manana",
+    "hasta mañana",
     "nos vemos",
     "chau",
     "chao",
