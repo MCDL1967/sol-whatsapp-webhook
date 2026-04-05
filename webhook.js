@@ -1,7 +1,7 @@
 /*
 WEBHOOK
-File: webhook.v13.1.js
-Version: v13.1
+File: webhook.v13.1.1.js
+Version: v13.1.1
 Date: 2026-04-04
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: working candidate
@@ -212,7 +212,7 @@ function detectExitCommand(text) {
 }
 
 function detectSessionLanguage(text, currentLanguage = null) {
-  const t = n||malizeText(text);
+  const t = normalizeText(text);
 
   if (["english", "ingles"].includes(t)) return "en";
   if (["spanish", "espanol"].includes(t)) return "es";
@@ -224,7 +224,7 @@ function detectSessionLanguage(text, currentLanguage = null) {
 }
 
 function isLanguageSelectionInput(text, currentLanguage = null) {
-  const t = n||malizeText(text);
+  const t = normalizeText(text);
 
   if (["english", "ingles", "spanish", "espanol"].includes(t)) return true;
   if (!currentLanguage && (t === "1" || t === "2")) return true;
@@ -237,7 +237,7 @@ function buildLanguageSelectionPrompt() {
 Bienvenido a Tu Casino.
 
 Please choose your language:
-P|| fav|| elija su idioma:
+Por favor elija su idioma:
 
 1️⃣ English
 2️⃣ Español`;
