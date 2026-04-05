@@ -1,11 +1,11 @@
 /*
 WEBHOOK
-File: webhook.v13.1.2.js
-Version: v13.1.2.2
+File: webhook.v13.1.3.js
+Version: v13.1.3
 Date: 2026-04-04
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: working candidate
-Base: webhook.v13.js
+Base: webhook.v13.1.2.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -560,7 +560,6 @@ app.post("/webhook", async (req, res) => {
     const detectedIntent = detectIntent(userText);
 
     const inferredLanguage = detectSessionLanguage(userText, session.current_language);
-    const awaitingLanguage = session.awaiting_language || session.current_language === null;
 
     if (inferredLanguage && inferredLanguage !== session.current_language) {
       updateSession(userID, { current_language: inferredLanguage, awaiting_language: false });
@@ -569,9 +568,20 @@ app.post("/webhook", async (req, res) => {
       console.log(`[AWAITING LANGUAGE RESOLVED] user=${userID} language=${inferredLanguage}`);
     }
 
+    const effectiveCurrentLanguage = inferredLanguage || session.current_language;
+    const effectiveAwaitingLanguage =
+      (session.awaiting_language || effectiveCurrentLanguage === null) &&
+      effectiveCurrentLanguage === null;
+
+    if (!effectiveAwaitingLanguage && isLanguageSelectionInput(userText, effectiveCurrentLanguage)) {
+      console.log(
+        `[LANGUAGE SELECTION PASS] user=${userID} session_id=${sessions[userID].session_id} text="${userText}" language=${effectiveCurrentLanguage}`
+      );
+    }
+
     const shouldGateForLanguage =
-      awaitingLanguage &&
-      !isLanguageSelectionInput(userText, session.current_language) &&
+      effectiveAwaitingLanguage &&
+      !isLanguageSelectionInput(userText, effectiveCurrentLanguage) &&
       !exitCommand &&
       !restartCommand;
 
