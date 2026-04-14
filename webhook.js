@@ -30,6 +30,7 @@ Intentionally preserved:
 const express = require("express");
 const axios = require("axios");
 const crypto = require("crypto");
+const logsService = require("./logs_service");
 
 const app = express();
 
@@ -110,6 +111,27 @@ function getSessionSummary(session) {
     side_chat_count: session.side_chat_count,
     created_at: session.created_at,
     last_seen: session.last_seen
+  };
+}
+
+async function runLogsHook(hookName, payload = {}) {
+  const hook = logsService?.[hookName];
+
+  if (typeof hook !== "function") return null;
+
+  try {
+    return await hook(payload);
+  } catch (err) {
+    console.error(`[LOGS HOOK ERROR] hook=${hookName}`, err?.stack || err?.message || err);
+    return null;
+  }
+}
+
+function buildHookPayload(payload = {}) {
+  return {
+    source_file: "webhook.v13.1.3.scaffold.js",
+    event_timestamp: new Date().toISOString(),
+    ...payload
   };
 }
 
@@ -541,6 +563,25 @@ app.post("/webhook", async (req, res) => {
     const entry = req.body?.entry?.[0];
     const changes = entry?.changes?.[0];
     const message = changes?.value?.messages?.[0];
+    const statusEvent = changes?.value?.statuses?.[0];
+
+    if (statusEvent) {
+      const statusUserID = statusEvent.recipient_id;
+      const statusSession = statusUserID ? sessions[statusUserID] || null : null;
+
+      await runLogsHook(
+        "captureStatusEvent",
+        buildHookPayload({
+          event_type: "meta_status",
+          user_id: statusUserID || "",
+          session_summary: statusSession ? getSessionSummary(statusSession) : null,
+          raw_status: statusEvent,
+          summary: statusEvent.status || "meta_status"
+        })
+      );
+
+      return;
+    }
 
     if (!message || message.type !== "text") return;
 
@@ -558,6 +599,19 @@ app.post("/webhook", async (req, res) => {
     const exitCommand = detectExitCommand(userText);
     const greetingReentry = isGreetingReentry(userText);
     const detectedIntent = detectIntent(userText);
+
+    await runLogsHook(
+      "captureInboundMessage",
+      buildHookPayload({
+        event_type: "inbound_message",
+        user_id: userID,
+        user_text: userText,
+        message_id: message.id || "",
+        session_summary: getSessionSummary(session),
+        detected_intent: detectedIntent,
+        active_request: session.active_request || null
+      })
+    );
 
     const inferredLanguage = detectSessionLanguage(userText, session.current_language);
 
@@ -616,10 +670,22 @@ app.post("/webhook", async (req, res) => {
         `[LANGUAGE GATE BLOCK] user=${userID} session_id=${sessions[userID].session_id} text="${userText}" reason=awaiting_language`
       );
 
+      await runLogsHook(
+        "captureLanguageGateBlock",
+        buildHookPayload({
+          user_id: userID,
+          user_text: userText,
+          session_summary: getSessionSummary(sessions[userID]),
+          summary: "language_gate_block"
+        })
+      );
+
       return;
     }
 
     // ---- REQUEST CONTROL ----
+    let requestControlEvent = null;
+
     if (restartCommand) {
       updateSession(userID, {
         active_request: null,
@@ -630,6 +696,7 @@ app.post("/webhook", async (req, res) => {
       });
 
       console.log(`[REQUEST RESET] user=${userID} reason=restart_command`);
+      requestControlEvent = { request_action: "reset", reason: "restart_command" };
     } else if (menuCommand) {
       updateSession(userID, {
         active_request: null,
@@ -637,6 +704,7 @@ app.post("/webhook", async (req, res) => {
       });
 
       console.log(`[REQUEST RESET] user=${userID} reason=menu_command`);
+      requestControlEvent = { request_action: "reset", reason: "menu_command" };
     } else if (exitCommand) {
       updateSession(userID, {
         active_request: null,
@@ -647,6 +715,7 @@ app.post("/webhook", async (req, res) => {
       });
 
       console.log(`[REQUEST RESET] user=${userID} reason=exit_command`);
+      requestControlEvent = { request_action: "reset", reason: "exit_command" };
     } else {
       const currentSession = sessions[userID];
 
@@ -662,6 +731,7 @@ app.post("/webhook", async (req, res) => {
           console.log(
             `[REQUEST DETECTED] user=${userID} type=${newRequest.type} status=${newRequest.status}`
           );
+          requestControlEvent = { request_action: "detected", request_type: newRequest.type, request_status: newRequest.status };
         }
       } else {
          if (shouldSwitchIntent(currentSession.active_request, detectedIntent, userText)) {
@@ -676,6 +746,7 @@ app.post("/webhook", async (req, res) => {
           console.log(
             `[REQUEST SWITCH] user=${userID} from=${previousType} to=${newRequest.type} status=${newRequest.status}`
           );
+          requestControlEvent = { request_action: "switched", previous_request_type: previousType, request_type: newRequest.type, request_status: newRequest.status };
         } else if (shouldClearActiveRequest(currentSession.active_request, detectedIntent, userText)) {
           const previousType = currentSession.active_request.type;
 
@@ -684,12 +755,31 @@ app.post("/webhook", async (req, res) => {
           console.log(
             `[REQUEST CLEARED] user=${userID} from=${previousType} reason=non_continuation_unmatched_topic`
           );
+          requestControlEvent = { request_action: "cleared", previous_request_type: previousType, reason: "non_continuation_unmatched_topic" };
         } else {
           console.log(
             `[REQUEST CONTINUING] user=${userID} type=${currentSession.active_request.type} status=${currentSession.active_request.status}`
           );
         }
       }
+    }
+
+    if (requestControlEvent) {
+      const hookName = requestControlEvent.request_action === "reset"
+        ? "captureRequestReset"
+        : "captureRequestState";
+
+      await runLogsHook(
+        hookName,
+        buildHookPayload({
+          user_id: userID,
+          user_text: userText,
+          detected_intent: detectedIntent,
+          active_request: sessions[userID]?.active_request || null,
+          session_summary: getSessionSummary(sessions[userID]),
+          ...requestControlEvent
+        })
+      );
     }
 
     const currentSessionAfterControl = sessions[userID];
@@ -747,7 +837,7 @@ app.post("/webhook", async (req, res) => {
     if (shouldReanchor) {
       const reanchorReply = buildReanchorMessage(sessionBeforeForward, userText);
 
-      await axios.post(
+      const reanchorResponse = await axios.post(
         `https://graph.facebook.com/v19.0/${WA_PHONE_ID}/messages`,
         {
           messaging_product: "whatsapp",
@@ -761,6 +851,19 @@ app.post("/webhook", async (req, res) => {
             "Content-Type": "application/json"
           }
         }
+      );
+
+      await runLogsHook(
+        "captureOutboundMessage",
+        buildHookPayload({
+          user_id: userID,
+          reply: reanchorReply,
+          source_message_id: message.id || "",
+          whatsapp_message_id: reanchorResponse?.data?.messages?.[0]?.id || "",
+          session_summary: getSessionSummary(sessions[userID]),
+          broadcast_status: "sent_to_meta",
+          client_message_status: "sent"
+        })
       );
 
       updateSession(userID, { state: "active", side_chat_count: 0 });
@@ -857,6 +960,22 @@ app.post("/webhook", async (req, res) => {
       .map((t) => t.payload?.message)
       .filter(Boolean);
 
+    await runLogsHook(
+      "captureVoiceflowTurn",
+      buildHookPayload({
+        user_id: userID,
+        user_text: userText,
+        forwarded_text: forwardedText,
+        detected_intent: detectedIntent,
+        session_summary: getSessionSummary(sessions[userID]),
+        active_request: sessions[userID]?.active_request || null,
+        trace_count: traces.length,
+        reply_count: replies.length,
+        replies,
+        summary: `voiceflow replies=${replies.length}`
+      })
+    );
+
     if (replies.length === 0) {
       const fallbackReply = getSafetyFallbackMessage(userText);
 
@@ -864,7 +983,7 @@ app.post("/webhook", async (req, res) => {
         `[VOICEFLOW] No text reply for user=${userID} session_id=${sessions[userID].session_id} action=no_text_reply -> sending middleware fallback`
       );
 
-      await axios.post(
+      const fallbackResponse = await axios.post(
         `https://graph.facebook.com/v19.0/${WA_PHONE_ID}/messages`,
         {
           messaging_product: "whatsapp",
@@ -878,6 +997,19 @@ app.post("/webhook", async (req, res) => {
             "Content-Type": "application/json"
           }
         }
+      );
+
+      await runLogsHook(
+        "captureOutboundMessage",
+        buildHookPayload({
+          user_id: userID,
+          reply: fallbackReply,
+          source_message_id: message.id || "",
+          whatsapp_message_id: fallbackResponse?.data?.messages?.[0]?.id || "",
+          session_summary: getSessionSummary(sessions[userID]),
+          broadcast_status: "sent_to_meta",
+          client_message_status: "sent"
+        })
       );
 
       updateSession(
@@ -901,7 +1033,7 @@ app.post("/webhook", async (req, res) => {
 
     // ---- SEND REPLY BACK VIA WHATSAPP ----
     for (const reply of replies) {
-      await axios.post(
+      const outboundResponse = await axios.post(
         `https://graph.facebook.com/v19.0/${WA_PHONE_ID}/messages`,
         {
           messaging_product: "whatsapp",
@@ -917,11 +1049,33 @@ app.post("/webhook", async (req, res) => {
         }
       );
 
+      await runLogsHook(
+        "captureOutboundMessage",
+        buildHookPayload({
+          user_id: userID,
+          reply,
+          source_message_id: message.id || "",
+          whatsapp_message_id: outboundResponse?.data?.messages?.[0]?.id || "",
+          session_summary: getSessionSummary(sessions[userID]),
+          broadcast_status: "sent_to_meta",
+          client_message_status: "sent"
+        })
+      );
+
       console.log(
         `[OUTBOUND] user=${userID} session_id=${sessions[userID].session_id} reply="${reply}"`
       );
     }
   } catch (err) {
+    await runLogsHook(
+      "captureMiddlewareError",
+      buildHookPayload({
+        event_type: "middleware_error",
+        summary: err.response?.data ? JSON.stringify(err.response.data) : err.message,
+        error_message: err.message
+      })
+    );
+
     console.error("[ERROR]", err.response?.data || err.message);
   }
 });
