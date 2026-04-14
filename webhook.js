@@ -1,7 +1,7 @@
 /*
 WEBHOOK
-File: webhook.v13.1.6.js
-Version: v13.1.6
+File: webhook.v13.1.7.js
+Version: v13.1.7
 Date: 2026-04-13
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
@@ -22,6 +22,11 @@ This version adds:
 - middleware language-lock prompt injection for Voiceflow turns
 - outbound language mismatch detection and safe locked-language fallback
 - preservation of v13.1.5 clock/calendar and guest-profile memory features
+- numeric 1/2 language selection accepted again when a language prompt is active
+
+This version adds:
+- active language-lock response guardrails preserved
+- numeric 1/2 language selection recovery when a language prompt is active
 
 Intentionally preserved:
 - v13 exit/reset behavior
@@ -604,25 +609,31 @@ function detectExitCommand(text) {
   return pattern.test(t);
 }
 
-function detectSessionLanguage(text, currentLanguage = null) {
+function detectSessionLanguage(text, currentLanguage = null, options = {}) {
   const t = normalizeText(text);
+  const allowNumericSelection = !!options.allowNumericSelection;
 
   if (["english", "ingles"].includes(t)) return "en";
   if (["spanish", "espanol"].includes(t)) return "es";
 
-  if (!currentLanguage && t === "1") return "en";
-  if (!currentLanguage && t === "2") return "es";
+  if ((!currentLanguage || allowNumericSelection) && t === "1") return "en";
+  if ((!currentLanguage || allowNumericSelection) && t === "2") return "es";
 
   return currentLanguage || null;
 }
 
-function isLanguageSelectionInput(text, currentLanguage = null) {
+function isLanguageSelectionInput(text, currentLanguage = null, options = {}) {
   const t = normalizeText(text);
+  const allowNumericSelection = !!options.allowNumericSelection;
 
   if (["english", "ingles", "spanish", "espanol"].includes(t)) return true;
-  if (!currentLanguage && (t === "1" || t === "2")) return true;
+  if ((!currentLanguage || allowNumericSelection) && (t === "1" || t === "2")) return true;
 
   return false;
+}
+
+function isActiveLanguagePromptContext(session = null) {
+  return !!session?.awaiting_language || isLanguageSelectionPromptText(session?.last_bot_reply || "");
 }
 
 function buildLanguageSelectionPrompt() {
@@ -1277,7 +1288,11 @@ app.post("/webhook", async (req, res) => {
       })
     );
 
-    const inferredLanguage = detectSessionLanguage(userText, session.current_language);
+    const activeLanguagePromptContext = isActiveLanguagePromptContext(session);
+
+    const inferredLanguage = detectSessionLanguage(userText, session.current_language, {
+      allowNumericSelection: activeLanguagePromptContext
+    });
 
     if (inferredLanguage && inferredLanguage !== session.current_language) {
       updateSession(userID, { current_language: inferredLanguage, awaiting_language: false });
@@ -1291,7 +1306,9 @@ app.post("/webhook", async (req, res) => {
       (session.awaiting_language || effectiveCurrentLanguage === null) &&
       effectiveCurrentLanguage === null;
 
-    if (!effectiveAwaitingLanguage && isLanguageSelectionInput(userText, effectiveCurrentLanguage)) {
+    if (!effectiveAwaitingLanguage && isLanguageSelectionInput(userText, effectiveCurrentLanguage, {
+      allowNumericSelection: activeLanguagePromptContext
+    })) {
       console.log(
         `[LANGUAGE SELECTION PASS] user=${userID} session_id=${sessions[userID].session_id} text="${userText}" language=${effectiveCurrentLanguage}`
       );
@@ -1299,7 +1316,9 @@ app.post("/webhook", async (req, res) => {
 
     const shouldGateForLanguage =
       effectiveAwaitingLanguage &&
-      !isLanguageSelectionInput(userText, effectiveCurrentLanguage) &&
+      !isLanguageSelectionInput(userText, effectiveCurrentLanguage, {
+        allowNumericSelection: activeLanguagePromptContext
+      }) &&
       !exitCommand &&
       !restartCommand;
 
