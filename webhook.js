@@ -1,11 +1,11 @@
 /*
 WEBHOOK
-File: webhook.v13.1.3.js
-Version: v13.1.3
-Date: 2026-04-04
+File: webhook.js
+Version: v13.1.4
+Date: 2026-04-13
 Role: WhatsApp ↔ Voiceflow middleware webhook
-Status: working candidate
-Base: webhook.v13.1.2.js
+Status: patched working candidate
+Base: webhook.v13.1.3.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -14,17 +14,21 @@ Purpose:
 - forward messages to Voiceflow
 - return Voiceflow replies to WhatsApp
 - preserve request-state continuity with conservative re-anchor behavior
+- emit external LOGS hooks without moving workbook execution into the webhook
 
 This version adds:
-- strict pre-language gate
-- awaiting_language session flag
-- menu gate before language selection
-- stronger theft / robbery / security intent detection
+- external LOGS hook scaffold
+- complaint / security intent priority before reservation
+- removal of bare "table" as a reservation trigger
+- stronger theft / robbery / security handling
+- complaint-aware middleware fallback when Voiceflow returns no text
+- suppression of mid-session language menu re-entry while language is already set
 
 Intentionally preserved:
 - v13 exit/reset behavior
 - v13 direct language-command behavior
 - v13 side-chat re-anchor behavior
+- existing Voiceflow transport / reply path
 */
 
 const express = require("express");
@@ -129,7 +133,7 @@ async function runLogsHook(hookName, payload = {}) {
 
 function buildHookPayload(payload = {}) {
   return {
-    source_file: "webhook.v13.1.3.scaffold.js",
+    source_file: "webhook.js",
     event_timestamp: new Date().toISOString(),
     ...payload
   };
@@ -270,6 +274,53 @@ function buildPreLanguageGoodbyePrompt() {
 Hasta luego — aquí estaré si necesitas algo más. ✨`;
 }
 
+function containsAny(text, keywords = []) {
+  return keywords.some((keyword) => text.includes(keyword));
+}
+
+function isLanguageSelectionPromptText(text = "") {
+  const t = normalizeText(text);
+  return (
+    t.includes("please choose your language") ||
+    t.includes("por favor elija su idioma")
+  );
+}
+
+function getContextAwareFallbackMessage(text, session = null) {
+  const activeType = session?.active_request?.type || null;
+  const t = normalizeText(text);
+
+  const securitySignals = [
+    "wallet",
+    "stolen",
+    "stole",
+    "theft",
+    "robbery",
+    "robo",
+    "robbed",
+    "security",
+    "seguridad",
+    "police",
+    "policia",
+    "ambulance",
+    "ambulancia"
+  ];
+
+  if (activeType === "complaint" || containsAny(t, securitySignals)) {
+    const spanishSignals =
+      /[áéíóúñ¿¡]/i.test(text || "") ||
+      ["hola", "gracias", "seguridad", "robo", "cartera", "policia", "ambulancia"].some((w) =>
+        t.includes(normalizeText(w))
+      );
+
+    return spanishSignals
+      ? "Lo siento. Esto parece urgente. Por favor dime tu ubicación exacta y confirma si estás a salvo ahora mismo. Puedo continuar el reporte para Seguridad."
+      : "I’m sorry. This sounds urgent. Please tell me your exact location and confirm whether you are safe right now. I can continue the report for Security.";
+  }
+
+  return getSafetyFallbackMessage(text);
+}
+
 function detectChitChat(text) {
   const t = normalizeText(text);
 
@@ -356,19 +407,8 @@ function isGreetingReentry(text) {
 }
 
 // ---- INTENT DETECTION ----
-function detectIntent(text) {
+function detectIntent(text, currentRequestType = null) {
   const t = normalizeText(text);
-
-  const reservationKeywords = [
-    "reserva",
-    "reservar",
-    "reservacion",
-    "book",
-    "booking",
-    "table",
-    "restaurant reservation",
-    "restaurant booking"
-  ];
 
   const complaintKeywords = [
     "queja",
@@ -398,13 +438,31 @@ function detectIntent(text) {
     "ambulance",
     "ambulancia",
     "police",
-    "policia"
+    "policia",
+    "lost wallet",
+    "missing wallet"
+  ];
+
+  const reservationKeywords = [
+    "reserva",
+    "reservar",
+    "reservacion",
+    "reservation",
+    "book",
+    "booking",
+    "restaurant reservation",
+    "restaurant booking",
+    "book a table",
+    "table for ",
+    "table for",
+    "dinner reservation",
+    "make a reservation",
+    "restaurant"
   ];
 
   const infoKeywords = [
     "info",
     "informacion",
-    "horario",
     "hours",
     "location",
     "ubicacion",
@@ -412,15 +470,66 @@ function detectIntent(text) {
     "donde"
   ];
 
-  if (reservationKeywords.some((k) => t.includes(k))) {
-    return "reservation";
-  }
+  const securityLocationFollowupKeywords = [
+    "table ",
+    "roulette table",
+    "ruleta",
+    "roulette",
+    "roulet",
+    "roulete",
+    "next to",
+    "near",
+    "by the",
+    "column",
+    "colmn",
+    "lobby",
+    "garage",
+    "valet",
+    "casino floor",
+    "hotel lobby"
+  ];
 
-  if (complaintKeywords.some((k) => t.includes(k))) {
+  const theftSignals = [
+    "wallet",
+    "cartera",
+    "stolen",
+    "stole",
+    "theft",
+    "robbery",
+    "robo",
+    "robbed",
+    "security",
+    "seguridad",
+    "police",
+    "policia",
+    "ambulance",
+    "ambulancia"
+  ];
+
+  const reservationDiningSignals = [
+    "dinner",
+    "lunch",
+    "breakfast",
+    "restaurant",
+    "table for",
+    "party of",
+    "guests",
+    "pax"
+  ];
+
+  if (currentRequestType === "complaint" && containsAny(t, securityLocationFollowupKeywords)) {
     return "complaint";
   }
 
-  if (infoKeywords.some((k) => t.includes(k))) {
+  if (containsAny(t, complaintKeywords) || containsAny(t, theftSignals)) {
+    return "complaint";
+  }
+
+  if (containsAny(t, reservationKeywords) || containsAny(t, reservationDiningSignals)) {
+    return "reservation";
+  }
+
+  if (containsAny(t, infoKeywords)) {
     return "info";
   }
 
@@ -598,7 +707,7 @@ app.post("/webhook", async (req, res) => {
     const menuCommand = detectMenuCommand(userText);
     const exitCommand = detectExitCommand(userText);
     const greetingReentry = isGreetingReentry(userText);
-    const detectedIntent = detectIntent(userText);
+    const detectedIntent = detectIntent(userText, session.active_request?.type || null);
 
     await runLogsHook(
       "captureInboundMessage",
@@ -955,10 +1064,25 @@ app.post("/webhook", async (req, res) => {
     }
 
     // ---- EXTRACT TEXT REPLIES FROM VOICEFLOW ----
-    const replies = traces
+    const rawReplies = traces
       .filter((t) => t.type === "text")
       .map((t) => t.payload?.message)
       .filter(Boolean);
+
+    const suppressedLanguagePrompt =
+      !!sessions[userID]?.current_language &&
+      !sessions[userID]?.awaiting_language &&
+      rawReplies.some((reply) => isLanguageSelectionPromptText(reply));
+
+    const replies = suppressedLanguagePrompt
+      ? rawReplies.filter((reply) => !isLanguageSelectionPromptText(reply))
+      : rawReplies;
+
+    if (suppressedLanguagePrompt) {
+      console.log(
+        `[VOICEFLOW FILTER] user=${userID} session_id=${sessions[userID].session_id} action=suppress_language_prompt_mid_session`
+      );
+    }
 
     await runLogsHook(
       "captureVoiceflowTurn",
@@ -972,15 +1096,16 @@ app.post("/webhook", async (req, res) => {
         trace_count: traces.length,
         reply_count: replies.length,
         replies,
+        suppressed_language_prompt: suppressedLanguagePrompt,
         summary: `voiceflow replies=${replies.length}`
       })
     );
 
     if (replies.length === 0) {
-      const fallbackReply = getSafetyFallbackMessage(userText);
+      const fallbackReply = getContextAwareFallbackMessage(userText, sessions[userID]);
 
       console.log(
-        `[VOICEFLOW] No text reply for user=${userID} session_id=${sessions[userID].session_id} action=no_text_reply -> sending middleware fallback`
+        `[VOICEFLOW] No usable text reply for user=${userID} session_id=${sessions[userID].session_id} action=no_text_reply -> sending middleware fallback`
       );
 
       const fallbackResponse = await axios.post(
