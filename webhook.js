@@ -1,11 +1,11 @@
 /*
 WEBHOOK
-File: webhook.js
-Version: v13.1.5
+File: webhook.v13.1.6.js
+Version: v13.1.6
 Date: 2026-04-13
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.4.js
+Base: webhook.v13.1.5.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -17,12 +17,11 @@ Purpose:
 - emit external LOGS hooks without moving workbook execution into the webhook
 
 This version adds:
-- Panama-local clock / calendar runtime context injection for Voiceflow
-- durable guest profile memory across intent switches and menu resets
-- guest name capture from explicit statements and name-prompt replies
-- relative incident time derivation (e.g. "10 minutes ago")
-- reservation time alternative scaffolding
-- preservation of v13.1.4 complaint / security routing safeguards
+- hard response-language lock per selected session language
+- explicit-only language switching support
+- middleware language-lock prompt injection for Voiceflow turns
+- outbound language mismatch detection and safe locked-language fallback
+- preservation of v13.1.5 clock/calendar and guest-profile memory features
 
 Intentionally preserved:
 - v13 exit/reset behavior
@@ -462,13 +461,20 @@ function buildPanamaRuntimeContext(userText = "", baseDate = new Date()) {
   };
 }
 
-function buildVoiceflowStateVariables(session, userText = "") {
+function buildVoiceflowStateVariables(session, userText = "", options = {}) {
   const runtimeContext = buildPanamaRuntimeContext(userText);
   const guestProfile = session?.guest_profile || createGuestProfile(session?.user_id || "");
+  const responseLanguage = options.responseLanguage || session?.current_language || null;
+  const userInputLanguage = options.userInputLanguage || detectLikelyTextLanguage(userText);
+  const explicitLanguageSwitch = options.languageCommand || null;
 
   return {
     middleware_session_id: session?.session_id || null,
     middleware_current_language: session?.current_language || null,
+    middleware_locked_response_language: responseLanguage,
+    middleware_user_input_language: userInputLanguage,
+    middleware_language_lock: !!responseLanguage,
+    middleware_language_switch_requested: explicitLanguageSwitch || null,
     middleware_active_request_type: session?.active_request?.type || null,
     middleware_active_request_status: session?.active_request?.status || null,
     middleware_current_datetime_iso: runtimeContext.current_datetime_iso,
@@ -488,6 +494,12 @@ function buildVoiceflowStateVariables(session, userText = "") {
     middleware_reservation_alternative_time_1_display: runtimeContext.reservation_alternative_time_1_display,
     middleware_reservation_alternative_time_2: runtimeContext.reservation_alternative_time_2,
     middleware_reservation_alternative_time_2_display: runtimeContext.reservation_alternative_time_2_display,
+    user_language: responseLanguage,
+    response_language: responseLanguage,
+    language_lock: !!responseLanguage,
+    language_switch_allowed: false,
+    language_switch_requested: !!explicitLanguageSwitch,
+    explicit_language_switch_target: explicitLanguageSwitch || null,
     guest_name: guestProfile.guest_name || null,
     guest_contact_phone: guestProfile.contact_phone || null,
     guest_contact_email: guestProfile.contact_email || null
@@ -631,6 +643,177 @@ Hasta luego — aquí estaré si necesitas algo más. ✨`;
 
 function containsAny(text, keywords = []) {
   return keywords.some((keyword) => text.includes(keyword));
+}
+
+function detectExplicitLanguageSwitchRequest(text, currentLanguage = null) {
+  const t = normalizeText(text);
+
+  const englishSwitchPhrases = [
+    "switch to english",
+    "change to english",
+    "reply in english",
+    "respond in english",
+    "speak english",
+    "in english please",
+    "english please",
+    "can we do english",
+    "cambiar a ingles",
+    "en ingles",
+    "en ingles por favor"
+  ];
+
+  const spanishSwitchPhrases = [
+    "switch to spanish",
+    "change to spanish",
+    "reply in spanish",
+    "respond in spanish",
+    "speak spanish",
+    "in spanish please",
+    "spanish please",
+    "cambiar a espanol",
+    "cambiar a español",
+    "en espanol",
+    "en español",
+    "en espanol por favor",
+    "en español por favor"
+  ];
+
+  if (englishSwitchPhrases.some((phrase) => t.includes(phrase))) {
+    return currentLanguage === "en" ? null : "en";
+  }
+
+  if (spanishSwitchPhrases.some((phrase) => t.includes(phrase))) {
+    return currentLanguage === "es" ? null : "es";
+  }
+
+  return null;
+}
+
+function detectLikelyTextLanguage(text = "") {
+  const raw = text || "";
+  const t = ` ${normalizeText(raw)} `;
+
+  if (!t.trim()) return "unknown";
+
+  let spanishScore = 0;
+  let englishScore = 0;
+
+  if (/[áéíóúñ¿¡]/i.test(raw)) {
+    spanishScore += 3;
+  }
+
+  const spanishSignals = [
+    " hola ",
+    " gracias ",
+    " claro ",
+    " vale ",
+    " necesito ",
+    " quiero ",
+    " reservacion ",
+    " reserva ",
+    " seguridad ",
+    " por favor ",
+    " correo ",
+    " televisor ",
+    " partido ",
+    " adios ",
+    " fecha ",
+    " hora ",
+    " lugar ",
+    " nombre ",
+    " cliente ",
+    " solicitud ",
+    " servicio ",
+    " adelante ",
+    " que ",
+    " para "
+  ];
+
+  const englishSignals = [
+    " hello ",
+    " hi ",
+    " thanks ",
+    " thank you ",
+    " please ",
+    " reservation ",
+    " security ",
+    " tomorrow ",
+    " today ",
+    " date ",
+    " time ",
+    " name ",
+    " contact ",
+    " guests ",
+    " request ",
+    " would ",
+    " like ",
+    " can you ",
+    " booking ",
+    " party ",
+    " table ",
+    " right now "
+  ];
+
+  for (const signal of spanishSignals) {
+    if (t.includes(signal)) spanishScore += 1;
+  }
+
+  for (const signal of englishSignals) {
+    if (t.includes(signal)) englishScore += 1;
+  }
+
+  if (spanishScore === 0 && englishScore === 0) return "unknown";
+  if (Math.abs(spanishScore - englishScore) < 2) return "unknown";
+
+  return spanishScore > englishScore ? "es" : "en";
+}
+
+function buildLanguageLockInstruction(lockedLanguage = "en") {
+  const languageName = lockedLanguage === "es" ? "Spanish" : "English";
+  const otherLanguageName = lockedLanguage === "es" ? "English" : "Spanish";
+
+  return `[[SESSION LANGUAGE LOCK: Respond ONLY in ${languageName}. Do NOT switch to ${otherLanguageName} just because the guest writes in ${otherLanguageName} or because the request feels urgent. Only switch languages if the guest explicitly requests a language change. Continue the current flow naturally.]]`;
+}
+
+function applyResponseLanguageLock(text, lockedLanguage = null, options = {}) {
+  if (!text || !lockedLanguage || options.skip) return text;
+
+  const lockInstruction = buildLanguageLockInstruction(lockedLanguage);
+  return `${lockInstruction} ${text}`;
+}
+
+function detectReplyLanguageMismatch(reply = "", lockedLanguage = null) {
+  if (!reply || !lockedLanguage) {
+    return { mismatch: false, detectedLanguage: "unknown" };
+  }
+
+  const detectedLanguage = detectLikelyTextLanguage(reply);
+  const mismatch = detectedLanguage !== "unknown" && detectedLanguage !== lockedLanguage;
+
+  return { mismatch, detectedLanguage };
+}
+
+function buildLockedLanguageFallbackReply(session = null, lockedLanguage = null) {
+  const lang = lockedLanguage || session?.current_language || "en";
+  const activeType = session?.active_request?.type || null;
+
+  if (lang === "es") {
+    if (activeType === "complaint") {
+      return "Continuaré en español, como fue seleccionado. Por favor dime el siguiente detalle del incidente para continuar el reporte.";
+    }
+    if (activeType === "reservation") {
+      return "Continuaré en español, como fue seleccionado. Por favor dime el siguiente detalle de la reservación para continuar.";
+    }
+    return "Continuaré en español, como fue seleccionado. Por favor continúa con tu solicitud.";
+  }
+
+  if (activeType === "complaint") {
+    return "I’ll continue in English, as selected. Please tell me the next incident detail so I can continue the report.";
+  }
+  if (activeType === "reservation") {
+    return "I’ll continue in English, as selected. Please tell me the next reservation detail so I can continue your request.";
+  }
+  return "I’ll continue in English, as selected. Please continue with your request.";
 }
 
 function isLanguageSelectionPromptText(text = "") {
@@ -1068,7 +1251,9 @@ app.post("/webhook", async (req, res) => {
     console.log(`[INBOUND] user=${userID} session_id=${session.session_id} text="${userText}"`);
     console.log(`[SESSION BEFORE]`, getSessionSummary(session));
 
-    const languageCommand = detectLanguageCommand(userText);
+    const explicitLanguageSwitchCommand = detectExplicitLanguageSwitchRequest(userText, session.current_language);
+    const languageCommand = detectLanguageCommand(userText) || explicitLanguageSwitchCommand;
+    const detectedInputLanguage = detectLikelyTextLanguage(userText);
     const restartCommand = detectRestartCommand(userText);
     const menuCommand = detectMenuCommand(userText);
     const exitCommand = detectExitCommand(userText);
@@ -1086,6 +1271,8 @@ app.post("/webhook", async (req, res) => {
         detected_intent: detectedIntent,
         active_request: session.active_request || null,
         guest_profile: session.guest_profile || null,
+        detected_input_language: detectedInputLanguage,
+        explicit_language_switch_command: explicitLanguageSwitchCommand,
         runtime_context: buildPanamaRuntimeContext(userText)
       })
     );
@@ -1304,6 +1491,11 @@ app.post("/webhook", async (req, res) => {
       forwardedText = "goodbye";
     }
 
+    const lockedResponseLanguage = sessions[userID]?.current_language || effectiveCurrentLanguage || null;
+    forwardedText = applyResponseLanguageLock(forwardedText, lockedResponseLanguage, {
+      skip: !!languageCommand || effectiveAwaitingLanguage
+    });
+
     const sessionBeforeForward = sessions[userID];
     const shouldReanchor =
       sessionBeforeForward?.active_request &&
@@ -1356,13 +1548,21 @@ app.post("/webhook", async (req, res) => {
       return;
     }
 
-    const voiceflowStateVariables = buildVoiceflowStateVariables(sessions[userID], userText);
+    const voiceflowStateVariables = buildVoiceflowStateVariables(sessions[userID], userText, {
+      responseLanguage: lockedResponseLanguage,
+      userInputLanguage: detectedInputLanguage,
+      languageCommand
+    });
     const voiceflowRequestMetadata = {
       source: "middleware",
       timezone: voiceflowStateVariables.middleware_current_timezone,
       current_datetime_iso: voiceflowStateVariables.middleware_current_datetime_iso,
       active_request_type: voiceflowStateVariables.middleware_active_request_type,
-      guest_name: voiceflowStateVariables.guest_name
+      guest_name: voiceflowStateVariables.guest_name,
+      response_language: voiceflowStateVariables.response_language,
+      user_input_language: voiceflowStateVariables.middleware_user_input_language,
+      language_lock: voiceflowStateVariables.language_lock,
+      language_switch_requested: voiceflowStateVariables.explicit_language_switch_target
     };
 
     const vfUrl = `https://general-runtime.voiceflow.com/state/user/${userID}/interact`;
@@ -1467,7 +1667,7 @@ app.post("/webhook", async (req, res) => {
       !sessions[userID]?.awaiting_language &&
       rawReplies.some((reply) => isLanguageSelectionPromptText(reply));
 
-    const replies = suppressedLanguagePrompt
+    const filteredReplies = suppressedLanguagePrompt
       ? rawReplies.filter((reply) => !isLanguageSelectionPromptText(reply))
       : rawReplies;
 
@@ -1477,6 +1677,24 @@ app.post("/webhook", async (req, res) => {
       );
     }
 
+    const replyLanguageMismatches = lockedResponseLanguage
+      ? filteredReplies.map((reply) => ({ reply, ...detectReplyLanguageMismatch(reply, lockedResponseLanguage) }))
+          .filter((item) => item.mismatch)
+      : [];
+
+    if (replyLanguageMismatches.length > 0) {
+      console.log(
+        `[VOICEFLOW FILTER] user=${userID} session_id=${sessions[userID].session_id} action=language_lock_mismatch locked=${lockedResponseLanguage} detected=${replyLanguageMismatches.map((item) => item.detectedLanguage).join(",")}`
+      );
+    }
+
+    const replies = filteredReplies.map((reply) => {
+      const mismatch = detectReplyLanguageMismatch(reply, lockedResponseLanguage);
+      return mismatch.mismatch
+        ? buildLockedLanguageFallbackReply(sessions[userID], lockedResponseLanguage)
+        : reply;
+    });
+
     await runLogsHook(
       "captureVoiceflowTurn",
       buildHookPayload({
@@ -1484,11 +1702,16 @@ app.post("/webhook", async (req, res) => {
         user_text: userText,
         forwarded_text: forwardedText,
         detected_intent: detectedIntent,
+        detected_input_language: detectedInputLanguage,
+        locked_response_language: lockedResponseLanguage,
+        explicit_language_switch_command: explicitLanguageSwitchCommand,
         session_summary: getSessionSummary(sessions[userID]),
         active_request: sessions[userID]?.active_request || null,
         trace_count: traces.length,
         reply_count: replies.length,
+        raw_replies: filteredReplies,
         replies,
+        reply_language_mismatches: replyLanguageMismatches,
         suppressed_language_prompt: suppressedLanguagePrompt,
         guest_profile: sessions[userID]?.guest_profile || null,
         voiceflow_state_variables: voiceflowStateVariables,
