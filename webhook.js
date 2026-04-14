@@ -1,11 +1,11 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.4
+Version: v13.1.5
 Date: 2026-04-13
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.3.js
+Base: webhook.v13.1.4.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -17,12 +17,12 @@ Purpose:
 - emit external LOGS hooks without moving workbook execution into the webhook
 
 This version adds:
-- external LOGS hook scaffold
-- complaint / security intent priority before reservation
-- removal of bare "table" as a reservation trigger
-- stronger theft / robbery / security handling
-- complaint-aware middleware fallback when Voiceflow returns no text
-- suppression of mid-session language menu re-entry while language is already set
+- Panama-local clock / calendar runtime context injection for Voiceflow
+- durable guest profile memory across intent switches and menu resets
+- guest name capture from explicit statements and name-prompt replies
+- relative incident time derivation (e.g. "10 minutes ago")
+- reservation time alternative scaffolding
+- preservation of v13.1.4 complaint / security routing safeguards
 
 Intentionally preserved:
 - v13 exit/reset behavior
@@ -44,6 +44,7 @@ const VERIFY_TOKEN = "sol_verify_123";
 const VF_API_KEY = process.env.VF_API_KEY;
 const WA_TOKEN = process.env.WA_TOKEN;
 const WA_PHONE_ID = process.env.WA_PHONE_ID;
+const PANAMA_TIMEZONE = "America/Panama";
 
 // ---- SESSION CONTROL CONFIG ----
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -52,6 +53,14 @@ const sessions = {};
 // ---- SESSION HELPERS ----
 function generateSessionId() {
   return crypto.randomUUID();
+}
+
+function createGuestProfile(userID = "") {
+  return {
+    guest_name: null,
+    contact_phone: userID || null,
+    contact_email: null
+  };
 }
 
 function createNewSession(userID, now) {
@@ -63,6 +72,8 @@ function createNewSession(userID, now) {
     current_language: null,
     awaiting_language: true,
     side_chat_count: 0,
+    guest_profile: createGuestProfile(userID),
+    last_bot_reply: null,
     created_at: now,
     last_seen: now
   };
@@ -113,6 +124,8 @@ function getSessionSummary(session) {
     current_language: session.current_language,
     awaiting_language: session.awaiting_language,
     side_chat_count: session.side_chat_count,
+    guest_profile: session.guest_profile || createGuestProfile(session.user_id),
+    has_last_bot_reply: !!session.last_bot_reply,
     created_at: session.created_at,
     last_seen: session.last_seen
   };
@@ -136,6 +149,348 @@ function buildHookPayload(payload = {}) {
     source_file: "webhook.js",
     event_timestamp: new Date().toISOString(),
     ...payload
+  };
+}
+
+function titleCaseWords(value = "") {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function cleanNameCandidate(name = "") {
+  return name
+    .replace(/[.,!?]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isLikelyNamePrompt(text = "") {
+  const t = normalizeText(text);
+  return (
+    t.includes("what name should i place") ||
+    t.includes("what name should i use") ||
+    t.includes("what name should i put") ||
+    t.includes("under what name") ||
+    t.includes("what name should i place the reservation under") ||
+    t.includes("what name should i place the request under") ||
+    t.includes("what name should i place the report under") ||
+    t.includes("your name") ||
+    t.includes("name for contact") ||
+    t.includes("place the reservation under")
+  );
+}
+
+function looksLikeStandaloneName(text = "") {
+  const raw = (text || "").trim();
+  if (!raw) return false;
+  if (raw.length > 60) return false;
+  if (/[0-9@]/.test(raw)) return false;
+  if (/[,;:!?]/.test(raw)) return false;
+
+  const normalized = normalizeText(raw);
+  const disallowed = [
+    "yes",
+    "no",
+    "ok",
+    "okay",
+    "menu",
+    "goodbye",
+    "security",
+    "reservation",
+    "fenicia",
+    "steakhouse",
+    "tomorrow",
+    "today",
+    "for now"
+  ];
+  if (disallowed.includes(normalized)) return false;
+
+  const tokens = raw.split(/\s+/).filter(Boolean);
+  if (tokens.length < 2 || tokens.length > 4) return false;
+
+  return tokens.every((token) => /^[A-Za-zÀ-ÿ'’-]+$/.test(token));
+}
+
+function extractEmail(text = "") {
+  const match = (text || "").match(/\b([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})\b/i);
+  return match ? match[1].toLowerCase() : null;
+}
+
+function extractPhone(text = "") {
+  const digits = (text || "").replace(/\D/g, "");
+  if (digits.length >= 7 && digits.length <= 15) {
+    return digits;
+  }
+
+  return null;
+}
+
+function extractGuestName(text = "", session = null) {
+  const raw = (text || "").trim();
+  if (!raw) return null;
+
+  const explicitPatterns = [
+    /\bmy name is\s+([A-Za-zÀ-ÿ'’\-]+(?:\s+[A-Za-zÀ-ÿ'’\-]+){0,3})/i,
+    /\bname is\s+([A-Za-zÀ-ÿ'’\-]+(?:\s+[A-Za-zÀ-ÿ'’\-]+){0,3})/i,
+    /\bunder the name\s+([A-Za-zÀ-ÿ'’\-]+(?:\s+[A-Za-zÀ-ÿ'’\-]+){0,3})/i,
+    /\bthis is\s+([A-Za-zÀ-ÿ'’\-]+(?:\s+[A-Za-zÀ-ÿ'’\-]+){0,3})/i
+  ];
+
+  for (const pattern of explicitPatterns) {
+    const match = raw.match(pattern);
+    if (match?.[1]) {
+      return titleCaseWords(cleanNameCandidate(match[1]));
+    }
+  }
+
+  if (session?.last_bot_reply && isLikelyNamePrompt(session.last_bot_reply) && looksLikeStandaloneName(raw)) {
+    return titleCaseWords(cleanNameCandidate(raw));
+  }
+
+  return null;
+}
+
+function mergeGuestProfile(existingProfile = {}, patch = {}) {
+  return {
+    guest_name: patch.guest_name || existingProfile.guest_name || null,
+    contact_phone: patch.contact_phone || existingProfile.contact_phone || null,
+    contact_email: patch.contact_email || existingProfile.contact_email || null
+  };
+}
+
+function extractGuestProfileUpdate(text = "", session = null) {
+  const patch = {};
+
+  const guestName = extractGuestName(text, session);
+  if (guestName) patch.guest_name = guestName;
+
+  const email = extractEmail(text);
+  if (email) patch.contact_email = email;
+
+  const phone = extractPhone(text);
+  if (phone) patch.contact_phone = phone;
+
+  return patch;
+}
+
+function getPanamaDateParts(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: PANAMA_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23"
+  });
+
+  const parts = formatter.formatToParts(date).reduce((acc, part) => {
+    if (part.type !== "literal") acc[part.type] = part.value;
+    return acc;
+  }, {});
+
+  return {
+    year: parts.year,
+    month: parts.month,
+    day: parts.day,
+    weekday: parts.weekday,
+    hour: parts.hour,
+    minute: parts.minute,
+    second: parts.second
+  };
+}
+
+function addPanamaDays(date = new Date(), days = 0) {
+  const parts = getPanamaDateParts(date);
+  const utcAnchor = new Date(`${parts.year}-${parts.month}-${parts.day}T12:00:00Z`);
+  utcAnchor.setUTCDate(utcAnchor.getUTCDate() + days);
+  return utcAnchor;
+}
+
+function formatMinutesToHHMM(totalMinutes = 0) {
+  const normalized = ((totalMinutes % (24 * 60)) + (24 * 60)) % (24 * 60);
+  const hour = String(Math.floor(normalized / 60)).padStart(2, "0");
+  const minute = String(normalized % 60).padStart(2, "0");
+  return `${hour}:${minute}`;
+}
+
+function formatMinutesTo12Hour(totalMinutes = 0) {
+  const normalized = ((totalMinutes % (24 * 60)) + (24 * 60)) % (24 * 60);
+  const hour24 = Math.floor(normalized / 60);
+  const minute = normalized % 60;
+  const period = hour24 >= 12 ? "PM" : "AM";
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${hour12}:${String(minute).padStart(2, "0")} ${period}`;
+}
+
+function parseRequestedClockTime(text = "") {
+  const raw = (text || "").trim();
+  if (!raw) return null;
+
+  const normalized = normalizeText(raw);
+
+  let match = normalized.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/);
+  if (match) {
+    let hour = Number(match[1]);
+    const minute = Number(match[2] || "0");
+    const meridiem = match[3];
+
+    if (hour === 12) hour = 0;
+    if (meridiem === "pm") hour += 12;
+
+    return {
+      hhmm_24: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
+      display: formatMinutesTo12Hour(hour * 60 + minute),
+      minutes: hour * 60 + minute
+    };
+  }
+
+  match = normalized.match(/\b(\d{1,2}):(\d{2})\b/);
+  if (match) {
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
+
+    if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+      return {
+        hhmm_24: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
+        display: formatMinutesTo12Hour(hour * 60 + minute),
+        minutes: hour * 60 + minute
+      };
+    }
+  }
+
+  match = normalized.match(/\b(\d{1,2})\s*(pm|am)\b/);
+  if (match) {
+    let hour = Number(match[1]);
+    const meridiem = match[2];
+    if (hour === 12) hour = 0;
+    if (meridiem === "pm") hour += 12;
+
+    return {
+      hhmm_24: `${String(hour).padStart(2, "0")}:00`,
+      display: formatMinutesTo12Hour(hour * 60),
+      minutes: hour * 60
+    };
+  }
+
+  return null;
+}
+
+function parseRelativeMinutesAgo(text = "") {
+  const normalized = normalizeText(text);
+  let match = normalized.match(/\b(?:about|around|approx(?:imately)?)?\s*(\d{1,3})\s*(?:min|mins|minute|minutes)\s*ago\b/);
+  if (match) {
+    return Number(match[1]);
+  }
+
+  match = normalized.match(/\b(?:about|around|approx(?:imately)?)?\s*(\d{1,2})\s*(?:hour|hours|hr|hrs)\s*ago\b/);
+  if (match) {
+    return Number(match[1]) * 60;
+  }
+
+  if (/\bjust now\b/.test(normalized)) return 0;
+
+  return null;
+}
+
+function buildReservationAlternatives(requestedClockTime = null) {
+  if (!requestedClockTime) {
+    return {
+      reservation_requested_time: null,
+      reservation_requested_time_display: null,
+      reservation_alternative_time_1: null,
+      reservation_alternative_time_1_display: null,
+      reservation_alternative_time_2: null,
+      reservation_alternative_time_2_display: null
+    };
+  }
+
+  const alt1 = requestedClockTime.minutes - 30;
+  const alt2 = requestedClockTime.minutes + 30;
+
+  return {
+    reservation_requested_time: requestedClockTime.hhmm_24,
+    reservation_requested_time_display: requestedClockTime.display,
+    reservation_alternative_time_1: formatMinutesToHHMM(alt1),
+    reservation_alternative_time_1_display: formatMinutesTo12Hour(alt1),
+    reservation_alternative_time_2: formatMinutesToHHMM(alt2),
+    reservation_alternative_time_2_display: formatMinutesTo12Hour(alt2)
+  };
+}
+
+function buildPanamaRuntimeContext(userText = "", baseDate = new Date()) {
+  const nowParts = getPanamaDateParts(baseDate);
+  const tomorrowDate = addPanamaDays(baseDate, 1);
+  const tomorrowParts = getPanamaDateParts(tomorrowDate);
+
+  const currentDate = `${nowParts.year}-${nowParts.month}-${nowParts.day}`;
+  const currentTime = `${nowParts.hour}:${nowParts.minute}`;
+  const currentDateTimeIso = `${currentDate}T${currentTime}:${nowParts.second}-05:00`;
+
+  const relativeMinutesAgo = parseRelativeMinutesAgo(userText);
+  let approximateIncidentTime = null;
+  let approximateIncidentDate = null;
+
+  if (relativeMinutesAgo !== null) {
+    const shifted = new Date(baseDate.getTime() - relativeMinutesAgo * 60 * 1000);
+    const shiftedParts = getPanamaDateParts(shifted);
+    approximateIncidentDate = `${shiftedParts.year}-${shiftedParts.month}-${shiftedParts.day}`;
+    approximateIncidentTime = `${shiftedParts.hour}:${shiftedParts.minute}`;
+  }
+
+  const requestedClockTime = parseRequestedClockTime(userText);
+  const reservationAlternatives = buildReservationAlternatives(requestedClockTime);
+
+  return {
+    current_datetime_iso: currentDateTimeIso,
+    current_date: currentDate,
+    current_time: currentTime,
+    current_weekday: nowParts.weekday,
+    current_timezone: PANAMA_TIMEZONE,
+    today_date: currentDate,
+    tomorrow_date: `${tomorrowParts.year}-${tomorrowParts.month}-${tomorrowParts.day}`,
+    tomorrow_weekday: tomorrowParts.weekday,
+    relative_minutes_ago: relativeMinutesAgo,
+    approximate_incident_date: approximateIncidentDate,
+    approximate_incident_time: approximateIncidentTime,
+    ...reservationAlternatives
+  };
+}
+
+function buildVoiceflowStateVariables(session, userText = "") {
+  const runtimeContext = buildPanamaRuntimeContext(userText);
+  const guestProfile = session?.guest_profile || createGuestProfile(session?.user_id || "");
+
+  return {
+    middleware_session_id: session?.session_id || null,
+    middleware_current_language: session?.current_language || null,
+    middleware_active_request_type: session?.active_request?.type || null,
+    middleware_active_request_status: session?.active_request?.status || null,
+    middleware_current_datetime_iso: runtimeContext.current_datetime_iso,
+    middleware_current_date: runtimeContext.current_date,
+    middleware_current_time: runtimeContext.current_time,
+    middleware_current_weekday: runtimeContext.current_weekday,
+    middleware_current_timezone: runtimeContext.current_timezone,
+    middleware_today_date: runtimeContext.today_date,
+    middleware_tomorrow_date: runtimeContext.tomorrow_date,
+    middleware_tomorrow_weekday: runtimeContext.tomorrow_weekday,
+    middleware_relative_minutes_ago: runtimeContext.relative_minutes_ago,
+    middleware_approximate_incident_date: runtimeContext.approximate_incident_date,
+    middleware_approximate_incident_time: runtimeContext.approximate_incident_time,
+    middleware_reservation_requested_time: runtimeContext.reservation_requested_time,
+    middleware_reservation_requested_time_display: runtimeContext.reservation_requested_time_display,
+    middleware_reservation_alternative_time_1: runtimeContext.reservation_alternative_time_1,
+    middleware_reservation_alternative_time_1_display: runtimeContext.reservation_alternative_time_1_display,
+    middleware_reservation_alternative_time_2: runtimeContext.reservation_alternative_time_2,
+    middleware_reservation_alternative_time_2_display: runtimeContext.reservation_alternative_time_2_display,
+    guest_name: guestProfile.guest_name || null,
+    guest_contact_phone: guestProfile.contact_phone || null,
+    guest_contact_email: guestProfile.contact_email || null
   };
 }
 
@@ -699,6 +1054,17 @@ app.post("/webhook", async (req, res) => {
 
     const session = getOrCreateSession(userID);
 
+    const guestProfileUpdate = extractGuestProfileUpdate(userText, session);
+    if (Object.keys(guestProfileUpdate).length > 0) {
+      const mergedGuestProfile = mergeGuestProfile(session.guest_profile, guestProfileUpdate);
+      updateSession(userID, { guest_profile: mergedGuestProfile });
+      session.guest_profile = mergedGuestProfile;
+
+      console.log(
+        `[GUEST PROFILE UPDATED] user=${userID} guest_name=${mergedGuestProfile.guest_name || "—"} contact_email=${mergedGuestProfile.contact_email || "—"}`
+      );
+    }
+
     console.log(`[INBOUND] user=${userID} session_id=${session.session_id} text="${userText}"`);
     console.log(`[SESSION BEFORE]`, getSessionSummary(session));
 
@@ -718,7 +1084,9 @@ app.post("/webhook", async (req, res) => {
         message_id: message.id || "",
         session_summary: getSessionSummary(session),
         detected_intent: detectedIntent,
-        active_request: session.active_request || null
+        active_request: session.active_request || null,
+        guest_profile: session.guest_profile || null,
+        runtime_context: buildPanamaRuntimeContext(userText)
       })
     );
 
@@ -772,7 +1140,8 @@ app.post("/webhook", async (req, res) => {
         active_request: null,
         current_language: null,
         awaiting_language: true,
-        side_chat_count: 0
+        side_chat_count: 0,
+        last_bot_reply: prompt
       });
 
       console.log(
@@ -801,6 +1170,8 @@ app.post("/webhook", async (req, res) => {
         current_language: null,
         awaiting_language: true,
         side_chat_count: 0,
+        guest_profile: createGuestProfile(userID),
+        last_bot_reply: null,
         state: "idle"
       });
 
@@ -820,6 +1191,7 @@ app.post("/webhook", async (req, res) => {
         current_language: null,
         awaiting_language: true,
         side_chat_count: 0,
+        last_bot_reply: null,
         state: "idle"
       });
 
@@ -975,7 +1347,7 @@ app.post("/webhook", async (req, res) => {
         })
       );
 
-      updateSession(userID, { state: "active", side_chat_count: 0 });
+      updateSession(userID, { state: "active", side_chat_count: 0, last_bot_reply: reanchorReply });
 
       console.log(
         `[REANCHOR] user=${userID} session_id=${sessions[userID].session_id} type=${sessionBeforeForward.active_request.type} reply="${reanchorReply}"`
@@ -983,6 +1355,15 @@ app.post("/webhook", async (req, res) => {
 
       return;
     }
+
+    const voiceflowStateVariables = buildVoiceflowStateVariables(sessions[userID], userText);
+    const voiceflowRequestMetadata = {
+      source: "middleware",
+      timezone: voiceflowStateVariables.middleware_current_timezone,
+      current_datetime_iso: voiceflowStateVariables.middleware_current_datetime_iso,
+      active_request_type: voiceflowStateVariables.middleware_active_request_type,
+      guest_name: voiceflowStateVariables.guest_name
+    };
 
     const vfUrl = `https://general-runtime.voiceflow.com/state/user/${userID}/interact`;
     const vfHeaders = {
@@ -1003,6 +1384,10 @@ app.post("/webhook", async (req, res) => {
       const vfResponse = await axios.post(
         vfUrl,
         {
+          state: {
+            variables: voiceflowStateVariables
+          },
+          request: voiceflowRequestMetadata,
           action: { type: "launch" },
           config: {
             session_id: sessions[userID].session_id
@@ -1025,6 +1410,10 @@ app.post("/webhook", async (req, res) => {
         await axios.post(
           vfUrl,
           {
+            state: {
+              variables: voiceflowStateVariables
+            },
+            request: voiceflowRequestMetadata,
             action: { type: "launch" },
             config: {
               session_id: sessions[userID].session_id
@@ -1047,6 +1436,10 @@ app.post("/webhook", async (req, res) => {
       const vfResponse = await axios.post(
         vfUrl,
         {
+          state: {
+            variables: voiceflowStateVariables
+          },
+          request: voiceflowRequestMetadata,
           action: {
             type: "text",
             payload: forwardedText
@@ -1097,6 +1490,8 @@ app.post("/webhook", async (req, res) => {
         reply_count: replies.length,
         replies,
         suppressed_language_prompt: suppressedLanguagePrompt,
+        guest_profile: sessions[userID]?.guest_profile || null,
+        voiceflow_state_variables: voiceflowStateVariables,
         summary: `voiceflow replies=${replies.length}`
       })
     );
@@ -1139,7 +1534,7 @@ app.post("/webhook", async (req, res) => {
 
       updateSession(
         userID,
-        exitCommand ? { state: "idle", active_request: null } : { state: "active" }
+        exitCommand ? { state: "idle", active_request: null, last_bot_reply: fallbackReply } : { state: "active", last_bot_reply: fallbackReply }
       );
 
       console.log(
@@ -1149,9 +1544,13 @@ app.post("/webhook", async (req, res) => {
       return;
     }
 
+    const combinedReplyForMemory = replies.join("\n\n");
+
     updateSession(
       userID,
-      exitCommand ? { state: "idle", active_request: null } : { state: "active" }
+      exitCommand
+        ? { state: "idle", active_request: null, last_bot_reply: combinedReplyForMemory }
+        : { state: "active", last_bot_reply: combinedReplyForMemory }
     );
 
     console.log(`[SESSION AFTER]`, getSessionSummary(sessions[userID]));
