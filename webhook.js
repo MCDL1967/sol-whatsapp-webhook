@@ -793,6 +793,10 @@ function applyResponseLanguageLock(text, lockedLanguage = null, options = {}) {
   return `${lockInstruction} ${text}`;
 }
 
+function isPlainNumericChoice(text = "") {
+  return /^\d+$/.test(normalizeText(text));
+}
+
 function detectReplyLanguageMismatch(reply = "", lockedLanguage = null) {
   if (!reply || !lockedLanguage) {
     return { mismatch: false, detectedLanguage: "unknown" };
@@ -1511,8 +1515,14 @@ app.post("/webhook", async (req, res) => {
     }
 
     const lockedResponseLanguage = sessions[userID]?.current_language || effectiveCurrentLanguage || null;
+    const shouldBypassLanguageLock =
+      !!languageCommand ||
+      effectiveAwaitingLanguage ||
+      isLanguageSelectionInput(userText, effectiveCurrentLanguage) ||
+      isPlainNumericChoice(userText);
+
     forwardedText = applyResponseLanguageLock(forwardedText, lockedResponseLanguage, {
-      skip: !!languageCommand || effectiveAwaitingLanguage
+      skip: shouldBypassLanguageLock
     });
 
     const sessionBeforeForward = sessions[userID];
