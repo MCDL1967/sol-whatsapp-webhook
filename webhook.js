@@ -1,8 +1,8 @@
 /*
 WEBHOOK
-File: webhook.v13.1.7.js
-Version: v13.1.7
-Date: 2026-04-13
+File: webhook.v13.1.9.js
+Version: v13.1.9
+Date: 2026-04-14
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
 Base: webhook.v13.1.5.js
@@ -23,10 +23,12 @@ This version adds:
 - outbound language mismatch detection and safe locked-language fallback
 - preservation of v13.1.5 clock/calendar and guest-profile memory features
 - numeric 1/2 language selection accepted again when a language prompt is active
+- secure LOGS task export/status routes for local worker intake
 
 This version adds:
 - active language-lock response guardrails preserved
 - numeric 1/2 language selection recovery when a language prompt is active
+- secure task transport support for manual Render-to-Mac LOGS export
 
 Intentionally preserved:
 - v13 exit/reset behavior
@@ -38,6 +40,8 @@ Intentionally preserved:
 const express = require("express");
 const axios = require("axios");
 const crypto = require("crypto");
+const fs = require("fs/promises");
+const path = require("path");
 const logsService = require("./logs_service");
 
 const app = express();
@@ -49,6 +53,8 @@ const VF_API_KEY = process.env.VF_API_KEY;
 const WA_TOKEN = process.env.WA_TOKEN;
 const WA_PHONE_ID = process.env.WA_PHONE_ID;
 const PANAMA_TIMEZONE = "America/Panama";
+const LOGS_TASK_QUEUE_FILE = process.env.LOGS_TASK_QUEUE_FILE || "";
+const LOGS_EXPORT_TOKEN = process.env.LOGS_EXPORT_TOKEN || "";
 
 // ---- SESSION CONTROL CONFIG ----
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -1203,6 +1209,71 @@ function getSafetyFallbackMessage(text) {
     : "Sorry, I didn’t quite catch that. I can help with games, reservations, general information, or complaints. What would you like to explore?";
 }
 
+
+function getResolvedLogsQueuePath() {
+  return LOGS_TASK_QUEUE_FILE ? path.resolve(LOGS_TASK_QUEUE_FILE) : "";
+}
+
+function getLogsExportTokenFromRequest(req) {
+  const queryToken = typeof req.query?.token === "string" ? req.query.token.trim() : "";
+  const headerToken = typeof req.headers["x-logs-export-token"] === "string"
+    ? req.headers["x-logs-export-token"].trim()
+    : "";
+  return queryToken || headerToken || "";
+}
+
+function isAuthorizedLogsExportRequest(req) {
+  if (!LOGS_EXPORT_TOKEN) return false;
+  return getLogsExportTokenFromRequest(req) === LOGS_EXPORT_TOKEN;
+}
+
+function buildLogsExportFilename() {
+  const stamp = new Date().toISOString().replace(/[:]/g, "-").replace(/\.\d{3}Z$/, "Z");
+  return `logs_tasks_export_${stamp}.jsonl`;
+}
+
+async function readLogsQueueSnapshot(queuePath) {
+  const resolved = queuePath || getResolvedLogsQueuePath();
+  if (!resolved) {
+    return {
+      queue_path: "",
+      exists: false,
+      size_bytes: 0,
+      line_count: 0,
+      contents: ""
+    };
+  }
+
+  try {
+    const stats = await fs.stat(resolved);
+    const contents = await fs.readFile(resolved, "utf8");
+    const lineCount = contents
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean).length;
+
+    return {
+      queue_path: resolved,
+      exists: true,
+      size_bytes: stats.size,
+      line_count: lineCount,
+      contents
+    };
+  } catch (err) {
+    if (err?.code === "ENOENT") {
+      return {
+        queue_path: resolved,
+        exists: false,
+        size_bytes: 0,
+        line_count: 0,
+        contents: ""
+      };
+    }
+
+    throw err;
+  }
+}
+
 // ---- WEBHOOK VERIFICATION ----
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
@@ -1215,6 +1286,62 @@ app.get("/webhook", (req, res) => {
   }
 
   return res.sendStatus(403);
+});
+
+
+// ---- LOGS TASK EXPORT ROUTES ----
+app.get("/logs/tasks/status", async (req, res) => {
+  try {
+    if (!isAuthorizedLogsExportRequest(req)) {
+      return res.status(403).json({ ok: false, error: "forbidden" });
+    }
+
+    const snapshot = await readLogsQueueSnapshot();
+    return res.status(200).json({
+      ok: true,
+      queue_path: snapshot.queue_path,
+      queue_configured: Boolean(LOGS_TASK_QUEUE_FILE),
+      export_enabled: Boolean(LOGS_EXPORT_TOKEN),
+      exists: snapshot.exists,
+      size_bytes: snapshot.size_bytes,
+      line_count: snapshot.line_count
+    });
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      error: err?.message || "status_failed"
+    });
+  }
+});
+
+app.get("/logs/tasks/export", async (req, res) => {
+  try {
+    if (!isAuthorizedLogsExportRequest(req)) {
+      return res.status(403).json({ ok: false, error: "forbidden" });
+    }
+
+    const snapshot = await readLogsQueueSnapshot();
+
+    if (!LOGS_TASK_QUEUE_FILE) {
+      return res.status(503).json({
+        ok: false,
+        error: "queue_not_configured"
+      });
+    }
+
+    if (!snapshot.exists || !snapshot.contents.trim()) {
+      return res.status(204).send();
+    }
+
+    res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${buildLogsExportFilename()}"`);
+    return res.status(200).send(snapshot.contents);
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      error: err?.message || "export_failed"
+    });
+  }
 });
 
 // ---- INBOUND MESSAGE HANDLER ----
