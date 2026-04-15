@@ -1,7 +1,7 @@
 /*
 WEBHOOK
-File: webhook.v13.1.9.js
-Version: v13.1.9
+File: webhook.v13.1.10.js
+Version: v13.1.10
 Date: 2026-04-14
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
@@ -73,6 +73,18 @@ function createGuestProfile(userID = "") {
   };
 }
 
+
+function createReservationContext() {
+  return {
+    resolved_date: null,
+    resolved_weekday: null,
+    resolution_status: null,
+    conflict_relative_date: null,
+    conflict_absolute_date: null,
+    source_text: null
+  };
+}
+
 function createNewSession(userID, now) {
   return {
     session_id: generateSessionId(),
@@ -83,6 +95,7 @@ function createNewSession(userID, now) {
     awaiting_language: true,
     side_chat_count: 0,
     guest_profile: createGuestProfile(userID),
+    reservation_context: createReservationContext(),
     last_bot_reply: null,
     created_at: now,
     last_seen: now
@@ -472,12 +485,220 @@ function buildPanamaRuntimeContext(userText = "", baseDate = new Date()) {
   };
 }
 
+
+const MONTH_NAME_TO_NUMBER = {
+  january: 1, jan: 1,
+  february: 2, feb: 2,
+  march: 3, mar: 3,
+  april: 4, apr: 4,
+  may: 5,
+  june: 6, jun: 6,
+  july: 7, jul: 7,
+  august: 8, aug: 8,
+  september: 9, sep: 9, sept: 9,
+  october: 10, oct: 10,
+  november: 11, nov: 11,
+  december: 12, dec: 12
+};
+
+function isoDateFromParts(year, month, day) {
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function buildDateFromIsoAtNoon(isoDate = "") {
+  return new Date(`${isoDate}T12:00:00Z`);
+}
+
+function formatIsoDateForDisplay(isoDate = "", language = "en") {
+  if (!isoDate) return null;
+
+  const date = buildDateFromIsoAtNoon(isoDate);
+  return new Intl.DateTimeFormat(language === "es" ? "es-PA" : "en-US", {
+    timeZone: PANAMA_TIMEZONE,
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  }).format(date);
+}
+
+function weekdayFromIsoDate(isoDate = "") {
+  if (!isoDate) return null;
+  return getPanamaDateParts(buildDateFromIsoAtNoon(isoDate)).weekday;
+}
+
+function parseAbsoluteDateReference(text = "", baseDate = new Date()) {
+  const normalized = normalizeText(text);
+  const match = normalized.match(/\b(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s*(\d{4}))?\b/);
+
+  if (!match) return null;
+
+  const month = MONTH_NAME_TO_NUMBER[match[1]];
+  const day = Number(match[2]);
+  const baseParts = getPanamaDateParts(baseDate);
+  const year = match[3] ? Number(match[3]) : Number(baseParts.year);
+
+  if (!month || day < 1 || day > 31 || year < 2000 || year > 2100) return null;
+
+  const isoDate = isoDateFromParts(year, month, day);
+  return {
+    iso_date: isoDate,
+    weekday: weekdayFromIsoDate(isoDate),
+    display: formatIsoDateForDisplay(isoDate, "en"),
+    source: match[0]
+  };
+}
+
+function parseRelativeDateReference(text = "", baseDate = new Date()) {
+  const normalized = normalizeText(text);
+  const hasToday = /\btoday\b/.test(normalized) || /\bhoy\b/.test(normalized) || /\btonight\b/.test(normalized);
+  const hasTomorrow = /\btomorrow\b/.test(normalized) || /\bmanana\b/.test(normalized) || /\bmañana\b/.test(text || "");
+
+  if (!hasToday && !hasTomorrow) return null;
+
+  const targetDate = hasTomorrow ? addPanamaDays(baseDate, 1) : addPanamaDays(baseDate, 0);
+  const parts = getPanamaDateParts(targetDate);
+  const isoDate = `${parts.year}-${parts.month}-${parts.day}`;
+
+  return {
+    iso_date: isoDate,
+    weekday: parts.weekday,
+    display: formatIsoDateForDisplay(isoDate, "en"),
+    source: hasTomorrow ? "tomorrow" : "today"
+  };
+}
+
+function resolveReservationDateContext(text = "", baseDate = new Date()) {
+  const absoluteRef = parseAbsoluteDateReference(text, baseDate);
+  const relativeRef = parseRelativeDateReference(text, baseDate);
+
+  if (!absoluteRef && !relativeRef) {
+    return createReservationContext();
+  }
+
+  if (absoluteRef && relativeRef) {
+    if (absoluteRef.iso_date === relativeRef.iso_date) {
+      return {
+        resolved_date: absoluteRef.iso_date,
+        resolved_weekday: absoluteRef.weekday,
+        resolution_status: "consistent_relative_absolute",
+        conflict_relative_date: null,
+        conflict_absolute_date: null,
+        source_text: text || ""
+      };
+    }
+
+    return {
+      resolved_date: null,
+      resolved_weekday: null,
+      resolution_status: "conflict",
+      conflict_relative_date: relativeRef.iso_date,
+      conflict_absolute_date: absoluteRef.iso_date,
+      source_text: text || ""
+    };
+  }
+
+  if (absoluteRef) {
+    return {
+      resolved_date: absoluteRef.iso_date,
+      resolved_weekday: absoluteRef.weekday,
+      resolution_status: "absolute_only",
+      conflict_relative_date: null,
+      conflict_absolute_date: null,
+      source_text: text || ""
+    };
+  }
+
+  return {
+    resolved_date: relativeRef.iso_date,
+    resolved_weekday: relativeRef.weekday,
+    resolution_status: "relative_only",
+    conflict_relative_date: null,
+    conflict_absolute_date: null,
+    source_text: text || ""
+  };
+}
+
+function mergeReservationContext(existingContext = {}, patch = {}) {
+  if (!patch || !patch.resolution_status || patch.resolution_status === "none") {
+    return existingContext && Object.keys(existingContext).length > 0 ? existingContext : createReservationContext();
+  }
+
+  if (patch.resolution_status === "conflict") {
+    return {
+      resolved_date: existingContext?.resolved_date || null,
+      resolved_weekday: existingContext?.resolved_weekday || null,
+      resolution_status: "conflict",
+      conflict_relative_date: patch.conflict_relative_date || null,
+      conflict_absolute_date: patch.conflict_absolute_date || null,
+      source_text: patch.source_text || existingContext?.source_text || null
+    };
+  }
+
+  return {
+    resolved_date: patch.resolved_date || existingContext?.resolved_date || null,
+    resolved_weekday: patch.resolved_weekday || existingContext?.resolved_weekday || null,
+    resolution_status: patch.resolution_status || existingContext?.resolution_status || null,
+    conflict_relative_date: null,
+    conflict_absolute_date: null,
+    source_text: patch.source_text || existingContext?.source_text || null
+  };
+}
+
+function isLikelyDateClarificationPrompt(text = "") {
+  const normalized = normalizeText(text);
+  if (!normalized) return false;
+
+  return (
+    normalized.includes("do you mean") ||
+    normalized.includes("when you say") ||
+    normalized.includes("exact calendar date") ||
+    normalized.includes("today or") ||
+    normalized.includes("tomorrow") ||
+    normalized.includes("fecha exacta") ||
+    normalized.includes("cuando dices") ||
+    normalized.includes("hoy o") ||
+    normalized.includes("manana") ||
+    normalized.includes("mañana")
+  );
+}
+
+function buildReservationDateInstruction(reservationContext = {}, options = {}) {
+  const language = options.language || "en";
+  if (!reservationContext?.resolution_status) return null;
+
+  if (reservationContext.resolution_status === "conflict") {
+    const relativeDisplay = formatIsoDateForDisplay(reservationContext.conflict_relative_date, language);
+    const absoluteDisplay = formatIsoDateForDisplay(reservationContext.conflict_absolute_date, language);
+    if (language === "es") {
+      return `[[RESOLUCION DE FECHA DE RESERVA: El huésped dio referencias de fecha en conflicto. La referencia relativa apunta a ${relativeDisplay}, mientras que la fecha absoluta es ${absoluteDisplay}. Haz UNA sola aclaración breve pidiendo elegir entre esas dos fechas.]]`;
+    }
+    return `[[RESERVATION DATE CONFLICT: The guest gave conflicting date references. The relative reference resolves to ${relativeDisplay}, while the absolute date is ${absoluteDisplay}. Ask ONE short clarification choosing between those two dates.]]`;
+  }
+
+  const resolvedDisplay = formatIsoDateForDisplay(reservationContext.resolved_date, language);
+  if (language === "es") {
+    return `[[RESOLUCION DE FECHA DE RESERVA: Trata la fecha solicitada de la reserva como ${resolvedDisplay}. La fecha está resuelta y no es ambigua. NO vuelvas a pedir aclaración sobre hoy/mañana a menos que el huésped cambie la fecha explícitamente.]]`;
+  }
+  return `[[RESERVATION DATE RESOLUTION: Treat the requested reservation date as ${resolvedDisplay}. The reservation date is resolved and not ambiguous. Do NOT ask the guest to re-clarify today/tomorrow unless they explicitly change the date.]]`;
+}
+
+function applyReservationDateResolutionLock(text, reservationContext = {}, options = {}) {
+  if (!text || options.skip) return text;
+
+  const instruction = buildReservationDateInstruction(reservationContext, { language: options.language || "en" });
+  if (!instruction) return text;
+
+  return `${instruction} ${text}`;
+}
+
 function buildVoiceflowStateVariables(session, userText = "", options = {}) {
   const runtimeContext = buildPanamaRuntimeContext(userText);
   const guestProfile = session?.guest_profile || createGuestProfile(session?.user_id || "");
   const responseLanguage = options.responseLanguage || session?.current_language || null;
   const userInputLanguage = options.userInputLanguage || detectLikelyTextLanguage(userText);
   const explicitLanguageSwitch = options.languageCommand || null;
+  const reservationContext = options.reservationDateContext || session?.reservation_context || createReservationContext();
 
   return {
     middleware_session_id: session?.session_id || null,
@@ -513,7 +734,12 @@ function buildVoiceflowStateVariables(session, userText = "", options = {}) {
     explicit_language_switch_target: explicitLanguageSwitch || null,
     guest_name: guestProfile.guest_name || null,
     guest_contact_phone: guestProfile.contact_phone || null,
-    guest_contact_email: guestProfile.contact_email || null
+    guest_contact_email: guestProfile.contact_email || null,
+    middleware_reservation_resolved_date: reservationContext.resolved_date || null,
+    middleware_reservation_resolved_weekday: reservationContext.resolved_weekday || null,
+    middleware_reservation_date_resolution_status: reservationContext.resolution_status || null,
+    middleware_reservation_date_conflict_relative_date: reservationContext.conflict_relative_date || null,
+    middleware_reservation_date_conflict_absolute_date: reservationContext.conflict_absolute_date || null
   };
 }
 
@@ -1508,6 +1734,7 @@ app.post("/webhook", async (req, res) => {
         awaiting_language: true,
         side_chat_count: 0,
         guest_profile: createGuestProfile(userID),
+        reservation_context: createReservationContext(),
         last_bot_reply: null,
         state: "idle"
       });
@@ -1517,7 +1744,8 @@ app.post("/webhook", async (req, res) => {
     } else if (menuCommand) {
       updateSession(userID, {
         active_request: null,
-        side_chat_count: 0
+        side_chat_count: 0,
+        reservation_context: createReservationContext()
       });
 
       console.log(`[REQUEST RESET] user=${userID} reason=menu_command`);
@@ -1528,6 +1756,7 @@ app.post("/webhook", async (req, res) => {
         current_language: null,
         awaiting_language: true,
         side_chat_count: 0,
+        reservation_context: createReservationContext(),
         last_bot_reply: null,
         state: "idle"
       });
@@ -1544,7 +1773,7 @@ app.post("/webhook", async (req, res) => {
             status: initialStatusForType(detectedIntent)
           };
 
-          updateSession(userID, { active_request: newRequest, awaiting_language: false });
+          updateSession(userID, { active_request: newRequest, awaiting_language: false, reservation_context: newRequest.type === "reservation" ? (sessions[userID]?.reservation_context || createReservationContext()) : createReservationContext() });
 
           console.log(
             `[REQUEST DETECTED] user=${userID} type=${newRequest.type} status=${newRequest.status}`
@@ -1559,7 +1788,7 @@ app.post("/webhook", async (req, res) => {
             status: initialStatusForType(detectedIntent)
           };
 
-          updateSession(userID, { active_request: newRequest, awaiting_language: false });
+          updateSession(userID, { active_request: newRequest, awaiting_language: false, reservation_context: newRequest.type === "reservation" ? (sessions[userID]?.reservation_context || createReservationContext()) : createReservationContext() });
 
           console.log(
             `[REQUEST SWITCH] user=${userID} from=${previousType} to=${newRequest.type} status=${newRequest.status}`
@@ -1568,7 +1797,7 @@ app.post("/webhook", async (req, res) => {
         } else if (shouldClearActiveRequest(currentSession.active_request, detectedIntent, userText)) {
           const previousType = currentSession.active_request.type;
 
-          updateSession(userID, { active_request: null });
+          updateSession(userID, { active_request: null, reservation_context: createReservationContext() });
 
           console.log(
             `[REQUEST CLEARED] user=${userID} from=${previousType} reason=non_continuation_unmatched_topic`
@@ -1601,6 +1830,26 @@ app.post("/webhook", async (req, res) => {
     }
 
     const currentSessionAfterControl = sessions[userID];
+    const shouldEvaluateReservationDate =
+      currentSessionAfterControl?.active_request?.type === "reservation" || detectedIntent === "reservation";
+    const reservationDateContextFromText = shouldEvaluateReservationDate
+      ? resolveReservationDateContext(userText)
+      : createReservationContext();
+
+    if (shouldEvaluateReservationDate && reservationDateContextFromText.resolution_status) {
+      const mergedReservationContext = mergeReservationContext(
+        currentSessionAfterControl?.reservation_context || createReservationContext(),
+        reservationDateContextFromText
+      );
+
+      updateSession(userID, { reservation_context: mergedReservationContext });
+      currentSessionAfterControl.reservation_context = mergedReservationContext;
+
+      console.log(
+        `[RESERVATION DATE CONTEXT] user=${userID} status=${mergedReservationContext.resolution_status} resolved_date=${mergedReservationContext.resolved_date || "—"}`
+      );
+    }
+
     const isSideChat = shouldTrackSideChat(currentSessionAfterControl, userText, detectedIntent, {
       languageCommand,
       restartCommand,
@@ -1647,6 +1896,33 @@ app.post("/webhook", async (req, res) => {
       effectiveAwaitingLanguage ||
       isLanguageSelectionInput(userText, effectiveCurrentLanguage) ||
       isPlainNumericChoice(userText);
+
+    const activeReservationContext = sessions[userID]?.reservation_context || createReservationContext();
+    const shouldApplyReservationDateInstruction =
+      !shouldBypassLanguageLock &&
+      (
+        (shouldEvaluateReservationDate && !!reservationDateContextFromText.resolution_status) ||
+        (
+          sessions[userID]?.active_request?.type === "reservation" &&
+          !!activeReservationContext?.resolved_date &&
+          isLikelyDateClarificationPrompt(sessions[userID]?.last_bot_reply || "")
+        ) ||
+        (
+          sessions[userID]?.active_request?.type === "reservation" &&
+          activeReservationContext?.resolution_status === "conflict"
+        )
+      );
+
+    forwardedText = applyReservationDateResolutionLock(
+      forwardedText,
+      shouldEvaluateReservationDate && reservationDateContextFromText.resolution_status
+        ? reservationDateContextFromText
+        : activeReservationContext,
+      {
+        skip: !shouldApplyReservationDateInstruction,
+        language: lockedResponseLanguage || "en"
+      }
+    );
 
     forwardedText = applyResponseLanguageLock(forwardedText, lockedResponseLanguage, {
       skip: shouldBypassLanguageLock
@@ -1707,7 +1983,8 @@ app.post("/webhook", async (req, res) => {
     const voiceflowStateVariables = buildVoiceflowStateVariables(sessions[userID], userText, {
       responseLanguage: lockedResponseLanguage,
       userInputLanguage: detectedInputLanguage,
-      languageCommand
+      languageCommand,
+      reservationDateContext: sessions[userID]?.reservation_context || createReservationContext()
     });
     const voiceflowRequestMetadata = {
       source: "middleware",
@@ -1718,7 +1995,9 @@ app.post("/webhook", async (req, res) => {
       response_language: voiceflowStateVariables.response_language,
       user_input_language: voiceflowStateVariables.middleware_user_input_language,
       language_lock: voiceflowStateVariables.language_lock,
-      language_switch_requested: voiceflowStateVariables.explicit_language_switch_target
+      language_switch_requested: voiceflowStateVariables.explicit_language_switch_target,
+      reservation_resolved_date: voiceflowStateVariables.middleware_reservation_resolved_date,
+      reservation_date_resolution_status: voiceflowStateVariables.middleware_reservation_date_resolution_status
     };
 
     const vfUrl = `https://general-runtime.voiceflow.com/state/user/${userID}/interact`;
