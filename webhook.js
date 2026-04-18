@@ -1,11 +1,11 @@
 /*
 WEBHOOK
-File: webhook.v13.1.12.js
-Version: v13.1.12
+File: webhook.js
+Version: v13.1.13
 Date: 2026-04-18
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.10.js
+Base: webhook.v13.1.12.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -38,6 +38,18 @@ This version adds (v13.1.11):
 This version adds (v13.1.12):
 - pre-reset reservation snapshot so captureRequestClosure survives exitCommand request reset
 - reservation-only closure hook remains on normal reply exit path (Block B) only
+
+This version adds (v13.1.13):
+- durable reservation-context fields for closure payload sourcing
+- conservative middleware-side extraction for reservation time, party size, and venue candidates
+- structured reservation summary generation from preserved reservation context
+- closure hook payload sourced from structured pre-exit reservation snapshot instead of assistant goodbye text
+
+Version notes:
+- preserves v13.1.12 transport, export, and bounded-clear behavior
+- preserves reservation-only closure scope on the normal reply exit path
+- does not add complaint/security/general-info closure emission
+- does not add business-status transition automation
 
 Intentionally preserved:
 - v13 exit/reset behavior
@@ -90,7 +102,11 @@ function createReservationContext() {
     resolution_status: null,
     conflict_relative_date: null,
     conflict_absolute_date: null,
-    source_text: null
+    source_text: null,
+    service_time: null,
+    venue_or_department: null,
+    party_size: null,
+    reservation_summary: null
   };
 }
 
@@ -629,30 +645,202 @@ function resolveReservationDateContext(text = "", baseDate = new Date()) {
 }
 
 function mergeReservationContext(existingContext = {}, patch = {}) {
-  if (!patch || !patch.resolution_status || patch.resolution_status === "none") {
-    return existingContext && Object.keys(existingContext).length > 0 ? existingContext : createReservationContext();
+  const baseContext =
+    existingContext && Object.keys(existingContext).length > 0
+      ? { ...createReservationContext(), ...existingContext }
+      : createReservationContext();
+
+  if (!patch || Object.keys(patch).length === 0) {
+    return baseContext;
+  }
+
+  const merged = {
+    ...baseContext,
+    service_time: patch.service_time || baseContext.service_time || null,
+    venue_or_department: patch.venue_or_department || baseContext.venue_or_department || null,
+    party_size: patch.party_size || baseContext.party_size || null,
+    reservation_summary: patch.reservation_summary || baseContext.reservation_summary || null
+  };
+
+  if (!patch.resolution_status || patch.resolution_status === "none") {
+    return {
+      ...merged,
+      resolved_date: baseContext.resolved_date || null,
+      resolved_weekday: baseContext.resolved_weekday || null,
+      resolution_status: baseContext.resolution_status || null,
+      conflict_relative_date: baseContext.conflict_relative_date || null,
+      conflict_absolute_date: baseContext.conflict_absolute_date || null,
+      source_text: patch.source_text || baseContext.source_text || null
+    };
   }
 
   if (patch.resolution_status === "conflict") {
     return {
-      resolved_date: existingContext?.resolved_date || null,
-      resolved_weekday: existingContext?.resolved_weekday || null,
+      ...merged,
+      resolved_date: baseContext.resolved_date || null,
+      resolved_weekday: baseContext.resolved_weekday || null,
       resolution_status: "conflict",
       conflict_relative_date: patch.conflict_relative_date || null,
       conflict_absolute_date: patch.conflict_absolute_date || null,
-      source_text: patch.source_text || existingContext?.source_text || null
+      source_text: patch.source_text || baseContext.source_text || null
     };
   }
 
   return {
-    resolved_date: patch.resolved_date || existingContext?.resolved_date || null,
-    resolved_weekday: patch.resolved_weekday || existingContext?.resolved_weekday || null,
-    resolution_status: patch.resolution_status || existingContext?.resolution_status || null,
+    ...merged,
+    resolved_date: patch.resolved_date || baseContext.resolved_date || null,
+    resolved_weekday: patch.resolved_weekday || baseContext.resolved_weekday || null,
+    resolution_status: patch.resolution_status || baseContext.resolution_status || null,
     conflict_relative_date: null,
     conflict_absolute_date: null,
-    source_text: patch.source_text || existingContext?.source_text || null
+    source_text: patch.source_text || baseContext.source_text || null
   };
 }
+
+function normalizeReservationVenueCandidate(candidate = "") {
+  const cleaned = (candidate || "")
+    .replace(/[.,!?]+$/g, "")
+    .replace(/\b(?:today|tomorrow|tonight|hoy|mañana|manana|esta noche)\b.*$/i, "")
+    .replace(/\b(?:for|para)\s+\d{1,2}\b.*$/i, "")
+    .replace(/\b(?:at|a las)\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?\b.*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned) return null;
+  if (/\d/.test(cleaned)) return null;
+
+  const normalized = normalizeText(cleaned);
+  const disallowed = [
+    "reservation",
+    "reservacion",
+    "reserva",
+    "restaurant",
+    "restaurante",
+    "booking",
+    "book",
+    "table",
+    "dinner",
+    "lunch",
+    "breakfast",
+    "please",
+    "por favor",
+    "goodbye",
+    "bye",
+    "adios",
+    "menu"
+  ];
+
+  if (disallowed.includes(normalized)) return null;
+
+  const tokens = cleaned.split(/\s+/).filter(Boolean);
+  if (tokens.length < 1 || tokens.length > 5) return null;
+  if (!tokens.every((token) => /^[A-Za-zÀ-ÿ'&.\-]+$/.test(token))) return null;
+
+  return titleCaseWords(cleaned);
+}
+
+function isLikelyVenuePrompt(text = "") {
+  const t = normalizeText(text);
+  return (
+    t.includes("which restaurant") ||
+    t.includes("what restaurant") ||
+    t.includes("which venue") ||
+    t.includes("what venue") ||
+    t.includes("restaurant would you like") ||
+    t.includes("what dining venue") ||
+    t.includes("que restaurante") ||
+    t.includes("cual restaurante") ||
+    t.includes("cuál restaurante") ||
+    t.includes("que lugar") ||
+    t.includes("cuál lugar") ||
+    t.includes("cual lugar") ||
+    t.includes("en que restaurante") ||
+    t.includes("en cuál restaurante") ||
+    t.includes("en cual restaurante")
+  );
+}
+
+function extractReservationPartySize(text = "") {
+  const normalized = normalizeText(text);
+  const patterns = [
+    /\bparty of\s+(\d{1,2})\b/i,
+    /\btable for\s+(\d{1,2})\b/i,
+    /\bfor\s+(\d{1,2})\s+(?:guests?|people|persons?)\b/i,
+    /\b(\d{1,2})\s+(?:guests?|people|persons?)\b/i,
+    /\b(\d{1,2})\s*pax\b/i,
+    /\bpara\s+(\d{1,2})\s+(?:personas?|huespedes|huéspedes)\b/i,
+    /\b(?:somos|seremos)\s+(\d{1,2})\b/i,
+    /\b(\d{1,2})\s+personas\b/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+
+  return null;
+}
+
+function extractReservationVenue(text = "", session = null) {
+  const raw = (text || "").trim();
+  if (!raw) return null;
+
+  const explicitPatterns = [
+    /\b(?:reservation|booking|table|dinner|lunch|breakfast)\s+(?:at|for)\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'&.\- ]{1,50})/i,
+    /\b(?:reservacion|reserva|mesa)\s+(?:en|para)\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'&.\- ]{1,50})/i,
+    /\b(?:restaurant|restaurante|venue)\s*(?::|-)?\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'&.\- ]{1,50})/i
+  ];
+
+  for (const pattern of explicitPatterns) {
+    const match = raw.match(pattern);
+    if (match?.[1]) {
+      const candidate = normalizeReservationVenueCandidate(match[1]);
+      if (candidate) return candidate;
+    }
+  }
+
+  if (session?.last_bot_reply && isLikelyVenuePrompt(session.last_bot_reply)) {
+    const candidate = normalizeReservationVenueCandidate(raw);
+    if (candidate) return candidate;
+  }
+
+  return null;
+}
+
+function extractReservationDetailContext(text = "", session = null) {
+  const requestedClockTime = parseRequestedClockTime(text);
+  const partySize = extractReservationPartySize(text);
+  const venue = extractReservationVenue(text, session);
+
+  return {
+    service_time: requestedClockTime?.hhmm_24 || null,
+    party_size: partySize || null,
+    venue_or_department: venue || null
+  };
+}
+
+function hasReservationDetailContextPatch(patch = {}) {
+  return !!(
+    patch?.service_time ||
+    patch?.party_size ||
+    patch?.venue_or_department ||
+    patch?.reservation_summary
+  );
+}
+
+function buildReservationContextSummary(context = {}) {
+  const parts = [];
+
+  if (context.venue_or_department) parts.push(`venue=${context.venue_or_department}`);
+  if (context.resolved_date) parts.push(`date=${context.resolved_date}`);
+  if (context.service_time) parts.push(`time=${context.service_time}`);
+  if (context.party_size) parts.push(`party_size=${context.party_size}`);
+
+  if (parts.length === 0) return null;
+
+  return `reservation_request | ${parts.join(" | ")}`;
+}
+
 
 function isLikelyDateClarificationPrompt(text = "") {
   const normalized = normalizeText(text);
@@ -748,7 +936,11 @@ function buildVoiceflowStateVariables(session, userText = "", options = {}) {
     middleware_reservation_resolved_weekday: reservationContext.resolved_weekday || null,
     middleware_reservation_date_resolution_status: reservationContext.resolution_status || null,
     middleware_reservation_date_conflict_relative_date: reservationContext.conflict_relative_date || null,
-    middleware_reservation_date_conflict_absolute_date: reservationContext.conflict_absolute_date || null
+    middleware_reservation_date_conflict_absolute_date: reservationContext.conflict_absolute_date || null,
+    middleware_reservation_service_time: reservationContext.service_time || null,
+    middleware_reservation_venue_or_department: reservationContext.venue_or_department || null,
+    middleware_reservation_party_size: reservationContext.party_size || null,
+    middleware_reservation_summary: reservationContext.reservation_summary || null
   };
 }
 
@@ -1797,7 +1989,11 @@ app.post("/webhook", async (req, res) => {
             guest_name: sessions[userID]?.guest_profile?.guest_name || null,
             contact_phone: sessions[userID]?.guest_profile?.contact_phone || null,
             contact_email: sessions[userID]?.guest_profile?.contact_email || null,
-            service_date: sessions[userID]?.reservation_context?.resolved_date || null
+            service_date: sessions[userID]?.reservation_context?.resolved_date || null,
+            service_time: sessions[userID]?.reservation_context?.service_time || null,
+            venue_or_department: sessions[userID]?.reservation_context?.venue_or_department || null,
+            party_size: sessions[userID]?.reservation_context?.party_size || null,
+            reservation_summary: sessions[userID]?.reservation_context?.reservation_summary || null
           }
         : null;
 
@@ -1909,19 +2105,50 @@ app.post("/webhook", async (req, res) => {
     const reservationDateContextFromText = shouldEvaluateReservationDate
       ? resolveReservationDateContext(userText)
       : createReservationContext();
+    const reservationDetailContextFromText = shouldEvaluateReservationDate
+      ? extractReservationDetailContext(userText, currentSessionAfterControl)
+      : {};
+    let mergedReservationContext = currentSessionAfterControl?.reservation_context || createReservationContext();
+    let reservationContextChanged = false;
 
     if (shouldEvaluateReservationDate && reservationDateContextFromText.resolution_status) {
-      const mergedReservationContext = mergeReservationContext(
-        currentSessionAfterControl?.reservation_context || createReservationContext(),
+      mergedReservationContext = mergeReservationContext(
+        mergedReservationContext,
         reservationDateContextFromText
       );
-
-      updateSession(userID, { reservation_context: mergedReservationContext });
-      currentSessionAfterControl.reservation_context = mergedReservationContext;
+      reservationContextChanged = true;
 
       console.log(
         `[RESERVATION DATE CONTEXT] user=${userID} status=${mergedReservationContext.resolution_status} resolved_date=${mergedReservationContext.resolved_date || "—"}`
       );
+    }
+
+    if (shouldEvaluateReservationDate && hasReservationDetailContextPatch(reservationDetailContextFromText)) {
+      mergedReservationContext = mergeReservationContext(
+        mergedReservationContext,
+        reservationDetailContextFromText
+      );
+      reservationContextChanged = true;
+
+      console.log(
+        `[RESERVATION DETAIL CONTEXT] user=${userID} venue=${mergedReservationContext.venue_or_department || "—"} date=${mergedReservationContext.resolved_date || "—"} time=${mergedReservationContext.service_time || "—"} party_size=${mergedReservationContext.party_size || "—"}`
+      );
+    }
+
+    if (shouldEvaluateReservationDate) {
+      const reservationSummary = buildReservationContextSummary(mergedReservationContext);
+      if (reservationSummary && reservationSummary !== mergedReservationContext.reservation_summary) {
+        mergedReservationContext = {
+          ...mergedReservationContext,
+          reservation_summary: reservationSummary
+        };
+        reservationContextChanged = true;
+      }
+    }
+
+    if (shouldEvaluateReservationDate && reservationContextChanged) {
+      updateSession(userID, { reservation_context: mergedReservationContext });
+      currentSessionAfterControl.reservation_context = mergedReservationContext;
     }
 
     const isSideChat = shouldTrackSideChat(currentSessionAfterControl, userText, detectedIntent, {
@@ -2280,6 +2507,15 @@ app.post("/webhook", async (req, res) => {
 
     // ---- LOGS CLOSURE HOOK (reservation confirmed exit only — Block B) ----
     if (preExitReservationClosure) {
+      const closureSummary =
+        preExitReservationClosure.reservation_summary ||
+        buildReservationContextSummary({
+          resolved_date: preExitReservationClosure.service_date || null,
+          service_time: preExitReservationClosure.service_time || null,
+          venue_or_department: preExitReservationClosure.venue_or_department || null,
+          party_size: preExitReservationClosure.party_size || null
+        });
+
       await runLogsHook(
         "captureRequestClosure",
         buildHookPayload({
@@ -2289,10 +2525,10 @@ app.post("/webhook", async (req, res) => {
           contact_phone: preExitReservationClosure.contact_phone,
           contact_email: preExitReservationClosure.contact_email,
           service_date: preExitReservationClosure.service_date,
-          service_time: voiceflowStateVariables?.middleware_reservation_requested_time || null,
-          venue_or_department: null,
-          party_size: null,
-          summary: combinedReplyForMemory || null
+          service_time: preExitReservationClosure.service_time || null,
+          venue_or_department: preExitReservationClosure.venue_or_department || null,
+          party_size: preExitReservationClosure.party_size || null,
+          summary: closureSummary || null
         })
       );
     }
