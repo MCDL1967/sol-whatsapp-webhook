@@ -1,11 +1,11 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.14
-Date: 2026-04-19
+Version: v13.1.13
+Date: 2026-04-18
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.13.js
+Base: webhook.v13.1.12.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -45,13 +45,8 @@ This version adds (v13.1.13):
 - structured reservation summary generation from preserved reservation context
 - closure hook payload sourced from structured pre-exit reservation snapshot instead of assistant goodbye text
 
-This version adds (v13.1.14):
-- pre-reset reservation-context capture for exit-turn closure snapshot safety
-- deferred pre-exit reservation snapshot built from pre-reset captured locals
-- trailing reservation-venue preposition cleanup in middleware venue normalization
-
 Version notes:
-- preserves v13.1.13 transport, export, and bounded-clear behavior
+- preserves v13.1.12 transport, export, and bounded-clear behavior
 - preserves reservation-only closure scope on the normal reply exit path
 - does not add complaint/security/general-info closure emission
 - does not add business-status transition automation
@@ -708,7 +703,6 @@ function normalizeReservationVenueCandidate(candidate = "") {
     .replace(/\b(?:today|tomorrow|tonight|hoy|mañana|manana|esta noche)\b.*$/i, "")
     .replace(/\b(?:for|para)\s+\d{1,2}\b.*$/i, "")
     .replace(/\b(?:at|a las)\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?\b.*$/i, "")
-    .replace(/\s+\b(?:at|for|en|para)\s*$/i, "")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -1987,15 +1981,21 @@ app.post("/webhook", async (req, res) => {
     }
 
     // ---- REQUEST CONTROL ----
-    // Capture pre-reset reservation state before any updateSession fires.
-    // These locals are the only safe source for the closure snapshot on exit turns.
-    const isReservationExitTurn = exitCommand && sessions[userID]?.active_request?.type === "reservation";
-    const preResetReservationContext = isReservationExitTurn
-      ? { ...(sessions[userID]?.reservation_context || createReservationContext()) }
-      : null;
-
     let requestControlEvent = null;
-    let preExitReservationClosure = null; // built after merge block — see below
+    const preExitReservationClosure =
+      exitCommand && sessions[userID]?.active_request?.type === "reservation"
+        ? {
+            session_summary: getSessionSummary(sessions[userID]),
+            guest_name: sessions[userID]?.guest_profile?.guest_name || null,
+            contact_phone: sessions[userID]?.guest_profile?.contact_phone || null,
+            contact_email: sessions[userID]?.guest_profile?.contact_email || null,
+            service_date: sessions[userID]?.reservation_context?.resolved_date || null,
+            service_time: sessions[userID]?.reservation_context?.service_time || null,
+            venue_or_department: sessions[userID]?.reservation_context?.venue_or_department || null,
+            party_size: sessions[userID]?.reservation_context?.party_size || null,
+            reservation_summary: sessions[userID]?.reservation_context?.reservation_summary || null
+          }
+        : null;
 
     if (restartCommand) {
       updateSession(userID, {
@@ -2149,25 +2149,6 @@ app.post("/webhook", async (req, res) => {
     if (shouldEvaluateReservationDate && reservationContextChanged) {
       updateSession(userID, { reservation_context: mergedReservationContext });
       currentSessionAfterControl.reservation_context = mergedReservationContext;
-    }
-
-    // ---- PRE-EXIT RESERVATION SNAPSHOT (sourced from pre-reset captured locals) ----
-    if (isReservationExitTurn && preResetReservationContext) {
-      const closureSummary =
-        preResetReservationContext.reservation_summary ||
-        buildReservationContextSummary(preResetReservationContext);
-
-      preExitReservationClosure = {
-        session_summary: getSessionSummary(sessions[userID]),
-        guest_name: sessions[userID]?.guest_profile?.guest_name || null,
-        contact_phone: sessions[userID]?.guest_profile?.contact_phone || null,
-        contact_email: sessions[userID]?.guest_profile?.contact_email || null,
-        service_date: preResetReservationContext.resolved_date || null,
-        service_time: preResetReservationContext.service_time || null,
-        venue_or_department: preResetReservationContext.venue_or_department || null,
-        party_size: preResetReservationContext.party_size || null,
-        reservation_summary: closureSummary || null
-      };
     }
 
     const isSideChat = shouldTrackSideChat(currentSessionAfterControl, userText, detectedIntent, {
