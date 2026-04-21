@@ -1,11 +1,11 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.15
-Date: 2026-04-20
+Version: v13.1.16
+Date: 2026-04-21
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.13.js
+Base: webhook.v13.1.15.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -261,12 +261,16 @@ function looksLikeStandaloneName(text = "") {
     "steakhouse",
     "tomorrow",
     "today",
-    "for now"
+    "for now",
+    "thanks",
+    "thank you",
+    "thx",
+    "cool"
   ];
   if (disallowed.includes(normalized)) return false;
 
   const tokens = raw.split(/\s+/).filter(Boolean);
-  if (tokens.length < 2 || tokens.length > 4) return false;
+  if (tokens.length < 1 || tokens.length > 4) return false;
 
   return tokens.every((token) => /^[A-Za-zÀ-ÿ''-]+$/.test(token));
 }
@@ -535,6 +539,16 @@ const MONTH_NAME_TO_NUMBER = {
   december: 12, dec: 12
 };
 
+const WEEKDAY_NAME_TO_INDEX = {
+  sunday: 0, sun: 0, domingo: 0, dom: 0,
+  monday: 1, mon: 1, lunes: 1, lun: 1,
+  tuesday: 2, tue: 2, tues: 2, martes: 2, mar: 2,
+  wednesday: 3, wed: 3, miercoles: 3, miércoles: 3, mie: 3, mié: 3,
+  thursday: 4, thu: 4, thur: 4, thurs: 4, jueves: 4, jue: 4,
+  friday: 5, fri: 5, viernes: 5, vie: 5,
+  saturday: 6, sat: 6, sabado: 6, sábado: 6, sab: 6
+};
+
 function isoDateFromParts(year, month, day) {
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
@@ -602,51 +616,77 @@ function parseRelativeDateReference(text = "", baseDate = new Date()) {
   };
 }
 
+function parseWeekdayDateReference(text = "", baseDate = new Date()) {
+  const normalized = normalizeText(text);
+  const match = normalized.match(/\b(sunday|sun|domingo|dom|monday|mon|lunes|lun|tuesday|tue|tues|martes|wednesday|wed|miercoles|miércoles|mie|mié|thursday|thu|thur|thurs|jueves|jue|friday|fri|viernes|vie|saturday|sat|sabado|sábado|sab)\b/);
+
+  if (!match) return null;
+
+  const targetWeekday = WEEKDAY_NAME_TO_INDEX[match[1]];
+  if (targetWeekday === undefined) return null;
+
+  const baseParts = getPanamaDateParts(baseDate);
+  const todayIso = `${baseParts.year}-${baseParts.month}-${baseParts.day}`;
+  const todayDate = buildDateFromIsoAtNoon(todayIso);
+  const todayWeekday = todayDate.getUTCDay();
+
+  let diff = (targetWeekday - todayWeekday + 7) % 7;
+  if (diff === 0) diff = 7;
+
+  const targetDate = addPanamaDays(baseDate, diff);
+  const parts = getPanamaDateParts(targetDate);
+  const isoDate = `${parts.year}-${parts.month}-${parts.day}`;
+
+  return {
+    iso_date: isoDate,
+    weekday: parts.weekday,
+    display: formatIsoDateForDisplay(isoDate, "en"),
+    source: match[0]
+  };
+}
+
 function resolveReservationDateContext(text = "", baseDate = new Date()) {
   const absoluteRef = parseAbsoluteDateReference(text, baseDate);
   const relativeRef = parseRelativeDateReference(text, baseDate);
+  const weekdayRef = parseWeekdayDateReference(text, baseDate);
+  const refs = [absoluteRef, relativeRef, weekdayRef].filter(Boolean);
 
-  if (!absoluteRef && !relativeRef) {
+  if (refs.length === 0) {
     return createReservationContext();
   }
 
-  if (absoluteRef && relativeRef) {
-    if (absoluteRef.iso_date === relativeRef.iso_date) {
-      return {
-        resolved_date: absoluteRef.iso_date,
-        resolved_weekday: absoluteRef.weekday,
-        resolution_status: "consistent_relative_absolute",
-        conflict_relative_date: null,
-        conflict_absolute_date: null,
-        source_text: text || ""
-      };
-    }
+  const uniqueIsoDates = [...new Set(refs.map((ref) => ref.iso_date))];
 
+  if (uniqueIsoDates.length > 1) {
     return {
       resolved_date: null,
       resolved_weekday: null,
       resolution_status: "conflict",
-      conflict_relative_date: relativeRef.iso_date,
-      conflict_absolute_date: absoluteRef.iso_date,
+      conflict_relative_date: relativeRef?.iso_date || weekdayRef?.iso_date || null,
+      conflict_absolute_date: absoluteRef?.iso_date || null,
       source_text: text || ""
     };
   }
 
-  if (absoluteRef) {
-    return {
-      resolved_date: absoluteRef.iso_date,
-      resolved_weekday: absoluteRef.weekday,
-      resolution_status: "absolute_only",
-      conflict_relative_date: null,
-      conflict_absolute_date: null,
-      source_text: text || ""
-    };
+  const resolvedRef = refs[0];
+  const statuses = [
+    absoluteRef ? "absolute" : null,
+    relativeRef ? "relative" : null,
+    weekdayRef ? "weekday" : null
+  ].filter(Boolean);
+
+  let resolutionStatus = "absolute_only";
+  if (statuses.length === 1) {
+    if (statuses[0] === "relative") resolutionStatus = "relative_only";
+    if (statuses[0] === "weekday") resolutionStatus = "weekday_only";
+  } else {
+    resolutionStatus = `consistent_${statuses.join("_")}`;
   }
 
   return {
-    resolved_date: relativeRef.iso_date,
-    resolved_weekday: relativeRef.weekday,
-    resolution_status: "relative_only",
+    resolved_date: resolvedRef.iso_date,
+    resolved_weekday: resolvedRef.weekday,
+    resolution_status: resolutionStatus,
     conflict_relative_date: null,
     conflict_absolute_date: null,
     source_text: text || ""
@@ -725,6 +765,11 @@ function normalizeReservationVenueCandidate(candidate = "") {
     "reserva",
     "restaurant",
     "restaurante",
+    "restaurant options",
+    "restaurante opciones",
+    "options",
+    "option",
+    "venue options",
     "booking",
     "book",
     "table",
@@ -777,7 +822,9 @@ function extractReservationPartySize(text = "") {
     /\bfor\s+(\d{1,2})\s+(?:guests?|people|persons?)\b/i,
     /\b(\d{1,2})\s+(?:guests?|people|persons?)\b/i,
     /\b(\d{1,2})\s*pax\b/i,
+    /\bfor\s+(\d{1,2})(?!\s*(?:am|pm|:))\b/i,
     /\bpara\s+(\d{1,2})\s+(?:personas?|huespedes|huéspedes)\b/i,
+    /\bpara\s+(\d{1,2})\b/i,
     /\b(?:somos|seremos)\s+(\d{1,2})\b/i,
     /\b(\d{1,2})\s+personas\b/i
   ];
@@ -790,9 +837,53 @@ function extractReservationPartySize(text = "") {
   return null;
 }
 
+const KNOWN_RESERVATION_VENUES = [
+  { canonical: "La Brasserie", aliases: ["la brasserie", "brasserie"] },
+  { canonical: "Fenicia", aliases: ["fenicia"] },
+  { canonical: "Larry's Sports Bar & Terrace", aliases: ["larry's sports bar & terrace", "larrys sports bar & terrace", "larry's sports bar", "larrys sports bar", "larry's", "larrys"] },
+  { canonical: "Acua Pool Lounge & Bar", aliases: ["acua pool lounge & bar", "acua pool lounge", "acua"] },
+  { canonical: "Larry's Market", aliases: ["larry's market", "larrys market"] },
+  { canonical: "The Garden Lobby Bar", aliases: ["the garden lobby bar", "garden lobby bar", "garden bar"] }
+];
+
+function extractKnownReservationVenue(text = "") {
+  const normalized = normalizeText(text);
+  if (!normalized) return null;
+
+  const candidates = KNOWN_RESERVATION_VENUES.flatMap((venue) =>
+    venue.aliases.map((alias) => ({ alias, canonical: venue.canonical }))
+  ).sort((a, b) => b.alias.length - a.alias.length);
+
+  for (const candidate of candidates) {
+    const escaped = candidate.alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pattern = new RegExp(`(^|[^a-z])${escaped}([^a-z]|$)`, "i");
+    if (pattern.test(normalized)) {
+      return candidate.canonical;
+    }
+  }
+
+  return null;
+}
+
+function extractPromptReplyVenueCandidate(text = "") {
+  const raw = (text || "").trim();
+  if (!raw) return null;
+
+  const leadingCandidate = raw
+    .split(/[,;\n]/)[0]
+    .replace(/\b(?:for|para)\b.*$/i, "")
+    .replace(/\b(?:at|a las)\b.*$/i, "")
+    .trim();
+
+  return normalizeReservationVenueCandidate(leadingCandidate);
+}
+
 function extractReservationVenue(text = "", session = null) {
   const raw = (text || "").trim();
   if (!raw) return null;
+
+  const knownVenue = extractKnownReservationVenue(raw);
+  if (knownVenue) return knownVenue;
 
   const explicitPatterns = [
     /\b(?:reservation|booking|table|dinner|lunch|breakfast)\s+(?:at|for)\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'&.\- ]{1,50})/i,
@@ -809,8 +900,8 @@ function extractReservationVenue(text = "", session = null) {
   }
 
   if (session?.last_bot_reply && isLikelyVenuePrompt(session.last_bot_reply)) {
-    const candidate = normalizeReservationVenueCandidate(raw);
-    if (candidate) return candidate;
+    const promptReplyVenue = extractPromptReplyVenueCandidate(raw);
+    if (promptReplyVenue) return promptReplyVenue;
   }
 
   return null;
