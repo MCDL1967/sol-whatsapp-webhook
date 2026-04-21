@@ -1,11 +1,11 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.16
+Version: v13.1.17
 Date: 2026-04-21
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.15.js
+Base: webhook.v13.1.16.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -44,6 +44,20 @@ This version adds (v13.1.13):
 - conservative middleware-side extraction for reservation time, party size, and venue candidates
 - structured reservation summary generation from preserved reservation context
 - closure hook payload sourced from structured pre-exit reservation snapshot instead of assistant goodbye text
+
+This version changes (v13.1.17):
+- venue_or_department: all acceptance paths now registry-gated via extractKnownReservationVenue
+- explicit-pattern and prompt-reply paths demoted to candidate extractors only; no free-text venue written
+- outbound reply language substitution removed; mismatch detection is now passive logging only
+- session language changes only through explicit switch commands (unchanged)
+
+This version adds (v13.1.16):
+- expanded venue normalisation disallowed values (options, option, restaurant options)
+- conservative known-venue matching for on-property venues
+- prompt-reply venue extraction for venue-selection replies
+- weekday-based reservation date resolution
+- single-token guest-name capture when bot is explicitly asking for name
+- conservative bare "for 4" / "para 4" party-size capture
 
 This version adds (v13.1.15):
 - pre-reset reservation-context capture for exit-turn closure continuity
@@ -891,17 +905,23 @@ function extractReservationVenue(text = "", session = null) {
     /\b(?:restaurant|restaurante|venue)\s*(?::|-)?\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'&.\- ]{1,50})/i
   ];
 
+  // v13.1.17: explicit-pattern and prompt-reply paths are candidate extractors only.
+  // Final acceptance must resolve through the known-venue registry.
+  // If no registry hit, return null — free-text strings are never written to venue_or_department.
   for (const pattern of explicitPatterns) {
     const match = raw.match(pattern);
     if (match?.[1]) {
-      const candidate = normalizeReservationVenueCandidate(match[1]);
-      if (candidate) return candidate;
+      const registryHit = extractKnownReservationVenue(match[1]);
+      if (registryHit) return registryHit;
     }
   }
 
   if (session?.last_bot_reply && isLikelyVenuePrompt(session.last_bot_reply)) {
     const promptReplyVenue = extractPromptReplyVenueCandidate(raw);
-    if (promptReplyVenue) return promptReplyVenue;
+    if (promptReplyVenue) {
+      const registryHit = extractKnownReservationVenue(promptReplyVenue);
+      if (registryHit) return registryHit;
+    }
   }
 
   return null;
@@ -2526,12 +2546,10 @@ app.post("/webhook", async (req, res) => {
       );
     }
 
-    const replies = filteredReplies.map((reply) => {
-      const mismatch = detectReplyLanguageMismatch(reply, lockedResponseLanguage);
-      return mismatch.mismatch
-        ? buildLockedLanguageFallbackReply(sessions[userID], lockedResponseLanguage)
-        : reply;
-    });
+    // v13.1.17: outbound reply substitution removed.
+    // detectReplyLanguageMismatch fires for logging only (see replyLanguageMismatches above).
+    // Session language changes exclusively through explicit switch commands.
+    const replies = filteredReplies;
 
     await runLogsHook(
       "captureVoiceflowTurn",
