@@ -1,11 +1,11 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.13
-Date: 2026-04-18
+Version: v13.1.15
+Date: 2026-04-20
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.12.js
+Base: webhook.v13.1.13.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -45,11 +45,20 @@ This version adds (v13.1.13):
 - structured reservation summary generation from preserved reservation context
 - closure hook payload sourced from structured pre-exit reservation snapshot instead of assistant goodbye text
 
+This version adds (v13.1.15):
+- pre-reset reservation-context capture for exit-turn closure continuity
+- exit-turn reservation evaluation using pre-reset reservation eligibility
+- deferred pre-exit reservation snapshot built from merged local reservation context
+- menu-command partial reservation-context preservation for venue/time/party_size
+- no runtime structured venue candidate hydration yet in this stage
+
 Version notes:
-- preserves v13.1.12 transport, export, and bounded-clear behavior
+- preserves v13.1.13 transport, export, and bounded-clear behavior
 - preserves reservation-only closure scope on the normal reply exit path
+- stage 1 only: sequencing/snapshot/menu-reset correction
 - does not add complaint/security/general-info closure emission
 - does not add business-status transition automation
+- does not add runtime structured venue candidate ingestion in this version
 
 Intentionally preserved:
 - v13 exit/reset behavior
@@ -1982,20 +1991,11 @@ app.post("/webhook", async (req, res) => {
 
     // ---- REQUEST CONTROL ----
     let requestControlEvent = null;
-    const preExitReservationClosure =
-      exitCommand && sessions[userID]?.active_request?.type === "reservation"
-        ? {
-            session_summary: getSessionSummary(sessions[userID]),
-            guest_name: sessions[userID]?.guest_profile?.guest_name || null,
-            contact_phone: sessions[userID]?.guest_profile?.contact_phone || null,
-            contact_email: sessions[userID]?.guest_profile?.contact_email || null,
-            service_date: sessions[userID]?.reservation_context?.resolved_date || null,
-            service_time: sessions[userID]?.reservation_context?.service_time || null,
-            venue_or_department: sessions[userID]?.reservation_context?.venue_or_department || null,
-            party_size: sessions[userID]?.reservation_context?.party_size || null,
-            reservation_summary: sessions[userID]?.reservation_context?.reservation_summary || null
-          }
-        : null;
+    const wasActiveReservationBeforeReset =
+      exitCommand && sessions[userID]?.active_request?.type === "reservation";
+    const preResetGuestProfile = { ...(sessions[userID]?.guest_profile || createGuestProfile(userID)) };
+    const preResetReservationContext = { ...(sessions[userID]?.reservation_context || createReservationContext()) };
+    let preExitReservationClosure = null;
 
     if (restartCommand) {
       updateSession(userID, {
@@ -2015,7 +2015,14 @@ app.post("/webhook", async (req, res) => {
       updateSession(userID, {
         active_request: null,
         side_chat_count: 0,
-        reservation_context: createReservationContext()
+        reservation_context: sessions[userID]?.active_request?.type === "reservation"
+          ? {
+              ...createReservationContext(),
+              venue_or_department: sessions[userID].reservation_context?.venue_or_department || null,
+              service_time: sessions[userID].reservation_context?.service_time || null,
+              party_size: sessions[userID].reservation_context?.party_size || null
+            }
+          : createReservationContext()
       });
 
       console.log(`[REQUEST RESET] user=${userID} reason=menu_command`);
@@ -2101,14 +2108,18 @@ app.post("/webhook", async (req, res) => {
 
     const currentSessionAfterControl = sessions[userID];
     const shouldEvaluateReservationDate =
-      currentSessionAfterControl?.active_request?.type === "reservation" || detectedIntent === "reservation";
+      currentSessionAfterControl?.active_request?.type === "reservation" ||
+      detectedIntent === "reservation" ||
+      wasActiveReservationBeforeReset === true;
     const reservationDateContextFromText = shouldEvaluateReservationDate
       ? resolveReservationDateContext(userText)
       : createReservationContext();
     const reservationDetailContextFromText = shouldEvaluateReservationDate
       ? extractReservationDetailContext(userText, currentSessionAfterControl)
       : {};
-    let mergedReservationContext = currentSessionAfterControl?.reservation_context || createReservationContext();
+    let mergedReservationContext = wasActiveReservationBeforeReset
+      ? preResetReservationContext
+      : (currentSessionAfterControl?.reservation_context || createReservationContext());
     let reservationContextChanged = false;
 
     if (shouldEvaluateReservationDate && reservationDateContextFromText.resolution_status) {
@@ -2504,6 +2515,29 @@ app.post("/webhook", async (req, res) => {
     }
 
     const combinedReplyForMemory = replies.join("\n\n");
+
+    // ---- DEFERRED PRE-EXIT RESERVATION CLOSURE SNAPSHOT ----
+    if (wasActiveReservationBeforeReset) {
+      const closureSummary =
+        mergedReservationContext.reservation_summary ||
+        buildReservationContextSummary(mergedReservationContext);
+
+      preExitReservationClosure = {
+        session_summary: getSessionSummary(sessions[userID]),
+        guest_name: preResetGuestProfile.guest_name || null,
+        contact_phone: preResetGuestProfile.contact_phone || null,
+        contact_email: preResetGuestProfile.contact_email || null,
+        service_date: mergedReservationContext.resolved_date || null,
+        service_time: mergedReservationContext.service_time || null,
+        venue_or_department: mergedReservationContext.venue_or_department || null,
+        party_size: mergedReservationContext.party_size || null,
+        reservation_summary: closureSummary || null
+      };
+
+      console.log(
+        `[PRE-EXIT RESERVATION SNAPSHOT] user=${userID} venue=${preExitReservationClosure.venue_or_department || "—"} date=${preExitReservationClosure.service_date || "—"} time=${preExitReservationClosure.service_time || "—"} party_size=${preExitReservationClosure.party_size || "—"}`
+      );
+    }
 
     // ---- LOGS CLOSURE HOOK (reservation confirmed exit only — Block B) ----
     if (preExitReservationClosure) {
