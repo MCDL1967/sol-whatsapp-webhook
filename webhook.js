@@ -1,11 +1,11 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.18
+Version: v13.1.19
 Date: 2026-04-21
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.17.js
+Base: webhook.v13.1.18.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -44,6 +44,17 @@ This version adds (v13.1.13):
 - conservative middleware-side extraction for reservation time, party size, and venue candidates
 - structured reservation summary generation from preserved reservation context
 - closure hook payload sourced from structured pre-exit reservation snapshot instead of assistant goodbye text
+
+This version changes (v13.1.19):
+- adds party-size pattern /\b(\d{1,2})\s+of\s+us\b/i to extractReservationPartySize
+- adds three explicit name patterns to extractGuestName (after existing patterns, before prompt-reply path):
+    reservation under [name]
+    party name [name]
+    (book|put|place|list|add) (it) under [name]
+  each filtered: first-token stop-word rejection ("the","a","an","name")
+               + known-venue-alias rejection via extractKnownReservationVenue
+- no changes to venue hydration, exit snapshot sequencing, language enforcement,
+  closure path, or record-ID carryover
 
 This version changes (v13.1.18):
 - adds extractSingleVenueFromReply: scans bot reply for known-venue aliases, returns
@@ -327,6 +338,26 @@ function extractGuestName(text = "", session = null) {
     const match = raw.match(pattern);
     if (match?.[1]) {
       return titleCaseWords(cleanNameCandidate(match[1]));
+    }
+  }
+
+  // v13.1.19: additional explicit name patterns.
+  // Guards: first-token stop-word rejection + known-venue-alias rejection.
+  // Existing patterns above remain first and are unaffected.
+  const newNamePatterns = [
+    /\breservation under\s+([A-Za-zÀ-ÿ''\-]+(?:\s+[A-Za-zÀ-ÿ''\-]+){0,3})/i,
+    /\bparty name[:\s]+([A-Za-zÀ-ÿ''\-]+(?:\s+[A-Za-zÀ-ÿ''\-]+){0,3})/i,
+    /\b(?:book|put|place|list|add)\s+(?:it\s+)?under\s+([A-Za-zÀ-ÿ''\-]+(?:\s+[A-Za-zÀ-ÿ''\-]+){0,3})/i
+  ];
+
+  for (const pattern of newNamePatterns) {
+    const match = raw.match(pattern);
+    if (match?.[1]) {
+      const candidate = cleanNameCandidate(match[1]);
+      const firstToken = normalizeText(candidate.split(/\s+/)[0]);
+      if (["the", "a", "an", "name"].includes(firstToken)) continue;
+      if (extractKnownReservationVenue(candidate)) continue;
+      return titleCaseWords(candidate);
     }
   }
 
@@ -849,7 +880,8 @@ function extractReservationPartySize(text = "") {
     /\bpara\s+(\d{1,2})\s+(?:personas?|huespedes|huéspedes)\b/i,
     /\bpara\s+(\d{1,2})\b/i,
     /\b(?:somos|seremos)\s+(\d{1,2})\b/i,
-    /\b(\d{1,2})\s+personas\b/i
+    /\b(\d{1,2})\s+personas\b/i,
+    /\b(\d{1,2})\s+of\s+us\b/i  // v13.1.19
   ];
 
   for (const pattern of patterns) {
