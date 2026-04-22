@@ -1,11 +1,11 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.17
+Version: v13.1.18
 Date: 2026-04-21
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.16.js
+Base: webhook.v13.1.17.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -44,6 +44,15 @@ This version adds (v13.1.13):
 - conservative middleware-side extraction for reservation time, party size, and venue candidates
 - structured reservation summary generation from preserved reservation context
 - closure hook payload sourced from structured pre-exit reservation snapshot instead of assistant goodbye text
+
+This version changes (v13.1.18):
+- adds extractSingleVenueFromReply: scans bot reply for known-venue aliases, returns
+  canonical name only when exactly one unique venue is present; null if zero or multiple
+- adds guarded venue hydration block after last_bot_reply is stored: fires only when
+  active_request.type === "reservation", reservation_context.venue_or_department is null,
+  and extractSingleVenueFromReply returns a non-null canonical name
+- emits [VENUE HYDRATED FROM REPLY] log entry when hydration occurs
+- no changes to closure sequencing, exit snapshot, record-ID carryover, or language enforcement
 
 This version changes (v13.1.17):
 - venue_or_department: all acceptance paths now registry-gated via extractKnownReservationVenue
@@ -877,6 +886,29 @@ function extractKnownReservationVenue(text = "") {
   }
 
   return null;
+}
+
+// v13.1.18: scans a bot reply for known-venue aliases and returns the canonical name
+// ONLY when exactly one unique venue is present. Returns null if zero or multiple
+// distinct venues are found — prevents hydrating the wrong venue from list/option replies.
+function extractSingleVenueFromReply(replyText = "") {
+  const normalized = normalizeText(replyText);
+  if (!normalized) return null;
+
+  const matched = new Set();
+  for (const venue of KNOWN_RESERVATION_VENUES) {
+    for (const alias of venue.aliases) {
+      const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const pattern = new RegExp(`(^|[^a-z])${escaped}([^a-z]|$)`, "i");
+      if (pattern.test(normalized)) {
+        matched.add(venue.canonical);
+        break; // alias found for this venue — no need to test remaining aliases
+      }
+    }
+  }
+
+  if (matched.size === 1) return [...matched][0];
+  return null; // zero matches or multiple distinct venues → do not hydrate
 }
 
 function extractPromptReplyVenueCandidate(text = "") {
@@ -2682,6 +2714,28 @@ app.post("/webhook", async (req, res) => {
         ? { state: "idle", active_request: null, last_bot_reply: combinedReplyForMemory }
         : { state: "active", last_bot_reply: combinedReplyForMemory }
     );
+
+    // v13.1.18: back-populate venue from bot reply when runtime confirmed it conversationally
+    // and middleware has not yet captured it from user text.
+    // Guards: active reservation only · write-only-when-null · exactly one registry hit required.
+    if (
+      sessions[userID]?.active_request?.type === "reservation" &&
+      !sessions[userID]?.reservation_context?.venue_or_department &&
+      combinedReplyForMemory
+    ) {
+      const venueFromReply = extractSingleVenueFromReply(combinedReplyForMemory);
+      if (venueFromReply) {
+        updateSession(userID, {
+          reservation_context: {
+            ...(sessions[userID]?.reservation_context || createReservationContext()),
+            venue_or_department: venueFromReply
+          }
+        });
+        console.log(
+          `[VENUE HYDRATED FROM REPLY] user=${userID} venue=${venueFromReply}`
+        );
+      }
+    }
 
     console.log(`[SESSION AFTER]`, getSessionSummary(sessions[userID]));
 
