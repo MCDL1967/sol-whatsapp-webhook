@@ -1,11 +1,11 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.19
+Version: v13.1.20
 Date: 2026-04-21
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.18.js
+Base: webhook.v13.1.19.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -44,6 +44,19 @@ This version adds (v13.1.13):
 - conservative middleware-side extraction for reservation time, party size, and venue candidates
 - structured reservation summary generation from preserved reservation context
 - closure hook payload sourced from structured pre-exit reservation snapshot instead of assistant goodbye text
+
+This version changes (v13.1.20):
+- adds shouldActivateReservation(userText, session): parallel activation function
+  alongside detectIntent, covering four rules in priority order:
+    A2 — known venue alias in user text
+    A3 — last bot reply was a venue prompt (any inbound turn activates)
+    A4 — last bot reply confirmed exactly one venue + inbound is affirmative/continuation
+    A5 — user text contains party-size AND (time OR date) signals together
+- patches activation branch in control block: if detectIntent did not return
+  "reservation" and shouldActivateReservation returns true, activates with
+  type="reservation"; logs via=${activationReason}
+- no changes to detectIntent, field extraction, venue governance, merge logic,
+  reply-side hydration, exit snapshot sequencing, closure path, or record-ID carryover
 
 This version changes (v13.1.19):
 - adds party-size pattern /\b(\d{1,2})\s+of\s+us\b/i to extractReservationPartySize
@@ -1783,6 +1796,42 @@ function shouldClearActiveRequest(currentRequest, newIntent, userText) {
   return topicShiftHints.some((hint) => t.includes(hint));
 }
 
+// v13.1.20: reservation activation layer — parallel to detectIntent, session-aware.
+// Fires only when active_request is null. Priority order matches spec:
+//   A2 — known venue in user text
+//   A3 — venue-prompt continuation (last bot reply was a venue prompt)
+//   A4 — affirmative continuation after single-venue bot reply
+//   A5 — detail-rich reservation turn (party size + time/date signal together)
+// Returns true if middleware should activate reservation, false otherwise.
+// Does NOT modify state. Caller owns the activation write.
+function shouldActivateReservation(userText, session) {
+  if (!userText) return false;
+
+  // A2 — user text contains a known venue alias directly
+  if (extractKnownReservationVenue(userText)) return true;
+
+  const lastReply = session?.last_bot_reply || "";
+
+  // A3 — last bot reply was a venue prompt and user turn is a continuation
+  // (numeric pick, short reply, or any text when venue prompt is active)
+  if (isLikelyVenuePrompt(lastReply)) return true;
+
+  // A4 — last bot reply contained exactly one known venue (confirmation reply)
+  // and user text is an affirmative or continuation signal
+  if (lastReply) {
+    const confirmedVenue = extractSingleVenueFromReply(lastReply);
+    if (confirmedVenue && isLikelyContinuation(userText)) return true;
+  }
+
+  // A5 — detail-rich turn: party-size signal AND (time signal OR date signal)
+  const hasPartySize = !!extractReservationPartySize(userText);
+  const hasTime = !!parseRequestedClockTime(userText);
+  const hasDate = !!resolveReservationDateContext(userText).resolution_status;
+  if (hasPartySize && (hasTime || hasDate)) return true;
+
+  return false;
+}
+
 function getSafetyFallbackMessage(text) {
   const t = normalizeText(text);
 
@@ -2219,16 +2268,31 @@ app.post("/webhook", async (req, res) => {
       const currentSession = sessions[userID];
 
       if (!currentSession.active_request) {
-        if (detectedIntent) {
+        // v13.1.20: reservation activation layer — fires before generic detectIntent write
+        // to catch venue-selection, affirmative, and detail-rich turns that return null from detectIntent
+        const reservationActivation =
+          detectedIntent !== "reservation" &&
+          shouldActivateReservation(userText, currentSession);
+
+        const effectiveIntent = reservationActivation ? "reservation" : detectedIntent;
+        const activationReason = reservationActivation ? "reservation_activation" : "intent_detection";
+
+        if (effectiveIntent) {
           const newRequest = {
-            type: detectedIntent,
-            status: initialStatusForType(detectedIntent)
+            type: effectiveIntent,
+            status: initialStatusForType(effectiveIntent)
           };
 
-          updateSession(userID, { active_request: newRequest, awaiting_language: false, reservation_context: newRequest.type === "reservation" ? (sessions[userID]?.reservation_context || createReservationContext()) : createReservationContext() });
+          updateSession(userID, {
+            active_request: newRequest,
+            awaiting_language: false,
+            reservation_context: newRequest.type === "reservation"
+              ? (sessions[userID]?.reservation_context || createReservationContext())
+              : createReservationContext()
+          });
 
           console.log(
-            `[REQUEST DETECTED] user=${userID} type=${newRequest.type} status=${newRequest.status}`
+            `[REQUEST DETECTED] user=${userID} type=${newRequest.type} status=${newRequest.status} via=${activationReason}`
           );
           requestControlEvent = { request_action: "detected", request_type: newRequest.type, request_status: newRequest.status };
         }
