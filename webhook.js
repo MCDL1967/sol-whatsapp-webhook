@@ -1,7 +1,7 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.23
+Version: v13.1.22
 Date: 2026-04-25
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
@@ -49,13 +49,6 @@ This version changes (v13.1.22):
 - explicit exit-command reset now clears `guest_profile` using `createGuestProfile(userID)`
 - prevents stale guest profile carryover into the next session after `exit` / `goodbye` command-driven resets
 - preserves existing restart and menu reset behavior without changing reservation candidate handling
-
-This version changes (v13.1.23):
-- adds one additive colloquial bare-numeric party-size pattern to `extractReservationPartySize`:
-    /\b(?:do|make|get|book|seat)\s+(\d{1,2})(?!\s*(?:am|pm|:|st\b|nd\b|rd\b|th\b))\b/i
-- preserves all existing party-size patterns in original order
-- no changes to activation sequencing, A5 logic, request switching, reset behavior,
-  bridge transport, closure path, or record-ID carryover
 
 This version changes (v13.1.20):
 - adds shouldActivateReservation(userText, session): parallel activation function
@@ -908,8 +901,7 @@ function extractReservationPartySize(text = "") {
     /\bpara\s+(\d{1,2})\b/i,
     /\b(?:somos|seremos)\s+(\d{1,2})\b/i,
     /\b(\d{1,2})\s+personas\b/i,
-    /\b(\d{1,2})\s+of\s+us\b/i,  // v13.1.19
-    /\b(?:do|make|get|book|seat)\s+(\d{1,2})(?!\s*(?:am|pm|:|st\b|nd\b|rd\b|th\b))\b/i // v13.1.23
+    /\b(\d{1,2})\s+of\s+us\b/i  // v13.1.19
   ];
 
   for (const pattern of patterns) {
