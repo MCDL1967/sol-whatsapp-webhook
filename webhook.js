@@ -1,11 +1,11 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.22
-Date: 2026-04-25
+Version: v13.1.21
+Date: 2026-04-23
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.21.js
+Base: webhook.v13.1.20.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -44,11 +44,6 @@ This version adds (v13.1.13):
 - conservative middleware-side extraction for reservation time, party size, and venue candidates
 - structured reservation summary generation from preserved reservation context
 - closure hook payload sourced from structured pre-exit reservation snapshot instead of assistant goodbye text
-
-This version changes (v13.1.22):
-- explicit exit-command reset now clears `guest_profile` using `createGuestProfile(userID)`
-- prevents stale guest profile carryover into the next session after `exit` / `goodbye` command-driven resets
-- preserves existing restart and menu reset behavior without changing reservation candidate handling
 
 This version changes (v13.1.20):
 - adds shouldActivateReservation(userText, session): parallel activation function
@@ -2264,7 +2259,6 @@ app.post("/webhook", async (req, res) => {
         current_language: null,
         awaiting_language: true,
         side_chat_count: 0,
-        guest_profile: createGuestProfile(userID),
         reservation_context: createReservationContext(),
         last_bot_reply: null,
         state: "idle"
