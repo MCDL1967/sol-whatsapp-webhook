@@ -1,11 +1,11 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.20
-Date: 2026-04-21
+Version: v13.1.23
+Date: 2026-04-25
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.19.js
+Base: webhook.v13.1.21.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -44,6 +44,18 @@ This version adds (v13.1.13):
 - conservative middleware-side extraction for reservation time, party size, and venue candidates
 - structured reservation summary generation from preserved reservation context
 - closure hook payload sourced from structured pre-exit reservation snapshot instead of assistant goodbye text
+
+This version changes (v13.1.22):
+- explicit exit-command reset now clears `guest_profile` using `createGuestProfile(userID)`
+- prevents stale guest profile carryover into the next session after `exit` / `goodbye` command-driven resets
+- preserves existing restart and menu reset behavior without changing reservation candidate handling
+
+This version changes (v13.1.23):
+- adds one additive colloquial bare-numeric party-size pattern to `extractReservationPartySize`:
+    /\b(?:do|make|get|book|seat)\s+(\d{1,2})(?!\s*(?:am|pm|:|st\b|nd\b|rd\b|th\b))\b/i
+- preserves all existing party-size patterns in original order
+- no changes to activation sequencing, A5 logic, request switching, reset behavior,
+  bridge transport, closure path, or record-ID carryover
 
 This version changes (v13.1.20):
 - adds shouldActivateReservation(userText, session): parallel activation function
@@ -120,6 +132,8 @@ const crypto = require("crypto");
 const fs = require("fs/promises");
 const path = require("path");
 const logsService = require("./logs_service");
+const { readVfState }              = require('./vf_bridge/vf_state_reader');
+const { readReservationCandidate } = require('./vf_bridge/reservation_candidate_reader');
 
 const app = express();
 
@@ -894,7 +908,8 @@ function extractReservationPartySize(text = "") {
     /\bpara\s+(\d{1,2})\b/i,
     /\b(?:somos|seremos)\s+(\d{1,2})\b/i,
     /\b(\d{1,2})\s+personas\b/i,
-    /\b(\d{1,2})\s+of\s+us\b/i  // v13.1.19
+    /\b(\d{1,2})\s+of\s+us\b/i,  // v13.1.19
+    /\b(?:do|make|get|book|seat)\s+(\d{1,2})(?!\s*(?:am|pm|:|st\b|nd\b|rd\b|th\b))\b/i // v13.1.23
   ];
 
   for (const pattern of patterns) {
@@ -2257,6 +2272,7 @@ app.post("/webhook", async (req, res) => {
         current_language: null,
         awaiting_language: true,
         side_chat_count: 0,
+        guest_profile: createGuestProfile(userID),
         reservation_context: createReservationContext(),
         last_bot_reply: null,
         state: "idle"
@@ -2641,6 +2657,28 @@ app.post("/webhook", async (req, res) => {
 
       traces = vfResponse.data;
     }
+
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // VF BRIDGE — PHASE 1 READ BLOCK (v13.1.21)
+    // Reads VF session state after interact resolves. Read/log only.
+    // Non-fatal: bridge failure cannot break the user-facing response path.
+    // ═══════════════════════════════════════════════════════════════════════════
+    try {
+      const vfStateResult = await readVfState(userID);
+
+      if (vfStateResult.ok) {
+        readReservationCandidate(vfStateResult.state);
+      }
+      // If !ok: readVfState already logged the failure with [VF-BRIDGE-P1] prefix.
+      // Normal webhook behavior continues regardless.
+
+    } catch (bridgeErr) {
+      // Belt-and-suspenders: catch any unexpected bridge error.
+      // Must never reach the user-facing path.
+      console.error(`[VF-BRIDGE-P1] unexpected bridge error — ${bridgeErr.message || bridgeErr}`);
+    }
+    // ══════════════════════════════════════════════════════════════════════════
 
     // ---- EXTRACT TEXT REPLIES FROM VOICEFLOW ----
     const rawReplies = traces
