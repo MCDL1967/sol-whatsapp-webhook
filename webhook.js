@@ -1,11 +1,11 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.21
-Date: 2026-04-23
+Version: v13.1.20
+Date: 2026-04-21
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.20.js
+Base: webhook.v13.1.19.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -120,8 +120,6 @@ const crypto = require("crypto");
 const fs = require("fs/promises");
 const path = require("path");
 const logsService = require("./logs_service");
-const { readVfState }              = require('./vf_bridge/vf_state_reader');
-const { readReservationCandidate } = require('./vf_bridge/reservation_candidate_reader');
 
 const app = express();
 
@@ -2643,28 +2641,6 @@ app.post("/webhook", async (req, res) => {
 
       traces = vfResponse.data;
     }
-
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // VF BRIDGE — PHASE 1 READ BLOCK (v13.1.21)
-    // Reads VF session state after interact resolves. Read/log only.
-    // Non-fatal: bridge failure cannot break the user-facing response path.
-    // ═══════════════════════════════════════════════════════════════════════════
-    try {
-      const vfStateResult = await readVfState(userID);
-
-      if (vfStateResult.ok) {
-        readReservationCandidate(vfStateResult.state);
-      }
-      // If !ok: readVfState already logged the failure with [VF-BRIDGE-P1] prefix.
-      // Normal webhook behavior continues regardless.
-
-    } catch (bridgeErr) {
-      // Belt-and-suspenders: catch any unexpected bridge error.
-      // Must never reach the user-facing path.
-      console.error(`[VF-BRIDGE-P1] unexpected bridge error — ${bridgeErr.message || bridgeErr}`);
-    }
-    // ══════════════════════════════════════════════════════════════════════════
 
     // ---- EXTRACT TEXT REPLIES FROM VOICEFLOW ----
     const rawReplies = traces
