@@ -1,11 +1,11 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.23
-Date: 2026-04-25
+Version: v13.1.24
+Date: 2026-04-26
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.21.js
+Base: webhook.v13.1.23.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -49,6 +49,14 @@ This version changes (v13.1.22):
 - explicit exit-command reset now clears `guest_profile` using `createGuestProfile(userID)`
 - prevents stale guest profile carryover into the next session after `exit` / `goodbye` command-driven resets
 - preserves existing restart and menu reset behavior without changing reservation candidate handling
+
+This version changes (v13.1.24):
+- rotates `session_id` on `restartCommand` reset
+- rotates `session_id` on `exitCommand` reset
+- suppresses language-lock injection on exit turns by short-circuiting `lockedResponseLanguage` to null when `exitCommand` is true
+- no VF DELETE yet
+- no exit-call suppression yet
+- no KB/tool/list changes
 
 This version changes (v13.1.23):
 - adds one additive colloquial bare-numeric party-size pattern to `extractReservationPartySize`:
@@ -2238,6 +2246,7 @@ app.post("/webhook", async (req, res) => {
 
     if (restartCommand) {
       updateSession(userID, {
+        session_id: generateSessionId(),
         active_request: null,
         current_language: null,
         awaiting_language: true,
@@ -2268,6 +2277,7 @@ app.post("/webhook", async (req, res) => {
       requestControlEvent = { request_action: "reset", reason: "menu_command" };
     } else if (exitCommand) {
       updateSession(userID, {
+        session_id: generateSessionId(),
         active_request: null,
         current_language: null,
         awaiting_language: true,
@@ -2457,7 +2467,9 @@ app.post("/webhook", async (req, res) => {
       forwardedText = "goodbye";
     }
 
-    const lockedResponseLanguage = sessions[userID]?.current_language || effectiveCurrentLanguage || null;
+    const lockedResponseLanguage = exitCommand
+      ? null
+      : sessions[userID]?.current_language || effectiveCurrentLanguage || null;
     const shouldBypassLanguageLock =
       !!languageCommand ||
       effectiveAwaitingLanguage ||
