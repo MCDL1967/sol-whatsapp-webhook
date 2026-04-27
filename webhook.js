@@ -1,11 +1,11 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.26
+Version: v13.1.27
 Date: 2026-04-26
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.25.js
+Base: webhook.v13.1.26.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -50,11 +50,12 @@ This version changes (v13.1.22):
 - prevents stale guest profile carryover into the next session after `exit` / `goodbye` command-driven resets
 - preserves existing restart and menu reset behavior without changing reservation candidate handling
 
-This version changes (v13.1.26):
-- adds stale in-flight Voiceflow response suppression using the bound pre-await `session_id`
-- drops any VF response that resolves after a concurrent reset/session rotation
-- prevents stale post-exit/out-of-session bridge reads, session mutation, and ghost outbound replies
-- no changes to VF delete/reset logic, language lock logic, or reservation extraction behavior
+This version changes (v13.1.27):
+- adds per-user inbound request serialization using a lightweight promise queue keyed by `userID`
+- preserves immediate Meta acknowledgement by keeping `res.sendStatus(200)` first in the webhook handler
+- keeps status-event handling outside the queue and leaves the main processing body unchanged inside the queued callback
+- hardens queue cleanup with terminal `finally(...).catch(() => {})` handling and returns the queued promise handle
+- no VF / KB2 / list / payload-cleanup changes in this version
 
 This version changes (v13.1.25):
 - adds Voiceflow state delete on `exitCommand` and `restartCommand` using the official state delete endpoint
@@ -172,6 +173,34 @@ const LOGS_EXPORT_TOKEN = process.env.LOGS_EXPORT_TOKEN || "";
 // ---- SESSION CONTROL CONFIG ----
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const sessions = {};
+
+// ── PER-USER SERIALIZATION QUEUE ─────────────────────────────────────────────
+// Ensures only one inbound turn per user is processed at a time.
+// Each new turn waits for the prior in-flight turn to fully resolve before
+// entering the main processing pipeline.
+// Prevents overlapping VF calls, duplicate bridge reads, and contradictory
+// outbounds for the same user.
+const userQueues = {};
+
+function enqueueForUser(userID, fn) {
+  const prior = (userQueues[userID] || Promise.resolve()).then(
+    () => {},
+    () => {}  // absorb prior rejection — fn must always run
+  );
+
+  const next = prior.then(() => fn());
+
+  userQueues[userID] = next;
+
+  next.finally(() => {
+    if (userQueues[userID] === next) {
+      delete userQueues[userID];
+    }
+  }).catch(() => {});  // silence derived promise rejection from finally chain
+
+  return next;
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 // ---- SESSION HELPERS ----
 function generateSessionId() {
@@ -2151,11 +2180,17 @@ app.post("/logs/tasks/clear", async (req, res) => {
 app.post("/webhook", async (req, res) => {
   res.sendStatus(200); // acknowledge Meta immediately
 
+  let entry, changes, message, statusEvent;
   try {
-    const entry = req.body?.entry?.[0];
-    const changes = entry?.changes?.[0];
-    const message = changes?.value?.messages?.[0];
-    const statusEvent = changes?.value?.statuses?.[0];
+    entry = req.body?.entry?.[0];
+    changes = entry?.changes?.[0];
+    message = changes?.value?.messages?.[0];
+    statusEvent = changes?.value?.statuses?.[0];
+  } catch (_) {
+    return; // malformed body — nothing to process
+  }
+
+  try {
 
     if (statusEvent) {
       const statusUserID = statusEvent.recipient_id;
@@ -2180,7 +2215,10 @@ app.post("/webhook", async (req, res) => {
     const userID = message.from;
     const userText = message.text.body;
 
-    const session = getOrCreateSession(userID);
+    // Serialize per user: this turn waits for the prior in-flight turn to finish
+    enqueueForUser(userID, async () => {
+      try {
+        const session = getOrCreateSession(userID);
 
     const guestProfileUpdate = extractGuestProfileUpdate(userText, session);
     if (Object.keys(guestProfileUpdate).length > 0) {
@@ -3087,18 +3125,22 @@ app.post("/webhook", async (req, res) => {
       console.log(
         `[OUTBOUND] user=${userID} session_id=${sessions[userID].session_id} reply="${reply}"`
       );
-    }
-  } catch (err) {
-    await runLogsHook(
-      "captureMiddlewareError",
-      buildHookPayload({
-        event_type: "middleware_error",
-        summary: err.response?.data ? JSON.stringify(err.response.data) : err.message,
-        error_message: err.message
-      })
-    );
+      }
+      } catch (err) {
+        await runLogsHook(
+          "captureMiddlewareError",
+          buildHookPayload({
+            event_type: "middleware_error",
+            summary: err.response?.data ? JSON.stringify(err.response.data) : err.message,
+            error_message: err.message
+          })
+        );
 
-    console.error("[ERROR]", err.response?.data || err.message);
+        console.error("[ERROR]", err.response?.data || err.message);
+      }
+    }); // end enqueueForUser
+  } catch (outerErr) {
+    console.error("[ERROR] outer handler:", outerErr.message);
   }
 });
 
