@@ -1,11 +1,11 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.27
+Version: v13.1.28
 Date: 2026-04-26
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.26.js
+Base: webhook.v13.1.27.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -56,6 +56,12 @@ This version changes (v13.1.27):
 - keeps status-event handling outside the queue and leaves the main processing body unchanged inside the queued callback
 - hardens queue cleanup with terminal `finally(...).catch(() => {})` handling and returns the queued promise handle
 - no VF / KB2 / list / payload-cleanup changes in this version
+
+This version changes (v13.1.28):
+- enforces single guest-facing outbound per inbound user turn by consolidating multiple Voiceflow text traces into one WhatsApp reply
+- preserves all filtered guest-facing text in original order using double-newline paragraph separation
+- leaves the no-reply fallback path unchanged when Voiceflow returns no guest-facing text traces
+- no VF / KB2 / serialization / payload-cleanup changes in this version
 
 This version changes (v13.1.25):
 - adds Voiceflow state delete on `exitCommand` and `restartCommand` using the official state delete endpoint
@@ -2933,7 +2939,14 @@ app.post("/webhook", async (req, res) => {
     // v13.1.17: outbound reply substitution removed.
     // detectReplyLanguageMismatch fires for logging only (see replyLanguageMismatches above).
     // Session language changes exclusively through explicit switch commands.
-    const replies = filteredReplies;
+
+    // ── SINGLE-OUTBOUND ENFORCEMENT (v13.1.28) ───────────────────────────────
+    // VF may return multiple text traces per turn. Enforce one guest-facing
+    // WhatsApp message per inbound turn by joining all traces into one reply.
+    // Separator is a double newline so each trace reads as a distinct paragraph.
+    const consolidatedReply = filteredReplies.join("\n\n");
+    const replies = consolidatedReply ? [consolidatedReply] : [];
+    // ─────────────────────────────────────────────────────────────────────────
 
     await runLogsHook(
       "captureVoiceflowTurn",
