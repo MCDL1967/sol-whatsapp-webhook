@@ -1,11 +1,11 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.28
-Date: 2026-04-26
+Version: v13.1.30
+Date: 2026-04-27
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.27.js
+Base: webhook.v13.1.29.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -62,6 +62,20 @@ This version changes (v13.1.28):
 - preserves all filtered guest-facing text in original order using double-newline paragraph separation
 - leaves the no-reply fallback path unchanged when Voiceflow returns no guest-facing text traces
 - no VF / KB2 / serialization / payload-cleanup changes in this version
+
+This version changes (v13.1.29):
+- gates middleware language-lock injection on short structured turns when drift risk is low
+- gates reservation-date-resolution injection after the date is already resolved and stable
+- trims `buildVoiceflowStateVariables` to a lean core plus conditional reservation / conflict / time / incident groups
+- adds timing instrumentation for VF interact, bridge read, outbound, and total turn duration
+- no VF / KB2 / queue / list logic changes in this version
+
+This version changes (v13.1.30):
+- preserves `middleware_tomorrow_weekday` in the always-on core variable set for safer date-awareness continuity
+- hardens language-lock bypass so complaint / security turns keep the lock even when short and structured
+- reuses current-turn date/time parsing inside the lock/date gating block to avoid redundant per-turn parsing
+- corrects timing attribution by logging `bridge_read_ms` immediately after the bridge call and `response_processing_ms` after reply/session processing
+- adds timing coverage to the no-text fallback path without changing fallback behavior
 
 This version changes (v13.1.25):
 - adds Voiceflow state delete on `exitCommand` and `restartCommand` using the official state delete endpoint
@@ -1165,15 +1179,17 @@ function buildVoiceflowStateVariables(session, userText = "", options = {}) {
   const userInputLanguage = options.userInputLanguage || detectLikelyTextLanguage(userText);
   const explicitLanguageSwitch = options.languageCommand || null;
   const reservationContext = options.reservationDateContext || session?.reservation_context || createReservationContext();
+  const activeRequestType = session?.active_request?.type || null;
 
-  return {
+  // ── LEAN CORE: always-on variables sent on every turn (~25 fields) ──────────
+  const core = {
     middleware_session_id: session?.session_id || null,
     middleware_current_language: session?.current_language || null,
     middleware_locked_response_language: responseLanguage,
     middleware_user_input_language: userInputLanguage,
     middleware_language_lock: !!responseLanguage,
     middleware_language_switch_requested: explicitLanguageSwitch || null,
-    middleware_active_request_type: session?.active_request?.type || null,
+    middleware_active_request_type: activeRequestType,
     middleware_active_request_status: session?.active_request?.status || null,
     middleware_current_datetime_iso: runtimeContext.current_datetime_iso,
     middleware_current_date: runtimeContext.current_date,
@@ -1183,15 +1199,7 @@ function buildVoiceflowStateVariables(session, userText = "", options = {}) {
     middleware_today_date: runtimeContext.today_date,
     middleware_tomorrow_date: runtimeContext.tomorrow_date,
     middleware_tomorrow_weekday: runtimeContext.tomorrow_weekday,
-    middleware_relative_minutes_ago: runtimeContext.relative_minutes_ago,
-    middleware_approximate_incident_date: runtimeContext.approximate_incident_date,
-    middleware_approximate_incident_time: runtimeContext.approximate_incident_time,
-    middleware_reservation_requested_time: runtimeContext.reservation_requested_time,
-    middleware_reservation_requested_time_display: runtimeContext.reservation_requested_time_display,
-    middleware_reservation_alternative_time_1: runtimeContext.reservation_alternative_time_1,
-    middleware_reservation_alternative_time_1_display: runtimeContext.reservation_alternative_time_1_display,
-    middleware_reservation_alternative_time_2: runtimeContext.reservation_alternative_time_2,
-    middleware_reservation_alternative_time_2_display: runtimeContext.reservation_alternative_time_2_display,
+    // Legacy aliases kept for VF consumer compatibility
     user_language: responseLanguage,
     response_language: responseLanguage,
     language_lock: !!responseLanguage,
@@ -1200,17 +1208,45 @@ function buildVoiceflowStateVariables(session, userText = "", options = {}) {
     explicit_language_switch_target: explicitLanguageSwitch || null,
     guest_name: guestProfile.guest_name || null,
     guest_contact_phone: guestProfile.contact_phone || null,
-    guest_contact_email: guestProfile.contact_email || null,
+    guest_contact_email: guestProfile.contact_email || null
+  };
+
+  // ── RESERVATION GROUP: only when reservation is active ──────────────────────
+  const reservationVars = activeRequestType === "reservation" ? {
     middleware_reservation_resolved_date: reservationContext.resolved_date || null,
     middleware_reservation_resolved_weekday: reservationContext.resolved_weekday || null,
     middleware_reservation_date_resolution_status: reservationContext.resolution_status || null,
-    middleware_reservation_date_conflict_relative_date: reservationContext.conflict_relative_date || null,
-    middleware_reservation_date_conflict_absolute_date: reservationContext.conflict_absolute_date || null,
     middleware_reservation_service_time: reservationContext.service_time || null,
     middleware_reservation_venue_or_department: reservationContext.venue_or_department || null,
     middleware_reservation_party_size: reservationContext.party_size || null,
     middleware_reservation_summary: reservationContext.reservation_summary || null
-  };
+  } : {};
+
+  // ── CONFLICT GROUP: only when date is in conflict state ─────────────────────
+  const conflictVars = reservationContext.resolution_status === "conflict" ? {
+    middleware_reservation_date_conflict_relative_date: reservationContext.conflict_relative_date || null,
+    middleware_reservation_date_conflict_absolute_date: reservationContext.conflict_absolute_date || null
+  } : {};
+
+  // ── TIME ALTERNATIVES: only when a time signal is present in current input ──
+  const hasTimeSignal = !!runtimeContext.reservation_requested_time;
+  const timeAltVars = hasTimeSignal ? {
+    middleware_reservation_requested_time: runtimeContext.reservation_requested_time,
+    middleware_reservation_requested_time_display: runtimeContext.reservation_requested_time_display,
+    middleware_reservation_alternative_time_1: runtimeContext.reservation_alternative_time_1,
+    middleware_reservation_alternative_time_1_display: runtimeContext.reservation_alternative_time_1_display,
+    middleware_reservation_alternative_time_2: runtimeContext.reservation_alternative_time_2,
+    middleware_reservation_alternative_time_2_display: runtimeContext.reservation_alternative_time_2_display
+  } : {};
+
+  // ── INCIDENT GROUP: only on complaint/security active requests ───────────────
+  const incidentVars = activeRequestType === "complaint" || activeRequestType === "security" ? {
+    middleware_relative_minutes_ago: runtimeContext.relative_minutes_ago,
+    middleware_approximate_incident_date: runtimeContext.approximate_incident_date,
+    middleware_approximate_incident_time: runtimeContext.approximate_incident_time
+  } : {};
+
+  return { ...core, ...reservationVars, ...conflictVars, ...timeAltVars, ...incidentVars };
 }
 
 // ---- TEXT NORMALIZATION ----
@@ -2237,6 +2273,7 @@ app.post("/webhook", async (req, res) => {
       );
     }
 
+    const _turnStart = Date.now();
     console.log(`[INBOUND] user=${userID} session_id=${session.session_id} text="${userText}"`);
     console.log(`[SESSION BEFORE]`, getSessionSummary(session));
 
@@ -2665,15 +2702,51 @@ app.post("/webhook", async (req, res) => {
     const lockedResponseLanguage = exitCommand
       ? null
       : sessions[userID]?.current_language || effectiveCurrentLanguage || null;
+    // Language lock bypass: skip prefix injection when drift risk is negligible.
+    // Extended: also skip when the guest's input language matches the session language
+    // (detected as same language = no drift) AND the turn is short/structured.
+    // This avoids ~65 tokens of prefix overhead on safe turns.
+    const inputMatchesSessionLanguage =
+      !!lockedResponseLanguage &&
+      !!detectedInputLanguage &&
+      detectedInputLanguage !== "unknown" &&
+      detectedInputLanguage === lockedResponseLanguage;
+
+    const currentTurnRequestedTime = parseRequestedClockTime(userText);
+    const currentTurnHasDateSignal = !!reservationDateContextFromText.resolution_status;
+    const currentTurnHasTimeSignal = !!currentTurnRequestedTime;
+    const isSafetySensitiveRequest =
+      sessions[userID]?.active_request?.type === "complaint" ||
+      sessions[userID]?.active_request?.type === "security";
+
+    const isShortStructuredTurn =
+      normalizeText(userText).length <= 60 &&
+      !currentTurnHasDateSignal &&
+      !currentTurnHasTimeSignal;
+
     const shouldBypassLanguageLock =
       !!languageCommand ||
       effectiveAwaitingLanguage ||
       isLanguageSelectionInput(userText, effectiveCurrentLanguage) ||
-      isPlainNumericChoice(userText);
+      isPlainNumericChoice(userText) ||
+      (!isSafetySensitiveRequest && inputMatchesSessionLanguage && isShortStructuredTurn);
 
     const activeReservationContext = sessions[userID]?.reservation_context || createReservationContext();
+    // Date resolution prefix: skip when date is already resolved and this turn
+    // has no new date/time signal. Avoids ~60 tokens on name/phone/notes turns.
+    const turnHasDateOrTimeSignal =
+      currentTurnHasDateSignal ||
+      currentTurnHasTimeSignal;
+
+    const dateAlreadyResolvedAndStable =
+      sessions[userID]?.active_request?.type === "reservation" &&
+      !!activeReservationContext?.resolved_date &&
+      activeReservationContext?.resolution_status !== "conflict" &&
+      !turnHasDateOrTimeSignal;
+
     const shouldApplyReservationDateInstruction =
       !shouldBypassLanguageLock &&
+      !dateAlreadyResolvedAndStable &&
       (
         (shouldEvaluateReservationDate && !!reservationDateContextFromText.resolution_status) ||
         (
@@ -2782,6 +2855,7 @@ app.post("/webhook", async (req, res) => {
     };
 
     let traces = [];
+    const _vfStart = Date.now();
 
     if (forceLaunch) {
       console.log(
@@ -2888,6 +2962,9 @@ app.post("/webhook", async (req, res) => {
     // Reads VF session state after interact resolves. Read/log only.
     // Non-fatal: bridge failure cannot break the user-facing response path.
     // ═══════════════════════════════════════════════════════════════════════════
+    const _vfEnd = Date.now();
+    console.log(`[TIMING] user=${userID} vf_interact_ms=${_vfEnd - _vfStart}`);
+    const _bridgeStart = Date.now();
     try {
       const vfStateResult = await readVfState(userID);
 
@@ -2902,6 +2979,9 @@ app.post("/webhook", async (req, res) => {
       // Must never reach the user-facing path.
       console.error(`[VF-BRIDGE-P1] unexpected bridge error — ${bridgeErr.message || bridgeErr}`);
     }
+    const _bridgeEnd = Date.now();
+    console.log(`[TIMING] user=${userID} bridge_read_ms=${_bridgeEnd - _bridgeStart}`);
+    const _processingStart = Date.now();
     // ══════════════════════════════════════════════════════════════════════════
 
     // ---- EXTRACT TEXT REPLIES FROM VOICEFLOW ----
@@ -2979,6 +3059,7 @@ app.post("/webhook", async (req, res) => {
         `[VOICEFLOW] No usable text reply for user=${userID} session_id=${sessions[userID].session_id} action=no_text_reply -> sending middleware fallback`
       );
 
+      const _outboundStart = Date.now();
       const fallbackResponse = await axios.post(
         `https://graph.facebook.com/v19.0/${WA_PHONE_ID}/messages`,
         {
@@ -3012,6 +3093,13 @@ app.post("/webhook", async (req, res) => {
         userID,
         exitCommand ? { state: "idle", active_request: null, last_bot_reply: fallbackReply } : { state: "active", last_bot_reply: fallbackReply }
       );
+
+      const _processingEnd = Date.now();
+      console.log(`[TIMING] user=${userID} response_processing_ms=${_processingEnd - _processingStart}`);
+      console.log(`[SESSION AFTER]`, getSessionSummary(sessions[userID]));
+
+      const _turnEnd = Date.now();
+      console.log(`[TIMING] user=${userID} outbound_ms=${_turnEnd - _outboundStart} total_turn_ms=${_turnEnd - _turnStart}`);
 
       console.log(
         `[OUTBOUND FALLBACK] user=${userID} session_id=${sessions[userID].session_id} reply="${fallbackReply}"`
@@ -3102,9 +3190,12 @@ app.post("/webhook", async (req, res) => {
       }
     }
 
+    const _processingEnd = Date.now();
+    console.log(`[TIMING] user=${userID} response_processing_ms=${_processingEnd - _processingStart}`);
     console.log(`[SESSION AFTER]`, getSessionSummary(sessions[userID]));
 
     // ---- SEND REPLY BACK VIA WHATSAPP ----
+    const _outboundStart = Date.now();
     for (const reply of replies) {
       const outboundResponse = await axios.post(
         `https://graph.facebook.com/v19.0/${WA_PHONE_ID}/messages`,
@@ -3139,6 +3230,8 @@ app.post("/webhook", async (req, res) => {
         `[OUTBOUND] user=${userID} session_id=${sessions[userID].session_id} reply="${reply}"`
       );
       }
+    const _turnEnd = Date.now();
+    console.log(`[TIMING] user=${userID} outbound_ms=${_turnEnd - _outboundStart} total_turn_ms=${_turnEnd - _turnStart}`);
       } catch (err) {
         await runLogsHook(
           "captureMiddlewareError",
