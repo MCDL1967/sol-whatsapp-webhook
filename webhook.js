@@ -1,11 +1,11 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.30
+Version: v13.1.31
 Date: 2026-04-27
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.29.js
+Base: webhook.v13.1.30.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -76,6 +76,13 @@ This version changes (v13.1.30):
 - reuses current-turn date/time parsing inside the lock/date gating block to avoid redundant per-turn parsing
 - corrects timing attribution by logging `bridge_read_ms` immediately after the bridge call and `response_processing_ms` after reply/session processing
 - adds timing coverage to the no-text fallback path without changing fallback behavior
+
+This version changes (v13.1.31):
+- adds a dining-context-aware list-request classifier to bypass language-lock overhead on genuine dining-list turns only
+- dining-context gate now supports three legs: reservation context, dining-oriented prior bot reply, or dining/restaurant signals in the current turn
+- preserves property portability by keeping middleware generic and venue-name-free
+- adds explicit `[DINING LIST REQUEST]` logging for auditability on matched turns
+- no VF / KB2 / bridge / reset / activation redesign in this version
 
 This version changes (v13.1.25):
 - adds Voiceflow state delete on `exitCommand` and `restartCommand` using the official state delete endpoint
@@ -965,6 +972,58 @@ function isLikelyVenuePrompt(text = "") {
     t.includes("en cual restaurante")
   );
 }
+
+// ── DINING-LIST REQUEST CLASSIFIER ───────────────────────────────────────────
+// Identifies turns that are unambiguously requesting a dining/restaurant list.
+// Property-agnostic: matches guest intent (wants a list), not venue names.
+// Three-leg context gate prevents false positives in non-dining flows.
+
+const _DINING_LIST_TRIGGERS = [
+  "list", "listado", "lista",
+  "full list", "show list", "show all", "dining list", "dining options",
+  "restaurant list", "all options", "see all", "view all", "show options",
+  "ver todos", "todas las opciones", "opciones de restaurantes",
+  "mostrar lista", "ver lista", "ver opciones",
+  "what restaurants", "what venues"
+];
+
+const _DINING_LIST_NAME_GUARD  = /\b(?:name is|under|a nombre|nombre)\b/i;
+const _DINING_LIST_PHONE_GUARD = /\+?\d[\d\s\-()]{5,}\d/;
+const _DINING_LIST_EMAIL_GUARD = /@/;
+
+function isDiningListRequest(userText = "") {
+  const n = normalizeText(userText);
+  if (n.length > 55) return false;
+  if (_DINING_LIST_NAME_GUARD.test(userText)) return false;
+  if (_DINING_LIST_PHONE_GUARD.test(userText)) return false;
+  if (_DINING_LIST_EMAIL_GUARD.test(userText)) return false;
+  return _DINING_LIST_TRIGGERS.some((trigger) => n.includes(trigger));
+}
+
+// Context gate: dining context is true when ANY ONE of three legs matches.
+const _DINING_CONTEXT_BOT_SIGNALS = [
+  "restaurant", "dining", "restaurante", "restaurantes",
+  "venue", "venues", "reservacion", "reservation", "cuisine", "cocina"
+];
+const _DINING_CONTEXT_TURN_SIGNALS = [
+  "dining", "restaurant", "restaurants", "venue", "venues",
+  "cuisine", "menu", "restaurante", "restaurantes", "cena", "comida"
+];
+
+function isInDiningContext(activeRequestType, lastBotReply, userText) {
+  // Leg 1: session is in reservation flow
+  if (activeRequestType === "reservation") return true;
+  // Leg 2: prior bot reply was dining-oriented
+  if (lastBotReply) {
+    const t = normalizeText(lastBotReply);
+    if (_DINING_CONTEXT_BOT_SIGNALS.some((s) => t.includes(s))) return true;
+  }
+  // Leg 3: current turn itself contains dining/restaurant signals
+  const n = normalizeText(userText);
+  return _DINING_CONTEXT_TURN_SIGNALS.some((s) => n.includes(s));
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 
 function extractReservationPartySize(text = "") {
   const normalized = normalizeText(text);
@@ -2724,11 +2783,31 @@ app.post("/webhook", async (req, res) => {
       !currentTurnHasDateSignal &&
       !currentTurnHasTimeSignal;
 
+    // Dining-list classifier: fires only in dining context, on short unambiguous
+    // list-request turns with no detail signals. Removes ~65-token prefix overhead.
+    const isDiningList =
+      !isSafetySensitiveRequest &&
+      !currentTurnHasDateSignal &&
+      !currentTurnHasTimeSignal &&
+      isInDiningContext(
+        sessions[userID]?.active_request?.type,
+        sessions[userID]?.last_bot_reply,
+        userText
+      ) &&
+      isDiningListRequest(userText);
+
+    if (isDiningList) {
+      console.log(
+        `[DINING LIST REQUEST] user=${userID} session_id=${sessions[userID].session_id} input="${userText}"`
+      );
+    }
+
     const shouldBypassLanguageLock =
       !!languageCommand ||
       effectiveAwaitingLanguage ||
       isLanguageSelectionInput(userText, effectiveCurrentLanguage) ||
       isPlainNumericChoice(userText) ||
+      isDiningList ||
       (!isSafetySensitiveRequest && inputMatchesSessionLanguage && isShortStructuredTurn);
 
     const activeReservationContext = sessions[userID]?.reservation_context || createReservationContext();
