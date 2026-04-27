@@ -1,11 +1,11 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.25
+Version: v13.1.26
 Date: 2026-04-26
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.24.js
+Base: webhook.v13.1.25.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -49,6 +49,12 @@ This version changes (v13.1.22):
 - explicit exit-command reset now clears `guest_profile` using `createGuestProfile(userID)`
 - prevents stale guest profile carryover into the next session after `exit` / `goodbye` command-driven resets
 - preserves existing restart and menu reset behavior without changing reservation candidate handling
+
+This version changes (v13.1.26):
+- adds stale in-flight Voiceflow response suppression using the bound pre-await `session_id`
+- drops any VF response that resolves after a concurrent reset/session rotation
+- prevents stale post-exit/out-of-session bridge reads, session mutation, and ghost outbound replies
+- no changes to VF delete/reset logic, language lock logic, or reservation extraction behavior
 
 This version changes (v13.1.25):
 - adds Voiceflow state delete on `exitCommand` and `restartCommand` using the official state delete endpoint
@@ -2814,6 +2820,23 @@ app.post("/webhook", async (req, res) => {
 
       traces = vfResponse.data;
     }
+
+
+    // ── STALE IN-FLIGHT SUPPRESSION (v13.1.26) ──────────────────────────────
+    // If session_id changed while awaiting the VF response, a concurrent reset
+    // (exit / restart) fired and completed before this response landed.
+    // This response belongs to the prior session — discard it entirely.
+    // Do NOT mutate session state. Do NOT send an outbound. Log and return.
+    if (sessions[userID]?.session_id !== sessionBeforeForward?.session_id) {
+      console.log(
+        `[STALE RESPONSE SUPPRESSED] user=${userID}` +
+        ` stale_session=${sessionBeforeForward?.session_id}` +
+        ` current_session=${sessions[userID]?.session_id}` +
+        ` reason=session_rotated_during_vf_await`
+      );
+      return;
+    }
+    // ────────────────────────────────────────────────────────────────────────
 
 
     // ═══════════════════════════════════════════════════════════════════════════
