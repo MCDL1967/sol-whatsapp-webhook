@@ -1,11 +1,11 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.24
+Version: v13.1.25
 Date: 2026-04-26
 Role: WhatsApp ↔ Voiceflow middleware webhook
 Status: patched working candidate
-Base: webhook.v13.1.23.js
+Base: webhook.v13.1.24.js
 
 Purpose:
 - manage session creation / timeout / reset
@@ -49,6 +49,13 @@ This version changes (v13.1.22):
 - explicit exit-command reset now clears `guest_profile` using `createGuestProfile(userID)`
 - prevents stale guest profile carryover into the next session after `exit` / `goodbye` command-driven resets
 - preserves existing restart and menu reset behavior without changing reservation candidate handling
+
+This version changes (v13.1.25):
+- adds Voiceflow state delete on `exitCommand` and `restartCommand` using the official state delete endpoint
+- `exitCommand` now sends the goodbye reply directly from middleware and returns before any VF interact call
+- preserves P1 reset/session-authority fixes from v13.1.24 (`session_id` rotation and exit-turn language-lock suppression)
+- no KB/tool/list changes
+- no broader session redesign
 
 This version changes (v13.1.24):
 - rotates `session_id` on `restartCommand` reset
@@ -149,6 +156,7 @@ app.use(express.json());
 
 const VERIFY_TOKEN = "sol_verify_123";
 const VF_API_KEY = process.env.VF_API_KEY;
+const VF_PROJECT_ID = process.env.VF_PROJECT_ID || process.env.VF_PROJECTID || "";
 const WA_TOKEN = process.env.WA_TOKEN;
 const WA_PHONE_ID = process.env.WA_PHONE_ID;
 const PANAMA_TIMEZONE = "America/Panama";
@@ -1305,6 +1313,57 @@ function buildPreLanguageGoodbyePrompt() {
 Hasta luego — aquí estaré si necesitas algo más. ✨`;
 }
 
+function buildMiddlewareExitReply(language = null) {
+  if (language === "es") {
+    return "Gracias — aquí estaré si necesitas algo más. ¡Que tengas un excelente día! ✨";
+  }
+
+  if (language === "en") {
+    return "Thanks — I'll be here if you need anything else. Have a great day ✨";
+  }
+
+  return buildPreLanguageGoodbyePrompt();
+}
+
+async function deleteVoiceflowState(userID, reason = "reset") {
+  if (!VF_API_KEY || !VF_PROJECT_ID) {
+    console.error(
+      `[VF STATE DELETE] user=${userID} reason=${reason} status=skipped missing_config api_key=${!!VF_API_KEY} project_id=${!!VF_PROJECT_ID}`
+    );
+    return { ok: false, skipped: true, reason: "missing_config" };
+  }
+
+  try {
+    const response = await axios.delete(
+      `https://general-runtime.voiceflow.com/state/user/${encodeURIComponent(userID)}`,
+      {
+        headers: {
+          authorization: VF_API_KEY,
+          projectID: VF_PROJECT_ID
+        }
+      }
+    );
+
+    console.log(
+      `[VF STATE DELETE] user=${userID} reason=${reason} status=ok http=${response.status}`
+    );
+
+    return { ok: true, status: response.status };
+  } catch (vfDeleteErr) {
+    const httpStatus = vfDeleteErr?.response?.status || "n/a";
+    const errorBody = vfDeleteErr?.response?.data
+      ? JSON.stringify(vfDeleteErr.response.data)
+      : (vfDeleteErr.message || String(vfDeleteErr));
+
+    console.error(
+      `[VF STATE DELETE] user=${userID} reason=${reason} status=error http=${httpStatus} error=${errorBody}`
+    );
+
+    return { ok: false, status: httpStatus, error: errorBody };
+  }
+}
+
+
 function containsAny(text, keywords = []) {
   return keywords.some((keyword) => text.includes(keyword));
 }
@@ -2258,6 +2317,7 @@ app.post("/webhook", async (req, res) => {
       });
 
       console.log(`[REQUEST RESET] user=${userID} reason=restart_command`);
+      await deleteVoiceflowState(userID, "restart_command");
       requestControlEvent = { request_action: "reset", reason: "restart_command" };
     } else if (menuCommand) {
       updateSession(userID, {
@@ -2289,6 +2349,7 @@ app.post("/webhook", async (req, res) => {
       });
 
       console.log(`[REQUEST RESET] user=${userID} reason=exit_command`);
+      await deleteVoiceflowState(userID, "exit_command");
       requestControlEvent = { request_action: "reset", reason: "exit_command" };
     } else {
       const currentSession = sessions[userID];
@@ -2369,6 +2430,90 @@ app.post("/webhook", async (req, res) => {
           ...requestControlEvent
         })
       );
+    }
+
+    if (exitCommand) {
+      const exitReplyLanguage =
+        effectiveCurrentLanguage ||
+        (detectedInputLanguage === "es" || detectedInputLanguage === "en" ? detectedInputLanguage : null);
+      const exitReply = buildMiddlewareExitReply(exitReplyLanguage);
+
+      if (wasActiveReservationBeforeReset) {
+        const closureSummary =
+          preResetReservationContext.reservation_summary ||
+          buildReservationContextSummary(preResetReservationContext);
+
+        preExitReservationClosure = {
+          session_summary: getSessionSummary(sessions[userID]),
+          guest_name: preResetGuestProfile.guest_name || null,
+          contact_phone: preResetGuestProfile.contact_phone || null,
+          contact_email: preResetGuestProfile.contact_email || null,
+          service_date: preResetReservationContext.resolved_date || null,
+          service_time: preResetReservationContext.service_time || null,
+          venue_or_department: preResetReservationContext.venue_or_department || null,
+          party_size: preResetReservationContext.party_size || null,
+          reservation_summary: closureSummary || null
+        };
+
+        console.log(
+          `[PRE-EXIT RESERVATION SNAPSHOT] user=${userID} venue=${preExitReservationClosure.venue_or_department || "—"} date=${preExitReservationClosure.service_date || "—"} time=${preExitReservationClosure.service_time || "—"} party_size=${preExitReservationClosure.party_size || "—"}`
+        );
+
+        await runLogsHook(
+          "captureRequestClosure",
+          buildHookPayload({
+            user_id: userID,
+            session_summary: preExitReservationClosure.session_summary,
+            guest_name: preExitReservationClosure.guest_name,
+            contact_phone: preExitReservationClosure.contact_phone,
+            contact_email: preExitReservationClosure.contact_email,
+            service_date: preExitReservationClosure.service_date,
+            service_time: preExitReservationClosure.service_time || null,
+            venue_or_department: preExitReservationClosure.venue_or_department || null,
+            party_size: preExitReservationClosure.party_size || null,
+            summary: preExitReservationClosure.reservation_summary || null
+          })
+        );
+      }
+
+      updateSession(userID, { state: "idle", active_request: null, last_bot_reply: exitReply });
+
+      console.log(`[SESSION AFTER]`, getSessionSummary(sessions[userID]));
+
+      const outboundResponse = await axios.post(
+        `https://graph.facebook.com/v19.0/${WA_PHONE_ID}/messages`,
+        {
+          messaging_product: "whatsapp",
+          to: userID,
+          type: "text",
+          text: { body: exitReply }
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${WA_TOKEN}`,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+
+      await runLogsHook(
+        "captureOutboundMessage",
+        buildHookPayload({
+          user_id: userID,
+          reply: exitReply,
+          source_message_id: message.id || "",
+          whatsapp_message_id: outboundResponse?.data?.messages?.[0]?.id || "",
+          session_summary: getSessionSummary(sessions[userID]),
+          broadcast_status: "sent_to_meta",
+          client_message_status: "sent"
+        })
+      );
+
+      console.log(
+        `[OUTBOUND] user=${userID} session_id=${sessions[userID].session_id} reply="${exitReply}"`
+      );
+
+      return;
     }
 
     const currentSessionAfterControl = sessions[userID];
