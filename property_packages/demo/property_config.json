@@ -1,0 +1,6 @@
+{
+  "property_name": "Your Casino",
+  "language_default": "EN",
+  "timezone": "America/Panama",
+  "services": ["restaurants", "shows", "gaming", "general"]
+}
