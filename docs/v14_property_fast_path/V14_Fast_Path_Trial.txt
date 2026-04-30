@@ -1,0 +1,19 @@
+SOL V14 FAST PATH TRIAL
+
+Purpose:
+Introduce FAST PATH model to reduce latency and align implementation with architecture.
+
+Model:
+FAST PATH = deterministic handled in middleware
+AI PATH = conversational handled in Voiceflow
+
+Benefits:
+- Faster responses
+- Cleaner architecture
+- Scalable configuration
+
+Scope:
+Restaurants only (initial test)
+
+Safety:
+Feature flag controlled, no impact to main
