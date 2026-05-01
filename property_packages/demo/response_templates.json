@@ -1,4 +1,11 @@
 {
-  "restaurant_list_en": "Here are our restaurants:\n1. Fenicia\n2. Prime Steakhouse\nReply with a number.",
-  "restaurant_list_es": "Aquí tienes nuestros restaurantes:\n1. Fenicia\n2. Prime Steakhouse\nResponde con un número."
+  "file": "response_templates.json",
+  "version": "v14.0.1",
+  "date": "2026-04-30",
+  "role": "Response templates for SOL V14 Fast Path trial",
+  "status": "trial_dynamic_templates",
+  "restaurant_intro_en": "Sure — I can help with dining. Do you already know where you'd like to go? You can say the restaurant name or type LIST to see all options.",
+  "restaurant_intro_es": "Claro — puedo ayudarte con restaurantes. ¿Ya sabes dónde quieres ir? Puedes decir el nombre del restaurante o escribir LISTA para ver todas las opciones.",
+  "restaurant_list_en": "Here are the on-property dining venues I have available:\n\n{{list}}\n\nWhich would you like to reserve, or reply with a number to choose one?",
+  "restaurant_list_es": "Aquí tienes la lista completa de restaurantes y bares disponibles en la propiedad:\n\n{{list}}\n\n¿En cuál te gustaría hacer una reservación? Responde con el número o el nombre."
 }
