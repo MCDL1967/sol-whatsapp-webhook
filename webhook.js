@@ -1,11 +1,22 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v13.1.31
-Date: 2026-04-27
-Role: WhatsApp ↔ Voiceflow middleware webhook
-Status: patched working candidate
-Base: webhook.v13.1.30.js
+Version: v14.0.1
+Date: 2026-04-30
+Role: WhatsApp ↔ Voiceflow middleware webhook with V14 Fast Path trial
+Status: trial candidate
+Base: webhook.v13.1.31.js
+
+This version adds (v14.0.1):
+- imports V14 Fast Path property loader, classifier, and responder
+- adds FAST_PATH_ENABLED and PROPERTY_ID environment controls
+- initializes fast_path_context in middleware session state
+- inserts feature-flagged Fast Path block after language gate and before Voiceflow
+- supports deterministic main-menu to restaurant-context routing from property menu dictionary
+- supports restaurant list response from property_master_data.json and response_templates.json
+- logs Fast Path outbound through existing LOGS outbound hook
+- preserves Voiceflow fallback when no Fast Path match occurs
+- does not change reservation closure, LOGS queue export, VF bridge, or existing v13 reset logic
 
 Purpose:
 - manage session creation / timeout / reset
@@ -183,6 +194,9 @@ const path = require("path");
 const logsService = require("./logs_service");
 const { readVfState }              = require('./vf_bridge/vf_state_reader');
 const { readReservationCandidate } = require('./vf_bridge/reservation_candidate_reader');
+const { loadPropertyPackage } = require('./src/fast_path/property_loader');
+const { classifyFastPath } = require('./src/fast_path/fast_path_classifier');
+const { buildResponse } = require('./src/fast_path/fast_path_responder');
 
 const app = express();
 
@@ -196,6 +210,8 @@ const WA_PHONE_ID = process.env.WA_PHONE_ID;
 const PANAMA_TIMEZONE = "America/Panama";
 const LOGS_TASK_QUEUE_FILE = process.env.LOGS_TASK_QUEUE_FILE || "";
 const LOGS_EXPORT_TOKEN = process.env.LOGS_EXPORT_TOKEN || "";
+const FAST_PATH_ENABLED = process.env.FAST_PATH_ENABLED === "true";
+const PROPERTY_ID = process.env.PROPERTY_ID || "demo";
 
 // ---- SESSION CONTROL CONFIG ----
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -270,6 +286,7 @@ function createNewSession(userID, now) {
     guest_profile: createGuestProfile(userID),
     reservation_context: createReservationContext(),
     last_bot_reply: null,
+    fast_path_context: "main_menu",
     created_at: now,
     last_seen: now
   };
@@ -322,6 +339,7 @@ function getSessionSummary(session) {
     side_chat_count: session.side_chat_count,
     guest_profile: session.guest_profile || createGuestProfile(session.user_id),
     has_last_bot_reply: !!session.last_bot_reply,
+    fast_path_context: session.fast_path_context || "main_menu",
     created_at: session.created_at,
     last_seen: session.last_seen
   };
@@ -2421,7 +2439,8 @@ app.post("/webhook", async (req, res) => {
         current_language: null,
         awaiting_language: true,
         side_chat_count: 0,
-        last_bot_reply: prompt
+        last_bot_reply: prompt,
+        fast_path_context: "main_menu"
       });
 
       console.log(
@@ -2441,6 +2460,79 @@ app.post("/webhook", async (req, res) => {
       return;
     }
 
+    // ── FAST PATH (V14.0.1) ─────────────────────────────────────────────
+    // Runs only after language gate is satisfied and never on language-selection turns.
+    // If no deterministic match is found, processing continues to the normal v13 Voiceflow path.
+    if (FAST_PATH_ENABLED && !activeLanguagePromptContext && !isLanguageSelectionInput(userText, effectiveCurrentLanguage, {
+      allowNumericSelection: activeLanguagePromptContext
+    })) {
+      try {
+        const propertyData = loadPropertyPackage(PROPERTY_ID);
+
+        const fastPathResult = classifyFastPath({
+          input: userText,
+          session,
+          menuDictionary: propertyData.menuDictionary
+        });
+
+        if (fastPathResult) {
+          const fastPathReply = buildResponse({
+            result: fastPathResult,
+            session,
+            propertyData
+          });
+
+          if (fastPathReply) {
+            console.log(`[FAST PATH HIT] user=${userID} session_id=${session.session_id} type=${fastPathResult.type} key=${fastPathResult.key || "—"}`);
+
+            const outboundResponse = await axios.post(
+              `https://graph.facebook.com/v19.0/${WA_PHONE_ID}/messages`,
+              {
+                messaging_product: "whatsapp",
+                to: userID,
+                type: "text",
+                text: { body: fastPathReply }
+              },
+              {
+                headers: {
+                  Authorization: `Bearer ${WA_TOKEN}`,
+                  "Content-Type": "application/json"
+                }
+              }
+            );
+
+            updateSession(userID, {
+              last_bot_reply: fastPathReply,
+              fast_path_context: session.fast_path_context || "main_menu"
+            });
+
+            await runLogsHook(
+              "captureOutboundMessage",
+              buildHookPayload({
+                user_id: userID,
+                reply: fastPathReply,
+                source_message_id: message.id || "",
+                whatsapp_message_id: outboundResponse?.data?.messages?.[0]?.id || "",
+                session_summary: getSessionSummary(sessions[userID]),
+                broadcast_status: "sent_to_meta",
+                client_message_status: "sent",
+                fast_path: true,
+                fast_path_result: fastPathResult
+              })
+            );
+
+            console.log(`[FAST PATH OUTBOUND] user=${userID} session_id=${sessions[userID].session_id} reply="${fastPathReply}"`);
+            console.log(`[SESSION AFTER FAST PATH]`, getSessionSummary(sessions[userID]));
+
+            return;
+          }
+        }
+      } catch (err) {
+        console.error(`[FAST PATH ERROR] user=${userID} session_id=${session.session_id} error=${err?.stack || err?.message || err}`);
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     // ---- REQUEST CONTROL ----
     let requestControlEvent = null;
     const wasActiveReservationBeforeReset =
@@ -2459,7 +2551,8 @@ app.post("/webhook", async (req, res) => {
         guest_profile: createGuestProfile(userID),
         reservation_context: createReservationContext(),
         last_bot_reply: null,
-        state: "idle"
+        state: "idle",
+        fast_path_context: "main_menu"
       });
 
       console.log(`[REQUEST RESET] user=${userID} reason=restart_command`);
@@ -2469,6 +2562,7 @@ app.post("/webhook", async (req, res) => {
       updateSession(userID, {
         active_request: null,
         side_chat_count: 0,
+        fast_path_context: "main_menu",
         reservation_context: sessions[userID]?.active_request?.type === "reservation"
           ? {
               ...createReservationContext(),
@@ -2491,7 +2585,8 @@ app.post("/webhook", async (req, res) => {
         guest_profile: createGuestProfile(userID),
         reservation_context: createReservationContext(),
         last_bot_reply: null,
-        state: "idle"
+        state: "idle",
+        fast_path_context: "main_menu"
       });
 
       console.log(`[REQUEST RESET] user=${userID} reason=exit_command`);
