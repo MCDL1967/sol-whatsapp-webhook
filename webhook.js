@@ -1,19 +1,19 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v14.0.2
+Version: v14.0.3
 Date: 2026-04-30
 Role: WhatsApp ↔ Voiceflow middleware webhook with V14 Fast Path trial
-Status: trial candidate
+Status: trial hybrid diagnostic candidate
 Base: webhook.v13.1.31.js
 
-This version adds (v14.0.2):
-- preserves all v14.0.1 Fast Path trial behavior
-- corrects internal file versioning to v14.0.2
-- adds diagnostic logging at the webhook POST entry point
-- logs whether the inbound payload contains a text message, status event, or unsupported/missing message
+This version adds (v14.0.3):
+- preserves all v14.0.2 diagnostics
+- adds Hybrid Fast Path handling for outbound failures
+- logs Fast Path reply generation before Meta/WhatsApp outbound attempt
+- allows terminal/curl testing with test-user dry-run handling so classifier/responder can be validated without a real WhatsApp recipient
+- continues to Voiceflow fallback when Fast Path cannot build a reply or when Meta outbound fails for a real user
 - keeps Fast Path feature-flag controlled through FAST_PATH_ENABLED
-- preserves Voiceflow fallback when no Fast Path match occurs
 - does not change reservation closure, LOGS queue export, VF bridge, or existing v13 reset logic
 
 Purpose:
@@ -210,6 +210,7 @@ const LOGS_TASK_QUEUE_FILE = process.env.LOGS_TASK_QUEUE_FILE || "";
 const LOGS_EXPORT_TOKEN = process.env.LOGS_EXPORT_TOKEN || "";
 const FAST_PATH_ENABLED = process.env.FAST_PATH_ENABLED === "true";
 const PROPERTY_ID = process.env.PROPERTY_ID || "demo";
+const FAST_PATH_DRY_RUN = process.env.FAST_PATH_DRY_RUN === "true";
 
 // ---- SESSION CONTROL CONFIG ----
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -2297,7 +2298,7 @@ app.post("/logs/tasks/clear", async (req, res) => {
 app.post("/webhook", async (req, res) => {
   res.sendStatus(200); // acknowledge Meta immediately
 
-  console.log("[WEBHOOK POST RECEIVED v14.0.2]", JSON.stringify({
+  console.log("[WEBHOOK POST RECEIVED v14.0.3]", JSON.stringify({
     has_body: !!req.body,
     entry_count: Array.isArray(req.body?.entry) ? req.body.entry.length : 0
   }));
@@ -2309,12 +2310,12 @@ app.post("/webhook", async (req, res) => {
     message = changes?.value?.messages?.[0];
     statusEvent = changes?.value?.statuses?.[0];
   } catch (err) {
-    console.log("[WEBHOOK PAYLOAD MALFORMED v14.0.2]", err?.message || err);
+    console.log("[WEBHOOK PAYLOAD MALFORMED v14.0.3]", err?.message || err);
     return; // malformed body — nothing to process
   }
 
   try {
-    console.log("[WEBHOOK PAYLOAD CLASSIFIED v14.0.2]", JSON.stringify({
+    console.log("[WEBHOOK PAYLOAD CLASSIFIED v14.0.3]", JSON.stringify({
       has_message: !!message,
       message_type: message?.type || null,
       has_status: !!statusEvent
@@ -2339,7 +2340,7 @@ app.post("/webhook", async (req, res) => {
     }
 
     if (!message || message.type !== "text") {
-      console.log("[WEBHOOK NO TEXT MESSAGE v14.0.2]", JSON.stringify({
+      console.log("[WEBHOOK NO TEXT MESSAGE v14.0.3]", JSON.stringify({
         has_message: !!message,
         message_type: message?.type || null
       }));
@@ -2475,9 +2476,13 @@ app.post("/webhook", async (req, res) => {
       return;
     }
 
-    // ── FAST PATH (V14.0.1) ─────────────────────────────────────────────
+    // ── FAST PATH (V14.0.3 HYBRID) ────────────────────────────────────────
     // Runs only after language gate is satisfied and never on language-selection turns.
-    // If no deterministic match is found, processing continues to the normal v13 Voiceflow path.
+    // Hybrid rule:
+    // - If Fast Path classifies and builds a reply, try to send it directly.
+    // - For test-user / dry-run, log the reply and stop without Meta outbound.
+    // - If Meta outbound fails for a real user, log the failure and continue to normal Voiceflow fallback.
+    // - If no deterministic match/reply is found, continue to normal v13 Voiceflow path.
     if (FAST_PATH_ENABLED && !activeLanguagePromptContext && !isLanguageSelectionInput(userText, effectiveCurrentLanguage, {
       allowNumericSelection: activeLanguagePromptContext
     })) {
@@ -2491,6 +2496,8 @@ app.post("/webhook", async (req, res) => {
         });
 
         if (fastPathResult) {
+          console.log(`[FAST PATH HIT] user=${userID} session_id=${session.session_id} type=${fastPathResult.type} key=${fastPathResult.key || "—"}`);
+
           const fastPathReply = buildResponse({
             result: fastPathResult,
             session,
@@ -2498,52 +2505,75 @@ app.post("/webhook", async (req, res) => {
           });
 
           if (fastPathReply) {
-            console.log(`[FAST PATH HIT] user=${userID} session_id=${session.session_id} type=${fastPathResult.type} key=${fastPathResult.key || "—"}`);
+            console.log(`[FAST PATH REPLY BUILT] user=${userID} session_id=${session.session_id} reply="${fastPathReply}"`);
 
-            const outboundResponse = await axios.post(
-              `https://graph.facebook.com/v19.0/${WA_PHONE_ID}/messages`,
-              {
-                messaging_product: "whatsapp",
-                to: userID,
-                type: "text",
-                text: { body: fastPathReply }
-              },
-              {
-                headers: {
-                  Authorization: `Bearer ${WA_TOKEN}`,
-                  "Content-Type": "application/json"
+            const dryRunFastPath =
+              FAST_PATH_DRY_RUN ||
+              userID === "test-user" ||
+              String(userID || "").startsWith("test-");
+
+            if (dryRunFastPath) {
+              updateSession(userID, {
+                last_bot_reply: fastPathReply,
+                fast_path_context: session.fast_path_context || "main_menu"
+              });
+
+              console.log(`[FAST PATH DRY RUN OUTBOUND] user=${userID} session_id=${sessions[userID].session_id} reply="${fastPathReply}"`);
+              console.log(`[SESSION AFTER FAST PATH DRY RUN]`, getSessionSummary(sessions[userID]));
+
+              return;
+            }
+
+            try {
+              const outboundResponse = await axios.post(
+                `https://graph.facebook.com/v19.0/${WA_PHONE_ID}/messages`,
+                {
+                  messaging_product: "whatsapp",
+                  to: userID,
+                  type: "text",
+                  text: { body: fastPathReply }
+                },
+                {
+                  headers: {
+                    Authorization: `Bearer ${WA_TOKEN}`,
+                    "Content-Type": "application/json"
+                  }
                 }
-              }
-            );
+              );
 
-            updateSession(userID, {
-              last_bot_reply: fastPathReply,
-              fast_path_context: session.fast_path_context || "main_menu"
-            });
+              updateSession(userID, {
+                last_bot_reply: fastPathReply,
+                fast_path_context: session.fast_path_context || "main_menu"
+              });
 
-            await runLogsHook(
-              "captureOutboundMessage",
-              buildHookPayload({
-                user_id: userID,
-                reply: fastPathReply,
-                source_message_id: message.id || "",
-                whatsapp_message_id: outboundResponse?.data?.messages?.[0]?.id || "",
-                session_summary: getSessionSummary(sessions[userID]),
-                broadcast_status: "sent_to_meta",
-                client_message_status: "sent",
-                fast_path: true,
-                fast_path_result: fastPathResult
-              })
-            );
+              await runLogsHook(
+                "captureOutboundMessage",
+                buildHookPayload({
+                  user_id: userID,
+                  reply: fastPathReply,
+                  source_message_id: message.id || "",
+                  whatsapp_message_id: outboundResponse?.data?.messages?.[0]?.id || "",
+                  session_summary: getSessionSummary(sessions[userID]),
+                  broadcast_status: "sent_to_meta",
+                  client_message_status: "sent",
+                  fast_path: true,
+                  fast_path_result: fastPathResult
+                })
+              );
 
-            console.log(`[FAST PATH OUTBOUND] user=${userID} session_id=${sessions[userID].session_id} reply="${fastPathReply}"`);
-            console.log(`[SESSION AFTER FAST PATH]`, getSessionSummary(sessions[userID]));
+              console.log(`[FAST PATH OUTBOUND] user=${userID} session_id=${sessions[userID].session_id} reply="${fastPathReply}"`);
+              console.log(`[SESSION AFTER FAST PATH]`, getSessionSummary(sessions[userID]));
 
-            return;
+              return;
+            } catch (sendErr) {
+              console.error(`[FAST PATH OUTBOUND ERROR → VF FALLBACK] user=${userID} session_id=${session.session_id} error=${sendErr?.response?.status || ""} ${sendErr?.message || sendErr}`);
+            }
+          } else {
+            console.log(`[FAST PATH NO REPLY → VF FALLBACK] user=${userID} session_id=${session.session_id} type=${fastPathResult.type} key=${fastPathResult.key || "—"}`);
           }
         }
       } catch (err) {
-        console.error(`[FAST PATH ERROR] user=${userID} session_id=${session.session_id} error=${err?.stack || err?.message || err}`);
+        console.error(`[FAST PATH ERROR → VF FALLBACK] user=${userID} session_id=${session.session_id} error=${err?.stack || err?.message || err}`);
       }
     }
     // ─────────────────────────────────────────────────────────────────────
