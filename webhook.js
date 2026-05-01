@@ -1,20 +1,18 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v14.0.1
+Version: v14.0.2
 Date: 2026-04-30
 Role: WhatsApp ↔ Voiceflow middleware webhook with V14 Fast Path trial
 Status: trial candidate
 Base: webhook.v13.1.31.js
 
-This version adds (v14.0.1):
-- imports V14 Fast Path property loader, classifier, and responder
-- adds FAST_PATH_ENABLED and PROPERTY_ID environment controls
-- initializes fast_path_context in middleware session state
-- inserts feature-flagged Fast Path block after language gate and before Voiceflow
-- supports deterministic main-menu to restaurant-context routing from property menu dictionary
-- supports restaurant list response from property_master_data.json and response_templates.json
-- logs Fast Path outbound through existing LOGS outbound hook
+This version adds (v14.0.2):
+- preserves all v14.0.1 Fast Path trial behavior
+- corrects internal file versioning to v14.0.2
+- adds diagnostic logging at the webhook POST entry point
+- logs whether the inbound payload contains a text message, status event, or unsupported/missing message
+- keeps Fast Path feature-flag controlled through FAST_PATH_ENABLED
 - preserves Voiceflow fallback when no Fast Path match occurs
 - does not change reservation closure, LOGS queue export, VF bridge, or existing v13 reset logic
 
@@ -2299,17 +2297,28 @@ app.post("/logs/tasks/clear", async (req, res) => {
 app.post("/webhook", async (req, res) => {
   res.sendStatus(200); // acknowledge Meta immediately
 
+  console.log("[WEBHOOK POST RECEIVED v14.0.2]", JSON.stringify({
+    has_body: !!req.body,
+    entry_count: Array.isArray(req.body?.entry) ? req.body.entry.length : 0
+  }));
+
   let entry, changes, message, statusEvent;
   try {
     entry = req.body?.entry?.[0];
     changes = entry?.changes?.[0];
     message = changes?.value?.messages?.[0];
     statusEvent = changes?.value?.statuses?.[0];
-  } catch (_) {
+  } catch (err) {
+    console.log("[WEBHOOK PAYLOAD MALFORMED v14.0.2]", err?.message || err);
     return; // malformed body — nothing to process
   }
 
   try {
+    console.log("[WEBHOOK PAYLOAD CLASSIFIED v14.0.2]", JSON.stringify({
+      has_message: !!message,
+      message_type: message?.type || null,
+      has_status: !!statusEvent
+    }));
 
     if (statusEvent) {
       const statusUserID = statusEvent.recipient_id;
@@ -2329,7 +2338,13 @@ app.post("/webhook", async (req, res) => {
       return;
     }
 
-    if (!message || message.type !== "text") return;
+    if (!message || message.type !== "text") {
+      console.log("[WEBHOOK NO TEXT MESSAGE v14.0.2]", JSON.stringify({
+        has_message: !!message,
+        message_type: message?.type || null
+      }));
+      return;
+    }
 
     const userID = message.from;
     const userText = message.text.body;
