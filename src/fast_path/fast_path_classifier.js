@@ -1,10 +1,46 @@
-function classifyFastPath(input = "", triggers = {}) {
-  const text = input.toLowerCase();
+/*
+File: fast_path_classifier.js
+Version: v14.0.0
+Date: 2026-04-30
+Role: Fast Path classifier using menu_dictionary and context
+Status: upgraded for menu-driven system
+*/
 
-  for (const key of Object.keys(triggers)) {
-    const words = triggers[key];
-    if (words.some(w => text.includes(w))) {
-      return key;
+function normalize(text = "") {
+  return text.toLowerCase().trim();
+}
+
+function classifyFastPath({ input = "", session = {}, menuDictionary = {} }) {
+  const text = normalize(input);
+  const menus = menuDictionary.menus || {};
+
+  const context = session.fast_path_context || "main_menu";
+
+  if (context === "main_menu" && menus.main_menu) {
+    const lookup = menus.main_menu.lookup || {};
+    if (lookup[text]) {
+      return {
+        type: "menu_selection",
+        key: lookup[text],
+        next_context: menus.main_menu.options[lookup[text]]?.next_context || null
+      };
+    }
+  }
+
+  if (context === "restaurants_menu" && menus.restaurants_menu) {
+    const triggers = menus.restaurants_menu.list_triggers || {};
+    const listTriggers = [...(triggers.en || []), ...(triggers.es || [])];
+
+    if (listTriggers.some(t => text.includes(t))) {
+      return { type: "restaurant_list" };
+    }
+
+    const lookup = menus.restaurants_menu.lookup || {};
+    if (lookup[text]) {
+      return {
+        type: "restaurant_selection",
+        key: lookup[text]
+      };
     }
   }
 
