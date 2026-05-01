@@ -1,0 +1,253 @@
+{
+  "file": "menu_dictionary.json",
+  "version": "v14.0.0",
+  "date": "2026-04-30",
+  "role": "Menu dictionary and lookup map for SOL V14 Fast Path trial",
+  "status": "trial_demo_data_from_kb",
+  "design_rule": "Menus use display_order arrays for presentation and lookup dictionaries for deterministic selection.",
+  "menus": {
+    "main_menu": {
+      "context": "main_menu",
+      "display_order": [
+        "restaurants",
+        "shows_events",
+        "spa_fitness_pool",
+        "transportation_parking",
+        "loyalty_rewards",
+        "casino_gaming",
+        "promotions_tournaments",
+        "guest_help"
+      ],
+      "options": {
+        "restaurants": {
+          "number": 1,
+          "label_en": "Restaurants, bars, and dining reservations",
+          "label_es": "Restaurantes, bares y reservaciones",
+          "next_context": "restaurants_menu",
+          "target_file": "dining_bars_guest_guide.txt"
+        },
+        "shows_events": {
+          "number": 2,
+          "label_en": "Shows, events, and entertainment",
+          "label_es": "Shows, eventos y entretenimiento",
+          "next_context": "shows_events_menu",
+          "target_file": "shows_events_guest_guide.txt"
+        },
+        "spa_fitness_pool": {
+          "number": 3,
+          "label_en": "Spa, fitness, and pool",
+          "label_es": "Spa, gimnasio y piscina",
+          "next_context": "spa_fitness_pool_menu",
+          "target_file": "spa_fitness_pool_guest_guide.txt"
+        },
+        "transportation_parking": {
+          "number": 4,
+          "label_en": "Transportation and parking",
+          "label_es": "Transporte y estacionamiento",
+          "next_context": "transportation_parking_menu",
+          "target_file": "transportation_parking_guest_guide.txt"
+        },
+        "loyalty_rewards": {
+          "number": 5,
+          "label_en": "Loyalty, rewards, points, and comps",
+          "label_es": "Lealtad, recompensas, puntos y cortesías",
+          "next_context": "loyalty_rewards_menu",
+          "target_file": "loyalty_rewards_guest_guide.txt"
+        },
+        "casino_gaming": {
+          "number": 6,
+          "label_en": "Casino games, sportsbook, and poker",
+          "label_es": "Juegos de casino, apuestas deportivas y póker",
+          "next_context": "casino_gaming_menu",
+          "target_file": "gaming_guest_guide.txt"
+        },
+        "promotions_tournaments": {
+          "number": 7,
+          "label_en": "Promotions and tournaments",
+          "label_es": "Promociones y torneos",
+          "next_context": "promotions_tournaments_menu",
+          "target_file": "promotions_tournaments_guest_guide.txt"
+        },
+        "guest_help": {
+          "number": 8,
+          "label_en": "Guest help, complaints, safety, or lost and found",
+          "label_es": "Ayuda al huésped, quejas, seguridad u objetos perdidos",
+          "next_context": "guest_help_menu",
+          "target_file": "complaints_disputes_guest_help_guide.txt"
+        }
+      },
+      "lookup": {
+        "1": "restaurants",
+        "restaurant": "restaurants",
+        "restaurants": "restaurants",
+        "dining": "restaurants",
+        "food": "restaurants",
+        "restaurante": "restaurants",
+        "restaurantes": "restaurants",
+        "comida": "restaurants",
+        "2": "shows_events",
+        "show": "shows_events",
+        "shows": "shows_events",
+        "event": "shows_events",
+        "events": "shows_events",
+        "entertainment": "shows_events",
+        "evento": "shows_events",
+        "eventos": "shows_events",
+        "entretenimiento": "shows_events",
+        "3": "spa_fitness_pool",
+        "spa": "spa_fitness_pool",
+        "gym": "spa_fitness_pool",
+        "fitness": "spa_fitness_pool",
+        "pool": "spa_fitness_pool",
+        "gimnasio": "spa_fitness_pool",
+        "piscina": "spa_fitness_pool",
+        "4": "transportation_parking",
+        "transport": "transportation_parking",
+        "transportation": "transportation_parking",
+        "parking": "transportation_parking",
+        "airport ride": "transportation_parking",
+        "transporte": "transportation_parking",
+        "estacionamiento": "transportation_parking",
+        "5": "loyalty_rewards",
+        "loyalty": "loyalty_rewards",
+        "rewards": "loyalty_rewards",
+        "points": "loyalty_rewards",
+        "comps": "loyalty_rewards",
+        "club card": "loyalty_rewards",
+        "lealtad": "loyalty_rewards",
+        "puntos": "loyalty_rewards",
+        "recompensas": "loyalty_rewards",
+        "6": "casino_gaming",
+        "casino": "casino_gaming",
+        "gaming": "casino_gaming",
+        "games": "casino_gaming",
+        "sportsbook": "casino_gaming",
+        "poker": "casino_gaming",
+        "juegos": "casino_gaming",
+        "apuestas": "casino_gaming",
+        "7": "promotions_tournaments",
+        "promotion": "promotions_tournaments",
+        "promotions": "promotions_tournaments",
+        "tournament": "promotions_tournaments",
+        "tournaments": "promotions_tournaments",
+        "promocion": "promotions_tournaments",
+        "promociones": "promotions_tournaments",
+        "torneos": "promotions_tournaments",
+        "8": "guest_help",
+        "help": "guest_help",
+        "complaint": "guest_help",
+        "complaints": "guest_help",
+        "security": "guest_help",
+        "lost and found": "guest_help",
+        "ayuda": "guest_help",
+        "queja": "guest_help",
+        "quejas": "guest_help",
+        "seguridad": "guest_help",
+        "objetos perdidos": "guest_help"
+      }
+    },
+    "restaurants_menu": {
+      "context": "restaurants_menu",
+      "display_order": [
+        "la_brasserie",
+        "larrys_sports_bar_terrace",
+        "acua_pool_lounge_bar",
+        "larrys_market",
+        "garden_lobby_bar",
+        "fenicia",
+        "room_service"
+      ],
+      "options": {
+        "la_brasserie": {
+          "number": 1,
+          "canonical_name": "La Brasserie",
+          "label_en": "La Brasserie",
+          "label_es": "La Brasserie",
+          "reservation_led": true
+        },
+        "larrys_sports_bar_terrace": {
+          "number": 2,
+          "canonical_name": "Larry's Sports Bar & Terrace",
+          "label_en": "Larry's Sports Bar & Terrace",
+          "label_es": "Larry's Sports Bar & Terrace",
+          "reservation_led": false
+        },
+        "acua_pool_lounge_bar": {
+          "number": 3,
+          "canonical_name": "Acua Pool Lounge & Bar",
+          "label_en": "Acua Pool Lounge & Bar",
+          "label_es": "Acua Pool Lounge & Bar",
+          "reservation_led": false
+        },
+        "larrys_market": {
+          "number": 4,
+          "canonical_name": "Larry's Market",
+          "label_en": "Larry's Market",
+          "label_es": "Larry's Market",
+          "reservation_led": false
+        },
+        "garden_lobby_bar": {
+          "number": 5,
+          "canonical_name": "The Garden Lobby Bar",
+          "label_en": "The Garden Lobby Bar",
+          "label_es": "The Garden Lobby Bar",
+          "reservation_led": false
+        },
+        "fenicia": {
+          "number": 6,
+          "canonical_name": "Fenicia",
+          "label_en": "Fenicia",
+          "label_es": "Fenicia",
+          "reservation_led": true
+        },
+        "room_service": {
+          "number": 7,
+          "canonical_name": "Room Service",
+          "label_en": "Room Service",
+          "label_es": "Servicio a la habitación",
+          "reservation_led": false
+        }
+      },
+      "lookup": {
+        "1": "la_brasserie",
+        "la brasserie": "la_brasserie",
+        "brasserie": "la_brasserie",
+        "2": "larrys_sports_bar_terrace",
+        "larry's sports bar": "larrys_sports_bar_terrace",
+        "larrys sports bar": "larrys_sports_bar_terrace",
+        "sports bar": "larrys_sports_bar_terrace",
+        "sports bar and terrace": "larrys_sports_bar_terrace",
+        "3": "acua_pool_lounge_bar",
+        "acua": "acua_pool_lounge_bar",
+        "pool lounge": "acua_pool_lounge_bar",
+        "pool bar": "acua_pool_lounge_bar",
+        "4": "larrys_market",
+        "larry's market": "larrys_market",
+        "larrys market": "larrys_market",
+        "market": "larrys_market",
+        "coffee shop": "larrys_market",
+        "5": "garden_lobby_bar",
+        "the garden lobby bar": "garden_lobby_bar",
+        "garden lobby bar": "garden_lobby_bar",
+        "lobby bar": "garden_lobby_bar",
+        "garden bar": "garden_lobby_bar",
+        "6": "fenicia",
+        "fenicia": "fenicia",
+        "fenicia restaurant": "fenicia",
+        "mediterranean restaurant": "fenicia",
+        "lebanese restaurant": "fenicia",
+        "mediterranean": "fenicia",
+        "lebanese": "fenicia",
+        "7": "room_service",
+        "room service": "room_service",
+        "in-room dining": "room_service",
+        "servicio a la habitacion": "room_service",
+        "servicio a la habitación": "room_service"
+      },
+      "list_triggers": {
+        "en": ["list", "show list", "full list", "restaurants", "dining", "food", "show restaurants"],
+        "es": ["lista", "ver lista", "lista completa", "restaurantes", "comida", "muéstrame restaurantes", "muestrame restaurantes"]
+      }
+    }
+  }
+}
