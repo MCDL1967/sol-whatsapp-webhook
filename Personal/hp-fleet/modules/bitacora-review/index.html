@@ -1,6 +1,1651 @@
-<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>HP Fleet — Coming Soon</title></head>
-<body style="background:#080b12;color:#41d1ff;font-family:monospace;
-display:flex;align-items:center;justify-content:center;height:100vh">
-<div>Module loading… <a href="../../index.html"
-style="color:#41d1ff">← Back</a></div></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HP Fleet · Flight Log Review</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Syne+Mono&family=DM+Sans:wght@300;400;500&display=swap');
+
+:root {
+  --bg:#080b12; --s1:#0e1219; --s2:#141824; --s3:#1a2030;
+  --border:#232c3d; --border2:#2e3a52;
+  --cyan:#41d1ff; --blue:#7b9cff; --green:#3ddc84;
+  --yellow:#ffc043; --red:#ff6b6b; --violet:#c084fc;
+  --text:#dce6f5; --dim:#5a6a88; --dim2:#8899bb;
+  --mono:'Syne Mono',monospace;
+  --display:'Syne',sans-serif;
+  --body:'DM Sans',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh;
+  background-image:
+    radial-gradient(ellipse 60% 40% at 0% 0%,rgba(65,209,255,.05) 0%,transparent 60%),
+    radial-gradient(ellipse 40% 30% at 100% 100%,rgba(123,156,255,.04) 0%,transparent 60%)}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;
+  background-image:linear-gradient(rgba(65,209,255,.02) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(65,209,255,.02) 1px,transparent 1px);
+  background-size:48px 48px;
+  mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 20%,transparent 100%)}
+@keyframes up{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--s1);border-bottom:1px solid var(--border);padding:0 20px;
+  display:flex;align-items:stretch;height:52px;position:sticky;top:0;z-index:50}
+.tb-logo{font-family:var(--display);font-weight:800;font-size:15px;color:var(--cyan);
+  display:flex;align-items:center;gap:8px;padding-right:16px;
+  border-right:1px solid var(--border);letter-spacing:1px;text-decoration:none}
+.tb-dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:pulse 2s infinite}
+.tb-module{font-family:var(--mono);font-size:11px;color:var(--dim2);
+  display:flex;align-items:center;padding:0 16px;border-right:1px solid var(--border)}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.tb-user{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.tb-name{font-family:var(--display);font-weight:600;font-size:12px;color:var(--text)}
+.tb-role{font-family:var(--mono);font-size:9px;color:var(--dim2);letter-spacing:1px;text-transform:uppercase}
+.tb-av{width:30px;height:30px;border-radius:50%;background:var(--s3);border:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;font-family:var(--display);
+  font-weight:700;font-size:11px}
+.lang-tog{display:flex;border:1px solid var(--border2);border-radius:2px;overflow:hidden}
+.lang-tog button{font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:4px 10px;
+  background:transparent;border:none;color:var(--dim);cursor:pointer;transition:all .15s}
+.lang-tog button.active{background:var(--s3);color:var(--cyan)}
+.btn-back{font-family:var(--mono);font-size:10px;padding:5px 12px;background:transparent;
+  border:1px solid var(--border2);color:var(--dim2);cursor:pointer;border-radius:2px;
+  transition:all .15s;text-decoration:none;display:flex;align-items:center;gap:5px}
+.btn-back:hover{border-color:var(--cyan);color:var(--cyan)}
+
+/* ── WORKFLOW BAR ── */
+.workflow-bar{background:var(--s1);border-bottom:1px solid var(--border);
+  padding:0 20px;display:flex;align-items:center;gap:0;overflow-x:auto}
+.wf-step{display:flex;align-items:center;gap:8px;padding:10px 14px;
+  font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
+  color:var(--dim);white-space:nowrap;border-bottom:2px solid transparent;transition:all .2s}
+.wf-step.done{color:var(--green)}
+.wf-step.active{color:var(--cyan);border-bottom-color:var(--cyan)}
+.wf-dot{width:7px;height:7px;border-radius:50%;border:1px solid currentColor;flex-shrink:0}
+.wf-step.done .wf-dot{background:var(--green);border-color:var(--green)}
+.wf-step.active .wf-dot{background:var(--cyan);border-color:var(--cyan);animation:pulse 1.5s infinite}
+.wf-arrow{color:var(--border2);padding:0 2px;font-size:10px}
+
+/* ── MAIN ── */
+main{padding:20px;max-width:1400px;margin:0 auto}
+
+/* ══════════════════════════════════════
+   UPLOAD ZONE
+══════════════════════════════════════ */
+.upload-section{margin-bottom:20px;animation:up .3s ease}
+
+.upload-zone{
+  border:2px dashed var(--border2);background:var(--s1);
+  padding:48px 32px;text-align:center;cursor:pointer;
+  transition:all .25s;position:relative;overflow:hidden}
+.upload-zone::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(65,209,255,.03) 0%,transparent 50%,rgba(123,156,255,.03) 100%);
+  opacity:0;transition:opacity .3s}
+.upload-zone:hover,.upload-zone.dragover{
+  border-color:var(--cyan);background:rgba(65,209,255,.04)}
+.upload-zone:hover::before,.upload-zone.dragover::before{opacity:1}
+.upload-zone.dragover{transform:scale(1.01)}
+
+.uz-icon{font-size:36px;margin-bottom:12px;opacity:.5}
+.uz-title{font-family:var(--display);font-weight:700;font-size:18px;color:var(--text);margin-bottom:6px}
+.uz-sub{font-family:var(--mono);font-size:11px;color:var(--dim2);letter-spacing:.5px;margin-bottom:16px}
+.uz-types{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.uz-type{font-family:var(--mono);font-size:9px;letter-spacing:1px;
+  padding:3px 8px;border-radius:2px;border:1px solid var(--border2);color:var(--dim2)}
+.uz-type.supported{color:var(--cyan);border-color:rgba(65,209,255,.4);background:rgba(65,209,255,.06)}
+
+/* API KEY INPUT */
+.api-key-bar{background:var(--s2);border:1px solid var(--border);
+  border-left:3px solid var(--violet);padding:12px 16px;margin-bottom:16px;
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ak-label{font-family:var(--mono);font-size:9px;color:var(--dim2);
+  text-transform:uppercase;letter-spacing:1.5px;white-space:nowrap}
+.ak-input{background:var(--s1);border:1px solid var(--border2);color:var(--text);
+  font-family:var(--mono);font-size:11px;padding:7px 12px;border-radius:2px;
+  outline:none;transition:border-color .15s;flex:1;min-width:200px}
+.ak-input:focus{border-color:var(--violet)}
+.ak-input::placeholder{color:var(--dim)}
+.ak-hint{font-family:var(--mono);font-size:9px;color:var(--dim);flex-basis:100%}
+
+/* FILE QUEUE */
+.file-queue{margin-top:16px}
+.fq-item{background:var(--s2);border:1px solid var(--border);
+  padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;
+  gap:12px;animation:up .2s ease}
+.fq-thumb{width:44px;height:44px;object-fit:cover;border:1px solid var(--border2);
+  border-radius:2px;flex-shrink:0;background:var(--s3)}
+.fq-thumb-pdf{width:44px;height:44px;background:var(--s3);border:1px solid var(--border2);
+  border-radius:2px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:9px;color:var(--red);flex-shrink:0}
+.fq-info{flex:1;min-width:0}
+.fq-name{font-family:var(--display);font-weight:600;font-size:13px;
+  color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fq-meta{font-family:var(--mono);font-size:9px;color:var(--dim2);margin-top:2px}
+.fq-status{font-family:var(--mono);font-size:10px;letter-spacing:.5px}
+.fqs-waiting{color:var(--dim2)}
+.fqs-processing{color:var(--cyan)}
+.fqs-done{color:var(--green)}
+.fqs-error{color:var(--red)}
+.fq-remove{background:none;border:none;color:var(--dim);cursor:pointer;
+  font-size:14px;padding:4px;transition:color .15s;flex-shrink:0}
+.fq-remove:hover{color:var(--red)}
+
+/* PROGRESS BAR */
+.progress-wrap{height:3px;background:var(--border);border-radius:2px;
+  margin-top:8px;overflow:hidden}
+.progress-bar{height:100%;border-radius:2px;transition:width .3s ease;
+  background:linear-gradient(90deg,var(--cyan),var(--blue))}
+.progress-bar.shimmer{
+  background:linear-gradient(90deg,var(--cyan) 0%,var(--blue) 50%,var(--cyan) 100%);
+  background-size:200% 100%;animation:shimmer 1.5s infinite}
+
+/* EXTRACT BUTTON */
+.extract-bar{display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap}
+.btn-extract{font-family:var(--display);font-weight:700;font-size:13px;letter-spacing:2px;
+  text-transform:uppercase;padding:13px 32px;background:var(--cyan);color:#000;
+  border:none;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.btn-extract::after{content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);
+  transform:translateX(-100%);transition:transform .5s}
+.btn-extract:hover::after{transform:translateX(100%)}
+.btn-extract:hover:not(:disabled){background:#7be8ff;transform:translateY(-1px)}
+.btn-extract:disabled{opacity:.3;cursor:not-allowed;transform:none}
+.btn-extract:disabled::after{display:none}
+.extract-note{font-family:var(--mono);font-size:10px;color:var(--dim)}
+
+/* SPINNER */
+.spinner{width:16px;height:16px;border:2px solid rgba(65,209,255,.3);
+  border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite;
+  display:inline-block;vertical-align:middle;margin-right:6px}
+
+/* EXTRACTION RESULT BANNER */
+.result-banner{padding:12px 16px;margin-bottom:16px;border:1px solid;
+  display:flex;align-items:center;gap:10px;font-size:13px;animation:up .2s ease}
+.rb-ok{border-color:rgba(61,220,132,.4);background:rgba(61,220,132,.06);border-left:3px solid var(--green)}
+.rb-warn{border-color:rgba(255,195,67,.4);background:rgba(255,195,67,.06);border-left:3px solid var(--yellow)}
+.rb-err{border-color:rgba(255,107,107,.4);background:rgba(255,107,107,.06);border-left:3px solid var(--red)}
+.rb-icon{font-size:18px;flex-shrink:0}
+.rb-msg{flex:1;font-family:var(--mono);font-size:11px;line-height:1.6}
+.rb-msg strong{color:var(--cyan)}
+
+/* ── SOURCE BAR ── */
+.src-bar{display:flex;align-items:stretch;background:var(--s2);
+  border:1px solid var(--border);border-left:3px solid var(--cyan);
+  margin-bottom:16px;flex-wrap:wrap;animation:up .3s ease}
+.sb-item{padding:10px 16px;border-right:1px solid var(--border);flex-shrink:0}
+.sb-item:last-child{border-right:none;margin-left:auto}
+.sb-l{font-family:var(--mono);font-size:9px;color:var(--dim);
+  text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px}
+.sb-v{font-family:var(--mono);font-size:11px;color:var(--text)}
+.sb-v.ok{color:var(--green)} .sb-v.warn{color:var(--yellow)} .sb-v.err{color:var(--red)}
+.sb-link{color:var(--cyan);font-family:var(--mono);font-size:11px;
+  cursor:pointer;background:none;border:none;padding:0}
+.sb-link:hover{text-decoration:underline}
+
+/* ── ALERTS ── */
+.alert{display:none;border:1px solid;padding:10px 14px;margin-bottom:14px;font-size:12px;line-height:1.6}
+.alert.on{display:block}
+.al-horo{border-color:rgba(255,107,107,.4);background:rgba(255,107,107,.06);border-left:3px solid var(--red)}
+.al-title{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;color:var(--red)}
+
+/* ── TOOLBAR ── */
+.toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.sec-title{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--dim2)}
+.toolbar-right{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
+.f-wrap{position:relative}
+.f-select{background:var(--s2);border:1px solid var(--border2);color:var(--text);
+  font-family:var(--mono);font-size:11px;padding:7px 26px 7px 10px;border-radius:2px;
+  cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;min-width:140px}
+.f-select:focus{border-color:var(--cyan)}
+.f-select option{background:var(--s2)}
+.f-wrap::after{content:'▾';position:absolute;right:8px;top:50%;
+  transform:translateY(-50%);color:var(--dim2);pointer-events:none;font-size:10px}
+
+/* ── BUTTONS ── */
+.btn-ghost{font-family:var(--mono);font-size:11px;padding:7px 14px;background:transparent;
+  border:1px solid var(--border2);color:var(--dim2);cursor:pointer;border-radius:2px;
+  transition:all .15s;white-space:nowrap}
+.btn-ghost:hover{border-color:var(--text);color:var(--text)}
+.btn-ghost:disabled{opacity:.3;cursor:not-allowed}
+.btn-primary{font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:1px;
+  text-transform:uppercase;padding:10px 20px;background:var(--cyan);color:#000;
+  border:none;cursor:pointer;border-radius:2px;transition:all .2s;white-space:nowrap}
+.btn-primary:hover:not(:disabled){background:#7be8ff;transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.25;cursor:not-allowed;transform:none}
+.btn-success{font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:1px;
+  text-transform:uppercase;padding:10px 20px;background:var(--green);color:#000;
+  border:none;cursor:pointer;border-radius:2px;transition:all .2s}
+.btn-success:hover:not(:disabled){background:#6fffa8;transform:translateY(-1px)}
+.btn-success:disabled{opacity:.25;cursor:not-allowed}
+.btn-warn{font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:1px;
+  text-transform:uppercase;padding:10px 20px;background:var(--yellow);color:#000;
+  border:none;cursor:pointer;border-radius:2px;transition:all .2s}
+.btn-warn:hover:not(:disabled){background:#ffd166}
+.btn-warn:disabled{opacity:.25;cursor:not-allowed}
+
+/* ── TABLE ── */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--border);margin-bottom:20px}
+table{width:100%;border-collapse:collapse}
+thead tr{background:var(--s2);border-bottom:2px solid var(--border2)}
+thead th{font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--text);padding:9px 10px;text-align:left;white-space:nowrap;
+  border-right:1px solid var(--border)}
+thead th:last-child{border-right:none}
+th.gm{border-top:2px solid var(--blue);color:var(--blue)}
+th.gf{border-top:2px solid var(--cyan);color:var(--cyan)}
+th.gb{border-top:2px solid var(--green);color:var(--green)}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:hover{background:rgba(255,255,255,.012)}
+tbody tr.r-ok{background:rgba(61,220,132,.03)}
+tbody tr.r-rej{background:rgba(255,107,107,.03);opacity:.55}
+td{padding:8px 10px;vertical-align:middle;border-right:1px solid var(--border);
+  font-family:var(--mono);font-size:11px;color:var(--text)}
+td:last-child{border-right:none}
+.cx{color:var(--cyan)} .cb{color:var(--blue)} .cg{color:var(--green)} .cd{color:var(--dim2)}
+.horo-ind{font-size:9px;margin-top:2px}
+.hi-ok{color:var(--green)} .hi-gap{color:var(--red)}
+
+/* 3-WAY TOGGLE */
+.t3{display:flex;border:1px solid var(--border2);border-radius:2px;overflow:hidden;width:fit-content}
+.t3 button{font-family:var(--mono);font-size:9px;padding:4px 8px;background:transparent;
+  border:none;border-right:1px solid var(--border2);cursor:pointer;color:var(--dim);transition:all .15s}
+.t3 button:last-child{border-right:none}
+.t3 button.tp{background:rgba(255,195,67,.15);color:var(--yellow)}
+.t3 button.tok{background:rgba(61,220,132,.15);color:var(--green)}
+.t3 button.tr{background:rgba(255,107,107,.15);color:var(--red)}
+.t3 button:hover:not(.tp):not(.tok):not(.tr){color:var(--text);background:var(--s3)}
+.t3 button:disabled{opacity:.3;cursor:not-allowed}
+.btn-edit-r{font-family:var(--mono);font-size:9px;padding:4px 8px;background:transparent;
+  border:1px solid var(--border2);color:var(--dim2);cursor:pointer;border-radius:2px;transition:all .15s}
+.btn-edit-r:hover{border-color:var(--cyan);color:var(--cyan)}
+.btn-edit-r:disabled{opacity:.3;cursor:not-allowed}
+
+/* ── SUMMARY ── */
+.sum-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px}
+.scard{background:var(--s1);border:1px solid var(--border);padding:14px;position:relative;overflow:hidden}
+.scard::after{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.sc-fm::after{background:var(--green)} .sc-mag::after{background:var(--yellow)}
+.sc-tot::after{background:var(--cyan)} .sc-tbp::after{background:var(--blue)}
+.sc-ent::after{background:var(--dim2)}
+.sc-l{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);margin-bottom:5px}
+.sc-v{font-family:var(--display);font-weight:700;font-size:24px;line-height:1;color:var(--text)}
+.sc-s{font-family:var(--mono);font-size:10px;color:var(--dim2);margin-top:4px}
+
+/* ── ACTION BAR ── */
+.action-bar{background:var(--s1);border:1px solid var(--border);
+  padding:14px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.action-note{font-family:var(--mono);font-size:10px;color:var(--dim);margin-left:auto}
+
+/* ── PANEL TABS ── */
+.panel-tabs{display:flex;border-bottom:1px solid var(--border);gap:0}
+.ptab{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
+  padding:10px 18px;background:transparent;border:none;border-bottom:2px solid transparent;
+  color:var(--dim2);cursor:pointer;transition:all .2s}
+.ptab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
+.ptab:hover:not(.active){color:var(--text)}
+.ptab-count{display:inline-flex;align-items:center;justify-content:center;
+  width:18px;height:18px;border-radius:50%;background:var(--s3);font-size:9px;
+  margin-left:6px;color:var(--dim2)}
+.ptab.active .ptab-count{background:rgba(65,209,255,.15);color:var(--cyan)}
+.panel-content{border:1px solid var(--border);border-top:none;margin-bottom:20px}
+.ppanel{display:none}
+.ppanel.active{display:block}
+
+/* ── AUDIT LOG ── */
+.audit-wrap{max-height:320px;overflow-y:auto}
+.ae{display:flex;align-items:flex-start;gap:12px;padding:9px 14px;
+  border-bottom:1px solid var(--border);font-size:12px}
+.ae:last-child{border-bottom:none}
+.ae:hover{background:rgba(255,255,255,.01)}
+.ae-ts{font-family:var(--mono);font-size:9px;color:var(--dim);white-space:nowrap;padding-top:1px;min-width:115px}
+.ae-body{flex:1;line-height:1.5}
+.ae-actor{font-family:var(--display);font-weight:600;color:var(--cyan);margin-right:4px}
+.ae-action{color:var(--dim2)}
+.ae-target{color:var(--text)}
+.ae-diff{font-family:var(--mono);font-size:9px;color:var(--dim);
+  background:var(--s2);padding:2px 6px;border-radius:2px;margin-top:3px;display:inline-block}
+.audit-empty{padding:20px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--dim)}
+
+/* ── MODALS ── */
+.mbd{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);
+  backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:16px}
+.mbd.open{display:flex}
+.mbox{background:var(--s1);border:1px solid var(--border2);width:100%;
+  max-height:92vh;overflow-y:auto;animation:up .2s ease}
+.mbox.edit-box{max-width:620px;border-top:2px solid var(--cyan)}
+.mbox.confirm-box{max-width:460px;border-top:2px solid var(--green)}
+.mbox.exc-box{max-width:440px;border-top:2px solid var(--yellow)}
+.mbox.req-box{max-width:400px;border-top:2px solid var(--violet)}
+.mhdr{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border)}
+.mhdr-t{font-family:var(--display);font-weight:700;font-size:15px}
+.mhdr-t.ct{color:var(--cyan)} .mhdr-t.cg{color:var(--green)}
+.mhdr-t.cy{color:var(--yellow)} .mhdr-t.cv{color:var(--violet)}
+.m-x{background:none;border:none;color:var(--dim);font-size:18px;cursor:pointer;padding:4px;line-height:1;transition:color .15s}
+.m-x:hover{color:var(--text)}
+.mbody{padding:18px}
+.mftr{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.fg-title{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--dim);margin:14px 0 10px;padding-bottom:5px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:6px}
+.fg-dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+.frow{display:grid;gap:10px;margin-bottom:10px}
+.fc1{grid-template-columns:1fr} .fc2{grid-template-columns:1fr 1fr} .fc3{grid-template-columns:1fr 1fr 1fr}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--dim2)}
+.field input,.field select,.field textarea{background:var(--s2);border:1px solid var(--border2);
+  color:var(--text);font-family:var(--mono);font-size:12px;padding:8px 10px;
+  border-radius:2px;outline:none;transition:border-color .15s;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--cyan)}
+.field input[readonly]{color:var(--blue);cursor:default;border-color:var(--border)}
+.field input.err{border-color:var(--red)}
+.field .ferr{font-family:var(--mono);font-size:9px;color:var(--red);margin-top:2px;display:none}
+.field .ferr.on{display:block}
+.field select option{background:var(--s2)}
+.field textarea{resize:vertical;min-height:56px}
+.calc-prev{background:var(--s2);border:1px solid var(--border);padding:12px 14px;margin-top:14px;
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px}
+.cp-l{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
+.cp-v{font-family:var(--mono);font-size:13px;color:var(--cyan);font-weight:500}
+.cp-v.bill{color:var(--green)}
+.cstats{background:var(--s2);border:1px solid var(--border);padding:12px 14px;margin-top:12px;
+  font-family:var(--mono);font-size:11px;line-height:2}
+.cs-ok{color:var(--green)} .cs-w{color:var(--yellow)} .cs-c{color:var(--cyan)} .cs-d{color:var(--dim2);font-size:10px;margin-top:4px}
+.exc-warn{background:rgba(255,195,67,.08);border:1px solid rgba(255,195,67,.3);
+  border-left:3px solid var(--yellow);padding:12px 14px;font-family:var(--mono);font-size:12px;color:var(--yellow);margin-bottom:12px}
+.exc-detail{font-family:var(--mono);font-size:11px;color:var(--dim2);line-height:1.8}
+.req-body{padding:18px}
+.req-body textarea{background:var(--s2);border:1px solid var(--border2);color:var(--text);
+  font-family:var(--body);font-size:13px;padding:10px 12px;border-radius:2px;outline:none;
+  width:100%;resize:vertical;min-height:100px;transition:border-color .15s}
+.req-body textarea:focus{border-color:var(--violet)}
+.req-body label{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;
+  color:var(--dim2);display:block;margin-bottom:6px}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--s2);
+  border:1px solid var(--border2);border-left:3px solid var(--green);
+  padding:10px 16px;font-family:var(--mono);font-size:11px;color:var(--text);
+  z-index:9999;transform:translateX(130%);transition:transform .3s ease;max-width:320px;border-radius:2px}
+.toast.on{transform:translateX(0)}
+.toast.warn{border-left-color:var(--yellow)}
+.toast.err{border-left-color:var(--red)}
+.toast.info{border-left-color:var(--blue)}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--s1)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+@media(max-width:768px){
+  main{padding:12px}
+  .fc3{grid-template-columns:1fr 1fr}
+  .sum-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <a class="tb-logo" href="../../index.html">
+    <div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET
+  </a>
+  <div class="tb-module" id="tb_module">Flight Log / Bitácora Review</div>
+  <div class="tb-right">
+    <div class="lang-tog">
+      <button id="btnEN" class="active" onclick="setLang('en')">EN</button>
+      <button id="btnES" onclick="setLang('es')">ES</button>
+    </div>
+    <div class="tb-user">
+      <div class="tb-name" id="tbName">—</div>
+      <div class="tb-role" id="tbRole">—</div>
+    </div>
+    <div class="tb-av" id="tbAv">—</div>
+    <a class="btn-back" href="../../index.html">↩ <span id="tb_back">Back</span></a>
+  </div>
+</div>
+
+<!-- WORKFLOW BAR -->
+<div class="workflow-bar" id="workflowBar"></div>
+
+<main>
+
+  <!-- API KEY BAR -->
+  <div class="api-key-bar">
+    <div class="ak-label" id="ak_label">Anthropic API Key</div>
+    <input type="password" class="ak-input" id="apiKeyInput"
+      placeholder="sk-ant-api03-…" autocomplete="off">
+    <div class="ak-hint" id="ak_hint">
+      Required for PDF extraction. Key is used only in this session and never stored.
+      Get yours at console.anthropic.com
+    </div>
+  </div>
+
+  <!-- UPLOAD SECTION -->
+  <div class="upload-section">
+    <div class="upload-zone" id="uploadZone"
+      onclick="document.getElementById('fileInput').click()"
+      ondragover="handleDragOver(event)"
+      ondragleave="handleDragLeave(event)"
+      ondrop="handleDrop(event)">
+      <div class="uz-icon">📂</div>
+      <div class="uz-title" id="uz_title">Drop flight log files here</div>
+      <div class="uz-sub" id="uz_sub">or click to browse</div>
+      <div class="uz-types">
+        <span class="uz-type supported">PDF</span>
+        <span class="uz-type supported">JPG</span>
+        <span class="uz-type supported">PNG</span>
+        <span class="uz-type">XLSX (coming soon)</span>
+      </div>
+    </div>
+    <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png"
+      style="display:none" onchange="handleFileSelect(event)">
+
+    <div class="file-queue" id="fileQueue"></div>
+
+    <div class="extract-bar" id="extractBar" style="display:none">
+      <button class="btn-extract" id="btnExtract" onclick="extractAll()">
+        <span id="btnExtractTxt">✦ Extract with Claude</span>
+      </button>
+      <div class="extract-note" id="extractNote"></div>
+      <button class="btn-ghost" onclick="clearQueue()" id="btn_clearQueue">Clear Queue</button>
+    </div>
+  </div>
+
+  <!-- RESULT BANNER -->
+  <div id="resultBanner" style="display:none"></div>
+
+  <!-- SOURCE BAR (shown after extraction) -->
+  <div class="src-bar" id="srcBar" style="display:none">
+    <div class="sb-item">
+      <div class="sb-l" id="sb_file">Source File</div>
+      <div class="sb-v" id="srcFile">—</div>
+    </div>
+    <div class="sb-item">
+      <div class="sb-l" id="sb_horo">Horometer</div>
+      <div class="sb-v ok" id="srcHoro">—</div>
+    </div>
+    <div class="sb-item">
+      <div class="sb-l" id="sb_csv">Audit CSV</div>
+      <div class="sb-v ok" id="srcCsv">✓ Ready</div>
+    </div>
+    <div class="sb-item">
+      <div class="sb-l" id="sb_ts">Extracted At</div>
+      <div class="sb-v" id="srcTs">—</div>
+    </div>
+    <div class="sb-item">
+      <div class="sb-l" id="sb_batch">Batch Status</div>
+      <div class="sb-v" id="srcStatus">—</div>
+    </div>
+    <div class="sb-item">
+      <button class="sb-link" onclick="exportCSV()" id="sb_dlcsv">↓ Download CSV</button>
+    </div>
+  </div>
+
+  <!-- HORO ALERT -->
+  <div class="alert al-horo" id="horoAlert">
+    <div class="al-title" id="al_horoTitle">⚠ Horometer Gap Detected</div>
+    <div id="horoAlertBody"></div>
+  </div>
+
+  <!-- ENTRIES TOOLBAR (shown after extraction) -->
+  <div id="reviewSection" style="display:none">
+
+    <div class="toolbar">
+      <div class="sec-title" id="tb_entries">Extracted Entries</div>
+      <div class="toolbar-right">
+        <div class="f-wrap">
+          <select class="f-select" id="filterOp" onchange="renderTable()">
+            <option value="ALL" id="fo_all">All Operators</option>
+            <option value="FM">FM Only</option>
+            <option value="MAG">MAG Only</option>
+            <option value="pending" id="fo_pend">Pending Only</option>
+            <option value="approved" id="fo_appr">Approved Only</option>
+            <option value="rejected" id="fo_rej">Rejected Only</option>
+          </select>
+        </div>
+        <button class="btn-ghost" onclick="setAllStatus('approved')" id="btn_approveAll">Approve All</button>
+        <button class="btn-ghost" onclick="setAllStatus('pending')" id="btn_reset">Reset</button>
+        <button class="btn-ghost" id="btn_newEntry" onclick="openEdit(null)">+ New Entry</button>
+      </div>
+    </div>
+
+    <div class="panel-tabs">
+      <button class="ptab active" id="ptab_entries" onclick="switchPanel('entries')">
+        <span id="pt_entries">Entries</span>
+        <span class="ptab-count" id="ptab_count">0</span>
+      </button>
+      <button class="ptab" id="ptab_audit" onclick="switchPanel('audit')">
+        <span id="pt_audit">Audit Log</span>
+        <span class="ptab-count" id="ptab_audit_count">0</span>
+      </button>
+    </div>
+
+    <div class="panel-content">
+      <div class="ppanel active" id="ppanel_entries">
+        <div class="tbl-wrap" style="border:none;margin-bottom:0">
+          <table>
+            <thead>
+              <tr>
+                <th rowspan="2" style="vertical-align:bottom">#</th>
+                <th rowspan="2" style="vertical-align:bottom" id="th_date">Date</th>
+                <th rowspan="2" style="vertical-align:bottom" id="th_ac">Aircraft</th>
+                <th rowspan="2" style="vertical-align:bottom" id="th_op">Operator</th>
+                <th rowspan="2" style="vertical-align:bottom" id="th_pilot">Pilot</th>
+                <th colspan="3" class="gm" style="text-align:center;border-bottom:1px solid var(--border)" id="th_motor">Motor</th>
+                <th colspan="3" class="gf" style="text-align:center;border-bottom:1px solid var(--border)" id="th_flight">Flight</th>
+                <th colspan="2" class="gb" style="text-align:center;border-bottom:1px solid var(--border)" id="th_billing">Billing</th>
+                <th rowspan="2" style="vertical-align:bottom" id="th_horo">Horo.Start</th>
+                <th rowspan="2" style="vertical-align:bottom" id="th_obs">Notes</th>
+                <th rowspan="2" style="vertical-align:bottom" id="th_status">Status</th>
+                <th rowspan="2"></th>
+              </tr>
+              <tr>
+                <th class="gm" id="th_mout">Out</th><th class="gm" id="th_min">In</th><th class="gm" id="th_tm">T.Motor</th>
+                <th class="gf" id="th_fout">Out</th><th class="gf" id="th_fin">In</th><th class="gf" id="th_tf">T.Flight</th>
+                <th class="gb" id="th_mult">Mult.</th><th class="gb" id="th_tbp">Total TBP</th>
+              </tr>
+            </thead>
+            <tbody id="tBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="ppanel" id="ppanel_audit">
+        <div class="audit-wrap" id="auditList">
+          <div class="audit-empty" id="audit_empty">No activity recorded yet.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sum-grid" id="sumGrid"></div>
+
+    <div class="action-bar" id="actionBar">
+      <button class="btn-ghost" onclick="exportCSV()" id="btn_csv">↓ Export CSV</button>
+      <button class="btn-ghost" onclick="exportXLSX()" id="btn_xlsx">↓ Export XLSX</button>
+      <button class="btn-ghost" id="btn_saveDraft" onclick="saveDraft()">Save Draft</button>
+      <button class="btn-primary" id="btn_submit" onclick="handleSubmit()">Submit for Review</button>
+      <button class="btn-success" id="btn_approve" onclick="handleApprove()" style="display:none">Approve for Invoicing</button>
+      <button class="btn-warn" id="btn_reqChanges" onclick="openReqChanges()" style="display:none">Request Changes</button>
+      <div class="action-note" id="actionNote"></div>
+    </div>
+
+  </div>
+
+</main>
+
+<!-- EDIT MODAL -->
+<div class="mbd" id="editMbd" onclick="bdClose(event,'editMbd')">
+  <div class="mbox edit-box" onclick="event.stopPropagation()">
+    <div class="mhdr"><div class="mhdr-t ct" id="editTitle">Edit Entry</div><button class="m-x" onclick="closeModal('editMbd')">✕</button></div>
+    <div class="mbody">
+      <div class="fg-title"><div class="fg-dot" style="background:var(--dim2)"></div><span id="fg_general">General</span></div>
+      <div class="frow fc3">
+        <div class="field"><label id="fl_date">Date *</label><input type="text" id="f_fecha" placeholder="DD/MM/YYYY"><span class="ferr" id="fe_fecha"></span></div>
+        <div class="field"><label id="fl_ac">Aircraft</label><select id="f_aeronave"><option>HP-1862FX</option><option>HP-1861</option></select></div>
+        <div class="field"><label id="fl_op">Operator</label><select id="f_operador" onchange="liveCalc()"><option>FM</option><option>MAG</option></select></div>
+      </div>
+      <div class="frow fc2">
+        <div class="field"><label id="fl_pilot">Pilot *</label><input type="text" id="f_piloto" placeholder="Pilot name"><span class="ferr" id="fe_piloto"></span></div>
+        <div class="field"><label id="fl_horo">Horo. Start *</label><input type="number" id="f_horoIn" step="0.1" placeholder="0.0"><span class="ferr" id="fe_horoIn"></span></div>
+      </div>
+      <div class="fg-title"><div class="fg-dot" style="background:var(--blue)"></div><span id="fg_motor">Motor</span></div>
+      <div class="frow fc3">
+        <div class="field"><label id="fl_mout">Motor Out *</label><input type="text" id="f_motorOut" placeholder="HH:MM" oninput="liveCalc()"><span class="ferr" id="fe_motorOut"></span></div>
+        <div class="field"><label id="fl_min">Motor In *</label><input type="text" id="f_motorIn" placeholder="HH:MM" oninput="liveCalc()"><span class="ferr" id="fe_motorIn"></span></div>
+        <div class="field"><label id="fl_tm">T.Motor (calc.)</label><input type="text" id="f_tmotor" readonly placeholder="—"></div>
+      </div>
+      <div class="fg-title"><div class="fg-dot" style="background:var(--cyan)"></div><span id="fg_flight">Flight</span></div>
+      <div class="frow fc3">
+        <div class="field"><label id="fl_fout">Flight Out *</label><input type="text" id="f_vueloOut" placeholder="HH:MM" oninput="liveCalc()"><span class="ferr" id="fe_vueloOut"></span></div>
+        <div class="field"><label id="fl_fin">Flight In *</label><input type="text" id="f_vueloIn" placeholder="HH:MM" oninput="liveCalc()"><span class="ferr" id="fe_vueloIn"></span></div>
+        <div class="field"><label id="fl_tf">T.Flight (calc.)</label><input type="text" id="f_tvuelo" readonly placeholder="—"></div>
+      </div>
+      <div class="frow fc2">
+        <div class="field">
+          <label id="fl_mult">Multiplier (override)</label>
+          <input type="number" id="f_mult" step="0.001" placeholder="Leave blank for company default" oninput="liveCalc()">
+          <span style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:3px" id="fl_mult_hint">Override will be flagged in audit log</span>
+        </div>
+        <div class="field"><label id="fl_obs">Notes</label><textarea id="f_obs" placeholder="Notes from logbook…"></textarea></div>
+      </div>
+      <div class="calc-prev">
+        <div><div class="cp-l" id="cp_tm">T.Motor</div><div class="cp-v cb" id="pv_tm">—</div></div>
+        <div><div class="cp-l" id="cp_tf">T.Flight</div><div class="cp-v cx" id="pv_tf">—</div></div>
+        <div><div class="cp-l" id="cp_mult">Multiplier</div><div class="cp-v" id="pv_mult">—</div></div>
+        <div><div class="cp-l" id="cp_tbp">Total TBP</div><div class="cp-v bill" id="pv_tbp">—</div></div>
+      </div>
+    </div>
+    <div class="mftr">
+      <button class="btn-ghost" onclick="closeModal('editMbd')" id="edit_cancel">Cancel</button>
+      <button class="btn-primary" onclick="saveEntry()" id="edit_save">Save Entry</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="mbd" id="confirmMbd" onclick="bdClose(event,'confirmMbd')">
+  <div class="mbox confirm-box" onclick="event.stopPropagation()">
+    <div class="mhdr"><div class="mhdr-t cg" id="confirm_title">Confirm</div><button class="m-x" onclick="closeModal('confirmMbd')">✕</button></div>
+    <div class="mbody">
+      <p style="font-size:13px;line-height:1.7;color:var(--text)" id="confirm_body"></p>
+      <div class="cstats" id="confirmStats"></div>
+    </div>
+    <div class="mftr">
+      <button class="btn-ghost" onclick="closeModal('confirmMbd')" id="confirm_cancel">Cancel</button>
+      <button class="btn-success" onclick="executeConfirm()" id="confirm_ok">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXCEPTION MODAL -->
+<div class="mbd" id="excMbd" onclick="bdClose(event,'excMbd')">
+  <div class="mbox exc-box" onclick="event.stopPropagation()">
+    <div class="mhdr"><div class="mhdr-t cy" id="exc_title">⚠ Pending Entries</div><button class="m-x" onclick="closeModal('excMbd')">✕</button></div>
+    <div class="mbody">
+      <div class="exc-warn" id="excWarn"></div>
+      <div class="exc-detail" id="excDetail"></div>
+    </div>
+    <div class="mftr">
+      <button class="btn-ghost" onclick="closeModal('excMbd')" id="exc_back">Back to Review</button>
+      <button class="btn-warn" onclick="proceedAnyway()" id="exc_proceed">Proceed Anyway</button>
+    </div>
+  </div>
+</div>
+
+<!-- REQUEST CHANGES MODAL -->
+<div class="mbd" id="reqMbd" onclick="bdClose(event,'reqMbd')">
+  <div class="mbox req-box" onclick="event.stopPropagation()">
+    <div class="mhdr"><div class="mhdr-t cv" id="req_title">Request Changes</div><button class="m-x" onclick="closeModal('reqMbd')">✕</button></div>
+    <div class="req-body">
+      <label id="req_label">Describe the changes needed:</label>
+      <textarea id="req_comment" placeholder="e.g. Entry 3 horometer reading appears incorrect…"></textarea>
+    </div>
+    <div class="mftr">
+      <button class="btn-ghost" onclick="closeModal('reqMbd')" id="req_cancel">Cancel</button>
+      <button class="btn-warn" onclick="submitReqChanges()" id="req_submit">Send Request</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════
+const DEFAULT_MULT = {FM:1.15, MAG:1.275};
+const LAST_HORO = {'HP-1862FX':1298.4, 'HP-1861':1105.7};
+const LOAD_TS = new Date();
+const MODEL = 'claude-sonnet-4-20250514';
+
+// ══════════════════════════════════════════════════════
+// SESSION
+// ══════════════════════════════════════════════════════
+let currentUser = (() => {
+  try { const u=JSON.parse(sessionStorage.getItem('hpfleet_user')); if(u)return u; } catch(e){}
+  return {id:'u001',name:'Demo User',role:'OPERATOR',email:'demo@hp-fleet.com',companies:['FM','MAG']};
+})();
+let lang = sessionStorage.getItem('hpfleet_lang')||'en';
+
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+let entries = [];
+let auditLog = [];
+let fileQueue = [];
+let editingId = null;
+let batchStatus = 'DRAFT';
+let confirmCallback = null;
+let nextId = 1;
+let batchSourceFile = '';
+
+// ══════════════════════════════════════════════════════
+// I18N
+// ══════════════════════════════════════════════════════
+const I18N = {
+  en:{
+    module:'Flight Log / Bitácora Review', back:'Back',
+    akLabel:'Anthropic API Key',
+    akHint:'Required for PDF extraction. Key is used only in this session and never stored. Get yours at console.anthropic.com',
+    uzTitle:'Drop flight log files here', uzSub:'or click to browse',
+    extractBtn:'✦ Extract with Claude', extracting:'Extracting…',
+    extractNote:'Files will be sent to Claude API for data extraction',
+    clearQueue:'Clear Queue',
+    sbFile:'Source File', sbHoro:'Horometer', sbCsv:'Audit CSV',
+    sbTs:'Extracted At', sbBatch:'Batch Status', sbDlCsv:'↓ Download CSV',
+    horoAlert:'⚠ Horometer Gap Detected',
+    entries:'Extracted Entries',
+    allOp:'All Operators',pendOnly:'Pending Only',apprOnly:'Approved Only',rejOnly:'Rejected Only',
+    approveAll:'Approve All',reset:'Reset',newEntry:'+ New Entry',
+    ptEntries:'Entries',ptAudit:'Audit Log',
+    thDate:'Date',thAc:'Aircraft',thOp:'Operator',thPilot:'Pilot',
+    thMotor:'Motor',thFlight:'Flight',thBilling:'Billing',
+    thMout:'Out',thMin:'In',thTm:'T.Motor',thFout:'Out',thFin:'In',thTf:'T.Flight',
+    thMult:'Mult.',thTbp:'Total TBP',thHoro:'Horo.Start',thObs:'Notes',thStatus:'Status',
+    fmMotor:'FM — T.Motor',magMotor:'MAG — T.Motor',totMotor:'Total T.Motor',totTbp:'Total TBP',
+    approved:'Approved',tbpHours:'hrs to invoice',tFlight:'T.Flight',
+    btnCsv:'↓ Export CSV',btnXlsx:'↓ Export XLSX',btnDraft:'Save Draft',
+    btnSubmit:'Submit for Review',btnApprove:'Approve for Invoicing',btnReqChanges:'Request Changes',
+    pending:'Pending',rejected:'Rejected',horoOk:'✓ horo ok',horoGap:'⚠ gap',
+    editEntry:'Edit Entry',newEntryTitle:'New Entry',
+    fgGeneral:'General',fgMotor:'Motor',fgFlight:'Flight',
+    flDate:'Date *',flAc:'Aircraft',flOp:'Operator',flPilot:'Pilot *',flHoro:'Horo. Start *',
+    flMout:'Motor Out *',flMin:'Motor In *',flTm:'T.Motor (calc.)',
+    flFout:'Flight Out *',flFin:'Flight In *',flTf:'T.Flight (calc.)',
+    flMult:'Multiplier (override)',flMultHint:'Override will be flagged in audit log',flObs:'Notes',
+    cpTm:'T.Motor',cpTf:'T.Flight',cpMult:'Multiplier',cpTbp:'Total TBP',
+    cancel:'Cancel',saveEntry:'Save Entry',
+    required:'Required.',dateFormat:'Format: DD/MM/YYYY',timeFormat:'Format: HH:MM',
+    motorInAfter:'Motor In must be after Motor Out',flightInAfter:'Flight In must be after Flight Out',
+    horoPositive:'Must be > 0',entryUpdated:'Entry updated.',entryAdded:'New entry added.',
+    confirmSubmitTitle:'Confirm Submission',confirmApproveTitle:'Confirm Approval',
+    confirmSubmitBody:'These approved entries will be submitted for review:',
+    confirmApproveBody:'These approved entries will be marked for invoicing:',
+    totalApproved:'Total approved entries',csvNote:'Audit CSV will be generated automatically.',
+    excTitle:'⚠ Pending Entries',excBack:'Back to Review',excProceed:'Proceed Anyway',
+    reqTitle:'Request Changes',reqLabel:'Describe the changes needed:',
+    reqCancel:'Cancel',reqSubmit:'Send Request',reqSent:'Change request sent.',
+    draftSaved:'Draft saved.',submitted:'Batch submitted for review.',
+    approvedMsg:'Batch approved for invoicing.',csvDl:'↓ Audit CSV downloaded.',xlsxDl:'↓ XLSX exported.',
+    noAudit:'No activity recorded yet.',
+    wfUpload:'Upload',wfExtract:'Extract',wfReview:'Review',wfSubmit:'Submitted',wfApproved:'Approved',
+    contOk:'✓ Continuous',multOverride:'Multiplier overridden',
+    noApiKey:'Please enter your Anthropic API key first.',
+    noFiles:'Please add files to the queue first.',
+    extractSuccess:'entries extracted successfully from',
+    extractPartial:'entries extracted. Some fields may need review.',
+    extractError:'Extraction failed. Check your API key and try again.',
+    fileAdded:'added to queue.',fileRemoved:'removed from queue.',
+    cantEdit:'You do not have edit permissions for this batch.',
+    cantApprove:'Only Reviewers can approve batches.',
+    showing:'Showing',of:'of',
+    srcCsvReady:'✓ Ready to export',srcCsvDone:'✓ Archived',
+  },
+  es:{
+    module:'Flight Log / Revisión de Bitácora', back:'Volver',
+    akLabel:'API Key de Anthropic',
+    akHint:'Requerida para extraer datos del PDF. La clave solo se usa en esta sesión y no se almacena. Obtenla en console.anthropic.com',
+    uzTitle:'Arrastra los archivos de bitácora aquí', uzSub:'o haz clic para seleccionar',
+    extractBtn:'✦ Extraer con Claude', extracting:'Extrayendo…',
+    extractNote:'Los archivos serán enviados a la API de Claude para extracción',
+    clearQueue:'Limpiar Cola',
+    sbFile:'Archivo Fuente', sbHoro:'Horómetro', sbCsv:'CSV Auditoría',
+    sbTs:'Extraído', sbBatch:'Estado del Lote', sbDlCsv:'↓ Descargar CSV',
+    horoAlert:'⚠ Inconsistencia de Horómetro',
+    entries:'Entradas Extraídas',
+    allOp:'Todos los Operadores',pendOnly:'Solo Pendientes',apprOnly:'Solo Aprobados',rejOnly:'Solo Rechazados',
+    approveAll:'Aprobar Todo',reset:'Resetear',newEntry:'+ Nueva Entrada',
+    ptEntries:'Entradas',ptAudit:'Log de Auditoría',
+    thDate:'Fecha',thAc:'Aeronave',thOp:'Operador',thPilot:'Piloto',
+    thMotor:'Motor',thFlight:'Vuelo',thBilling:'Facturación',
+    thMout:'Out',thMin:'In',thTm:'T.Motor',thFout:'Out',thFin:'In',thTf:'T.Vuelo',
+    thMult:'Mult.',thTbp:'Total TBP',thHoro:'Horo.Ini',thObs:'Observaciones',thStatus:'Estado',
+    fmMotor:'FM — T.Motor',magMotor:'MAG — T.Motor',totMotor:'Total T.Motor',totTbp:'Total TBP',
+    approved:'Aprobados',tbpHours:'hrs a facturar',tFlight:'T.Vuelo',
+    btnCsv:'↓ Exportar CSV',btnXlsx:'↓ Exportar XLSX',btnDraft:'Guardar Borrador',
+    btnSubmit:'Enviar para Revisión',btnApprove:'Aprobar para Facturación',btnReqChanges:'Solicitar Cambios',
+    pending:'Pendiente',rejected:'Rechazado',horoOk:'✓ horo ok',horoGap:'⚠ gap',
+    editEntry:'Editar Entrada',newEntryTitle:'Nueva Entrada',
+    fgGeneral:'General',fgMotor:'Motor',fgFlight:'Vuelo',
+    flDate:'Fecha *',flAc:'Aeronave',flOp:'Operador',flPilot:'Piloto *',flHoro:'Horo. Inicio *',
+    flMout:'Motor Out *',flMin:'Motor In *',flTm:'T.Motor (calc.)',
+    flFout:'Vuelo Out *',flFin:'Vuelo In *',flTf:'T.Vuelo (calc.)',
+    flMult:'Multiplicador (override)',flMultHint:'El override quedará registrado en el audit log',flObs:'Observaciones',
+    cpTm:'T.Motor',cpTf:'T.Vuelo',cpMult:'Multiplicador',cpTbp:'Total TBP',
+    cancel:'Cancelar',saveEntry:'Guardar Entrada',
+    required:'Campo requerido.',dateFormat:'Formato: DD/MM/AAAA',timeFormat:'Formato: HH:MM',
+    motorInAfter:'Motor In debe ser posterior a Motor Out',flightInAfter:'Vuelo In debe ser posterior a Vuelo Out',
+    horoPositive:'Debe ser mayor a 0',entryUpdated:'Entrada actualizada.',entryAdded:'Nueva entrada agregada.',
+    confirmSubmitTitle:'Confirmar Envío',confirmApproveTitle:'Confirmar Aprobación',
+    confirmSubmitBody:'Estas entradas aprobadas serán enviadas para revisión:',
+    confirmApproveBody:'Estas entradas aprobadas serán marcadas para facturación:',
+    totalApproved:'Total entradas aprobadas',csvNote:'El CSV de auditoría se generará automáticamente.',
+    excTitle:'⚠ Entradas Pendientes',excBack:'Volver a Revisar',excProceed:'Registrar de Todos Modos',
+    reqTitle:'Solicitar Cambios',reqLabel:'Describe los cambios requeridos:',
+    reqCancel:'Cancelar',reqSubmit:'Enviar Solicitud',reqSent:'Solicitud enviada.',
+    draftSaved:'Borrador guardado.',submitted:'Lote enviado para revisión.',
+    approvedMsg:'Lote aprobado para facturación.',csvDl:'↓ CSV descargado.',xlsxDl:'↓ XLSX exportado.',
+    noAudit:'Sin actividad registrada.',
+    wfUpload:'Carga',wfExtract:'Extracción',wfReview:'Revisión',wfSubmit:'Enviado',wfApproved:'Aprobado',
+    contOk:'✓ Continuo',multOverride:'Multiplicador sobreescrito',
+    noApiKey:'Por favor ingresa tu API key de Anthropic primero.',
+    noFiles:'Por favor agrega archivos a la cola primero.',
+    extractSuccess:'entradas extraídas correctamente de',
+    extractPartial:'entradas extraídas. Algunos campos pueden necesitar revisión.',
+    extractError:'Error en la extracción. Verifica tu API key e intenta de nuevo.',
+    fileAdded:'agregado a la cola.',fileRemoved:'eliminado de la cola.',
+    cantEdit:'No tienes permisos de edición en este lote.',
+    cantApprove:'Solo los Revisores pueden aprobar lotes.',
+    showing:'Mostrando',of:'de',
+    srcCsvReady:'✓ Listo para exportar',srcCsvDone:'✓ Archivado',
+  }
+};
+
+function t(k){ return I18N[lang][k] ?? I18N.en[k] ?? k; }
+
+// ══════════════════════════════════════════════════════
+// LANG
+// ══════════════════════════════════════════════════════
+function setLang(l){
+  lang=l;
+  sessionStorage.setItem('hpfleet_lang',l);
+  el('btnEN').className=l==='en'?'active':'';
+  el('btnES').className=l==='es'?'active':'';
+  applyI18n();
+  renderWorkflow();
+  if(entries.length) renderAll();
+}
+
+function applyI18n(){
+  const ids={
+    tb_module:'module',tb_back:'back',
+    ak_label:'akLabel',ak_hint:'akHint',
+    uz_title:'uzTitle',uz_sub:'uzSub',
+    btnExtractTxt:'extractBtn',extractNote:'extractNote',
+    btn_clearQueue:'clearQueue',
+    sb_file:'sbFile',sb_horo:'sbHoro',sb_csv:'sbCsv',sb_ts:'sbTs',sb_batch:'sbBatch',sb_dlcsv:'sbDlCsv',
+    al_horoTitle:'horoAlert',tb_entries:'entries',
+    fo_all:'allOp',fo_pend:'pendOnly',fo_appr:'apprOnly',fo_rej:'rejOnly',
+    btn_approveAll:'approveAll',btn_reset:'reset',btn_newEntry:'newEntry',
+    pt_entries:'ptEntries',pt_audit:'ptAudit',
+    th_date:'thDate',th_ac:'thAc',th_op:'thOp',th_pilot:'thPilot',
+    th_motor:'thMotor',th_flight:'thFlight',th_billing:'thBilling',
+    th_mout:'thMout',th_min:'thMin',th_tm:'thTm',
+    th_fout:'thFout',th_fin:'thFin',th_tf:'thTf',
+    th_mult:'thMult',th_tbp:'thTbp',th_horo:'thHoro',th_obs:'thObs',th_status:'thStatus',
+    btn_csv:'btnCsv',btn_xlsx:'btnXlsx',btn_saveDraft:'btnDraft',
+    btn_submit:'btnSubmit',btn_approve:'btnApprove',btn_reqChanges:'btnReqChanges',
+    edit_cancel:'cancel',edit_save:'saveEntry',
+    fg_general:'fgGeneral',fg_motor:'fgMotor',fg_flight:'fgFlight',
+    fl_date:'flDate',fl_ac:'flAc',fl_op:'flOp',fl_pilot:'flPilot',fl_horo:'flHoro',
+    fl_mout:'flMout',fl_min:'flMin',fl_tm:'flTm',fl_fout:'flFout',fl_fin:'flFin',fl_tf:'flTf',
+    fl_mult:'flMult',fl_mult_hint:'flMultHint',fl_obs:'flObs',
+    cp_tm:'cpTm',cp_tf:'cpTf',cp_mult:'cpMult',cp_tbp:'cpTbp',
+    confirm_cancel:'cancel',exc_back:'excBack',exc_proceed:'excProceed',
+    req_title:'reqTitle',req_label:'reqLabel',req_cancel:'reqCancel',req_submit:'reqSubmit',
+    audit_empty:'noAudit',
+  };
+  Object.entries(ids).forEach(([id,key])=>{const e=el(id);if(e)e.textContent=t(key);});
+}
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+function init(){
+  el('tbName').textContent=currentUser.name;
+  el('tbRole').textContent=currentUser.role;
+  el('tbAv').textContent=initials(currentUser.name);
+  el('tbAv').style.color=roleColor(currentUser.role);
+  applyI18n();
+  renderWorkflow();
+  setupRoleUI();
+}
+
+// ══════════════════════════════════════════════════════
+// WORKFLOW
+// ══════════════════════════════════════════════════════
+const WF_STEPS=[
+  {key:'wfUpload',states:['DRAFT']},
+  {key:'wfExtract',states:['DRAFT']},
+  {key:'wfReview',states:['DRAFT','CHANGES']},
+  {key:'wfSubmit',states:['SUBMITTED','REVIEWING']},
+  {key:'wfApproved',states:['APPROVED']},
+];
+const WF_ORDER={DRAFT:1,SUBMITTED:2,REVIEWING:2,CHANGES:2,APPROVED:3};
+
+function renderWorkflow(){
+  const cur=WF_ORDER[batchStatus]||1;
+  const hasEntries=entries.length>0;
+  const bar=el('workflowBar');
+  bar.innerHTML=WF_STEPS.map((s,i)=>{
+    let cls='pending';
+    if(i===0&&hasEntries||i===1&&hasEntries) cls='done';
+    else if(i===0) cls=hasEntries?'done':'active';
+    else if(i===1) cls=hasEntries?'done':'pending';
+    else if(i===2) cls=hasEntries?'active':'pending';
+    else if(i===3) cls=cur>=2?'active':'pending';
+    else if(i===4) cls=batchStatus==='APPROVED'?'active':'pending';
+    const arrow=i<WF_STEPS.length-1?'<span class="wf-arrow">›</span>':'';
+    return `<div class="wf-step ${cls}"><div class="wf-dot"></div>${t(s.key)}</div>${arrow}`;
+  }).join('');
+  if(el('srcStatus')){
+    const labels={DRAFT:t('wfReview'),SUBMITTED:t('wfSubmit'),APPROVED:t('wfApproved'),CHANGES:'Changes Requested'};
+    el('srcStatus').textContent=labels[batchStatus]||batchStatus;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// ROLE UI
+// ══════════════════════════════════════════════════════
+function setupRoleUI(){
+  const role=currentUser.role;
+  const canEdit=(role==='ADMIN'||role==='OPERATOR')&&batchStatus==='DRAFT';
+  const canSubmit=(role==='ADMIN'||role==='OPERATOR')&&batchStatus==='DRAFT';
+  const canApprove=(role==='ADMIN'||role==='REVIEWER')&&batchStatus==='SUBMITTED';
+  const canReqChanges=(role==='ADMIN'||role==='REVIEWER')&&batchStatus==='SUBMITTED';
+  if(el('btn_newEntry'))el('btn_newEntry').style.display=canEdit?'':'none';
+  if(el('btn_approveAll'))el('btn_approveAll').style.display=canEdit?'':'none';
+  if(el('btn_reset'))el('btn_reset').style.display=canEdit?'':'none';
+  if(el('btn_saveDraft'))el('btn_saveDraft').style.display=canSubmit?'':'none';
+  if(el('btn_submit'))el('btn_submit').style.display=canSubmit?'':'none';
+  if(el('btn_approve'))el('btn_approve').style.display=canApprove?'flex':'none';
+  if(el('btn_reqChanges'))el('btn_reqChanges').style.display=canReqChanges?'flex':'none';
+  // hide upload zone for reviewers/readonly
+  if(role==='REVIEWER'||role==='READONLY'){
+    el('upload-section')&&(el('upload-section').style.display='none');
+    el('api-key-bar')&&(el('api-key-bar').style.display='none');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// FILE UPLOAD — DRAG & DROP
+// ══════════════════════════════════════════════════════
+function handleDragOver(e){
+  e.preventDefault();e.stopPropagation();
+  el('uploadZone').classList.add('dragover');
+}
+function handleDragLeave(e){
+  el('uploadZone').classList.remove('dragover');
+}
+function handleDrop(e){
+  e.preventDefault();e.stopPropagation();
+  el('uploadZone').classList.remove('dragover');
+  const files=Array.from(e.dataTransfer.files);
+  addFilesToQueue(files);
+}
+function handleFileSelect(e){
+  addFilesToQueue(Array.from(e.target.files));
+  e.target.value='';
+}
+
+function addFilesToQueue(files){
+  const allowed=['application/pdf','image/jpeg','image/jpg','image/png'];
+  files.forEach(f=>{
+    if(!allowed.includes(f.type)&&!f.name.match(/\.(pdf|jpg|jpeg|png)$/i)){
+      showToast(`${f.name}: unsupported format`,'err'); return;
+    }
+    if(fileQueue.find(q=>q.name===f.name&&q.size===f.size)) return; // dedupe
+    fileQueue.push({file:f,name:f.name,size:f.size,type:f.type,status:'waiting',progress:0});
+    addAudit('📎',currentUser.name,'added file',f.name);
+    showToast(`${f.name} ${t('fileAdded')}`,'info');
+  });
+  renderQueue();
+}
+
+function removeFromQueue(idx){
+  const name=fileQueue[idx].name;
+  fileQueue.splice(idx,1);
+  addAudit('🗑',currentUser.name,'removed file',name);
+  renderQueue();
+}
+
+function clearQueue(){
+  fileQueue=[];
+  renderQueue();
+}
+
+function renderQueue(){
+  const wrap=el('fileQueue');
+  const bar=el('extractBar');
+  if(!fileQueue.length){wrap.innerHTML='';bar.style.display='none';return;}
+  bar.style.display='flex';
+  el('extractNote').textContent=`${fileQueue.length} file(s) — ${t('extractNote')}`;
+  wrap.innerHTML='';
+  fileQueue.forEach((f,i)=>{
+    const div=document.createElement('div');
+    div.className='fq-item';
+    const isPdf=f.type==='application/pdf'||f.name.endsWith('.pdf');
+    const thumb=isPdf
+      ? `<div class="fq-thumb-pdf">PDF</div>`
+      : `<img class="fq-thumb" src="${f._preview||''}" alt="">`;
+    const statusMap={
+      waiting:`<span class="fq-status fqs-waiting">⏳ Waiting</span>`,
+      processing:`<span class="fq-status fqs-processing"><span class="spinner"></span>Extracting…</span>`,
+      done:`<span class="fq-status fqs-done">✓ Extracted</span>`,
+      error:`<span class="fq-status fqs-error">✗ Error</span>`,
+    };
+    div.innerHTML=`
+      ${thumb}
+      <div class="fq-info">
+        <div class="fq-name">${f.name}</div>
+        <div class="fq-meta">${(f.size/1024).toFixed(1)} KB · ${f.type||'image'}</div>
+        <div class="progress-wrap">
+          <div class="progress-bar ${f.status==='processing'?'shimmer':''}"
+            style="width:${f.status==='done'?100:f.status==='processing'?60:0}%"></div>
+        </div>
+      </div>
+      <div>${statusMap[f.status]||''}</div>
+      <button class="fq-remove" onclick="removeFromQueue(${i})" title="Remove">✕</button>`;
+    // image preview
+    if(!isPdf&&!f._preview){
+      const reader=new FileReader();
+      reader.onload=ev=>{f._preview=ev.target.result;div.querySelector('img').src=f._preview;};
+      reader.readAsDataURL(f.file);
+    }
+    wrap.appendChild(div);
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// EXTRACTION PROMPT
+// ══════════════════════════════════════════════════════
+function buildExtractionPrompt(){
+  return `You are processing a Panamanian flight school bitácora (flight log). 
+Extract ALL flight entries from this document and return ONLY a valid JSON array.
+
+Each entry must have these exact fields:
+{
+  "fecha": "DD/MM/YYYY",
+  "aeronave": "HP-1862FX" or "HP-1861" (or as written),
+  "operador": "FM" or "MAG" (infer from context/stamps if not explicit),
+  "piloto": "pilot name as written",
+  "horoIn": number (starting hobbs/horometer reading),
+  "motorOut": "HH:MM" (engine start time),
+  "motorIn": "HH:MM" (engine stop time),
+  "vueloOut": "HH:MM" (wheels up / takeoff time),
+  "vueloIn": "HH:MM" (wheels down / landing time),
+  "obs": "any notes or observations from this entry"
+}
+
+Rules:
+- Extract EVERY flight entry visible, even partial ones
+- If a time is missing/illegible, use "" (empty string)
+- If horometer is missing/illegible, use 0
+- Dates must be in DD/MM/YYYY format
+- Times must be in HH:MM 24-hour format
+- Return ONLY the JSON array, no explanation, no markdown, no backticks
+- If you cannot read any entries, return []
+
+Example output:
+[{"fecha":"15/04/2025","aeronave":"HP-1862FX","operador":"FM","piloto":"J. Pérez","horoIn":1298.4,"motorOut":"08:00","motorIn":"09:42","vueloOut":"08:05","vueloIn":"09:38","obs":"Normal"},{"fecha":"15/04/2025","aeronave":"HP-1862FX","operador":"FM","piloto":"R. Morales","horoIn":1299.7,"motorOut":"10:00","motorIn":"11:42","vueloOut":"10:05","vueloIn":"11:38","obs":""}]`;
+}
+
+// ══════════════════════════════════════════════════════
+// EXTRACT ALL FILES
+// ══════════════════════════════════════════════════════
+async function extractAll(){
+  const apiKey=el('apiKeyInput').value.trim();
+  if(!apiKey){showToast(t('noApiKey'),'err');return;}
+  if(!fileQueue.length){showToast(t('noFiles'),'err');return;}
+
+  const btn=el('btnExtract');
+  const btnTxt=el('btnExtractTxt');
+  btn.disabled=true;
+  btnTxt.innerHTML=`<span class="spinner"></span>${t('extracting')}`;
+
+  let allExtracted=[];
+  let hasErrors=false;
+
+  for(let i=0;i<fileQueue.length;i++){
+    const fq=fileQueue[i];
+    fq.status='processing';
+    renderQueue();
+
+    try {
+      const extracted=await extractFile(fq.file, apiKey);
+      allExtracted=[...allExtracted,...extracted];
+      fq.status='done';
+      addAudit('🤖',currentUser.name,'extracted entries',`${extracted.length} from ${fq.name}`);
+    } catch(err){
+      fq.status='error';
+      hasErrors=true;
+      addAudit('⚠️',currentUser.name,'extraction error',`${fq.name}: ${err.message}`);
+      console.error('Extraction error:',err);
+    }
+    renderQueue();
+  }
+
+  btn.disabled=false;
+  btnTxt.textContent=t('extractBtn');
+
+  if(!allExtracted.length&&hasErrors){
+    showResultBanner('err',`✗ ${t('extractError')}`);
+    return;
+  }
+
+  // Assign IDs and default status
+  entries=[...entries,...allExtracted.map((e,i)=>({
+    id:nextId++,
+    status:'pending',
+    ...e,
+    horoIn:parseFloat(e.horoIn)||0,
+    multOverride:null,
+  }))];
+
+  batchSourceFile=fileQueue.map(f=>f.name).join(', ');
+  el('srcFile').textContent=batchSourceFile;
+  el('srcTs').textContent=new Date().toLocaleString(lang==='es'?'es-PA':'en-US');
+
+  const msg=hasErrors
+    ? `⚠ ${allExtracted.length} ${t('extractPartial')}`
+    : `✓ ${allExtracted.length} ${t('extractSuccess')} ${batchSourceFile}`;
+  showResultBanner(hasErrors?'warn':'ok',msg);
+
+  // Show review section
+  el('srcBar').style.display='flex';
+  el('reviewSection').style.display='block';
+  renderWorkflow();
+  setupRoleUI();
+  renderAll();
+}
+
+// ══════════════════════════════════════════════════════
+// EXTRACT SINGLE FILE — calls Claude API
+// ══════════════════════════════════════════════════════
+async function extractFile(file, apiKey){
+  const base64=await fileToBase64(file);
+  const isPdf=file.type==='application/pdf'||file.name.endsWith('.pdf');
+  const mediaType=isPdf?'application/pdf':file.type||'image/jpeg';
+
+  const contentBlock=isPdf
+    ? {type:'document',source:{type:'base64',media_type:mediaType,data:base64}}
+    : {type:'image',source:{type:'base64',media_type:mediaType,data:base64}};
+
+  const response=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key':apiKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true',
+    },
+    body:JSON.stringify({
+      model:MODEL,
+      max_tokens:4096,
+      messages:[{
+        role:'user',
+        content:[
+          contentBlock,
+          {type:'text',text:buildExtractionPrompt()}
+        ]
+      }]
+    })
+  });
+
+  if(!response.ok){
+    const err=await response.json().catch(()=>({}));
+    throw new Error(err.error?.message||`HTTP ${response.status}`);
+  }
+
+  const data=await response.json();
+  const text=data.content?.filter(b=>b.type==='text').map(b=>b.text).join('')||'[]';
+
+  // Clean and parse JSON
+  const cleaned=text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+  const parsed=JSON.parse(cleaned);
+  if(!Array.isArray(parsed)) throw new Error('Response was not a JSON array');
+  return parsed;
+}
+
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result.split(',')[1]);
+    reader.onerror=()=>reject(new Error('File read failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function showResultBanner(type,msg){
+  const wrap=el('resultBanner');
+  const icons={ok:'✅',warn:'⚠️',err:'❌'};
+  const cls={ok:'rb-ok',warn:'rb-warn',err:'rb-err'};
+  wrap.style.display='block';
+  wrap.innerHTML=`<div class="result-banner ${cls[type]}">
+    <div class="rb-icon">${icons[type]}</div>
+    <div class="rb-msg">${msg}</div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════
+// CALCULATIONS
+// ══════════════════════════════════════════════════════
+function t2h(t){if(!t||!t.includes(':'))return 0;const[h,m]=t.split(':').map(Number);return h+m/60;}
+function calc(e){
+  const tm=Math.max(0,t2h(e.motorIn)-t2h(e.motorOut));
+  const tv=Math.max(0,t2h(e.vueloIn)-t2h(e.vueloOut));
+  const mult=e.multOverride||DEFAULT_MULT[e.operador]||1;
+  return{tm,tv,mult,tbp:tm*mult};
+}
+function fmt(n){return isNaN(n)||n===0?'—':n.toFixed(1);}
+
+// ══════════════════════════════════════════════════════
+// HOROMETER VALIDATION
+// ══════════════════════════════════════════════════════
+function horoCheck(entry,idx){
+  const prev=entries.slice(0,idx).filter(e=>e.aeronave===entry.aeronave).pop();
+  const expected=prev?(prev.horoIn+calc(prev).tm):LAST_HORO[entry.aeronave];
+  if(expected===undefined)return{ok:true};
+  const diff=Math.abs(entry.horoIn-expected);
+  return{ok:diff<0.15,expected:expected.toFixed(1),got:entry.horoIn?.toFixed(1),diff:diff.toFixed(2)};
+}
+
+function runHoroChecks(){
+  const gaps=[];
+  entries.forEach((e,i)=>{
+    const h=horoCheck(e,i);
+    if(!h.ok)gaps.push(`Entry ${i+1} (${e.aeronave} / ${e.fecha}): expected ${h.expected}, got ${h.got} — Δ${h.diff}`);
+  });
+  const al=el('horoAlert');
+  if(gaps.length){
+    al.classList.add('on');
+    el('horoAlertBody').innerHTML=gaps.map(g=>`<div>• ${g}</div>`).join('');
+    el('srcHoro').textContent=`⚠ ${gaps.length} gap(s)`;
+    el('srcHoro').className='sb-v err';
+  } else {
+    al.classList.remove('on');
+    el('srcHoro').textContent=t('contOk');
+    el('srcHoro').className='sb-v ok';
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// FILTER & RENDER TABLE
+// ══════════════════════════════════════════════════════
+function getFiltered(){
+  const f=el('filterOp').value;
+  if(f==='ALL')return entries;
+  if(f==='FM'||f==='MAG')return entries.filter(e=>e.operador===f);
+  return entries.filter(e=>e.status===f);
+}
+
+function renderTable(){
+  const tbody=el('tBody');
+  const visible=getFiltered();
+  const canEdit=(currentUser.role==='ADMIN'||currentUser.role==='OPERATOR')&&batchStatus==='DRAFT';
+  tbody.innerHTML='';
+  visible.forEach((e,vi)=>{
+    const gi=entries.indexOf(e);
+    const{tm,tv,mult,tbp}=calc(e);
+    const h=horoCheck(e,gi);
+    const isOverride=e.multOverride&&e.multOverride!==DEFAULT_MULT[e.operador];
+    const tr=document.createElement('tr');
+    tr.className=e.status==='approved'?'r-ok':e.status==='rejected'?'r-rej':'';
+    tr.innerHTML=`
+      <td class="cd" style="font-size:10px">${String(gi+1).padStart(2,'0')}</td>
+      <td>${e.fecha||'—'}</td>
+      <td>${e.aeronave||'—'}</td>
+      <td><span style="color:${e.operador==='FM'?'var(--green)':'var(--yellow)'}">${e.operador||'—'}</span></td>
+      <td>${e.piloto||'—'}</td>
+      <td class="cb">${e.motorOut||'—'}<div class="horo-ind ${h.ok?'hi-ok':'hi-gap'}">${h.ok?t('horoOk'):t('horoGap')}</div></td>
+      <td class="cb">${e.motorIn||'—'}</td>
+      <td class="cb">${fmt(tm)}</td>
+      <td>${e.vueloOut||'—'}</td>
+      <td>${e.vueloIn||'—'}</td>
+      <td class="cx">${fmt(tv)}</td>
+      <td class="cd" style="${isOverride?'color:var(--yellow)'}">${mult}${isOverride?' ⚠':''}</td>
+      <td class="cg">${fmt(tbp)}</td>
+      <td class="cd">${e.horoIn?.toFixed(1)||'—'}</td>
+      <td class="cd" style="max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+        title="${e.obs||''}">${e.obs||'—'}</td>
+      <td>${mkToggle(e,canEdit)}</td>
+      <td><button class="btn-edit-r" onclick="openEdit(${e.id})" ${!canEdit?'disabled':''}>✎</button></td>`;
+    tbody.appendChild(tr);
+  });
+  el('ptab_count').textContent=entries.length;
+  updateSummary();
+  runHoroChecks();
+}
+
+function mkToggle(e,canEdit){
+  const pc=e.status==='pending'?'tp':'',oc=e.status==='approved'?'tok':'',rc=e.status==='rejected'?'tr':'';
+  const dis=!canEdit?'disabled':'';
+  return`<div class="t3">
+    <button class="${pc}" onclick="setSt(${e.id},'pending')" ${dis} title="${t('pending')}">?</button>
+    <button class="${oc}" onclick="setSt(${e.id},'approved')" ${dis} title="${t('approved')}">✓</button>
+    <button class="${rc}" onclick="setSt(${e.id},'rejected')" ${dis} title="${t('rejected')}">✗</button>
+  </div>`;
+}
+
+function setSt(id,st){
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  const old=e.status;e.status=st;
+  addAudit('🔄',currentUser.name,`entry ${entries.indexOf(e)+1} status`,`${old}→${st}`);
+  renderTable();
+}
+function setAllStatus(st){
+  entries.forEach(e=>e.status=st);
+  addAudit('🔄',currentUser.name,`all entries→${st}`,`${entries.length} entries`);
+  renderTable();
+}
+
+// ══════════════════════════════════════════════════════
+// SUMMARY
+// ══════════════════════════════════════════════════════
+function updateSummary(){
+  let fmM=0,fmT=0,magM=0,magT=0,totV=0,approved=0;
+  entries.filter(e=>e.status==='approved').forEach(e=>{
+    approved++;
+    const{tm,tv,tbp}=calc(e);totV+=tv;
+    if(e.operador==='FM'){fmM+=tm;fmT+=tbp;}else{magM+=tm;magT+=tbp;}
+  });
+  el('sumGrid').innerHTML=`
+    <div class="scard sc-fm"><div class="sc-l">${t('fmMotor')}</div><div class="sc-v">${fmt(fmM)}</div><div class="sc-s">TBP: ${fmt(fmT)} hrs</div></div>
+    <div class="scard sc-mag"><div class="sc-l">${t('magMotor')}</div><div class="sc-v">${fmt(magM)}</div><div class="sc-s">TBP: ${fmt(magT)} hrs</div></div>
+    <div class="scard sc-tot"><div class="sc-l">${t('totMotor')}</div><div class="sc-v">${fmt(fmM+magM)}</div><div class="sc-s">${t('tFlight')}: ${fmt(totV)} hrs</div></div>
+    <div class="scard sc-tbp"><div class="sc-l">${t('totTbp')}</div><div class="sc-v">${fmt(fmT+magT)}</div><div class="sc-s">${t('tbpHours')}</div></div>
+    <div class="scard sc-ent"><div class="sc-l">${t('approved')}</div><div class="sc-v">${approved}</div><div class="sc-s">${t('showing')} ${getFiltered().length} ${t('of')} ${entries.length}</div></div>`;
+  updateActionBar();
+}
+
+function updateActionBar(){
+  const pending=entries.filter(e=>e.status==='pending').length;
+  const approved=entries.filter(e=>e.status==='approved').length;
+  const rejected=entries.filter(e=>e.status==='rejected').length;
+  const canSubmit=(currentUser.role==='ADMIN'||currentUser.role==='OPERATOR')&&batchStatus==='DRAFT';
+  if(canSubmit&&el('btn_submit')){
+    el('btn_submit').disabled=approved===0;
+    el('actionNote').textContent=`${pending} ${t('pending').toLowerCase()} · ${approved} ${t('approved').toLowerCase()} · ${rejected} ${t('rejected').toLowerCase()}`;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// WORKFLOW ACTIONS
+// ══════════════════════════════════════════════════════
+function handleSubmit(){
+  if(currentUser.role!=='ADMIN'&&currentUser.role!=='OPERATOR'){showToast(t('cantEdit'),'err');return;}
+  const pending=entries.filter(e=>e.status==='pending');
+  const approved=entries.filter(e=>e.status==='approved');
+  if(!approved.length){showToast('No approved entries to submit.','err');return;}
+  if(pending.length){
+    el('excWarn').textContent=`${pending.length} entries still pending. Proceed anyway?`;
+    el('excDetail').innerHTML=pending.map(e=>`• Entry ${entries.indexOf(e)+1}: ${e.fecha} | ${e.aeronave} | ${e.piloto}`).join('<br>');
+    confirmCallback=()=>{closeModal('excMbd');doSubmit();};
+    openModal('excMbd');
+  } else {
+    showConfirm(t('confirmSubmitTitle'),t('confirmSubmitBody'),approved,()=>doSubmit());
+  }
+}
+function doSubmit(){
+  batchStatus='SUBMITTED';
+  addAudit('📤',currentUser.name,'submitted batch',`${entries.filter(e=>e.status==='approved').length} approved entries`);
+  renderWorkflow();setupRoleUI();showToast(t('submitted'));
+}
+function handleApprove(){
+  if(currentUser.role!=='ADMIN'&&currentUser.role!=='REVIEWER'){showToast(t('cantApprove'),'err');return;}
+  showConfirm(t('confirmApproveTitle'),t('confirmApproveBody'),entries.filter(e=>e.status==='approved'),()=>doApprove());
+}
+function doApprove(){
+  batchStatus='APPROVED';exportCSV();
+  addAudit('✅',currentUser.name,'approved for invoicing',`${entries.filter(e=>e.status==='approved').length} entries`);
+  renderWorkflow();setupRoleUI();showToast(t('approvedMsg'));
+}
+function saveDraft(){addAudit('💾',currentUser.name,'saved draft',`${entries.length} entries`);showToast(t('draftSaved'));}
+function proceedAnyway(){closeModal('excMbd');if(confirmCallback){confirmCallback();confirmCallback=null;}}
+function openReqChanges(){el('req_comment').value='';openModal('reqMbd');}
+function submitReqChanges(){
+  const comment=el('req_comment').value.trim();
+  if(!comment){showToast('Please describe the changes needed.','err');return;}
+  batchStatus='CHANGES';
+  addAudit('🔁',currentUser.name,'requested changes',comment);
+  closeModal('reqMbd');renderWorkflow();setupRoleUI();showToast(t('reqSent'));
+}
+
+// ══════════════════════════════════════════════════════
+// CONFIRM MODAL
+// ══════════════════════════════════════════════════════
+function showConfirm(title,body,approvedEntries,cb){
+  el('confirm_title').textContent=title;
+  el('confirm_body').textContent=body;
+  let fmM=0,fmT=0,magM=0,magT=0;
+  approvedEntries.forEach(e=>{
+    const{tm,tbp}=calc(e);
+    if(e.operador==='FM'){fmM+=tm;fmT+=tbp;}else{magM+=tm;magT+=tbp;}
+  });
+  el('confirmStats').innerHTML=`
+    <div class="cs-ok">FM — T.Motor: ${fmt(fmM)} hrs | TBP: ${fmt(fmT)} hrs</div>
+    <div class="cs-w">MAG — T.Motor: ${fmt(magM)} hrs | TBP: ${fmt(magT)} hrs</div>
+    <div class="cs-c" style="margin-top:4px">${t('totalApproved')}: ${approvedEntries.length}</div>
+    <div class="cs-c">Total TBP: ${fmt(fmT+magT)} hrs</div>
+    <div class="cs-d">${t('csvNote')}</div>`;
+  confirmCallback=cb;
+  openModal('confirmMbd');
+}
+function executeConfirm(){closeModal('confirmMbd');if(confirmCallback){confirmCallback();confirmCallback=null;}}
+
+// ══════════════════════════════════════════════════════
+// EDIT MODAL
+// ══════════════════════════════════════════════════════
+function openEdit(id){
+  const canEdit=(currentUser.role==='ADMIN'||currentUser.role==='OPERATOR')&&batchStatus==='DRAFT';
+  if(!canEdit){showToast(t('cantEdit'),'err');return;}
+  editingId=id;
+  clearFormErrs();
+  const e=id===null?null:entries.find(x=>x.id===id);
+  el('editTitle').textContent=e?t('editEntry')+` #${entries.indexOf(e)+1}`:t('newEntryTitle');
+  el('f_fecha').value=e?.fecha||'';
+  el('f_aeronave').value=e?.aeronave||'HP-1862FX';
+  el('f_operador').value=e?.operador||'FM';
+  el('f_piloto').value=e?.piloto||'';
+  el('f_horoIn').value=e?.horoIn||'';
+  el('f_motorOut').value=e?.motorOut||'';
+  el('f_motorIn').value=e?.motorIn||'';
+  el('f_vueloOut').value=e?.vueloOut||'';
+  el('f_vueloIn').value=e?.vueloIn||'';
+  el('f_mult').value=e?.multOverride||'';
+  el('f_obs').value=e?.obs||'';
+  liveCalc();
+  openModal('editMbd');
+}
+
+function liveCalc(){
+  const fake={
+    operador:el('f_operador').value,
+    motorOut:el('f_motorOut').value,motorIn:el('f_motorIn').value,
+    vueloOut:el('f_vueloOut').value,vueloIn:el('f_vueloIn').value,
+    multOverride:parseFloat(el('f_mult').value)||null,
+  };
+  const{tm,tv,mult,tbp}=calc(fake);
+  el('f_tmotor').value=tm>0?tm.toFixed(2):'';
+  el('f_tvuelo').value=tv>0?tv.toFixed(2):'';
+  el('pv_tm').textContent=tm>0?fmt(tm)+' hrs':'—';
+  el('pv_tf').textContent=tv>0?fmt(tv)+' hrs':'—';
+  el('pv_mult').textContent=mult+'×';
+  el('pv_tbp').textContent=tm>0?fmt(tbp)+' hrs':'—';
+}
+
+const TIMERE=/^([01]?\d|2[0-3]):[0-5]\d$/;
+const DATERE=/^\d{2}\/\d{2}\/\d{4}$/;
+
+function validateForm(){
+  clearFormErrs();let ok=true;
+  const fecha=el('f_fecha').value.trim();
+  const piloto=el('f_piloto').value.trim();
+  const horoIn=parseFloat(el('f_horoIn').value);
+  const mOut=el('f_motorOut').value.trim();
+  const mIn=el('f_motorIn').value.trim();
+  const vOut=el('f_vueloOut').value.trim();
+  const vIn=el('f_vueloIn').value.trim();
+  if(!fecha){setFerr('fe_fecha','f_fecha',t('required'));ok=false;}
+  else if(!DATERE.test(fecha)){setFerr('fe_fecha','f_fecha',t('dateFormat'));ok=false;}
+  if(!piloto){setFerr('fe_piloto','f_piloto',t('required'));ok=false;}
+  if(isNaN(horoIn)||horoIn<=0){setFerr('fe_horoIn','f_horoIn',t('horoPositive'));ok=false;}
+  if(!mOut){setFerr('fe_motorOut','f_motorOut',t('required'));ok=false;}
+  else if(!TIMERE.test(mOut)){setFerr('fe_motorOut','f_motorOut',t('timeFormat'));ok=false;}
+  if(!mIn){setFerr('fe_motorIn','f_motorIn',t('required'));ok=false;}
+  else if(!TIMERE.test(mIn)){setFerr('fe_motorIn','f_motorIn',t('timeFormat'));ok=false;}
+  else if(mOut&&TIMERE.test(mOut)&&t2h(mIn)<=t2h(mOut)){setFerr('fe_motorIn','f_motorIn',t('motorInAfter'));ok=false;}
+  if(!vOut){setFerr('fe_vueloOut','f_vueloOut',t('required'));ok=false;}
+  else if(!TIMERE.test(vOut)){setFerr('fe_vueloOut','f_vueloOut',t('timeFormat'));ok=false;}
+  if(!vIn){setFerr('fe_vueloIn','f_vueloIn',t('required'));ok=false;}
+  else if(!TIMERE.test(vIn)){setFerr('fe_vueloIn','f_vueloIn',t('timeFormat'));ok=false;}
+  else if(vOut&&TIMERE.test(vOut)&&t2h(vIn)<=t2h(vOut)){setFerr('fe_vueloIn','f_vueloIn',t('flightInAfter'));ok=false;}
+  return ok;
+}
+
+function saveEntry(){
+  if(!validateForm())return;
+  const multOverrideRaw=parseFloat(el('f_mult').value);
+  const multOverride=isNaN(multOverrideRaw)||!el('f_mult').value.trim()?null:multOverrideRaw;
+  const data={
+    fecha:el('f_fecha').value.trim(),aeronave:el('f_aeronave').value,
+    operador:el('f_operador').value,piloto:el('f_piloto').value.trim(),
+    horoIn:parseFloat(el('f_horoIn').value),
+    motorOut:el('f_motorOut').value.trim(),motorIn:el('f_motorIn').value.trim(),
+    vueloOut:el('f_vueloOut').value.trim(),vueloIn:el('f_vueloIn').value.trim(),
+    obs:el('f_obs').value.trim(),multOverride,
+  };
+  if(editingId!==null){
+    const e=entries.find(x=>x.id===editingId);
+    if(e){
+      const changes=[];
+      Object.entries(data).forEach(([k,v])=>{if(JSON.stringify(e[k])!==JSON.stringify(v))changes.push(`${k}:"${e[k]}"→"${v}"`);});
+      if(multOverride&&multOverride!==DEFAULT_MULT[data.operador]){
+        changes.push(`⚠ ${t('multOverride')}: ${DEFAULT_MULT[data.operador]}→${multOverride}`);
+      }
+      Object.assign(e,data);
+      addAudit('✏️',currentUser.name,`edited entry ${entries.indexOf(e)+1}`,changes.join(', ')||'no changes');
+    }
+    showToast(t('entryUpdated'));
+  } else {
+    entries.push({id:nextId++,status:'pending',...data});
+    addAudit('➕',currentUser.name,'added entry',`${data.fecha}|${data.aeronave}|${data.piloto}`);
+    showToast(t('entryAdded'));
+  }
+  closeModal('editMbd');renderAll();
+}
+
+// ══════════════════════════════════════════════════════
+// EXPORTS
+// ══════════════════════════════════════════════════════
+function exportCSV(){
+  const hdrs=['#','Date','Aircraft','Operator','Pilot','Horo.Start','Motor.Out','Motor.In','T.Motor',
+    'Flight.Out','Flight.In','T.Flight','Multiplier','Mult.Override','Total.TBP','Notes','Status',
+    'Batch.Status','Loaded.By','Source.File','Timestamp'];
+  const rows=entries.map((e,i)=>{
+    const{tm,tv,mult,tbp}=calc(e);
+    return[i+1,e.fecha,e.aeronave,e.operador,e.piloto,e.horoIn,
+      e.motorOut,e.motorIn,tm.toFixed(2),e.vueloOut,e.vueloIn,tv.toFixed(2),
+      DEFAULT_MULT[e.operador]||'',e.multOverride||'',tbp.toFixed(2),
+      e.obs||'',e.status,batchStatus,currentUser.name,batchSourceFile,LOAD_TS.toISOString()]
+      .map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',');
+  });
+  const ts=LOAD_TS.toISOString().slice(0,16).replace(/[T:]/g,'-');
+  dl(`flightlog_audit_${ts}.csv`,[hdrs.join(','),...rows].join('\n'),'text/csv');
+  if(el('srcCsv'))el('srcCsv').textContent=t('srcCsvDone')+' '+new Date().toLocaleTimeString();
+  showToast(t('csvDl'));
+}
+
+function exportXLSX(){
+  if(typeof XLSX==='undefined'){showToast('XLSX library not loaded','err');return;}
+  const headers=['#','Date','Aircraft','Operator','Pilot','Horo.Start','Motor Out','Motor In','T.Motor',
+    'Flight Out','Flight In','T.Flight','Default Mult.','Override Mult.','Total TBP','Notes','Status',
+    'Batch Status','Loaded By','Source File','Timestamp'];
+  const data=[headers,...entries.map((e,i)=>{
+    const{tm,tv,mult,tbp}=calc(e);
+    return[i+1,e.fecha,e.aeronave,e.operador,e.piloto,e.horoIn,
+      e.motorOut,e.motorIn,parseFloat(tm.toFixed(2)),
+      e.vueloOut,e.vueloIn,parseFloat(tv.toFixed(2)),
+      DEFAULT_MULT[e.operador]||'',e.multOverride||'',parseFloat(tbp.toFixed(2)),
+      e.obs||'',e.status,batchStatus,currentUser.name,batchSourceFile,LOAD_TS.toISOString()];
+  })];
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=[4,12,12,10,18,11,10,10,9,10,10,9,9,10,10,20,10,12,16,22,22].map(w=>({wch:w}));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Flight Log');
+  // Summary sheet
+  let fmM=0,fmT=0,magM=0,magT=0;
+  entries.filter(e=>e.status==='approved').forEach(e=>{
+    const{tm,tbp}=calc(e);
+    if(e.operador==='FM'){fmM+=tm;fmT+=tbp;}else{magM+=tm;magT+=tbp;}
+  });
+  const sum=[
+    ['HP Fleet — Flight Log Summary',''],
+    ['Generated',new Date().toLocaleString()],
+    ['Source File',batchSourceFile],
+    ['Batch Status',batchStatus],
+    ['Loaded By',currentUser.name],['',''],
+    ['Operator','T.Motor (hrs)','Total TBP (hrs)'],
+    ['FM',parseFloat(fmM.toFixed(2)),parseFloat(fmT.toFixed(2))],
+    ['MAG',parseFloat(magM.toFixed(2)),parseFloat(magT.toFixed(2))],
+    ['TOTAL',parseFloat((fmM+magM).toFixed(2)),parseFloat((fmT+magT).toFixed(2))],
+  ];
+  const wsSum=XLSX.utils.aoa_to_sheet(sum);
+  wsSum['!cols']=[{wch:18},{wch:14},{wch:16}];
+  XLSX.utils.book_append_sheet(wb,wsSum,'Summary');
+  const ts=LOAD_TS.toISOString().slice(0,16).replace(/[T:]/g,'-');
+  XLSX.writeFile(wb,`flightlog_${ts}.xlsx`);
+  showToast(t('xlsxDl'));
+}
+
+function dl(name,content,type){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type}));
+  a.download=name;a.click();
+}
+
+// ══════════════════════════════════════════════════════
+// AUDIT LOG
+// ══════════════════════════════════════════════════════
+function addAudit(icon,actor,action,detail){
+  auditLog.unshift({icon,actor,action,detail,ts:new Date()});
+  if(auditLog.length>300)auditLog=auditLog.slice(0,300);
+  renderAudit();
+}
+function renderAudit(){
+  const wrap=el('auditList');
+  if(!wrap)return;
+  el('ptab_audit_count').textContent=auditLog.length;
+  if(!auditLog.length){wrap.innerHTML=`<div class="audit-empty">${t('noAudit')}</div>`;return;}
+  wrap.innerHTML=auditLog.map(e=>`
+    <div class="ae">
+      <div class="ae-ts">${e.ts.toLocaleTimeString(lang==='es'?'es-PA':'en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}<br>
+        ${e.ts.toLocaleDateString(lang==='es'?'es-PA':'en-US')}</div>
+      <div style="font-size:14px;flex-shrink:0">${e.icon}</div>
+      <div class="ae-body">
+        <span class="ae-actor">${e.actor}</span>
+        <span class="ae-action"> ${e.action}</span>
+        ${e.detail&&e.detail!=='—'?`<div class="ae-diff">${e.detail}</div>`:''}
+      </div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// PANEL TABS
+// ══════════════════════════════════════════════════════
+function switchPanel(id){
+  document.querySelectorAll('.ppanel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));
+  el('ppanel_'+id).classList.add('active');
+  el('ptab_'+id).classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════
+function renderAll(){renderTable();renderAudit();}
+function el(id){return document.getElementById(id);}
+function initials(n){return n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
+function roleColor(r){return{ADMIN:'var(--violet)',OPERATOR:'var(--cyan)',REVIEWER:'var(--green)',READONLY:'var(--dim2)'}[r]||'var(--cyan)';}
+function openModal(id){el(id).classList.add('open');}
+function closeModal(id){el(id).classList.remove('open');}
+function bdClose(e,id){if(e.target===el(id))closeModal(id);}
+function clearFormErrs(){
+  ['fecha','piloto','horoIn','motorOut','motorIn','vueloOut','vueloIn'].forEach(f=>{
+    const e=el('fe_'+f);const i=el('f_'+f);
+    if(e){e.textContent='';e.classList.remove('on');}
+    if(i)i.classList.remove('err');
+  });
+}
+function setFerr(errId,inputId,msg){
+  const e=el(errId);if(!e)return;
+  e.textContent=msg;e.classList.add('on');
+  el(inputId)?.classList.add('err');
+}
+function showToast(msg,type=''){
+  const t=el('toast');
+  t.textContent=msg;
+  t.className='toast on'+(type?' '+type:'');
+  setTimeout(()=>t.className='toast',3200);
+}
+
+// BOOT
+init();
+</script>
+</body>
+</html>
