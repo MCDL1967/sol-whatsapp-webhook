@@ -100,18 +100,13 @@ main{padding:20px;max-width:1400px;margin:0 auto}
   padding:3px 8px;border-radius:2px;border:1px solid var(--border2);color:var(--dim2)}
 .uz-type.supported{color:var(--cyan);border-color:rgba(65,209,255,.4);background:rgba(65,209,255,.06)}
 
-/* API KEY INPUT */
-.api-key-bar{background:var(--s2);border:1px solid var(--border);
-  border-left:3px solid var(--violet);padding:12px 16px;margin-bottom:16px;
-  display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.ak-label{font-family:var(--mono);font-size:9px;color:var(--dim2);
-  text-transform:uppercase;letter-spacing:1.5px;white-space:nowrap}
-.ak-input{background:var(--s1);border:1px solid var(--border2);color:var(--text);
-  font-family:var(--mono);font-size:11px;padding:7px 12px;border-radius:2px;
-  outline:none;transition:border-color .15s;flex:1;min-width:200px}
-.ak-input:focus{border-color:var(--violet)}
-.ak-input::placeholder{color:var(--dim)}
-.ak-hint{font-family:var(--mono);font-size:9px;color:var(--dim);flex-basis:100%}
+/* API KEY WARNING BANNER */
+.ak-warning{background:rgba(255,195,67,.06);border:1px solid rgba(255,195,67,.35);
+  border-left:3px solid var(--yellow);padding:12px 16px;margin-bottom:16px;
+  display:none;align-items:center;gap:10px;flex-wrap:wrap}
+.ak-warning.on{display:flex}
+.ak-warning-txt{font-family:var(--mono);font-size:11px;color:var(--yellow);flex:1}
+.ak-warning-txt a{color:var(--cyan);text-decoration:underline}
 
 /* FILE QUEUE */
 .file-queue{margin-top:16px}
@@ -415,24 +410,17 @@ td:last-child{border-right:none}
 
 <main>
 
-  <!-- API KEY BAR -->
-  <div class="api-key-bar">
-    <div class="ak-label" id="ak_label">Anthropic API Key</div>
-    <input type="password" class="ak-input" id="apiKeyInput"
-      placeholder="sk-ant-api03-…" autocomplete="off">
-    <div class="ak-hint" id="ak_hint">
-      Required for PDF extraction. Key is used only in this session and never stored.
-      Get yours at console.anthropic.com
+  <!-- API KEY WARNING -->
+  <div class="ak-warning" id="akWarning">
+    <span style="font-size:18px">⚠</span>
+    <div class="ak-warning-txt" id="akWarningTxt">
+      No API key found. <a href="../../index.html">Go back to HP Fleet</a> to set your Anthropic API key before extracting files.
     </div>
   </div>
 
   <!-- UPLOAD SECTION -->
   <div class="upload-section">
-    <div class="upload-zone" id="uploadZone"
-      onclick="document.getElementById('fileInput').click()"
-      ondragover="handleDragOver(event)"
-      ondragleave="handleDragLeave(event)"
-      ondrop="handleDrop(event)">
+    <div class="upload-zone" id="uploadZone">
       <div class="uz-icon">📂</div>
       <div class="uz-title" id="uz_title">Drop flight log files here</div>
       <div class="uz-sub" id="uz_sub">or click to browse</div>
@@ -444,7 +432,7 @@ td:last-child{border-right:none}
       </div>
     </div>
     <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png"
-      style="display:none" onchange="handleFileSelect(event)">
+      style="display:none">
 
     <div class="file-queue" id="fileQueue"></div>
 
@@ -682,6 +670,7 @@ const DEFAULT_MULT = {FM:1.15, MAG:1.275};
 const LAST_HORO = {'HP-1862FX':1298.4, 'HP-1861':1105.7};
 const LOAD_TS = new Date();
 const MODEL = 'claude-sonnet-4-20250514';
+const API_KEY = sessionStorage.getItem('hpfleet_apikey') || '';
 
 // ══════════════════════════════════════════════════════
 // SESSION
@@ -710,8 +699,6 @@ let batchSourceFile = '';
 const I18N = {
   en:{
     module:'Flight Log / Bitácora Review', back:'Back',
-    akLabel:'Anthropic API Key',
-    akHint:'Required for PDF extraction. Key is used only in this session and never stored. Get yours at console.anthropic.com',
     uzTitle:'Drop flight log files here', uzSub:'or click to browse',
     extractBtn:'✦ Extract with Claude', extracting:'Extracting…',
     extractNote:'Files will be sent to Claude API for data extraction',
@@ -768,8 +755,6 @@ const I18N = {
   },
   es:{
     module:'Flight Log / Revisión de Bitácora', back:'Volver',
-    akLabel:'API Key de Anthropic',
-    akHint:'Requerida para extraer datos del PDF. La clave solo se usa en esta sesión y no se almacena. Obtenla en console.anthropic.com',
     uzTitle:'Arrastra los archivos de bitácora aquí', uzSub:'o haz clic para seleccionar',
     extractBtn:'✦ Extraer con Claude', extracting:'Extrayendo…',
     extractNote:'Los archivos serán enviados a la API de Claude para extracción',
@@ -844,7 +829,6 @@ function setLang(l){
 function applyI18n(){
   const ids={
     tb_module:'module',tb_back:'back',
-    ak_label:'akLabel',ak_hint:'akHint',
     uz_title:'uzTitle',uz_sub:'uzSub',
     btnExtractTxt:'extractBtn',extractNote:'extractNote',
     btn_clearQueue:'clearQueue',
@@ -884,6 +868,27 @@ function init(){
   applyI18n();
   renderWorkflow();
   setupRoleUI();
+
+  // Show API key warning if missing
+  if(!API_KEY) el('akWarning').classList.add('on');
+
+  // File upload — addEventListener only, no inline handlers
+  const zone = el('uploadZone');
+  const input = el('fileInput');
+
+  zone.addEventListener('click', () => input.click());
+  zone.addEventListener('dragenter', e => { e.preventDefault(); e.stopPropagation(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragover',  e => { e.preventDefault(); e.stopPropagation(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', e => { e.stopPropagation(); zone.classList.remove('dragover'); });
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); e.stopPropagation();
+    zone.classList.remove('dragover');
+    addFilesToQueue(Array.from(e.dataTransfer.files));
+  });
+  input.addEventListener('change', e => {
+    addFilesToQueue(Array.from(e.target.files));
+    e.target.value = '';
+  });
 }
 
 // ══════════════════════════════════════════════════════
@@ -937,31 +942,13 @@ function setupRoleUI(){
   if(el('btn_reqChanges'))el('btn_reqChanges').style.display=canReqChanges?'flex':'none';
   // hide upload zone for reviewers/readonly
   if(role==='REVIEWER'||role==='READONLY'){
-    el('upload-section')&&(el('upload-section').style.display='none');
-    el('api-key-bar')&&(el('api-key-bar').style.display='none');
+    const us=el('upload-section');if(us)us.style.display='none';
+    const aw=el('akWarning');if(aw)aw.style.display='none';
   }
 }
 
 // ══════════════════════════════════════════════════════
-// FILE UPLOAD — DRAG & DROP
-// ══════════════════════════════════════════════════════
-function handleDragOver(e){
-  e.preventDefault();e.stopPropagation();
-  el('uploadZone').classList.add('dragover');
-}
-function handleDragLeave(e){
-  el('uploadZone').classList.remove('dragover');
-}
-function handleDrop(e){
-  e.preventDefault();e.stopPropagation();
-  el('uploadZone').classList.remove('dragover');
-  const files=Array.from(e.dataTransfer.files);
-  addFilesToQueue(files);
-}
-function handleFileSelect(e){
-  addFilesToQueue(Array.from(e.target.files));
-  e.target.value='';
-}
+// FILE UPLOAD — handlers wired in init() via addEventListener
 
 function addFilesToQueue(files){
   const allowed=['application/pdf','image/jpeg','image/jpg','image/png'];
@@ -1069,8 +1056,7 @@ Example output:
 // EXTRACT ALL FILES
 // ══════════════════════════════════════════════════════
 async function extractAll(){
-  const apiKey=el('apiKeyInput').value.trim();
-  if(!apiKey){showToast(t('noApiKey'),'err');return;}
+  if(!API_KEY){showToast(t('noApiKey'),'err');el('akWarning').classList.add('on');return;}
   if(!fileQueue.length){showToast(t('noFiles'),'err');return;}
 
   const btn=el('btnExtract');
@@ -1087,7 +1073,7 @@ async function extractAll(){
     renderQueue();
 
     try {
-      const extracted=await extractFile(fq.file, apiKey);
+      const extracted=await extractFile(fq.file);
       allExtracted=[...allExtracted,...extracted];
       fq.status='done';
       addAudit('🤖',currentUser.name,'extracted entries',`${extracted.length} from ${fq.name}`);
@@ -1137,7 +1123,7 @@ async function extractAll(){
 // ══════════════════════════════════════════════════════
 // EXTRACT SINGLE FILE — calls Claude API
 // ══════════════════════════════════════════════════════
-async function extractFile(file, apiKey){
+async function extractFile(file){
   const base64=await fileToBase64(file);
   const isPdf=file.type==='application/pdf'||file.name.endsWith('.pdf');
   const mediaType=isPdf?'application/pdf':file.type||'image/jpeg';
@@ -1150,7 +1136,7 @@ async function extractFile(file, apiKey){
     method:'POST',
     headers:{
       'Content-Type':'application/json',
-      'x-api-key':apiKey,
+      'x-api-key':API_KEY,
       'anthropic-version':'2023-06-01',
       'anthropic-dangerous-direct-browser-access':'true',
     },
