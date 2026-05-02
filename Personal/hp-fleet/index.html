@@ -27,21 +27,21 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
     linear-gradient(90deg,rgba(65,209,255,.025) 1px,transparent 1px);
   background-size:48px 48px;
   mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 30%,transparent 100%)}
+@keyframes up{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
 
-/* ══════════════════════════════════════════
+/* ══════════════════════════════════════
    LOGIN
-══════════════════════════════════════════ */
+══════════════════════════════════════ */
 #loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
 .login-card{background:var(--s1);border:1px solid var(--border2);border-top:3px solid var(--cyan);
   width:100%;max-width:420px;animation:up .35s cubic-bezier(.16,1,.3,1);position:relative}
 .login-card::after{content:'';position:absolute;bottom:0;right:0;width:60px;height:60px;
   background:linear-gradient(135deg,transparent 50%,rgba(65,209,255,.06) 50%)}
-@keyframes up{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
 .lc-head{padding:36px 36px 0;text-align:center}
 .brand{font-family:var(--display);font-weight:800;font-size:28px;color:var(--text);
   letter-spacing:3px;display:flex;align-items:center;justify-content:center;gap:10px}
 .brand-dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
 .brand-ac{color:var(--cyan)}
 .brand-sub{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:3px;
   text-transform:uppercase;margin-top:6px}
@@ -56,18 +56,34 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
   border-left:3px solid var(--red);padding:10px 14px;font-family:var(--mono);font-size:11px;
   color:var(--red);margin-bottom:18px;display:none}
 .err-box.on{display:block}
-.field{display:flex;flex-direction:column;gap:5px;margin-bottom:16px}
+
+/* fields */
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
 .field label{font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim2)}
-.field input{background:var(--s2);border:1px solid var(--border2);color:var(--text);
-  font-family:var(--body);font-size:14px;padding:11px 14px;outline:none;transition:border-color .15s}
-.field input:focus{border-color:var(--cyan)}
+.field input,.field select,.field textarea{background:var(--s2);border:1px solid var(--border2);
+  color:var(--text);font-family:var(--body);font-size:13px;padding:10px 12px;
+  border-radius:3px;outline:none;transition:border-color .15s;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--cyan)}
 .field input::placeholder{color:var(--dim)}
+.field select option{background:var(--s2)}
+.field textarea{resize:vertical;min-height:60px}
 .field .ferr{font-family:var(--mono);font-size:9px;color:var(--red);margin-top:3px;display:none}
+.field .ferr.on,.field input.err{border-color:var(--red)}
 .field .ferr.on{display:block}
-.field input.err{border-color:var(--red)}
+.field input.err{border-color:var(--red) !important}
+
+/* checkbox group */
+.chk-group{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.chk-item{display:flex;align-items:center;gap:6px;cursor:pointer;
+  padding:5px 10px;border:1px solid var(--border2);border-radius:2px;
+  transition:all .15s;font-family:var(--mono);font-size:11px;color:var(--dim2)}
+.chk-item:hover{border-color:var(--cyan);color:var(--text)}
+.chk-item input[type=checkbox]{accent-color:var(--cyan);width:13px;height:13px;cursor:pointer}
+.chk-item.checked{border-color:rgba(65,209,255,.5);background:rgba(65,209,255,.06);color:var(--cyan)}
+
 .btn-login{width:100%;font-family:var(--display);font-weight:700;font-size:13px;
   letter-spacing:2px;text-transform:uppercase;padding:14px;background:var(--cyan);
-  color:#000;border:none;cursor:pointer;transition:all .2s;margin-top:4px;position:relative;overflow:hidden}
+  color:#000;border:none;cursor:pointer;transition:all .2s;margin-top:4px;overflow:hidden;position:relative}
 .btn-login::after{content:'';position:absolute;inset:0;
   background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);
   transform:translateX(-100%);transition:transform .4s}
@@ -77,15 +93,14 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
   font-size:9px;color:var(--dim);display:flex;align-items:center;justify-content:space-between;letter-spacing:.5px}
 .cf-dot{width:5px;height:5px;border-radius:50%;background:var(--green)}
 
-/* ══════════════════════════════════════════
+/* ══════════════════════════════════════
    APP SHELL
-══════════════════════════════════════════ */
+══════════════════════════════════════ */
 #appShell{display:none;min-height:100vh;flex-direction:column}
 
 /* TOPBAR */
-.topbar{background:var(--s1);border-bottom:1px solid var(--border);
-  padding:0 24px;display:flex;align-items:stretch;height:54px;
-  position:sticky;top:0;z-index:50;flex-shrink:0}
+.topbar{background:var(--s1);border-bottom:1px solid var(--border);padding:0 24px;
+  display:flex;align-items:stretch;height:54px;position:sticky;top:0;z-index:50;flex-shrink:0}
 .tb-logo{font-family:var(--display);font-weight:800;font-size:16px;color:var(--cyan);
   display:flex;align-items:center;gap:8px;padding-right:20px;
   border-right:1px solid var(--border);letter-spacing:1px;flex-shrink:0}
@@ -94,83 +109,79 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 .tb-user-info{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
 .tb-name{font-family:var(--display);font-weight:600;font-size:13px;color:var(--text)}
 .tb-role-label{font-family:var(--mono);font-size:9px;color:var(--dim2);letter-spacing:1px;text-transform:uppercase}
+.tb-companies{font-family:var(--mono);font-size:9px;color:var(--cyan);letter-spacing:.5px}
 .tb-avatar{width:32px;height:32px;border-radius:50%;background:var(--s3);
   border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;
   font-family:var(--display);font-weight:700;font-size:12px}
-.btn-signout{font-family:var(--mono);font-size:10px;padding:6px 12px;background:transparent;
+.btn-so{font-family:var(--mono);font-size:10px;padding:6px 12px;background:transparent;
   border:1px solid var(--border2);color:var(--dim2);cursor:pointer;border-radius:2px;
   transition:all .15s;letter-spacing:.5px}
-.btn-signout:hover{border-color:var(--red);color:var(--red)}
+.btn-so:hover{border-color:var(--red);color:var(--red)}
 
 /* TAB NAV */
 .tab-nav{background:var(--s1);border-bottom:1px solid var(--border);
-  padding:0 24px;display:flex;align-items:stretch;gap:0;flex-shrink:0}
+  padding:0 24px;display:flex;align-items:stretch;gap:0;overflow-x:auto;flex-shrink:0}
 .tab-btn{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;
-  padding:0 20px;height:44px;background:transparent;border:none;border-bottom:2px solid transparent;
-  color:var(--dim2);cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:8px;
-  white-space:nowrap}
+  padding:0 18px;height:44px;background:transparent;border:none;
+  border-bottom:2px solid transparent;color:var(--dim2);cursor:pointer;
+  transition:all .2s;display:flex;align-items:center;gap:8px;white-space:nowrap}
 .tab-btn:hover{color:var(--text)}
 .tab-btn.active{color:var(--cyan);border-bottom-color:var(--cyan)}
 .tab-icon{font-size:14px}
 
 /* ROLE BANNER */
-.role-banner{margin:20px 24px 0;border:1px solid var(--border2);
-  border-left:3px solid;padding:14px 18px;display:flex;align-items:flex-start;gap:14px;
-  animation:up .3s ease}
-.rb-admin  {border-left-color:var(--violet);background:rgba(192,132,252,.05)}
+.role-banner{margin:20px 24px 0;border:1px solid var(--border2);border-left:3px solid;
+  padding:14px 18px;display:flex;align-items:flex-start;gap:14px;animation:up .3s ease}
+.rb-admin{border-left-color:var(--violet);background:rgba(192,132,252,.05)}
 .rb-operator{border-left-color:var(--cyan);background:rgba(65,209,255,.05)}
 .rb-reviewer{border-left-color:var(--green);background:rgba(61,220,132,.05)}
 .rb-readonly{border-left-color:var(--dim2);background:rgba(136,153,187,.05)}
 .rb-icon{font-size:22px;flex-shrink:0;margin-top:1px}
-.rb-content{}
-.rb-role{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;
-  margin-bottom:4px}
-.rb-admin .rb-role  {color:var(--violet)}
+.rb-role{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
+.rb-admin .rb-role{color:var(--violet)}
 .rb-operator .rb-role{color:var(--cyan)}
 .rb-reviewer .rb-role{color:var(--green)}
 .rb-readonly .rb-role{color:var(--dim2)}
-.rb-name{font-family:var(--display);font-weight:700;font-size:16px;color:var(--text);margin-bottom:6px}
+.rb-name{font-family:var(--display);font-weight:700;font-size:16px;color:var(--text);margin-bottom:4px}
+.rb-co{font-family:var(--mono);font-size:10px;color:var(--cyan);margin-bottom:6px;letter-spacing:.5px}
 .rb-desc{font-size:13px;color:var(--dim2);line-height:1.6}
 .rb-perms{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .perm-tag{font-family:var(--mono);font-size:9px;letter-spacing:.5px;
   padding:3px 8px;border-radius:2px;border:1px solid}
-.pt-ok {color:var(--green);border-color:rgba(61,220,132,.3);background:rgba(61,220,132,.08)}
-.pt-no {color:var(--dim);border-color:var(--border);background:transparent;text-decoration:line-through}
+.pt-ok{color:var(--green);border-color:rgba(61,220,132,.3);background:rgba(61,220,132,.08)}
 
-/* TAB CONTENT */
+/* MAIN */
 .tab-content{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%}
 .tab-panel{display:none;animation:up .2s ease}
 .tab-panel.active{display:block}
 
-/* ══════════════════════════════════════════
-   USER ADMIN TAB
-══════════════════════════════════════════ */
+/* PAGE HEADER */
 .page-hdr{display:flex;align-items:center;justify-content:space-between;
   margin-bottom:20px;flex-wrap:wrap;gap:12px}
 .page-title{font-family:var(--display);font-weight:800;font-size:22px;color:var(--text)}
 .page-title span{color:var(--cyan)}
 
-/* Stats */
+/* STATS */
 .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px}
 .scard{background:var(--s1);border:1px solid var(--border);padding:14px;position:relative;overflow:hidden}
 .scard::after{content:'';position:absolute;top:0;left:0;right:0;height:2px}
 .sc-admin::after{background:var(--violet)} .sc-op::after{background:var(--cyan)}
 .sc-rev::after{background:var(--green)} .sc-ro::after{background:var(--dim2)}
-.sc-tot::after{background:var(--blue)}
+.sc-tot::after{background:var(--blue)} .sc-co::after{background:var(--yellow)}
 .sc-l{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);margin-bottom:5px}
 .sc-v{font-family:var(--display);font-weight:700;font-size:26px;line-height:1;color:var(--text)}
 .sc-s{font-family:var(--mono);font-size:9px;color:var(--dim2);margin-top:4px}
 
-/* Filters */
+/* FILTERS */
 .filters{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
 .f-wrap{position:relative}
 .f-select{background:var(--s2);border:1px solid var(--border2);color:var(--text);
   font-family:var(--mono);font-size:11px;padding:7px 28px 7px 10px;border-radius:2px;
   cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;min-width:150px}
 .f-select:focus{border-color:var(--cyan)}
+.f-select option{background:var(--s2)}
 .f-wrap::after{content:'▾';position:absolute;right:9px;top:50%;transform:translateY(-50%);
   color:var(--dim2);pointer-events:none;font-size:10px}
-.f-select option{background:var(--s2)}
 .search-inp{background:var(--s2);border:1px solid var(--border2);color:var(--text);
   font-family:var(--body);font-size:13px;padding:7px 12px;border-radius:2px;
   outline:none;transition:border-color .15s;min-width:200px}
@@ -178,12 +189,12 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 .search-inp::placeholder{color:var(--dim)}
 .f-count{font-family:var(--mono);font-size:10px;color:var(--dim);margin-left:auto}
 
-/* User table */
+/* TABLE */
 .tbl-wrap{border:1px solid var(--border);overflow:hidden;margin-bottom:20px}
 .utbl{width:100%;border-collapse:collapse}
 .utbl thead tr{background:var(--s2);border-bottom:2px solid var(--border2)}
 .utbl thead th{font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;
-  color:var(--dim2);padding:10px 14px;text-align:left;white-space:nowrap;
+  color:var(--text);padding:10px 14px;text-align:left;white-space:nowrap;
   border-right:1px solid var(--border)}
 .utbl thead th:last-child{border-right:none}
 .utbl tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
@@ -191,26 +202,38 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 .utbl tbody tr.row-inactive{opacity:.45}
 .utbl td{padding:11px 14px;vertical-align:middle;border-right:1px solid var(--border);font-size:13px}
 .utbl td:last-child{border-right:none}
+
+/* USER CELL */
 .u-cell{display:flex;align-items:center;gap:10px}
 .u-av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
   font-family:var(--display);font-weight:700;font-size:12px;flex-shrink:0;border:1px solid var(--border2)}
 .u-name{font-family:var(--display);font-weight:600;font-size:13px;color:var(--text)}
 .u-email{font-family:var(--mono);font-size:10px;color:var(--dim2);margin-top:1px}
+.u-companies{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px}
+.co-tag{font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:2px;
+  border:1px solid;letter-spacing:.5px}
+
+/* ROLE CHIP */
 .role-chip{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;
   padding:3px 8px;border-radius:2px;border:1px solid;display:inline-flex;align-items:center;gap:4px}
-.rc-admin  {color:var(--violet);border-color:rgba(192,132,252,.4);background:rgba(192,132,252,.08)}
+.rc-admin{color:var(--violet);border-color:rgba(192,132,252,.4);background:rgba(192,132,252,.08)}
 .rc-operator{color:var(--cyan);border-color:rgba(65,209,255,.4);background:rgba(65,209,255,.08)}
 .rc-reviewer{color:var(--green);border-color:rgba(61,220,132,.4);background:rgba(61,220,132,.08)}
 .rc-readonly{color:var(--dim2);border-color:rgba(136,153,187,.4);background:rgba(136,153,187,.08)}
+
+/* STATUS PILL */
 .sp{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;
-  letter-spacing:1px;text-transform:uppercase;padding:4px 10px;border-radius:2px;border:1px solid;
-  cursor:pointer;transition:all .15s;background:transparent}
+  letter-spacing:1px;text-transform:uppercase;padding:4px 10px;border-radius:2px;
+  border:1px solid;cursor:pointer;transition:all .15s;background:transparent}
 .sp-on{color:var(--green);border-color:rgba(61,220,132,.4)}
 .sp-on:hover{background:rgba(61,220,132,.1)}
 .sp-on::before{content:'●';font-size:7px}
 .sp-off{color:var(--dim);border-color:var(--border2)}
 .sp-off:hover{background:var(--s3)}
 .sp-off::before{content:'○';font-size:7px}
+.sp:disabled{opacity:.3;cursor:not-allowed}
+
+/* ACTION CELLS */
 .act-cell{display:flex;gap:6px;align-items:center}
 .btn-sm{font-family:var(--mono);font-size:9px;letter-spacing:.5px;padding:5px 10px;
   background:transparent;border:1px solid var(--border2);color:var(--dim2);
@@ -219,32 +242,76 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 .btn-sm.del:hover{border-color:var(--red);color:var(--red)}
 .btn-sm:disabled{opacity:.3;cursor:not-allowed}
 
-/* Audit log */
+/* COMPANY CARD GRID */
+.co-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:20px}
+.co-card{background:var(--s1);border:1px solid var(--border);padding:0;overflow:hidden;
+  animation:up .25s ease;position:relative}
+.co-card-header{padding:16px 18px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:10px}
+.co-card-name{font-family:var(--display);font-weight:700;font-size:16px;color:var(--text)}
+.co-card-code{font-family:var(--mono);font-size:10px;color:var(--cyan);
+  background:rgba(65,209,255,.1);border:1px solid rgba(65,209,255,.3);
+  padding:3px 8px;border-radius:2px;letter-spacing:1px}
+.co-card-body{padding:14px 18px}
+.co-row{display:flex;align-items:center;justify-content:space-between;
+  padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
+.co-row:last-child{border-bottom:none}
+.co-row-label{font-family:var(--mono);font-size:9px;color:var(--dim);
+  text-transform:uppercase;letter-spacing:1px}
+.co-row-val{font-family:var(--mono);font-size:12px;color:var(--text)}
+.co-row-val.accent{color:var(--green)}
+.co-card-footer{padding:12px 18px;border-top:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;background:var(--s2)}
+.co-inactive{opacity:.5}
+.co-stripe{position:absolute;top:0;left:0;right:0;height:3px}
+
+/* BILLING RULES */
+.br-list{margin-top:10px}
+.br-item{display:flex;align-items:center;gap:8px;padding:5px 0;
+  border-bottom:1px solid var(--border);font-family:var(--mono);font-size:10px}
+.br-item:last-child{border-bottom:none}
+.br-name{flex:1;color:var(--text)}
+.br-val{color:var(--green)}
+.br-unit{color:var(--dim2)}
+.br-active{color:var(--green);font-size:8px}
+.br-inactive{color:var(--dim);font-size:8px}
+.br-empty{font-family:var(--mono);font-size:10px;color:var(--dim);
+  padding:8px 0;text-align:center}
+
+/* AUDIT LOG */
 .audit-wrap{border:1px solid var(--border);max-height:260px;overflow-y:auto}
 .ae{display:flex;align-items:flex-start;gap:12px;padding:9px 14px;
   border-bottom:1px solid var(--border);font-size:12px}
 .ae:last-child{border-bottom:none}
 .ae:hover{background:rgba(255,255,255,.01)}
-.ae-ts{font-family:var(--mono);font-size:9px;color:var(--dim);white-space:nowrap;
-  padding-top:1px;min-width:110px}
+.ae-ts{font-family:var(--mono);font-size:9px;color:var(--dim);
+  white-space:nowrap;padding-top:1px;min-width:110px}
 .ae-body{flex:1;line-height:1.5}
 .ae-actor{font-family:var(--display);font-weight:600;color:var(--cyan);margin-right:4px}
 .ae-action{color:var(--dim2)}
 .ae-target{color:var(--text);font-weight:500}
 .audit-empty{padding:20px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--dim)}
 
-/* ══════════════════════════════════════════
-   BITACORA TAB placeholder
-══════════════════════════════════════════ */
-.coming-soon{display:flex;flex-direction:column;align-items:center;justify-content:center;
-  min-height:400px;gap:16px;text-align:center}
-.cs-icon{font-size:48px;opacity:.4}
-.cs-title{font-family:var(--display);font-weight:700;font-size:20px;color:var(--text)}
-.cs-sub{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:1px}
+/* FLIGHT LOG PLACEHOLDER */
+.fl-placeholder{display:flex;flex-direction:column;align-items:center;
+  justify-content:center;min-height:400px;gap:16px;text-align:center}
+.fl-icon{font-size:48px;opacity:.4}
+.fl-title{font-family:var(--display);font-weight:700;font-size:20px;color:var(--text)}
+.fl-sub{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:1px}
+.fl-open-btn{font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:1px;
+  text-transform:uppercase;padding:12px 28px;background:var(--cyan);color:#000;
+  border:none;cursor:pointer;border-radius:2px;transition:all .2s;
+  text-decoration:none;display:inline-block;margin-top:8px}
+.fl-open-btn:hover{background:#7be8ff;transform:translateY(-1px)}
 
-/* ══════════════════════════════════════════
-   BUTTONS
-══════════════════════════════════════════ */
+/* COMING SOON TAB */
+.coming-soon{display:flex;flex-direction:column;align-items:center;
+  justify-content:center;min-height:400px;gap:12px;text-align:center}
+.cs-icon{font-size:40px;opacity:.3}
+.cs-title{font-family:var(--display);font-weight:700;font-size:18px;color:var(--dim2)}
+.cs-sub{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:2px;text-transform:uppercase}
+
+/* BUTTONS */
 .btn-primary{font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:1px;
   text-transform:uppercase;padding:10px 22px;background:var(--cyan);color:#000;
   border:none;cursor:pointer;border-radius:2px;transition:all .2s}
@@ -257,34 +324,38 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
   border:none;cursor:pointer;border-radius:2px;transition:all .2s}
 .btn-danger:hover{background:#ff8f8f}
 
-/* ══════════════════════════════════════════
-   MODALS
-══════════════════════════════════════════ */
+/* MODALS */
 .mbd{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);
   backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:20px}
 .mbd.open{display:flex}
 .mbox{background:var(--s1);border:1px solid var(--border2);width:100%;
   max-height:90vh;overflow-y:auto;animation:up .2s ease}
-.mbox.edit{max-width:500px;border-top:2px solid var(--cyan)}
-.mbox.del{max-width:420px;border-top:2px solid var(--red)}
+.mbox.user-box{max-width:540px;border-top:2px solid var(--cyan)}
+.mbox.co-box{max-width:520px;border-top:2px solid var(--yellow)}
+.mbox.br-box{max-width:440px;border-top:2px solid var(--green)}
+.mbox.del-box{max-width:420px;border-top:2px solid var(--red)}
 .mhdr{display:flex;align-items:center;justify-content:space-between;
   padding:15px 20px;border-bottom:1px solid var(--border)}
 .mhdr-t{font-family:var(--display);font-weight:700;font-size:15px}
-.mhdr-t.ct{color:var(--cyan)} .mhdr-t.cr{color:var(--red)}
-.m-x{background:none;border:none;color:var(--dim);font-size:18px;cursor:pointer;padding:4px;
-  line-height:1;transition:color .15s}
+.mhdr-t.ct{color:var(--cyan)} .mhdr-t.cy{color:var(--yellow)}
+.mhdr-t.cg{color:var(--green)} .mhdr-t.cr{color:var(--red)}
+.m-x{background:none;border:none;color:var(--dim);font-size:18px;
+  cursor:pointer;padding:4px;line-height:1;transition:color .15s}
 .m-x:hover{color:var(--text)}
 .mbody{padding:20px}
-.mftr{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
-.fg-title{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;
-  color:var(--dim);margin:16px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:6px}
-.fg-dot{width:6px;height:6px;border-radius:50%;display:inline-block}
-.frow{display:grid;gap:10px;margin-bottom:10px}
-.fc2{grid-template-columns:1fr 1fr} .fc1{grid-template-columns:1fr}
+.mftr{padding:14px 20px;border-top:1px solid var(--border);
+  display:flex;justify-content:flex-end;gap:10px}
+.frow{display:grid;gap:10px;margin-bottom:12px}
+.fc1{grid-template-columns:1fr} .fc2{grid-template-columns:1fr 1fr}
+.fc3{grid-template-columns:1fr 1fr 1fr}
 .del-warn{background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.3);
-  border-left:3px solid var(--red);padding:12px 14px;font-size:13px;line-height:1.7;color:var(--text)}
+  border-left:3px solid var(--red);padding:12px 14px;font-size:13px;
+  line-height:1.7;color:var(--text)}
 .del-warn strong{color:var(--red);font-family:var(--mono)}
+.pwd-hint{font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:4px}
+.section-divider{font-family:var(--mono);font-size:9px;letter-spacing:2px;
+  text-transform:uppercase;color:var(--dim);margin:16px 0 10px;
+  padding-bottom:6px;border-bottom:1px solid var(--border)}
 
 /* TOAST */
 .toast{position:fixed;bottom:20px;right:20px;background:var(--s2);
@@ -301,17 +372,18 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
 @media(max-width:768px){
-  .tab-content{padding:16px}
+  main{padding:16px} .tab-content{padding:16px}
   .stats-row{grid-template-columns:1fr 1fr}
-  .utbl td:nth-child(4),.utbl th:nth-child(4){display:none}
+  .co-grid{grid-template-columns:1fr}
+  .fc2,.fc3{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════
-     LOGIN SCREEN
-══════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════
+     LOGIN
+══════════════════════════════════════ -->
 <div id="loginScreen">
   <div class="login-card">
     <div class="lc-head">
@@ -347,42 +419,38 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════
+<!-- ══════════════════════════════════════
      APP SHELL
-══════════════════════════════════════════ -->
+══════════════════════════════════════ -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
 
-  <!-- Topbar -->
   <div class="topbar">
     <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET</div>
     <div class="tb-right">
-      <div class="lang-tog" style="margin-right:4px">
-        <button id="appBtnEN" class="active" onclick="setLang('en')">EN</button>
-        <button id="appBtnES" onclick="setLang('es')">ES</button>
+      <div class="lang-tog">
+        <button id="appEN" class="active" onclick="setLang('en')">EN</button>
+        <button id="appES" onclick="setLang('es')">ES</button>
       </div>
       <div class="tb-user-info">
         <div class="tb-name" id="tbName">—</div>
         <div class="tb-role-label" id="tbRoleLabel">—</div>
+        <div class="tb-companies" id="tbCompanies">—</div>
       </div>
       <div class="tb-avatar" id="tbAvatar">—</div>
-      <button class="btn-signout" id="btnSignOut" onclick="doLogout()">↩ Sign Out</button>
+      <button class="btn-so" id="btnSignOut" onclick="doLogout()">↩ Sign Out</button>
     </div>
   </div>
 
-  <!-- Tab nav (role-aware, rendered on login) -->
   <div class="tab-nav" id="tabNav"></div>
-
-  <!-- Role banner -->
   <div id="roleBanner"></div>
 
-  <!-- Tab content -->
   <div class="tab-content">
 
-    <!-- ── USERS TAB ── -->
+    <!-- USERS TAB -->
     <div class="tab-panel" id="panel-users">
       <div class="page-hdr">
         <div class="page-title"><span>·</span> <span id="ut_title">User Management</span></div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn-ghost" onclick="exportUsersJSON()" id="ut_export">↓ Export JSON</button>
           <button class="btn-primary" onclick="openCreateUser()" id="ut_add">+ New User</button>
         </div>
@@ -392,7 +460,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
         <input class="search-inp" id="userSearch" placeholder="Search by name or email…" oninput="renderUsers()">
         <div class="f-wrap">
           <select class="f-select" id="filterRole" onchange="renderUsers()">
-            <option value="ALL" id="fo_allRoles">All roles</option>
+            <option value="ALL">All Roles</option>
             <option value="ADMIN">Admin</option>
             <option value="OPERATOR" id="fo_op">Operator</option>
             <option value="REVIEWER" id="fo_rev">Reviewer</option>
@@ -400,10 +468,15 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
           </select>
         </div>
         <div class="f-wrap">
+          <select class="f-select" id="filterCompany" onchange="renderUsers()">
+            <option value="ALL" id="fo_allco">All Companies</option>
+          </select>
+        </div>
+        <div class="f-wrap">
           <select class="f-select" id="filterStatus" onchange="renderUsers()">
-            <option value="ALL" id="fo_all">All statuses</option>
-            <option value="active" id="fo_active">Active only</option>
-            <option value="inactive" id="fo_inactive">Inactive only</option>
+            <option value="ALL">All Statuses</option>
+            <option value="active" id="fo_active">Active Only</option>
+            <option value="inactive" id="fo_inactive">Inactive Only</option>
           </select>
         </div>
         <div class="f-count" id="userCount"></div>
@@ -414,6 +487,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
             <tr>
               <th id="th_user">User</th>
               <th id="th_role">Role</th>
+              <th id="th_companies">Companies</th>
               <th id="th_status">Status</th>
               <th id="th_created">Created</th>
               <th id="th_last">Last Login</th>
@@ -424,31 +498,49 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
         </table>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <div class="sc-l" id="ut_auditTitle" style="font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--dim2)">Audit Log</div>
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--dim2)" id="ut_auditTitle">Audit Log</div>
         <button class="btn-ghost" onclick="clearAudit()" id="ut_clearLog">Clear Log</button>
       </div>
-      <div class="audit-wrap" id="auditList">
-        <div class="audit-empty" id="ut_noAudit">No activity recorded yet.</div>
+      <div class="audit-wrap" id="auditList"></div>
+    </div>
+
+    <!-- COMPANIES TAB -->
+    <div class="tab-panel" id="panel-companies">
+      <div class="page-hdr">
+        <div class="page-title"><span>·</span> <span id="ct_title">Companies</span></div>
+        <button class="btn-primary" onclick="openCreateCompany()" id="ct_add">+ New Company</button>
+      </div>
+      <div class="stats-row" id="coStats"></div>
+      <div class="co-grid" id="coGrid"></div>
+    </div>
+
+    <!-- FLIGHT LOG TAB -->
+    <div class="tab-panel" id="panel-flightlog">
+      <div class="fl-placeholder">
+        <div class="fl-icon">✈️</div>
+        <div class="fl-title" id="fl_title">Flight Log / Bitácora Review</div>
+        <div class="fl-sub" id="fl_sub">Open the review module to process flight logs</div>
+        <a class="fl-open-btn" href="modules/bitacora-review/index.html" id="fl_open">Open Review Module →</a>
       </div>
     </div>
 
-    <!-- ── BITACORA TAB ── -->
-    <div class="tab-panel" id="panel-bitacora">
+    <!-- FUTURE TAB -->
+    <div class="tab-panel" id="panel-future">
       <div class="coming-soon">
-        <div class="cs-icon">✈️</div>
-        <div class="cs-title" id="bt_title">Bitácora Review</div>
-        <div class="cs-sub" id="bt_sub">MODULE LOADING SOON</div>
+        <div class="cs-icon">📊</div>
+        <div class="cs-title" id="cs_title">Pre-Invoice & Billing</div>
+        <div class="cs-sub">Coming Soon</div>
       </div>
     </div>
 
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════
+<!-- ══════════════════════════════════════
      USER MODAL
-══════════════════════════════════════════ -->
+══════════════════════════════════════ -->
 <div class="mbd" id="userMbd" onclick="bdClose(event,'userMbd')">
-  <div class="mbox edit" onclick="event.stopPropagation()">
+  <div class="mbox user-box" onclick="event.stopPropagation()">
     <div class="mhdr">
       <div class="mhdr-t ct" id="umTitle">New User</div>
       <button class="m-x" onclick="closeModal('userMbd')">✕</button>
@@ -456,20 +548,20 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
     <div class="mbody">
       <div class="frow fc2">
         <div class="field">
-          <label id="um_lbl_name">Full Name *</label>
+          <label>Full Name *</label>
           <input type="text" id="um_name" placeholder="Jane Smith">
           <span class="ferr" id="ume_name"></span>
         </div>
         <div class="field">
-          <label id="um_lbl_email">Email / Username *</label>
-          <input type="text" id="um_email" placeholder="jane@hp-fleet.com">
+          <label>Email / Username *</label>
+          <input type="text" id="um_email" placeholder="jane@company.com">
           <span class="ferr" id="ume_email"></span>
         </div>
       </div>
       <div class="frow fc2">
         <div class="field">
-          <label id="um_lbl_role">Role *</label>
-          <select id="um_role">
+          <label>Role *</label>
+          <select id="um_role" onchange="updateRoleDesc()">
             <option value="ADMIN">Administrator</option>
             <option value="OPERATOR" selected>Operator</option>
             <option value="REVIEWER">Reviewer / Approver</option>
@@ -477,7 +569,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
           </select>
         </div>
         <div class="field">
-          <label id="um_lbl_status">Status</label>
+          <label>Status</label>
           <select id="um_status">
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
@@ -485,37 +577,94 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
         </div>
       </div>
       <div class="field">
+        <label>Assigned Companies *</label>
+        <div class="chk-group" id="um_companies_chk"></div>
+        <span class="ferr" id="ume_companies"></span>
+      </div>
+      <div class="field">
         <label id="um_lbl_pwd">Password *</label>
         <input type="password" id="um_pwd" placeholder="Min. 6 characters">
+        <div class="pwd-hint" id="um_pwd_hint">Min. 6 characters. User can change after first login.</div>
         <span class="ferr" id="ume_pwd"></span>
       </div>
-      <!-- Role description preview -->
-      <div id="rolePreview" style="margin-top:14px;padding:12px 14px;background:var(--s2);
-        border:1px solid var(--border);border-radius:2px;font-size:12px;
-        color:var(--dim2);line-height:1.6;font-family:var(--mono)"></div>
+      <div id="roleDesc" style="margin-top:12px;padding:10px 14px;background:var(--s2);
+        border:1px solid var(--border);font-family:var(--mono);font-size:10px;
+        color:var(--dim2);line-height:1.6;border-radius:2px"></div>
     </div>
     <div class="mftr">
-      <button class="btn-ghost" onclick="closeModal('userMbd')" id="um_cancel">Cancel</button>
-      <button class="btn-primary" onclick="saveUser()" id="um_save">Save User</button>
+      <button class="btn-ghost" onclick="closeModal('userMbd')">Cancel</button>
+      <button class="btn-primary" onclick="saveUser()">Save User</button>
     </div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════
-     DELETE MODAL
-══════════════════════════════════════════ -->
-<div class="mbd" id="delMbd" onclick="bdClose(event,'delMbd')">
-  <div class="mbox del" onclick="event.stopPropagation()">
+<!-- ══════════════════════════════════════
+     COMPANY MODAL
+══════════════════════════════════════ -->
+<div class="mbd" id="coMbd" onclick="bdClose(event,'coMbd')">
+  <div class="mbox co-box" onclick="event.stopPropagation()">
     <div class="mhdr">
-      <div class="mhdr-t cr" id="del_title">⚠ Confirm Delete</div>
+      <div class="mhdr-t cy" id="coModalTitle">New Company</div>
+      <button class="m-x" onclick="closeModal('coMbd')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="frow fc2">
+        <div class="field">
+          <label>Company Name *</label>
+          <input type="text" id="co_name" placeholder="Flightmax Advanced Training">
+          <span class="ferr" id="coe_name"></span>
+        </div>
+        <div class="field">
+          <label>Short Code *</label>
+          <input type="text" id="co_code" placeholder="FM" style="text-transform:uppercase"
+            oninput="this.value=this.value.toUpperCase()">
+          <span class="ferr" id="coe_code"></span>
+        </div>
+      </div>
+      <div class="frow fc2">
+        <div class="field">
+          <label>Default Multiplier *</label>
+          <input type="number" id="co_mult" step="0.001" placeholder="1.150">
+          <span class="ferr" id="coe_mult"></span>
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <select id="co_status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Contact / Notes</label>
+        <textarea id="co_notes" placeholder="Contact info, notes…"></textarea>
+      </div>
+      <div class="section-divider">Billing Rules</div>
+      <div id="co_rules_list" style="margin-bottom:12px"></div>
+      <button class="btn-ghost" onclick="addBillingRuleRow()" style="width:100%">+ Add Billing Rule</button>
+    </div>
+    <div class="mftr">
+      <button class="btn-ghost" onclick="closeModal('coMbd')">Cancel</button>
+      <button class="btn-primary" onclick="saveCompany()">Save Company</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     DELETE MODAL
+══════════════════════════════════════ -->
+<div class="mbd" id="delMbd" onclick="bdClose(event,'delMbd')">
+  <div class="mbox del-box" onclick="event.stopPropagation()">
+    <div class="mhdr">
+      <div class="mhdr-t cr">⚠ Confirm Delete</div>
       <button class="m-x" onclick="closeModal('delMbd')">✕</button>
     </div>
     <div class="mbody">
       <div class="del-warn" id="delWarn"></div>
     </div>
     <div class="mftr">
-      <button class="btn-ghost" onclick="closeModal('delMbd')" id="del_cancel">Cancel</button>
-      <button class="btn-danger" onclick="confirmDelete()" id="del_confirm">Delete User</button>
+      <button class="btn-ghost" onclick="closeModal('delMbd')">Cancel</button>
+      <button class="btn-danger" onclick="confirmDelete()" id="delConfirmBtn">Delete</button>
     </div>
   </div>
 </div>
@@ -523,631 +672,877 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 <div class="toast" id="toast"></div>
 
 <script>
-// ══════════════════════════════════════════════════════════════
-// USER STORE (embedded — edit directly until backend is ready)
-// ══════════════════════════════════════════════════════════════
-const USERS = [
-  {id:"u001",name:"Marcelo C.",      email:"marcelo@hp-fleet.com",  pwd:"admin1234", role:"ADMIN",    status:"active",  created:"2025-01-15",lastLogin:null},
-  {id:"u002",name:"Asistente FM",    email:"asistente@flymax.com",  pwd:"fm2025",    role:"OPERATOR", status:"active",  created:"2025-02-01",lastLogin:null},
-  {id:"u003",name:"Revisor Fact.",   email:"revisor@hp-fleet.com",  pwd:"rev2025",   role:"REVIEWER", status:"active",  created:"2025-02-10",lastLogin:null},
-  {id:"u004",name:"Vista MAG",       email:"vista@mag.com",         pwd:"mag2025",   role:"READONLY", status:"inactive",created:"2025-03-01",lastLogin:null},
+// ══════════════════════════════════════════════════════
+// COMPANIES — seed data
+// ══════════════════════════════════════════════════════
+let COMPANIES = [
+  {
+    id:"c001", name:"Flightmax Advanced Training", code:"FM",
+    multiplier:1.15, status:"active", notes:"Primary flight school client",
+    billingRules:[
+      {id:"br001",name:"Fuel Surcharge",amount:10.00,unit:"per Flight Hour",active:true},
+      {id:"br002",name:"Landing Fee",amount:8.00,unit:"per Flight",active:false},
+    ]
+  },
+  {
+    id:"c002", name:"MAG Flight Training", code:"MAG",
+    multiplier:1.275, status:"active", notes:"Secondary operator",
+    billingRules:[
+      {id:"br003",name:"Fuel Surcharge",amount:10.00,unit:"per Flight Hour",active:true},
+    ]
+  }
 ];
 
-// ══════════════════════════════════════════════════════════════
-// ROLE CONFIG — descriptions, permissions, colors
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// USERS — seed data
+// ══════════════════════════════════════════════════════
+let USERS = [
+  {id:"u001",name:"Marcelo C.",      email:"marcelo@hp-fleet.com",  pwd:"admin1234", role:"ADMIN",    companies:["FM","MAG"], status:"active",  created:"2025-01-15",lastLogin:null},
+  {id:"u002",name:"Asistente FM",    email:"asistente@flymax.com",  pwd:"fm2025",    role:"OPERATOR", companies:["FM"],       status:"active",  created:"2025-02-01",lastLogin:null},
+  {id:"u003",name:"Revisor Fact.",   email:"revisor@hp-fleet.com",  pwd:"rev2025",   role:"REVIEWER", companies:["FM","MAG"], status:"active",  created:"2025-02-10",lastLogin:null},
+  {id:"u004",name:"Vista MAG",       email:"vista@mag.com",         pwd:"mag2025",   role:"READONLY", companies:["MAG"],      status:"inactive",created:"2025-03-01",lastLogin:null},
+];
+
+// ══════════════════════════════════════════════════════
+// ROLE CONFIG
+// ══════════════════════════════════════════════════════
 const ROLES = {
-  ADMIN: {
-    icon: "🛡️",
-    color: "var(--violet)",
-    bannerClass: "rb-admin",
-    chipClass: "rc-admin",
-    avatarBg: "rgba(192,132,252,.15)",
-    en: {
-      label: "Administrator",
-      desc: "Full system access. You can manage users, load bitácoras, review entries, approve for invoicing, and configure the platform.",
-      perms: ["Load PDFs","Review Entries","Edit Entries","Submit for Review","Approve for Invoicing","Manage Users","Export Data"]
-    },
-    es: {
-      label: "Administrador",
-      desc: "Acceso total al sistema. Podés gestionar usuarios, cargar bitácoras, revisar entradas, aprobar para facturación y configurar la plataforma.",
-      perms: ["Cargar PDFs","Revisar Entradas","Editar Entradas","Enviar a Revisión","Aprobar Facturación","Gestionar Usuarios","Exportar Datos"]
-    }
-  },
-  OPERATOR: {
-    icon: "✈️",
-    color: "var(--cyan)",
-    bannerClass: "rb-operator",
-    chipClass: "rc-operator",
-    avatarBg: "rgba(65,209,255,.15)",
-    en: {
-      label: "Operator",
-      desc: "You are responsible for loading bitácora PDFs, reviewing extracted flight entries for accuracy, correcting inconsistencies, and submitting batches for approval.",
-      perms: ["Load PDFs","Review Entries","Edit Entries","Submit for Review","Export Data"]
-    },
-    es: {
-      label: "Operador",
-      desc: "Sos responsable de cargar los PDFs de bitácora, revisar las entradas de vuelo extraídas, corregir inconsistencias y enviar lotes para aprobación.",
-      perms: ["Cargar PDFs","Revisar Entradas","Editar Entradas","Enviar a Revisión","Exportar Datos"]
-    }
-  },
-  REVIEWER: {
-    icon: "✅",
-    color: "var(--green)",
-    bannerClass: "rb-reviewer",
-    chipClass: "rc-reviewer",
-    avatarBg: "rgba(61,220,132,.15)",
-    en: {
-      label: "Reviewer / Approver",
-      desc: "You review submitted flight entry batches and approve them for invoicing. You can view all entries but cannot edit or load new PDFs.",
-      perms: ["View Entries","Approve for Invoicing","Export Data"]
-    },
-    es: {
-      label: "Revisor / Aprobador",
-      desc: "Revisás los lotes de entradas enviados y los aprobás para facturación. Podés ver todas las entradas pero no podés editar ni cargar nuevos PDFs.",
-      perms: ["Ver Entradas","Aprobar Facturación","Exportar Datos"]
-    }
-  },
-  READONLY: {
-    icon: "👁️",
-    color: "var(--dim2)",
-    bannerClass: "rb-readonly",
-    chipClass: "rc-readonly",
-    avatarBg: "rgba(136,153,187,.15)",
-    en: {
-      label: "Read Only",
-      desc: "View-only access. You can see flight entries and summaries but cannot make any changes, submit, or approve.",
-      perms: ["View Entries"]
-    },
-    es: {
-      label: "Solo Lectura",
-      desc: "Acceso de sólo lectura. Podés ver las entradas y resúmenes pero no podés realizar cambios, enviar ni aprobar.",
-      perms: ["Ver Entradas"]
-    }
-  }
+  ADMIN:    {icon:"🛡️",color:"var(--violet)",bannerClass:"rb-admin",chipClass:"rc-admin",
+    avatarBg:"rgba(192,132,252,.15)",
+    en:{label:"Administrator",desc:"Full system access. Manage users, companies, flight logs, and billing.",
+      perms:["Load PDFs","Review & Edit Entries","Submit & Approve","Manage Users","Manage Companies","Export Data"]},
+    es:{label:"Administrador",desc:"Acceso total al sistema. Gestiona usuarios, compañías, flight logs y facturación.",
+      perms:["Cargar PDFs","Revisar y Editar","Enviar y Aprobar","Gestionar Usuarios","Gestionar Compañías","Exportar"]}},
+  OPERATOR: {icon:"✈️",color:"var(--cyan)",bannerClass:"rb-operator",chipClass:"rc-operator",
+    avatarBg:"rgba(65,209,255,.15)",
+    en:{label:"Operator",desc:"Load flight log PDFs for your assigned companies, review extracted entries, correct inconsistencies, and submit batches for approval.",
+      perms:["Load PDFs","Review Entries","Edit Entries","Submit for Review","Export Data"]},
+    es:{label:"Operador",desc:"Carga PDFs de bitácoras para tus compañías asignadas, revisa entradas extraídas, corrige inconsistencias y envía lotes para aprobación.",
+      perms:["Cargar PDFs","Revisar Entradas","Editar Entradas","Enviar a Revisión","Exportar"]}},
+  REVIEWER: {icon:"✅",color:"var(--green)",bannerClass:"rb-reviewer",chipClass:"rc-reviewer",
+    avatarBg:"rgba(61,220,132,.15)",
+    en:{label:"Reviewer / Approver",desc:"Review submitted flight log batches for your assigned companies and approve them for invoicing. You can view entries but cannot edit or load PDFs.",
+      perms:["View Entries","Approve for Invoicing","Request Changes","Export Data"]},
+    es:{label:"Revisor / Aprobador",desc:"Revisa los lotes enviados de tus compañías asignadas y apruébalos para facturación. Puedes ver entradas pero no editar ni cargar PDFs.",
+      perms:["Ver Entradas","Aprobar Facturación","Solicitar Cambios","Exportar"]}},
+  READONLY: {icon:"👁️",color:"var(--dim2)",bannerClass:"rb-readonly",chipClass:"rc-readonly",
+    avatarBg:"rgba(136,153,187,.15)",
+    en:{label:"Read Only",desc:"View-only access for your assigned companies. You can see flight entries and summaries but cannot make any changes.",
+      perms:["View Entries"]},
+    es:{label:"Solo Lectura",desc:"Acceso de solo lectura para tus compañías asignadas. Puedes ver entradas y resúmenes pero no realizar cambios.",
+      perms:["Ver Entradas"]}}
 };
 
-// ══════════════════════════════════════════════════════════════
-// I18N strings
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// I18N
+// ══════════════════════════════════════════════════════
 const I18N = {
   en:{
-    signIn:"Sign In",signingIn:"Checking…",emailLabel:"Email / Username",pwdLabel:"Password",
-    loginErr:"Incorrect username or password.",inactiveErr:"Account inactive. Contact your administrator.",
-    signOut:"↩ Sign Out",
-    tabUsers:"Users",tabBitacora:"Bitácora Review",
+    signIn:"Sign In",signingIn:"Checking…",signOut:"↩ Sign Out",
+    emailLbl:"Email / Username",pwdLbl:"Password",
+    loginErr:"Incorrect username or password.",
+    inactiveErr:"Account inactive. Contact your administrator.",
+    tabUsers:"Users",tabCompanies:"Companies",
+    tabFlightLog:"Flight Log",tabBilling:"Pre-Invoice",
     utTitle:"User Management",utAdd:"+ New User",utExport:"↓ Export JSON",
-    utAudit:"Audit Log",utClearLog:"Clear Log",utNoAudit:"No activity recorded yet.",
-    thUser:"User",thRole:"Role",thStatus:"Status",thCreated:"Created",
-    thLast:"Last Login",thActions:"Actions",
-    allRoles:"All roles",allStatus:"All statuses",activeOnly:"Active only",inactiveOnly:"Inactive only",
-    searchPh:"Search by name or email…",
-    showing:"Showing",of:"of",users:"users",noResults:"No results found.",
-    edit:"Edit",del:"Delete",active:"Active",inactive:"Inactive",never:"Never",
-    umNewTitle:"New User",umEditTitle:"Edit User",
-    umName:"Full Name *",umEmail:"Email / Username *",umRole:"Role *",umStatus:"Status",umPwd:"Password *",
-    umPwdEdit:"New Password (leave blank to keep current)",
-    umCancel:"Cancel",umSave:"Save User",
-    required:"Required.",emailExists:"Email already in use.",pwdShort:"Min. 6 characters.",
-    userCreated:"User created.",userUpdated:"User updated.",userDeleted:"User deleted.",
-    statusUpdated:"Status updated.",
-    delTitle:"⚠ Confirm Delete",delCancel:"Cancel",delConfirm:"Delete User",
-    delWarn1:"Permanently delete",delWarn2:"? This cannot be undone.",
-    cantDelSelf:"You cannot delete your own account.",
-    cantDeactivateSelf:"You cannot deactivate your own account.",
-    btTitle:"Bitácora Review",btSub:"MODULE LOADING SOON",
-    rolePreview:{
-      ADMIN:"Administrator — full access including user management.",
-      OPERATOR:"Operator — loads PDFs, reviews and edits entries, submits for approval.",
-      REVIEWER:"Reviewer — views submitted entries and approves for invoicing. Cannot edit.",
-      READONLY:"Read Only — view-only access. No editing, submitting, or approving."
-    },
-    statsTotal:"Total",statsActive:"active",
-    logLoggedIn:"logged in",logLoggedOut:"logged out",
-    logCreated:"created user",logEdited:"edited user",logDeleted:"deleted user",logToggled:"toggled status",
+    utAudit:"Audit Log",utClear:"Clear Log",
+    thUser:"User",thRole:"Role",thCompanies:"Companies",
+    thStatus:"Status",thCreated:"Created",thLast:"Last Login",thActions:"Actions",
+    active:"Active",inactive:"Inactive",never:"Never",edit:"Edit",del:"Delete",
+    cantDelSelf:"Cannot delete your own account.",
+    cantDeactivateSelf:"Cannot deactivate your own account.",
+    userCreated:"User created.",userUpdated:"User updated.",
+    userDeleted:"User deleted.",statusUpdated:"Status updated.",
+    ctTitle:"Companies",ctAdd:"+ New Company",
+    flTitle:"Flight Log / Bitácora Review",
+    flSub:"Open the review module to process flight logs",
+    flOpen:"Open Review Module →",
+    csBilling:"Pre-Invoice & Billing",
+    noAudit:"No activity recorded yet.",
+    logIn:"logged in",logOut:"logged out",
+    logCreated:"created",logEdited:"edited",logDeleted:"deleted",logToggled:"toggled status",
+    emailExists:"Email already in use.",pwdShort:"Min. 6 characters.",required:"Required.",
+    codeExists:"Company code already in use.",
+    companySaved:"Company saved.",companyDeleted:"Company deleted.",
+    billingRuleAdded:"Billing rule added.",
+    noCompanySelected:"Select at least one company.",
+    multInvalid:"Must be a number greater than 0.",
+    showing:"Showing",of:"of",users:"users",
+    allCompanies:"All Companies",activeOnly:"Active Only",inactiveOnly:"Inactive Only",
+    roleDescAdmin:"Administrator — full access including user and company management.",
+    roleDescOperator:"Operator — loads PDFs, reviews and edits entries for assigned companies, submits for approval.",
+    roleDescReviewer:"Reviewer — views submitted batches for assigned companies and approves for invoicing.",
+    roleDescReadonly:"Read Only — view-only access for assigned companies.",
+    coActive:"active",coInactive:"inactive",
+    mult:"Default Multiplier",notes:"Notes",billingRules:"Billing Rules",
+    noRules:"No billing rules defined.",
+    ruleActive:"active",ruleInactive:"inactive",
+    perFlight:"per Flight Hour",perFlightCount:"per Flight",
+    deleteUser:"Delete User",deleteCompany:"Delete Company",
+    deleteUserWarn:"Permanently delete",deleteUserWarn2:"? This cannot be undone.",
+    deleteCoWarn:"Permanently delete company",deleteCoWarn2:"? All associated billing rules will also be removed.",
   },
   es:{
-    signIn:"Iniciar Sesión",signingIn:"Verificando…",emailLabel:"Email / Usuario",pwdLabel:"Contraseña",
-    loginErr:"Usuario o contraseña incorrectos.",inactiveErr:"Cuenta inactiva. Contactá al administrador.",
-    signOut:"↩ Salir",
-    tabUsers:"Usuarios",tabBitacora:"Revisión de Bitácora",
-    utTitle:"Admin de Usuarios",utAdd:"+ Nuevo Usuario",utExport:"↓ Exportar JSON",
-    utAudit:"Log de Auditoría",utClearLog:"Limpiar Log",utNoAudit:"Sin actividad registrada.",
-    thUser:"Usuario",thRole:"Rol",thStatus:"Estado",thCreated:"Creado",
-    thLast:"Último Acceso",thActions:"Acciones",
-    allRoles:"Todos los roles",allStatus:"Todos los estados",activeOnly:"Solo activos",inactiveOnly:"Solo inactivos",
-    searchPh:"Buscar por nombre o email…",
-    showing:"Mostrando",of:"de",users:"usuarios",noResults:"Sin resultados.",
-    edit:"Editar",del:"Eliminar",active:"Activo",inactive:"Inactivo",never:"Nunca",
-    umNewTitle:"Nuevo Usuario",umEditTitle:"Editar Usuario",
-    umName:"Nombre Completo *",umEmail:"Email / Usuario *",umRole:"Rol *",umStatus:"Estado",umPwd:"Contraseña *",
-    umPwdEdit:"Nueva Contraseña (dejá en blanco para mantener la actual)",
-    umCancel:"Cancelar",umSave:"Guardar Usuario",
-    required:"Campo requerido.",emailExists:"Email ya en uso.",pwdShort:"Mín. 6 caracteres.",
-    userCreated:"Usuario creado.",userUpdated:"Usuario actualizado.",userDeleted:"Usuario eliminado.",
-    statusUpdated:"Estado actualizado.",
-    delTitle:"⚠ Confirmar Eliminación",delCancel:"Cancelar",delConfirm:"Eliminar Usuario",
-    delWarn1:"¿Eliminar permanentemente a",delWarn2:"? Esta acción no se puede deshacer.",
-    cantDelSelf:"No podés eliminar tu propia cuenta.",
-    cantDeactivateSelf:"No podés desactivarte a vos mismo.",
-    btTitle:"Revisión de Bitácora",btSub:"MÓDULO CARGANDO PRÓXIMAMENTE",
-    rolePreview:{
-      ADMIN:"Administrador — acceso total incluyendo gestión de usuarios.",
-      OPERATOR:"Operador — carga PDFs, revisa y edita entradas, envía para aprobación.",
-      REVIEWER:"Revisor — ve entradas enviadas y aprueba para facturación. No puede editar.",
-      READONLY:"Solo Lectura — acceso de visualización. Sin edición, envío ni aprobación."
-    },
-    statsTotal:"Total",statsActive:"activos",
-    logLoggedIn:"inició sesión",logLoggedOut:"cerró sesión",
-    logCreated:"creó usuario",logEdited:"editó usuario",logDeleted:"eliminó usuario",logToggled:"cambió estado",
+    signIn:"Iniciar Sesión",signingIn:"Verificando…",signOut:"↩ Salir",
+    emailLbl:"Email / Usuario",pwdLbl:"Contraseña",
+    loginErr:"Usuario o contraseña incorrectos.",
+    inactiveErr:"Cuenta inactiva. Contacta al administrador.",
+    tabUsers:"Usuarios",tabCompanies:"Compañías",
+    tabFlightLog:"Flight Log",tabBilling:"Pre-Factura",
+    utTitle:"Gestión de Usuarios",utAdd:"+ Nuevo Usuario",utExport:"↓ Exportar JSON",
+    utAudit:"Log de Auditoría",utClear:"Limpiar Log",
+    thUser:"Usuario",thRole:"Rol",thCompanies:"Compañías",
+    thStatus:"Estado",thCreated:"Creado",thLast:"Último Acceso",thActions:"Acciones",
+    active:"Activo",inactive:"Inactivo",never:"Nunca",edit:"Editar",del:"Eliminar",
+    cantDelSelf:"No puedes eliminar tu propia cuenta.",
+    cantDeactivateSelf:"No puedes desactivarte a ti mismo.",
+    userCreated:"Usuario creado.",userUpdated:"Usuario actualizado.",
+    userDeleted:"Usuario eliminado.",statusUpdated:"Estado actualizado.",
+    ctTitle:"Compañías",ctAdd:"+ Nueva Compañía",
+    flTitle:"Flight Log / Revisión de Bitácora",
+    flSub:"Abre el módulo de revisión para procesar los flight logs",
+    flOpen:"Abrir Módulo de Revisión →",
+    csBilling:"Pre-Factura y Facturación",
+    noAudit:"Sin actividad registrada.",
+    logIn:"inició sesión",logOut:"cerró sesión",
+    logCreated:"creó",logEdited:"editó",logDeleted:"eliminó",logToggled:"cambió estado",
+    emailExists:"Email ya en uso.",pwdShort:"Mín. 6 caracteres.",required:"Campo requerido.",
+    codeExists:"Código de compañía ya en uso.",
+    companySaved:"Compañía guardada.",companyDeleted:"Compañía eliminada.",
+    billingRuleAdded:"Regla de facturación agregada.",
+    noCompanySelected:"Selecciona al menos una compañía.",
+    multInvalid:"Debe ser un número mayor a 0.",
+    showing:"Mostrando",of:"de",users:"usuarios",
+    allCompanies:"Todas las Compañías",activeOnly:"Solo Activos",inactiveOnly:"Solo Inactivos",
+    roleDescAdmin:"Administrador — acceso total incluyendo gestión de usuarios y compañías.",
+    roleDescOperator:"Operador — carga PDFs, revisa y edita entradas de sus compañías, envía para aprobación.",
+    roleDescReviewer:"Revisor — ve lotes enviados de sus compañías y aprueba para facturación.",
+    roleDescReadonly:"Solo Lectura — acceso de visualización para sus compañías asignadas.",
+    coActive:"activa",coInactive:"inactiva",
+    mult:"Multiplicador Predeterminado",notes:"Notas",billingRules:"Reglas de Facturación",
+    noRules:"Sin reglas de facturación.",
+    ruleActive:"activa",ruleInactive:"inactiva",
+    perFlight:"por Hora de Vuelo",perFlightCount:"por Vuelo",
+    deleteUser:"Eliminar Usuario",deleteCompany:"Eliminar Compañía",
+    deleteUserWarn:"¿Eliminar permanentemente a",deleteUserWarn2:"? Esta acción no se puede deshacer.",
+    deleteCoWarn:"¿Eliminar permanentemente la compañía",deleteCoWarn2:"? Las reglas de facturación también serán eliminadas.",
   }
 };
 
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // STATE
-// ══════════════════════════════════════════════════════════════
-let lang = "en";
-let currentUser = null;
-let auditLog = [];
-let editingId = null;
-let deletingId = null;
-let activeTab = null;
-let nextId = 100;
+// ══════════════════════════════════════════════════════
+let lang="en", currentUser=null, auditLog=[], activeTab=null;
+let editingUserId=null, editingCoId=null, deletingId=null, deleteType=null;
+let nextUserId=200, nextCoId=300, nextRuleId=400;
+let tempRules=[];
 
 function t(k){ return I18N[lang][k] ?? I18N.en[k] ?? k; }
 
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // LANG
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 function setLang(l){
-  lang = l;
-  document.getElementById("btnEN").className  = l==="en"?"active":"";
-  document.getElementById("btnES").className  = l==="es"?"active":"";
-  if(document.getElementById("appBtnEN"))
-    document.getElementById("appBtnEN").className = l==="en"?"active":"";
-  if(document.getElementById("appBtnES"))
-    document.getElementById("appBtnES").className = l==="es"?"active":"";
-
+  lang=l;
+  document.getElementById('btnEN').className=l==='en'?'active':'';
+  document.getElementById('btnES').className=l==='es'?'active':'';
+  if(document.getElementById('appEN'))
+    document.getElementById('appEN').className=l==='en'?'active':'';
+  if(document.getElementById('appES'))
+    document.getElementById('appES').className=l==='es'?'active':'';
   applyLoginI18n();
-  if(currentUser){
-    applyAppI18n();
-    renderUsers();
-    renderAudit();
-    renderStats();
-    renderRoleBanner();
-    renderTabs();
-  }
+  if(currentUser){applyAppI18n();renderAll();}
 }
 
 function applyLoginI18n(){
-  document.getElementById("loginTitle").textContent = t("signIn");
-  document.getElementById("loginBtnTxt").textContent = t("signIn");
-  document.getElementById("lbl_user").textContent = t("emailLabel");
-  document.getElementById("lbl_pass").textContent = t("pwdLabel");
-  document.getElementById("li_user").placeholder = t("emailLabel");
+  el('loginTitle').textContent=t('signIn');
+  el('loginBtnTxt').textContent=t('signIn');
+  el('lbl_user').textContent=t('emailLbl');
+  el('lbl_pass').textContent=t('pwdLbl');
 }
 
 function applyAppI18n(){
-  document.getElementById("btnSignOut").textContent = t("signOut");
-  document.getElementById("ut_title").textContent = t("utTitle");
-  document.getElementById("ut_add").textContent = t("utAdd");
-  document.getElementById("ut_export").textContent = t("utExport");
-  document.getElementById("ut_auditTitle").textContent = t("utAudit");
-  document.getElementById("ut_clearLog").textContent = t("utClearLog");
-  document.getElementById("th_user").textContent = t("thUser");
-  document.getElementById("th_role").textContent = t("thRole");
-  document.getElementById("th_status").textContent = t("thStatus");
-  document.getElementById("th_created").textContent = t("thCreated");
-  document.getElementById("th_last").textContent = t("thLast");
-  document.getElementById("th_actions").textContent = t("thActions");
-  document.getElementById("fo_allRoles").textContent = t("allRoles");
-  document.getElementById("fo_all").textContent = t("allStatus");
-  document.getElementById("fo_active").textContent = t("activeOnly");
-  document.getElementById("fo_inactive").textContent = t("inactiveOnly");
-  document.getElementById("fo_op").textContent = ROLES.OPERATOR[lang].label;
-  document.getElementById("fo_rev").textContent = ROLES.REVIEWER[lang].label;
-  document.getElementById("fo_ro").textContent = ROLES.READONLY[lang].label;
-  document.getElementById("userSearch").placeholder = t("searchPh");
-  document.getElementById("bt_title").textContent = t("btTitle");
-  document.getElementById("bt_sub").textContent = t("btSub");
-  document.getElementById("um_lbl_name").textContent = t("umName");
-  document.getElementById("um_lbl_email").textContent = t("umEmail");
-  document.getElementById("um_lbl_role").textContent = t("umRole");
-  document.getElementById("um_lbl_status").textContent = t("umStatus");
-  document.getElementById("um_lbl_pwd").textContent = t("umPwd");
-  document.getElementById("um_cancel").textContent = t("umCancel");
-  document.getElementById("um_save").textContent = t("umSave");
-  document.getElementById("del_cancel").textContent = t("delCancel");
-  document.getElementById("del_confirm").textContent = t("delConfirm");
-  document.getElementById("del_title").textContent = t("delTitle");
+  el('btnSignOut').textContent=t('signOut');
+  el('ut_title').textContent=t('utTitle');
+  el('ut_add').textContent=t('utAdd');
+  el('ut_export').textContent=t('utExport');
+  el('ut_auditTitle').textContent=t('utAudit');
+  el('ut_clearLog').textContent=t('utClear');
+  el('th_user').textContent=t('thUser');
+  el('th_role').textContent=t('thRole');
+  el('th_companies').textContent=t('thCompanies');
+  el('th_status').textContent=t('thStatus');
+  el('th_created').textContent=t('thCreated');
+  el('th_last').textContent=t('thLast');
+  el('th_actions').textContent=t('thActions');
+  el('ct_title').textContent=t('ctTitle');
+  el('ct_add').textContent=t('ctAdd');
+  el('fl_title').textContent=t('flTitle');
+  el('fl_sub').textContent=t('flSub');
+  el('fl_open').textContent=t('flOpen');
+  el('cs_title').textContent=t('csBilling');
+  el('fo_op').textContent=ROLES.OPERATOR[lang].label;
+  el('fo_rev').textContent=ROLES.REVIEWER[lang].label;
+  el('fo_ro').textContent=ROLES.READONLY[lang].label;
+  el('fo_active').textContent=t('activeOnly');
+  el('fo_inactive').textContent=t('inactiveOnly');
+  el('fo_allco').textContent=t('allCompanies');
+  renderTabs();
 }
 
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // AUTH
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 function doLogin(){
-  const email = document.getElementById("li_user").value.trim();
-  const pwd   = document.getElementById("li_pass").value;
-  const err   = document.getElementById("loginErr");
-  const btn   = document.getElementById("loginBtnTxt");
-  err.classList.remove("on");
-  btn.textContent = t("signingIn");
-
+  const email=el('li_user').value.trim();
+  const pwd=el('li_pass').value;
+  const errEl=el('loginErr');
+  const btn=el('loginBtnTxt');
+  errEl.classList.remove('on');
+  btn.textContent=t('signingIn');
   setTimeout(()=>{
-    const user = USERS.find(u=>u.email===email && u.pwd===pwd);
-    if(!user || user.status!=="active"){
-      err.textContent = !user ? t("loginErr") : t("inactiveErr");
-      err.classList.add("on");
-      btn.textContent = t("signIn");
+    const user=USERS.find(u=>u.email===email&&u.pwd===pwd);
+    if(!user||user.status!=='active'){
+      errEl.textContent=!user?t('loginErr'):t('inactiveErr');
+      errEl.classList.add('on');
+      btn.textContent=t('signIn');
       return;
     }
-    user.lastLogin = new Date().toISOString();
-    currentUser = user;
-    addAudit("🔑", user.name, t("logLoggedIn"), "—");
+    user.lastLogin=new Date().toISOString();
+    currentUser=user;
+    addAudit('🔑',user.name,t('logIn'),'—');
     bootApp();
   },400);
 }
 
 function doLogout(){
-  addAudit("🚪", currentUser.name, t("logLoggedOut"), "—");
-  currentUser = null;
-  document.getElementById("appShell").style.display = "none";
-  document.getElementById("loginScreen").style.display = "flex";
-  document.getElementById("li_user").value = "";
-  document.getElementById("li_pass").value = "";
-  document.getElementById("loginErr").classList.remove("on");
-  document.getElementById("loginBtnTxt").textContent = t("signIn");
+  addAudit('🚪',currentUser.name,t('logOut'),'—');
+  currentUser=null;
+  el('appShell').style.display='none';
+  el('loginScreen').style.display='flex';
+  el('li_user').value='';
+  el('li_pass').value='';
+  el('loginErr').classList.remove('on');
+  el('loginBtnTxt').textContent=t('signIn');
 }
 
-// ══════════════════════════════════════════════════════════════
-// BOOT APP
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════════════════
 function bootApp(){
-  document.getElementById("loginScreen").style.display = "none";
-  const shell = document.getElementById("appShell");
-  shell.style.display = "flex";
-
-  document.getElementById("tbName").textContent = currentUser.name;
-  document.getElementById("tbRoleLabel").textContent = ROLES[currentUser.role][lang].label;
-  document.getElementById("tbAvatar").textContent = initials(currentUser.name);
-  document.getElementById("tbAvatar").style.color = ROLES[currentUser.role].color;
-
+  el('loginScreen').style.display='none';
+  el('appShell').style.display='flex';
+  const r=ROLES[currentUser.role];
+  el('tbName').textContent=currentUser.name;
+  el('tbRoleLabel').textContent=r[lang].label;
+  el('tbCompanies').textContent=currentUser.companies.join(' · ');
+  el('tbAvatar').textContent=initials(currentUser.name);
+  el('tbAvatar').style.color=r.color;
   applyAppI18n();
-  renderTabs();
   renderRoleBanner();
-  renderStats();
-  renderUsers();
-  renderAudit();
-
-  const defaultTab = currentUser.role==="ADMIN" ? "users" : "bitacora";
+  renderTabs();
+  renderAll();
+  const defaultTab=currentUser.role==='ADMIN'?'users':'flightlog';
   switchTab(defaultTab);
 }
 
-// ══════════════════════════════════════════════════════════════
-// TABS
-// ══════════════════════════════════════════════════════════════
-function renderTabs(){
-  const nav = document.getElementById("tabNav");
-  nav.innerHTML = "";
-  const tabs = [];
-  if(currentUser.role === "ADMIN") tabs.push({id:"users", icon:"👥", label:t("tabUsers")});
-  tabs.push({id:"bitacora", icon:"✈️", label:t("tabBitacora")});
+// ══════════════════════════════════════════════════════
+// TABS — role-aware
+// ══════════════════════════════════════════════════════
+const TAB_CONFIG=[
+  {id:'users',     icon:'👥', labelKey:'tabUsers',     roles:['ADMIN']},
+  {id:'companies', icon:'🏢', labelKey:'tabCompanies', roles:['ADMIN']},
+  {id:'flightlog', icon:'✈️', labelKey:'tabFlightLog', roles:['ADMIN','OPERATOR','REVIEWER','READONLY']},
+  {id:'future',    icon:'📊', labelKey:'tabBilling',   roles:['ADMIN']},
+];
 
-  tabs.forEach(tab=>{
-    const btn = document.createElement("button");
-    btn.className = "tab-btn" + (activeTab===tab.id?" active":"");
-    btn.innerHTML = `<span class="tab-icon">${tab.icon}</span>${tab.label}`;
-    btn.onclick = ()=>switchTab(tab.id);
+function renderTabs(){
+  const nav=el('tabNav');
+  nav.innerHTML='';
+  TAB_CONFIG.filter(tab=>tab.roles.includes(currentUser.role)).forEach(tab=>{
+    const btn=document.createElement('button');
+    btn.className='tab-btn'+(activeTab===tab.id?' active':'');
+    btn.innerHTML=`<span class="tab-icon">${tab.icon}</span>${t(tab.labelKey)}`;
+    btn.onclick=()=>switchTab(tab.id);
     nav.appendChild(btn);
   });
 }
 
 function switchTab(id){
-  activeTab = id;
-  document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));
-  const panel = document.getElementById("panel-"+id);
-  if(panel) panel.classList.add("active");
+  activeTab=id;
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  const panel=document.getElementById('panel-'+id);
+  if(panel)panel.classList.add('active');
   renderTabs();
 }
 
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // ROLE BANNER
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 function renderRoleBanner(){
-  const r = ROLES[currentUser.role];
-  const rd = r[lang];
-  const permsHtml = rd.perms.map(p=>`<span class="perm-tag pt-ok">✓ ${p}</span>`).join("");
-  document.getElementById("roleBanner").innerHTML = `
+  const r=ROLES[currentUser.role];
+  const rd=r[lang];
+  const coNames=currentUser.companies.map(code=>{
+    const co=COMPANIES.find(c=>c.code===code);
+    return co?co.name:code;
+  }).join(', ');
+  const permsHtml=rd.perms.map(p=>`<span class="perm-tag pt-ok">✓ ${p}</span>`).join('');
+  el('roleBanner').innerHTML=`
     <div class="role-banner ${r.bannerClass}" style="margin:20px 24px 0">
       <div class="rb-icon">${r.icon}</div>
-      <div class="rb-content">
+      <div>
         <div class="rb-role">${rd.label}</div>
         <div class="rb-name">${currentUser.name}</div>
+        <div class="rb-co">${coNames}</div>
         <div class="rb-desc">${rd.desc}</div>
         <div class="rb-perms">${permsHtml}</div>
       </div>
     </div>`;
 }
 
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // USER STATS
-// ══════════════════════════════════════════════════════════════
-function renderStats(){
-  const roles = ["ADMIN","OPERATOR","REVIEWER","READONLY"];
-  const cls = {ADMIN:"sc-admin",OPERATOR:"sc-op",REVIEWER:"sc-rev",READONLY:"sc-ro"};
-  const active = USERS.filter(u=>u.status==="active").length;
-  let html = `<div class="scard sc-tot">
-    <div class="sc-l">${t("statsTotal")}</div>
+// ══════════════════════════════════════════════════════
+function renderUserStats(){
+  const roles=['ADMIN','OPERATOR','REVIEWER','READONLY'];
+  const cls={ADMIN:'sc-admin',OPERATOR:'sc-op',REVIEWER:'sc-rev',READONLY:'sc-ro'};
+  const active=USERS.filter(u=>u.status==='active').length;
+  let html=`<div class="scard sc-tot"><div class="sc-l">Total</div>
     <div class="sc-v">${USERS.length}</div>
-    <div class="sc-s">${active} ${t("statsActive")}</div>
-  </div>`;
+    <div class="sc-s">${active} ${t('active')}</div></div>`;
   roles.forEach(r=>{
     const cnt=USERS.filter(u=>u.role===r).length;
-    const act=USERS.filter(u=>u.role===r&&u.status==="active").length;
+    const act=USERS.filter(u=>u.role===r&&u.status==='active').length;
     html+=`<div class="scard ${cls[r]}">
       <div class="sc-l">${ROLES[r][lang].label}</div>
       <div class="sc-v">${cnt}</div>
-      <div class="sc-s">${act} ${t("statsActive")}</div>
-    </div>`;
+      <div class="sc-s">${act} ${t('active')}</div></div>`;
   });
-  document.getElementById("userStats").innerHTML = html;
+  el('userStats').innerHTML=html;
 }
 
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// COMPANY FILTER DROPDOWN
+// ══════════════════════════════════════════════════════
+function populateCompanyFilter(){
+  const sel=el('filterCompany');
+  const cur=sel.value;
+  sel.innerHTML=`<option value="ALL">${t('allCompanies')}</option>`;
+  COMPANIES.forEach(co=>{
+    const opt=document.createElement('option');
+    opt.value=co.code; opt.textContent=`${co.code} — ${co.name}`;
+    sel.appendChild(opt);
+  });
+  sel.value=cur||'ALL';
+}
+
+// ══════════════════════════════════════════════════════
 // USER TABLE
-// ══════════════════════════════════════════════════════════════
-function getFiltered(){
-  const q = document.getElementById("userSearch").value.toLowerCase();
-  const r = document.getElementById("filterRole").value;
-  const s = document.getElementById("filterStatus").value;
+// ══════════════════════════════════════════════════════
+function getFilteredUsers(){
+  const q=el('userSearch').value.toLowerCase();
+  const r=el('filterRole').value;
+  const co=el('filterCompany').value;
+  const s=el('filterStatus').value;
   return USERS.filter(u=>{
-    const mq = !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
-    const mr = r==="ALL" || u.role===r;
-    const ms = s==="ALL" || u.status===s;
-    return mq && mr && ms;
+    const mq=!q||u.name.toLowerCase().includes(q)||u.email.toLowerCase().includes(q);
+    const mr=r==='ALL'||u.role===r;
+    const mc=co==='ALL'||(u.companies||[]).includes(co);
+    const ms=s==='ALL'||u.status===s;
+    return mq&&mr&&mc&&ms;
   });
 }
 
 function renderUsers(){
-  const list = getFiltered();
-  document.getElementById("userCount").textContent =
-    `${t("showing")} ${list.length} ${t("of")} ${USERS.length} ${t("users")}`;
-  const tbody = document.getElementById("userTbody");
+  renderUserStats();
+  populateCompanyFilter();
+  const list=getFilteredUsers();
+  el('userCount').textContent=`${t('showing')} ${list.length} ${t('of')} ${USERS.length} ${t('users')}`;
+  const tbody=el('userTbody');
   if(!list.length){
-    tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:24px;
-      font-family:var(--mono);font-size:11px;color:var(--dim)">${t("noResults")}</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:24px;
+      font-family:var(--mono);font-size:11px;color:var(--dim)">No results found.</td></tr>`;
     return;
   }
-  tbody.innerHTML="";
+  tbody.innerHTML='';
   list.forEach(u=>{
-    const r = ROLES[u.role];
-    const isSelf = currentUser && u.id===currentUser.id;
-    const tr = document.createElement("tr");
-    tr.className = u.status==="inactive"?"row-inactive":"";
+    const r=ROLES[u.role];
+    const isSelf=currentUser&&u.id===currentUser.id;
+    const tr=document.createElement('tr');
+    tr.className=u.status==='inactive'?'row-inactive':'';
+    const coTagsHtml=(u.companies||[]).map(code=>{
+      const co=COMPANIES.find(c=>c.code===code);
+      const color=co?coColor(code):'var(--dim2)';
+      return `<span class="co-tag" style="color:${color};border-color:${color}40;background:${color}12">${code}</span>`;
+    }).join('');
     tr.innerHTML=`
       <td>
         <div class="u-cell">
           <div class="u-av" style="background:${r.avatarBg};color:${r.color}">${initials(u.name)}</div>
           <div>
-            <div class="u-name">${u.name}${isSelf?` <span style="font-family:var(--mono);font-size:9px;color:var(--dim)">(me)</span>`:""}</div>
+            <div class="u-name">${u.name}${isSelf?` <span style="font-family:var(--mono);font-size:9px;color:var(--dim)">(me)</span>`:''}</div>
             <div class="u-email">${u.email}</div>
+            <div class="u-companies">${coTagsHtml}</div>
           </div>
         </div>
       </td>
       <td><span class="role-chip ${r.chipClass}">${r[lang].label}</span></td>
+      <td><div style="display:flex;gap:4px;flex-wrap:wrap">${coTagsHtml}</div></td>
       <td>
-        <button class="sp ${u.status==="active"?"sp-on":"sp-off"}"
-          onclick="toggleStatus('${u.id}')" ${isSelf?"disabled":""}>
-          ${u.status==="active"?t("active"):t("inactive")}
+        <button class="sp ${u.status==='active'?'sp-on':'sp-off'}"
+          onclick="toggleUserStatus('${u.id}')" ${isSelf?'disabled':''}>
+          ${u.status==='active'?t('active'):t('inactive')}
         </button>
       </td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--dim2)">${u.created||"—"}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--dim2)">${u.created||'—'}</td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--dim2)">
-        ${u.lastLogin ? new Date(u.lastLogin).toLocaleString(lang==="es"?"es-PA":"en-US") : t("never")}
+        ${u.lastLogin?new Date(u.lastLogin).toLocaleString(lang==='es'?'es-PA':'en-US'):t('never')}
       </td>
       <td>
         <div class="act-cell">
-          <button class="btn-sm" onclick="openEditUser('${u.id}')">${t("edit")}</button>
+          <button class="btn-sm" onclick="openEditUser('${u.id}')">${t('edit')}</button>
           <button class="btn-sm del" onclick="openDeleteUser('${u.id}')"
-            ${isSelf?"disabled":""}>${t("del")}</button>
+            ${isSelf?'disabled':''}>${t('del')}</button>
         </div>
       </td>`;
     tbody.appendChild(tr);
   });
 }
 
-// ══════════════════════════════════════════════════════════════
-// STATUS TOGGLE
-// ══════════════════════════════════════════════════════════════
-function toggleStatus(id){
-  const u = USERS.find(x=>x.id===id);
-  if(!u) return;
-  if(currentUser.id===id){ showToast(t("cantDeactivateSelf"),"err"); return; }
-  u.status = u.status==="active"?"inactive":"active";
-  addAudit("🔄", currentUser.name, t("logToggled"), `${u.name} → ${t(u.status)}`);
-  renderUsers(); renderStats();
-  showToast(t("statusUpdated"));
+function toggleUserStatus(id){
+  const u=USERS.find(x=>x.id===id);
+  if(!u)return;
+  if(currentUser.id===id){showToast(t('cantDeactivateSelf'),'err');return;}
+  u.status=u.status==='active'?'inactive':'active';
+  addAudit('🔄',currentUser.name,`${t('logToggled')} user`,`${u.name} → ${t(u.status)}`);
+  renderUsers();
+  showToast(t('statusUpdated'));
 }
 
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // CREATE / EDIT USER
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 function openCreateUser(){
-  editingId = null;
-  clearFormErrs();
-  document.getElementById("umTitle").textContent = t("umNewTitle");
-  document.getElementById("um_name").value = "";
-  document.getElementById("um_email").value = "";
-  document.getElementById("um_role").value = "OPERATOR";
-  document.getElementById("um_status").value = "active";
-  document.getElementById("um_pwd").value = "";
-  document.getElementById("um_lbl_pwd").textContent = t("umPwd");
-  updateRolePreview();
-  openModal("userMbd");
+  editingUserId=null;
+  clearUserErrors();
+  el('umTitle').textContent=lang==='es'?'Nuevo Usuario':'New User';
+  el('um_name').value='';
+  el('um_email').value='';
+  el('um_role').value='OPERATOR';
+  el('um_status').value='active';
+  el('um_pwd').value='';
+  el('um_lbl_pwd').textContent=lang==='es'?'Contraseña *':'Password *';
+  el('um_pwd_hint').style.display='block';
+  buildCompanyCheckboxes([]);
+  updateRoleDesc();
+  openModal('userMbd');
 }
 
 function openEditUser(id){
-  const u = USERS.find(x=>x.id===id);
-  if(!u) return;
-  editingId = id;
-  clearFormErrs();
-  document.getElementById("umTitle").textContent = t("umEditTitle")+": "+u.name;
-  document.getElementById("um_name").value = u.name;
-  document.getElementById("um_email").value = u.email;
-  document.getElementById("um_role").value = u.role;
-  document.getElementById("um_status").value = u.status;
-  document.getElementById("um_pwd").value = "";
-  document.getElementById("um_lbl_pwd").textContent = t("umPwdEdit");
-  updateRolePreview();
-  openModal("userMbd");
+  const u=USERS.find(x=>x.id===id);
+  if(!u)return;
+  editingUserId=id;
+  clearUserErrors();
+  el('umTitle').textContent=(lang==='es'?'Editar Usuario: ':'Edit User: ')+u.name;
+  el('um_name').value=u.name;
+  el('um_email').value=u.email;
+  el('um_role').value=u.role;
+  el('um_status').value=u.status;
+  el('um_pwd').value='';
+  el('um_lbl_pwd').textContent=lang==='es'?'Nueva Contraseña (dejar en blanco para mantener)':'New Password (leave blank to keep current)';
+  el('um_pwd_hint').style.display='none';
+  buildCompanyCheckboxes(u.companies||[]);
+  updateRoleDesc();
+  openModal('userMbd');
 }
 
-function updateRolePreview(){
-  const role = document.getElementById("um_role").value;
-  document.getElementById("rolePreview").textContent = t("rolePreview")[role]||"";
+function buildCompanyCheckboxes(selected){
+  const wrap=el('um_companies_chk');
+  wrap.innerHTML='';
+  COMPANIES.filter(co=>co.status==='active').forEach(co=>{
+    const isChecked=selected.includes(co.code);
+    const label=document.createElement('label');
+    label.className='chk-item'+(isChecked?' checked':'');
+    label.innerHTML=`<input type="checkbox" value="${co.code}" ${isChecked?'checked':''}
+      onchange="this.parentElement.classList.toggle('checked',this.checked)">
+      ${co.code} — ${co.name}`;
+    wrap.appendChild(label);
+  });
 }
-document.getElementById("um_role").addEventListener("change", updateRolePreview);
+
+function getSelectedCompanies(){
+  return Array.from(el('um_companies_chk').querySelectorAll('input[type=checkbox]:checked'))
+    .map(cb=>cb.value);
+}
+
+function updateRoleDesc(){
+  const role=el('um_role').value;
+  const descs={
+    ADMIN:t('roleDescAdmin'),OPERATOR:t('roleDescOperator'),
+    REVIEWER:t('roleDescReviewer'),READONLY:t('roleDescReadonly')
+  };
+  el('roleDesc').textContent=descs[role]||'';
+}
 
 function saveUser(){
-  clearFormErrs();
-  const name   = document.getElementById("um_name").value.trim();
-  const email  = document.getElementById("um_email").value.trim();
-  const role   = document.getElementById("um_role").value;
-  const status = document.getElementById("um_status").value;
-  const pwd    = document.getElementById("um_pwd").value;
-  let ok = true;
-
-  if(!name)  { setFerr("ume_name","um_name",t("required")); ok=false; }
-  if(!email) { setFerr("ume_email","um_email",t("required")); ok=false; }
-  else {
-    const dup = USERS.find(u=>u.email===email && u.id!==editingId);
-    if(dup){ setFerr("ume_email","um_email",t("emailExists")); ok=false; }
+  clearUserErrors();
+  const name=el('um_name').value.trim();
+  const email=el('um_email').value.trim();
+  const role=el('um_role').value;
+  const status=el('um_status').value;
+  const pwd=el('um_pwd').value;
+  const companies=getSelectedCompanies();
+  let ok=true;
+  if(!name){setFerr('ume_name','um_name',t('required'));ok=false;}
+  if(!email){setFerr('ume_email','um_email',t('required'));ok=false;}
+  else{
+    const dup=USERS.find(u=>u.email===email&&u.id!==editingUserId);
+    if(dup){setFerr('ume_email','um_email',t('emailExists'));ok=false;}
   }
-  if(!editingId && pwd.length<6){ setFerr("ume_pwd","um_pwd",t("pwdShort")); ok=false; }
-  if(editingId && pwd && pwd.length<6){ setFerr("ume_pwd","um_pwd",t("pwdShort")); ok=false; }
-  if(!ok) return;
+  if(companies.length===0){
+    const e=el('ume_companies');
+    e.textContent=t('noCompanySelected');e.classList.add('on');ok=false;
+  }
+  if(!editingUserId&&pwd.length<6){setFerr('ume_pwd','um_pwd',t('pwdShort'));ok=false;}
+  if(editingUserId&&pwd&&pwd.length<6){setFerr('ume_pwd','um_pwd',t('pwdShort'));ok=false;}
+  if(!ok)return;
 
-  if(editingId){
-    const u = USERS.find(x=>x.id===editingId);
+  if(editingUserId){
+    const u=USERS.find(x=>x.id===editingUserId);
     const changes=[];
-    if(u.name!==name) changes.push(`name→"${name}"`);
-    if(u.role!==role) changes.push(`role→${ROLES[role][lang].label}`);
-    if(u.status!==status) changes.push(`status→${t(status)}`);
-    if(pwd) changes.push("password updated");
-    u.name=name; u.email=email; u.role=role; u.status=status;
-    if(pwd) u.pwd=pwd;
-    addAudit("✏️", currentUser.name, t("logEdited"), u.name+(changes.length?" ("+changes.join(", ")+")":""));
-    showToast(t("userUpdated"));
+    if(u.name!==name)changes.push(`name→"${name}"`);
+    if(u.role!==role)changes.push(`role→${ROLES[role][lang].label}`);
+    if(u.status!==status)changes.push(`status→${t(status)}`);
+    const oldCo=(u.companies||[]).join(',');
+    const newCo=companies.join(',');
+    if(oldCo!==newCo)changes.push(`companies→[${newCo}]`);
+    if(pwd)changes.push('password updated');
+    u.name=name;u.email=email;u.role=role;u.status=status;u.companies=companies;
+    if(pwd)u.pwd=pwd;
+    addAudit('✏️',currentUser.name,`${t('logEdited')} user`,
+      u.name+(changes.length?' ('+changes.join(', ')+')':''));
+    showToast(t('userUpdated'));
   } else {
-    const nu = {id:"u"+Date.now()+nextId++,name,email,pwd,role,status,
+    const nu={id:'u'+nextUserId++,name,email,pwd,role,status,companies,
       created:new Date().toISOString().slice(0,10),lastLogin:null};
     USERS.push(nu);
-    addAudit("➕", currentUser.name, t("logCreated"), `${name} (${email}) — ${ROLES[role][lang].label}`);
-    showToast(t("userCreated"));
+    addAudit('➕',currentUser.name,`${t('logCreated')} user`,
+      `${name} (${email}) — ${ROLES[role][lang].label} [${companies.join(',')}]`);
+    showToast(t('userCreated'));
   }
-  closeModal("userMbd");
-  renderUsers(); renderStats();
+  closeModal('userMbd');
+  renderUsers();
 }
 
-// ══════════════════════════════════════════════════════════════
-// DELETE
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// DELETE USER
+// ══════════════════════════════════════════════════════
 function openDeleteUser(id){
-  const u = USERS.find(x=>x.id===id);
-  if(!u) return;
-  if(currentUser.id===id){ showToast(t("cantDelSelf"),"err"); return; }
-  deletingId = id;
-  document.getElementById("delWarn").innerHTML =
-    `${t("delWarn1")} <strong>${u.name}</strong> (${u.email})${t("delWarn2")}`;
-  openModal("delMbd");
+  const u=USERS.find(x=>x.id===id);
+  if(!u)return;
+  if(currentUser.id===id){showToast(t('cantDelSelf'),'err');return;}
+  deletingId=id; deleteType='user';
+  el('delWarn').innerHTML=`${t('deleteUserWarn')} <strong>${u.name}</strong> (${u.email})${t('deleteUserWarn2')}`;
+  el('delConfirmBtn').textContent=t('deleteUser');
+  openModal('delMbd');
 }
 
 function confirmDelete(){
-  const u = USERS.find(x=>x.id===deletingId);
-  if(!u) return;
-  const idx = USERS.indexOf(u);
-  USERS.splice(idx,1);
-  addAudit("🗑️", currentUser.name, t("logDeleted"), `${u.name} (${u.email})`);
-  closeModal("delMbd");
-  deletingId = null;
-  renderUsers(); renderStats();
-  showToast(t("userDeleted"),"warn");
+  if(deleteType==='user'){
+    const u=USERS.find(x=>x.id===deletingId);
+    if(!u)return;
+    USERS.splice(USERS.indexOf(u),1);
+    addAudit('🗑️',currentUser.name,`${t('logDeleted')} user`,`${u.name} (${u.email})`);
+    closeModal('delMbd');
+    renderUsers();
+    showToast(t('userDeleted'),'warn');
+  } else if(deleteType==='company'){
+    const co=COMPANIES.find(x=>x.id===deletingId);
+    if(!co)return;
+    COMPANIES.splice(COMPANIES.indexOf(co),1);
+    addAudit('🗑️',currentUser.name,`${t('logDeleted')} company`,co.name);
+    closeModal('delMbd');
+    renderCompanies();
+    showToast(t('companyDeleted'),'warn');
+  }
+  deletingId=null; deleteType=null;
 }
 
-// ══════════════════════════════════════════════════════════════
-// EXPORT JSON
-// ══════════════════════════════════════════════════════════════
-function exportUsersJSON(){
-  const safe = USERS.map(u=>({...u, pwd:"[REDACTED]"}));
-  const blob = new Blob([JSON.stringify(safe,null,2)],{type:"application/json"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "hp_fleet_users.json";
-  a.click();
-  showToast("↓ users.json exported");
+// ══════════════════════════════════════════════════════
+// COMPANIES
+// ══════════════════════════════════════════════════════
+function renderCompanies(){
+  const active=COMPANIES.filter(c=>c.status==='active').length;
+  el('coStats').innerHTML=`
+    <div class="scard sc-tot"><div class="sc-l">Total</div>
+      <div class="sc-v">${COMPANIES.length}</div>
+      <div class="sc-s">${active} ${t('coActive')}</div></div>
+    ${COMPANIES.map(co=>`
+    <div class="scard sc-co">
+      <div class="sc-l">${co.code}</div>
+      <div class="sc-v">${co.multiplier.toFixed(3)}</div>
+      <div class="sc-s">${t('mult')}</div>
+    </div>`).join('')}`;
+
+  el('coGrid').innerHTML='';
+  COMPANIES.forEach(co=>{
+    const color=coColor(co.code);
+    const card=document.createElement('div');
+    card.className='co-card'+(co.status==='inactive'?' co-inactive':'');
+    const rulesHtml=co.billingRules&&co.billingRules.length
+      ? co.billingRules.map(r=>`
+        <div class="br-item">
+          <span class="br-name">${r.name}</span>
+          <span class="br-val">$${r.amount.toFixed(2)}</span>
+          <span class="br-unit">${r.unit}</span>
+          <span class="${r.active?'br-active':'br-inactive'}">●</span>
+        </div>`).join('')
+      : `<div class="br-empty">${t('noRules')}</div>`;
+    card.innerHTML=`
+      <div class="co-stripe" style="background:${color}"></div>
+      <div class="co-card-header">
+        <div class="co-card-name">${co.name}</div>
+        <span class="co-card-code" style="color:${color};border-color:${color}50;background:${color}15">${co.code}</span>
+      </div>
+      <div class="co-card-body">
+        <div class="co-row">
+          <span class="co-row-label">${t('mult')}</span>
+          <span class="co-row-val accent">${co.multiplier.toFixed(3)}×</span>
+        </div>
+        <div class="co-row">
+          <span class="co-row-label">Status</span>
+          <span class="co-row-val">${co.status==='active'?t('coActive'):t('coInactive')}</span>
+        </div>
+        ${co.notes?`<div class="co-row">
+          <span class="co-row-label">${t('notes')}</span>
+          <span class="co-row-val" style="color:var(--dim2);font-size:10px">${co.notes}</span>
+        </div>`:''}
+        <div style="margin-top:10px">
+          <div class="co-row-label" style="margin-bottom:6px">${t('billingRules')}</div>
+          <div class="br-list">${rulesHtml}</div>
+        </div>
+      </div>
+      <div class="co-card-footer">
+        <button class="btn-sm" onclick="openEditCompany('${co.id}')">${t('edit')}</button>
+        <button class="btn-sm" onclick="toggleCompanyStatus('${co.id}')">
+          ${co.status==='active'?t('inactive'):t('active')}
+        </button>
+        <button class="btn-sm del" onclick="openDeleteCompany('${co.id}')">${t('del')}</button>
+      </div>`;
+    el('coGrid').appendChild(card);
+  });
 }
 
-// ══════════════════════════════════════════════════════════════
+function coColor(code){
+  const colors={FM:'var(--green)',MAG:'var(--yellow)'};
+  if(colors[code])return colors[code];
+  const hues=[200,280,340,160,30,260];
+  const idx=COMPANIES.findIndex(c=>c.code===code)%hues.length;
+  return `hsl(${hues[idx]},80%,65%)`;
+}
+
+function toggleCompanyStatus(id){
+  const co=COMPANIES.find(x=>x.id===id);
+  if(!co)return;
+  co.status=co.status==='active'?'inactive':'active';
+  addAudit('🔄',currentUser.name,`${t('logToggled')} company`,`${co.name} → ${co.status}`);
+  renderCompanies();
+  showToast(t('statusUpdated'));
+}
+
+function openDeleteCompany(id){
+  const co=COMPANIES.find(x=>x.id===id);
+  if(!co)return;
+  deletingId=id; deleteType='company';
+  el('delWarn').innerHTML=`${t('deleteCoWarn')} <strong>${co.name}</strong>${t('deleteCoWarn2')}`;
+  el('delConfirmBtn').textContent=t('deleteCompany');
+  openModal('delMbd');
+}
+
+// ══════════════════════════════════════════════════════
+// CREATE / EDIT COMPANY
+// ══════════════════════════════════════════════════════
+function openCreateCompany(){
+  editingCoId=null; tempRules=[];
+  clearCoErrors();
+  el('coModalTitle').textContent=lang==='es'?'Nueva Compañía':'New Company';
+  el('co_name').value='';
+  el('co_code').value='';
+  el('co_mult').value='';
+  el('co_status').value='active';
+  el('co_notes').value='';
+  renderTempRules();
+  openModal('coMbd');
+}
+
+function openEditCompany(id){
+  const co=COMPANIES.find(x=>x.id===id);
+  if(!co)return;
+  editingCoId=id;
+  tempRules=JSON.parse(JSON.stringify(co.billingRules||[]));
+  clearCoErrors();
+  el('coModalTitle').textContent=(lang==='es'?'Editar Compañía: ':'Edit Company: ')+co.name;
+  el('co_name').value=co.name;
+  el('co_code').value=co.code;
+  el('co_mult').value=co.multiplier;
+  el('co_status').value=co.status;
+  el('co_notes').value=co.notes||'';
+  renderTempRules();
+  openModal('coMbd');
+}
+
+function renderTempRules(){
+  const wrap=el('co_rules_list');
+  if(!tempRules.length){
+    wrap.innerHTML=`<div class="br-empty">${t('noRules')}</div>`;return;
+  }
+  wrap.innerHTML='';
+  tempRules.forEach((r,i)=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:grid;grid-template-columns:1fr auto auto auto auto;gap:8px;margin-bottom:8px;align-items:center';
+    row.innerHTML=`
+      <input style="background:var(--s2);border:1px solid var(--border2);color:var(--text);
+        font-family:var(--mono);font-size:11px;padding:6px 8px;border-radius:2px;outline:none;width:100%"
+        value="${r.name}" placeholder="Rule name"
+        oninput="tempRules[${i}].name=this.value">
+      <input type="number" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);
+        font-family:var(--mono);font-size:11px;padding:6px 8px;border-radius:2px;outline:none;width:80px"
+        value="${r.amount}" step="0.01" placeholder="0.00"
+        oninput="tempRules[${i}].amount=parseFloat(this.value)||0">
+      <select style="background:var(--s2);border:1px solid var(--border2);color:var(--text);
+        font-family:var(--mono);font-size:10px;padding:6px 8px;border-radius:2px;outline:none"
+        onchange="tempRules[${i}].unit=this.value">
+        <option value="per Flight Hour" ${r.unit==='per Flight Hour'?'selected':''}>/ Flight Hr</option>
+        <option value="per Flight" ${r.unit==='per Flight'?'selected':''}>/ Flight</option>
+        <option value="flat" ${r.unit==='flat'?'selected':''}>Flat</option>
+        <option value="% of TBP" ${r.unit==='% of TBP'?'selected':''}>% of TBP</option>
+      </select>
+      <button onclick="tempRules[${i}].active=!tempRules[${i}].active;renderTempRules()"
+        style="font-family:var(--mono);font-size:9px;padding:5px 8px;background:transparent;
+        border:1px solid ${r.active?'rgba(61,220,132,.4)':'var(--border2)'};
+        color:${r.active?'var(--green)':'var(--dim)'};cursor:pointer;border-radius:2px">
+        ${r.active?'ON':'OFF'}
+      </button>
+      <button onclick="tempRules.splice(${i},1);renderTempRules()"
+        style="font-family:var(--mono);font-size:9px;padding:5px 8px;background:transparent;
+        border:1px solid var(--border2);color:var(--red);cursor:pointer;border-radius:2px">✕</button>`;
+    wrap.appendChild(row);
+  });
+}
+
+function addBillingRuleRow(){
+  tempRules.push({id:'br'+nextRuleId++,name:'',amount:0,unit:'per Flight Hour',active:true});
+  renderTempRules();
+}
+
+function saveCompany(){
+  clearCoErrors();
+  const name=el('co_name').value.trim();
+  const code=el('co_code').value.trim().toUpperCase();
+  const mult=parseFloat(el('co_mult').value);
+  const status=el('co_status').value;
+  const notes=el('co_notes').value.trim();
+  let ok=true;
+  if(!name){setFerr('coe_name','co_name',t('required'));ok=false;}
+  if(!code){setFerr('coe_code','co_code',t('required'));ok=false;}
+  else{
+    const dup=COMPANIES.find(c=>c.code===code&&c.id!==editingCoId);
+    if(dup){setFerr('coe_code','co_code',t('codeExists'));ok=false;}
+  }
+  if(isNaN(mult)||mult<=0){setFerr('coe_mult','co_mult',t('multInvalid'));ok=false;}
+  if(!ok)return;
+
+  const data={name,code,multiplier:mult,status,notes,billingRules:tempRules};
+  if(editingCoId){
+    const co=COMPANIES.find(x=>x.id===editingCoId);
+    Object.assign(co,data);
+    addAudit('✏️',currentUser.name,`${t('logEdited')} company`,name);
+  } else {
+    COMPANIES.push({id:'c'+nextCoId++,...data});
+    addAudit('➕',currentUser.name,`${t('logCreated')} company`,`${name} (${code}) mult:${mult}`);
+  }
+  closeModal('coMbd');
+  renderCompanies();
+  renderUsers();
+  showToast(t('companySaved'));
+}
+
+// ══════════════════════════════════════════════════════
 // AUDIT LOG
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 function addAudit(icon,actor,action,target){
   auditLog.unshift({icon,actor,action,target,ts:new Date()});
-  if(auditLog.length>300) auditLog=auditLog.slice(0,300);
+  if(auditLog.length>300)auditLog=auditLog.slice(0,300);
   renderAudit();
 }
 
 function renderAudit(){
-  const el = document.getElementById("auditList");
+  const wrap=el('auditList');
   if(!auditLog.length){
-    el.innerHTML=`<div class="audit-empty">${t("utNoAudit")}</div>`; return;
+    wrap.innerHTML=`<div class="audit-empty">${t('noAudit')}</div>`;return;
   }
-  el.innerHTML = auditLog.map(e=>`
+  wrap.innerHTML=auditLog.map(e=>`
     <div class="ae">
-      <div class="ae-ts">${e.ts.toLocaleTimeString(lang==="es"?"es-PA":"en-US",
-        {hour:"2-digit",minute:"2-digit",second:"2-digit"})}<br>
-        ${e.ts.toLocaleDateString(lang==="es"?"es-PA":"en-US")}</div>
+      <div class="ae-ts">${e.ts.toLocaleTimeString(lang==='es'?'es-PA':'en-US',
+        {hour:'2-digit',minute:'2-digit',second:'2-digit'})}<br>
+        ${e.ts.toLocaleDateString(lang==='es'?'es-PA':'en-US')}</div>
       <div style="font-size:14px;flex-shrink:0">${e.icon}</div>
       <div class="ae-body">
         <span class="ae-actor">${e.actor}</span>
         <span class="ae-action"> ${e.action} </span>
-        <span class="ae-target">${e.target!=="—"?e.target:""}</span>
+        <span class="ae-target">${e.target!=='—'?e.target:''}</span>
       </div>
-    </div>`).join("");
+    </div>`).join('');
 }
 
-function clearAudit(){
-  auditLog=[];
-  renderAudit();
-  showToast(lang==="es"?"Log limpiado.":"Log cleared.");
+function clearAudit(){auditLog=[];renderAudit();showToast(lang==='es'?'Log limpiado.':'Log cleared.');}
+
+// ══════════════════════════════════════════════════════
+// EXPORT USERS JSON
+// ══════════════════════════════════════════════════════
+function exportUsersJSON(){
+  const safe=USERS.map(u=>({...u,pwd:'[REDACTED]'}));
+  const blob=new Blob([JSON.stringify({users:safe,companies:COMPANIES},null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='hp_fleet_data.json';
+  a.click();
+  showToast('↓ hp_fleet_data.json exported');
 }
 
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // HELPERS
-// ══════════════════════════════════════════════════════════════
-function initials(name){
-  return name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+// ══════════════════════════════════════════════════════
+function renderAll(){renderUsers();renderCompanies();renderAudit();}
+function el(id){return document.getElementById(id);}
+function initials(n){return n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
+function openModal(id){el(id).classList.add('open');}
+function closeModal(id){el(id).classList.remove('open');}
+function bdClose(e,id){if(e.target===el(id))closeModal(id);}
+function clearUserErrors(){
+  ['name','email','pwd','companies'].forEach(f=>{
+    const e=el('ume_'+f);const i=el('um_'+f);
+    if(e){e.textContent='';e.classList.remove('on');}
+    if(i&&i.classList)i.classList.remove('err');
+  });
 }
-function openModal(id){ document.getElementById(id).classList.add("open"); }
-function closeModal(id){ document.getElementById(id).classList.remove("open"); }
-function bdClose(e,id){ if(e.target===document.getElementById(id)) closeModal(id); }
-function clearFormErrs(){
-  ["name","email","pwd"].forEach(f=>{
-    const e=document.getElementById("ume_"+f);
-    const i=document.getElementById("um_"+f);
-    if(e){e.textContent="";e.classList.remove("on");}
-    if(i) i.classList.remove("err");
+function clearCoErrors(){
+  ['name','code','mult'].forEach(f=>{
+    const e=el('coe_'+f);const i=el('co_'+f);
+    if(e){e.textContent='';e.classList.remove('on');}
+    if(i&&i.classList)i.classList.remove('err');
   });
 }
 function setFerr(errId,inputId,msg){
-  const e=document.getElementById(errId);
-  e.textContent=msg; e.classList.add("on");
-  document.getElementById(inputId)?.classList.add("err");
+  const e=el(errId);if(!e)return;
+  e.textContent=msg;e.classList.add('on');
+  const inp=el(inputId);if(inp&&inp.classList)inp.classList.add('err');
 }
-function showToast(msg,type=""){
-  const t=document.getElementById("toast");
+function showToast(msg,type=''){
+  const t=el('toast');
   t.textContent=msg;
-  t.className="toast on"+(type?" "+type:"");
-  setTimeout(()=>t.className="toast",3200);
+  t.className='toast on'+(type?' '+type:'');
+  setTimeout(()=>t.className='toast',3200);
 }
 
 // INIT
