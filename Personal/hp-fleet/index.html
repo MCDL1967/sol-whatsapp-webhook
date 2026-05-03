@@ -1,9 +1,10 @@
+<!-- HP Fleet v6.0 — built 2026-05-03 — ICTLabs / UNIDAD FRAGATA 01 S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet</title>
+<title>HP Fleet v6.0</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Syne+Mono&family=DM+Sans:wght@300;400;500&display=swap');
@@ -468,6 +469,54 @@ table.fl-tbl td:last-child{border-right:none}
   .co-grid{grid-template-columns:1fr} .fc2,.fc3{grid-template-columns:1fr}
   .sum-grid{grid-template-columns:1fr 1fr}
 }
+
+/* BATCH CONSTANTS */
+.batch-constants{background:var(--s2);border:1px solid var(--border);
+  border-left:3px solid var(--violet);padding:14px 16px;margin-bottom:14px;
+  display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.bc-title{font-family:var(--mono);font-size:9px;letter-spacing:2px;
+  text-transform:uppercase;color:var(--violet);margin-bottom:8px}
+.bc-field{display:flex;flex-direction:column;gap:4px;min-width:140px}
+.bc-field label{font-family:var(--mono);font-size:9px;letter-spacing:1px;
+  text-transform:uppercase;color:var(--dim2)}
+.bc-field select,.bc-field input{background:var(--s1);border:1px solid var(--border2);
+  color:var(--text);font-family:var(--mono);font-size:12px;padding:7px 10px;
+  border-radius:2px;outline:none;transition:border-color .15s;width:100%}
+.bc-field select:focus,.bc-field input:focus{border-color:var(--violet)}
+.bc-field select option{background:var(--s2)}
+.bc-locked{border-color:rgba(192,132,252,.4) !important;color:var(--violet) !important}
+.bc-hint{font-family:var(--mono);font-size:9px;color:var(--dim);
+  margin-top:12px;align-self:flex-end;padding-bottom:2px}
+
+/* SOURCE IMAGE SIDE PANEL */
+.side-panel{position:fixed;top:0;right:-420px;width:420px;height:100vh;
+  background:var(--s1);border-left:1px solid var(--border2);
+  z-index:100;transition:right .3s cubic-bezier(.16,1,.3,1);
+  display:flex;flex-direction:column;overflow:hidden}
+.side-panel.open{right:0}
+.sp-header{padding:14px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.sp-title{font-family:var(--mono);font-size:11px;letter-spacing:1px;
+  text-transform:uppercase;color:var(--cyan)}
+.sp-close{background:none;border:none;color:var(--dim);font-size:18px;
+  cursor:pointer;padding:4px;transition:color .15s}
+.sp-close:hover{color:var(--text)}
+.sp-meta{padding:10px 16px;border-bottom:1px solid var(--border);
+  font-family:var(--mono);font-size:10px;color:var(--dim2);flex-shrink:0}
+.sp-img-wrap{flex:1;overflow:auto;padding:12px;display:flex;
+  align-items:flex-start;justify-content:center}
+.sp-img-wrap img{max-width:100%;border:1px solid var(--border);border-radius:2px}
+.sp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);
+  z-index:99;display:none}
+.sp-overlay.open{display:block}
+
+/* PER-FILE PROGRESS */
+.fq-progress-label{font-family:var(--mono);font-size:9px;color:var(--cyan);
+  margin-top:3px;min-height:13px}
+.fq-view-btn{font-family:var(--mono);font-size:9px;padding:3px 8px;
+  background:transparent;border:1px solid var(--border2);color:var(--dim2);
+  cursor:pointer;border-radius:2px;transition:all .15s;flex-shrink:0}
+.fq-view-btn:hover{border-color:var(--cyan);color:var(--cyan)}
 </style>
 </head>
 <body>
@@ -495,11 +544,7 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px">
-        <div class="cf-dot"></div>
-        <span style="font-family:var(--mono);font-size:9px">HP Fleet</span>
-        <span style="color:var(--cyan);font-family:var(--mono);font-size:10px;letter-spacing:1px" id="versionBadge"></span>
-      </div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v6.0</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -508,7 +553,7 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET</div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v6.0</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -596,6 +641,33 @@ table.fl-tbl td:last-child{border-right:none}
       <!-- Workflow bar -->
       <div class="wf-bar" id="wfBar"></div>
 
+      <!-- Batch Constants -->
+      <div class="batch-constants" id="batchConstants">
+        <div style="flex-basis:100%">
+          <div class="bc-title">⚙ Batch Constants
+            <span style="color:var(--dim);font-weight:400;font-size:10px"> — leave blank to auto-detect from each file</span>
+          </div>
+        </div>
+        <div class="bc-field">
+          <label>Aircraft</label>
+          <select id="bc_aircraft">
+            <option value="">Auto-detect</option>
+          </select>
+        </div>
+        <div class="bc-field">
+          <label>Operator</label>
+          <select id="bc_operator">
+            <option value="">Auto-detect</option>
+            <option value="FM">FM</option>
+            <option value="MAG">MAG</option>
+          </select>
+        </div>
+        <div class="bc-field">
+          <label>Multiplier</label>
+          <input type="text" id="bc_mult" placeholder="Auto from aircraft" readonly style="color:var(--dim2);cursor:default">
+        </div>
+      </div>
+
       <!-- Upload zone -->
       <div class="fl-section" id="uploadSection">
         <div class="upload-zone" id="uploadZone">
@@ -612,9 +684,11 @@ table.fl-tbl td:last-child{border-right:none}
         <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png" style="display:none">
         <div class="file-queue" id="fileQueue"></div>
         <div class="extract-bar" id="extractBar" style="display:none">
-          <button class="btn-extract" id="btnExtract">
-            <span id="btnExtractTxt">✦ Extract with Claude</span>
+          <button class="btn-extract" id="btnExtract" disabled>
+            <span id="btnExtractTxt">✦ Upload</span>
           </button>
+          <button class="btn-ghost" id="btn_xlsxImport" style="display:flex;align-items:center;gap:6px" title="Import entries from HP Fleet Excel format">↑ Import from Excel</button>
+          <input type="file" id="xlsxImportInput" accept=".xlsx,.xls" style="display:none">
           <span style="font-family:var(--mono);font-size:10px;color:var(--dim)" id="extractNote"></span>
           <button class="btn-ghost" id="btn_clearQueue">Clear Queue</button>
         </div>
@@ -676,6 +750,7 @@ table.fl-tbl td:last-child{border-right:none}
                     <th rowspan="2" style="vertical-align:bottom" id="th_ac">Aircraft</th>
                     <th rowspan="2" style="vertical-align:bottom" id="th_op">Operator</th>
                     <th rowspan="2" style="vertical-align:bottom" id="th_pilot">Pilot</th>
+                    <th rowspan="2" style="vertical-align:bottom" id="th_instructor">Instructor</th>
                     <th colspan="3" class="gm" style="text-align:center;border-bottom:1px solid var(--border)" id="th_motor">Motor</th>
                     <th colspan="3" class="gf" style="text-align:center;border-bottom:1px solid var(--border)" id="th_flight">Flight</th>
                     <th colspan="2" class="gb" style="text-align:center;border-bottom:1px solid var(--border)" id="th_billing">Billing</th>
@@ -741,6 +816,12 @@ table.fl-tbl td:last-child{border-right:none}
           <div class="settings-hint" id="st_apiHint">
             Used for flight log PDF extraction. Stored in localStorage on this device — Admin sets once, persists until cleared or key expires. Get your key at console.anthropic.com
           </div>
+        </div>
+      </div>
+      <div class="settings-section" id="fleetSettingsSection">
+        <div class="settings-card">
+          <div class="settings-card-title">✈️ <span id="st_fleetTitle">Fleet / Aircraft</span></div>
+          <div id="fleetGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px"></div>
         </div>
       </div>
     </div>
@@ -820,7 +901,11 @@ table.fl-tbl td:last-child{border-right:none}
       </div>
       <div class="frow fc2">
         <div class="field"><label>Pilot *</label><input type="text" id="f_piloto" placeholder="Pilot name"><span class="ferr" id="fe_piloto"></span></div>
+        <div class="field"><label id="lbl_instructor">Instructor</label><input type="text" id="f_instructor" placeholder="Instructor name"></div>
+      </div>
+      <div class="frow fc2">
         <div class="field"><label>Horo. Start *</label><input type="number" id="f_horoIn" step="0.1" placeholder="0.0"><span class="ferr" id="fe_horoIn"></span></div>
+        <div></div>
       </div>
       <div class="fg-title"><div class="fg-dot" style="background:var(--blue)"></div>Motor</div>
       <div class="frow fc3">
@@ -899,16 +984,37 @@ table.fl-tbl td:last-child{border-right:none}
   </div>
 </div>
 
+
+<!-- SOURCE IMAGE SIDE PANEL -->
+<div class="sp-overlay" id="spOverlay"></div>
+<div class="side-panel" id="sidePanel">
+  <div class="sp-header">
+    <div class="sp-title" id="sp_title">Source Image</div>
+    <button class="sp-close" id="sp_close">✕</button>
+  </div>
+  <div class="sp-meta" id="sp_meta">—</div>
+  <div class="sp-img-wrap">
+    <img id="sp_img" src="" alt="Source bitacora">
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <script>
-const APP_VERSION = "v5.1";
-
 // ── DATA ──
+const APP_VERSION = "v6.0";
 let COMPANIES = [
   {id:"c001",name:"Flightmax Advanced Training",code:"FM",multiplier:1.15,status:"active",notes:"Primary flight school client",
     billingRules:[{id:"br001",name:"Fuel Surcharge",amount:10.00,unit:"per Flight Hour",active:true},{id:"br002",name:"Landing Fee",amount:8.00,unit:"per Flight",active:false}]},
   {id:"c002",name:"MAG Flight Training",code:"MAG",multiplier:1.275,status:"active",notes:"Secondary operator",
     billingRules:[{id:"br003",name:"Fuel Surcharge",amount:10.00,unit:"per Flight Hour",active:true}]}
+];
+let AIRCRAFT = [
+  {id:"ac001",matricula:"HP-1861",makeModel:"Piper PA-28",operador:"FM",
+   multiplicador:1.275,tipo:"Single Engine",asientos:2,
+   motorId:"Lycoming O-320",consumoGalHr:8.5,diffThreshold:0.2},
+  {id:"ac002",matricula:"HP-1862FX",makeModel:"Piper PA-28",operador:"FM",
+   multiplicador:1.15,tipo:"Single Engine",asientos:2,
+   motorId:"Lycoming O-320",consumoGalHr:8.5,diffThreshold:0.2}
 ];
 let USERS = [
   {id:"u001",name:"Marcelo C.",email:"marcelo@hp-fleet.com",pwd:"admin1234",role:"ADMIN",companies:["FM","MAG"],status:"active",created:"2025-01-15",lastLogin:null},
@@ -950,7 +1056,7 @@ const I18N = {
     flTitle:"Flight Log / Bitácora Review",flNewBatch:"+ New Batch",
     apiWarnMsg:"Anthropic API key not configured.",apiWarnLink:"Configure in Settings →",
     uzTitle:"Drop flight log files here",uzSub:"or click to browse",
-    extractBtn:"✦ Extract with Claude",extracting:"Extracting…",
+    extractBtn:"✦ Upload",extracting:"Extracting…",
     clearQueue:"Clear Queue",
     sbFile:"Source File",sbHoro:"Horometer",sbCsv:"Audit CSV",sbTs:"Extracted At",sbBatch:"Batch Status",sbDlCsv:"↓ CSV",
     horoAlert:"⚠ Horometer Gap Detected",
@@ -988,6 +1094,9 @@ const I18N = {
     stApiHint:"Stored in localStorage on this device. Admin sets once, persists until cleared or expired. Get key at console.anthropic.com",
     saveKey:"Save Key",clearKey:"Clear",keySaved:"API key saved.",keyCleared:"API key cleared.",
     apiOk:"Configured",apiMissing:"Not configured",
+    filesLoaded:"Files loaded — click Upload to begin",
+    importXlsx:"↑ Import from Excel",xlsxImported:"entries imported from Excel",
+    thInstructor:"Instructor",stFleetTitle:"Fleet / Aircraft",
     showing:"Showing",of:"of",users:"users",noResults:"No results.",
     allCompanies:"All Companies",activeOnly:"Active Only",inactiveOnly:"Inactive Only",
     emailExists:"Email already in use.",pwdShort:"Min. 6 characters.",required:"Required.",
@@ -1020,7 +1129,7 @@ const I18N = {
     flTitle:"Flight Log / Revisión de Bitácora",flNewBatch:"+ Nuevo Lote",
     apiWarnMsg:"API key de Anthropic no configurada.",apiWarnLink:"Configurar en Ajustes →",
     uzTitle:"Arrastra los archivos aquí",uzSub:"o haz clic para seleccionar",
-    extractBtn:"✦ Extraer con Claude",extracting:"Extrayendo…",
+    extractBtn:"✦ Cargar",extracting:"Extrayendo…",
     clearQueue:"Limpiar Cola",
     sbFile:"Archivo Fuente",sbHoro:"Horómetro",sbCsv:"CSV Auditoría",sbTs:"Extraído",sbBatch:"Estado del Lote",sbDlCsv:"↓ CSV",
     horoAlert:"⚠ Inconsistencia de Horómetro",
@@ -1058,6 +1167,9 @@ const I18N = {
     stApiHint:"Guardada en localStorage de este dispositivo. El Admin la configura una vez, persiste hasta que se borre o expire. Obtén tu key en console.anthropic.com",
     saveKey:"Guardar Key",clearKey:"Limpiar",keySaved:"API key guardada.",keyCleared:"API key borrada.",
     apiOk:"Configurada",apiMissing:"No configurada",
+    filesLoaded:"Archivos cargados — haz clic en Cargar para comenzar",
+    importXlsx:"↑ Importar desde Excel",xlsxImported:"entradas importadas desde Excel",
+    thInstructor:"Instructor",stFleetTitle:"Flota / Aeronaves",
     showing:"Mostrando",of:"de",users:"usuarios",noResults:"Sin resultados.",
     allCompanies:"Todas las Compañías",activeOnly:"Solo Activos",inactiveOnly:"Solo Inactivos",
     emailExists:"Email ya en uso.",pwdShort:"Mín. 6 caracteres.",required:"Campo requerido.",
@@ -1141,7 +1253,7 @@ function applyI18n(){
     fo_allop:"allOp",fo_pend:"pendOnly",fo_appr:"apprOnly",fo_rej:"rejOnly",
     btn_approveAll:"approveAll",btn_resetAll:"resetAll",btn_newEntry:"newEntry",
     pt_entries:"ptEntries",pt_audit:"ptAudit",
-    th_date:"thDate",th_ac:"thAc",th_op:"thOp",th_pilot:"thPilot",
+    th_date:"thDate",th_ac:"thAc",th_op:"thOp",th_pilot:"thPilot",th_instructor:"thInstructor",
     th_motor:"thMotor",th_flight:"thFlight",th_billing:"thBilling",
     th_mout:"thMout",th_min:"thMin",th_tm:"thTm",th_fout:"thFout",th_fin:"thFin",th_tf:"thTf",
     th_mult:"thMult",th_tbp:"thTbp",th_horo:"thHoro",th_obs:"thObs",th_status:"thStatus2",
@@ -1149,7 +1261,7 @@ function applyI18n(){
     btn_submit:"btnSubmit",btn_approve:"btnApprove",btn_reqChanges:"btnReqChanges",
     st_title:"stTitle",st_apiTitle:"stApiTitle",st_apiLabel:"stApiLabel",st_apiHint:"stApiHint",
     btn_saveApiKey:"saveKey",btn_clearApiKey:"clearKey",
-    cs_billing:"csBilling",
+    cs_billing:"csBilling",st_fleetTitle:"stFleetTitle",
   };
   const roleLabels={OPERATOR:ROLES.OPERATOR[lang].label,REVIEWER:ROLES.REVIEWER[lang].label,READONLY:ROLES.READONLY[lang].label};
   if(el("fo_op")) el("fo_op").textContent=roleLabels.OPERATOR;
@@ -1697,6 +1809,7 @@ function initUploadZone(){
 }
 
 function addFilesToQueue(files){
+  el("resultBanner").style.display="none";
   const allowed=["application/pdf","image/jpeg","image/jpg","image/png"];
   files.forEach(f=>{
     if(!allowed.includes(f.type)&&!f.name.match(/\.(pdf|jpg|jpeg|png)$/i)){
@@ -1714,13 +1827,14 @@ function removeFromQueue(idx){
   renderQueue(); showToast(name+" "+t("fileRemoved"));
 }
 
-function clearFileQueue(){ fileQueue=[]; renderQueue(); }
+function clearFileQueue(){ el("resultBanner").style.display="none"; fileQueue=[]; renderQueue(); }
 
 function renderQueue(){
   const wrap=el("fileQueue"); const bar=el("extractBar");
   if(!fileQueue.length){wrap.innerHTML="";bar.style.display="none";return;}
   bar.style.display="flex";
-  el("extractNote").textContent=fileQueue.length+" file(s)";
+  el("extractNote").textContent=t("filesLoaded");
+  el("btnExtract").disabled=false;
   wrap.innerHTML="";
   fileQueue.forEach((f,i)=>{
     const div=document.createElement("div");
@@ -1733,12 +1847,22 @@ function renderQueue(){
       done:'<span class="fq-status fqs-done">✓ '+(lang==="es"?"Extraído":"Extracted")+"</span>",
       error:'<span class="fq-status fqs-err">✗ Error</span>',
     };
+    const entryCount = f._entryCount !== undefined ? f._entryCount : "";
+    const progressLabel = f.status==="done"
+      ? (entryCount ? "✓ "+entryCount+" "+(entryCount===1?"entry":"entries")+" extracted" : "✓ Extracted")
+      : f.status==="processing" ? (f._label||"Sending to Claude…")
+      : f.status==="error" ? (f._error||"Error")
+      : "";
+    const viewBtn = f._preview && f.status==="done"
+      ? '<button class="fq-view-btn" data-view="'+i+'">👁 View</button>' : "";
     div.innerHTML=thumb+
       '<div class="fq-info">'+
       '<div class="fq-name">'+f.name+"</div>"+
       '<div class="fq-meta">'+(f.size/1024).toFixed(1)+" KB</div>"+
       '<div class="prog-wrap"><div class="prog-bar'+(f.status==="processing"?" shimmer":"")+'" style="width:'+(f.status==="done"?100:f.status==="processing"?60:0)+'%"></div></div>'+
+      '<div class="fq-progress-label">'+progressLabel+"</div>"+
       "</div>"+
+      viewBtn+
       (statusMap[f.status]||"")+
       '<button class="fq-rm" data-rm="'+i+'">✕</button>';
     if(!isPdf&&!f._preview){
@@ -1759,28 +1883,37 @@ function renderQueue(){
 
 // ── FLIGHT LOG — EXTRACTION ──
 function buildExtractionPrompt(){
-  return "You are processing a Panamanian flight school bitacora (flight log) form. "+
-    "The form has a consistent layout - extract ALL fields carefully.\n\n"+
-    "LEFT SIDE of form contains TACH section:\n"+
-    "- LLEGADA (arrival/Motor In) = ending tach reading\n"+
-    "- SALIDA (departure/Motor Out) = starting tach reading\n"+
-    "- TIEMPO = tach time difference (T.Motor)\n\n"+
-    "RIGHT SIDE of form contains HOBBS section:\n"+
-    "- HOY (today) = ending hobbs reading\n"+
-    "- ANTERIOR (previous) = starting hobbs reading (this is horoIn)\n"+
-    "- TOTAL = hobbs time difference (T.Flight)\n\n"+
-    "Also extract from the form header:\n"+
-    "- PILOTO = pilot name\n"+
-    "- INSTRUCTOR = instructor name (put in obs field)\n"+
-    "- MATRICULA = aircraft registration (e.g. HP-1861)\n"+
-    "- FECHA = date\n"+
-    "- The multiplier shown (e.g. 1.275) indicates MAG operator, 1.15 indicates FM\n\n"+
-    "Return ONLY a valid JSON array, no markdown, no explanation:\n"+
+  const bcAircraft = el("bc_aircraft") ? el("bc_aircraft").value : "";
+  const bcOperator = el("bc_operator") ? el("bc_operator").value : "";
+  const constants = [];
+  if(bcAircraft) constants.push("Aircraft is always: "+bcAircraft+" — do NOT read from image.");
+  if(bcOperator) constants.push("Operator is always: "+bcOperator+" — do NOT read from image.");
+  return "You are processing a Panamanian flight school bitacora (flight log) form.\n\n"+
+    (constants.length?"BATCH CONSTANTS:\n"+constants.join("\n")+"\n\n":"")+
+    "LEFT SIDE = TACH: SALIDA=motorOut, LLEGADA=motorIn, TIEMPO=T.Motor\n"+
+    "RIGHT SIDE = HOBBS: ANTERIOR=horoIn/vueloOut, HOY=vueloIn, TOTAL=T.Flight\n"+
+    "HEADER: PILOTO=piloto, INSTRUCTOR=instructor (separate field), FECHA=date, MATRICULA=aircraft\n"+
+    "Multiplier on form: 1.275=FM operator for HP-1861, 1.15=FM for HP-1862FX\n"+
+    "\nReturn ONLY a valid JSON array:\n"+
     '[{"fecha":"DD/MM/YYYY","aeronave":"HP-XXXX","operador":"FM or MAG",'+
-    '"piloto":"pilot name","horoIn":number,"motorOut":"tach SALIDA value as HH:MM or decimal",'+
-    '"motorIn":"tach LLEGADA value as HH:MM or decimal","vueloOut":"hobbs ANTERIOR as decimal",'+
-    '"vueloIn":"hobbs HOY as decimal","obs":"instructor name and any notes"}]\n\n'+
-    "If a field is truly illegible use empty string or 0. Return [] only if no bitacora data exists at all.";
+    '"piloto":"name","instructor":"instructor name","horoIn":number,'+
+    '"motorOut":"SALIDA decimal","motorIn":"LLEGADA decimal",'+
+    '"vueloOut":"ANTERIOR decimal","vueloIn":"HOY decimal","obs":"notes only"}]\n'+
+    "Use empty string or 0 for illegible. Return [] if no bitacora found.";
+}
+
+// ── MOTOR/VUELO DIFF CHECK ──
+function checkDiff(entry){
+  const ac = AIRCRAFT.find(a=>a.matricula===entry.aeronave);
+  const threshold = ac ? ac.diffThreshold : 0.2;
+  const tm = Math.abs(t2h(entry.motorIn) - t2h(entry.motorOut));
+  const tv = Math.abs(t2h(entry.vueloIn) - t2h(entry.vueloOut));
+  const diff = Math.abs(tm - tv);
+  if(diff > threshold){
+    const flag = "⚠ Dif Motor/Vuelo="+diff.toFixed(1);
+    entry.obs = (entry.obs ? entry.obs+" | " : "") + flag;
+  }
+  return entry;
 }
 
 async function extractAll(){
@@ -1791,21 +1924,26 @@ async function extractAll(){
   btn.disabled=true;
   btnTxt.innerHTML='<span class="spinner"></span>'+t("extracting");
   let allExtracted=[]; let hasErrors=false;
+  const total=fileQueue.length;
   for(let i=0;i<fileQueue.length;i++){
-    const fq=fileQueue[i]; fq.status="processing"; renderQueue();
+    const fq=fileQueue[i]; fq.status="processing";
+    fq._label="["+( i+1)+"/"+total+"] "+fq.name+" — Extracting…";
+    renderQueue();
     try {
       const extracted=await extractFile(fq.file,apiKey);
+      extracted.forEach(e=>checkDiff(e));
       allExtracted=[...allExtracted,...extracted];
       fq.status="done";
+      fq._entryCount = extracted.length;
       addFlAudit("🤖",currentUser.name,"extracted entries",extracted.length+" from "+fq.name);
     } catch(err){
-      fq.status="error"; hasErrors=true;
+      fq.status="error"; fq._error=err.message; hasErrors=true;
       addFlAudit("⚠️",currentUser.name,"extraction error",fq.name+": "+err.message);
     }
     renderQueue();
   }
   btn.disabled=false; btnTxt.textContent=t("extractBtn");
-  if(!allExtracted.length&&hasErrors){const errDetails=flAuditLog[0]?.detail||"";showResultBanner("err","✗ "+t("extractError")+(errDetails?" — "+errDetails:""));return;}
+  if(!allExtracted.length&&hasErrors){showResultBanner("err","✗ "+t("extractError"));return;}
   flEntries=[...flEntries,...allExtracted.map(e=>({
     id:nextEntryId++,status:"pending",multOverride:null,...e,horoIn:parseFloat(e.horoIn)||0
   }))];
@@ -1839,11 +1977,7 @@ async function extractFile(file,apiKey){
       messages:[{role:"user",content:[contentBlock,{type:"text",text:buildExtractionPrompt()}]}]
     })
   });
-  if(!response.ok){
-    const err=await response.json().catch(()=>({}));
-    const msg=err.error?.message||err.error?.type||"HTTP "+response.status;
-    throw new Error(msg);
-  }
+  if(!response.ok){const err=await response.json().catch(()=>({}));throw new Error(err.error?.message||"HTTP "+response.status);}
   const data=await response.json();
   const text=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("")||"[]";
   const cleaned=text.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
@@ -1854,32 +1988,10 @@ async function extractFile(file,apiKey){
 
 function fileToBase64(file){
   return new Promise((resolve,reject)=>{
-    const isPdf=file.type==="application/pdf"||file.name.endsWith(".pdf");
-    if(isPdf){
-      const reader=new FileReader();
-      reader.onload=()=>resolve(reader.result.split(",")[1]);
-      reader.onerror=()=>reject(new Error("File read failed"));
-      reader.readAsDataURL(file);
-      return;
-    }
-    const img=new Image();
-    const url=URL.createObjectURL(file);
-    img.onload=()=>{
-      URL.revokeObjectURL(url);
-      const MAX=4000000;
-      let w=img.width, h=img.height;
-      if(file.size>MAX){
-        const ratio=Math.sqrt(MAX/file.size);
-        w=Math.floor(w*ratio); h=Math.floor(h*ratio);
-      }
-      const canvas=document.createElement("canvas");
-      canvas.width=w; canvas.height=h;
-      canvas.getContext("2d").drawImage(img,0,0,w,h);
-      const data=canvas.toDataURL("image/jpeg",0.85).split(",")[1];
-      resolve(data);
-    };
-    img.onerror=()=>reject(new Error("Image load failed"));
-    img.src=url;
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result.split(",")[1]);
+    reader.onerror=()=>reject(new Error("File read failed"));
+    reader.readAsDataURL(file);
   });
 }
 
@@ -1894,15 +2006,7 @@ function showResultBanner(type,msg){
 }
 
 // ── FLIGHT LOG — CALCULATIONS ──
-function t2h(s){
-  if(s===null||s===undefined) return 0;
-  s=String(s);
-  if(s.trim()==="") return 0;
-  if(s.includes(":")) {
-    const[h,m]=s.split(":").map(Number);return h+m/60;
-  }
-  return parseFloat(s)||0;
-}
+function t2h(s){s=String(s||"");if(!s||!s.includes(":"))return parseFloat(s)||0;const[h,m]=s.split(":").map(Number);return h+m/60;}
 function calcEntry(e){
   const tm=Math.max(0,t2h(e.motorIn)-t2h(e.motorOut));
   const tv=Math.max(0,t2h(e.vueloIn)-t2h(e.vueloOut));
@@ -2004,6 +2108,7 @@ function renderFlTable(){
       "<td>"+(e.aeronave||"—")+"</td>"+
       '<td><span style="color:'+(e.operador==="FM"?"var(--green)":"var(--yellow)")+'">'+( e.operador||"—")+"</span></td>"+
       "<td>"+(e.piloto||"—")+"</td>"+
+      '<td style="color:var(--dim2);font-size:12px">'+(e.instructor||"—")+"</td>"+
       '<td class="cb">'+(e.motorOut||"—")+'<div class="horo-ind '+(h.ok?"hi-ok":"hi-gap")+'">'+(h.ok?t("horoOk"):t("horoGap"))+"</div></td>"+
       '<td class="cb">'+(e.motorIn||"—")+"</td>"+
       '<td class="cb">'+fmt(tm)+"</td>"+
@@ -2107,12 +2212,16 @@ function openEditEntry(id){
   if(!canEdit){showToast(t("cantEdit"),"err");return;}
   editingEntryId=id;
   clearEntryErrors();
+  // Populate aircraft dropdown from AIRCRAFT data
+  const acSel=el("f_aeronave");
+  acSel.innerHTML=AIRCRAFT.map(a=>'<option value="'+a.matricula+'">'+a.matricula+"</option>").join("");
   const e=id===null?null:flEntries.find(x=>x.id===id);
   el("flEditTitle").textContent=e?t("editEntry")+" #"+(flEntries.indexOf(e)+1):t("newEntryTitle");
   el("f_fecha").value=e?.fecha||"";
   el("f_aeronave").value=e?.aeronave||"HP-1862FX";
   el("f_operador").value=e?.operador||"FM";
   el("f_piloto").value=e?.piloto||"";
+  if(el("f_instructor")) el("f_instructor").value=e?.instructor||"";
   el("f_horoIn").value=e?.horoIn||"";
   el("f_motorOut").value=e?.motorOut||"";
   el("f_motorIn").value=e?.motorIn||"";
@@ -2173,11 +2282,13 @@ function saveEntryForm(){
   const data={
     fecha:el("f_fecha").value.trim(), aeronave:el("f_aeronave").value,
     operador:el("f_operador").value, piloto:el("f_piloto").value.trim(),
+    instructor:el("f_instructor")?el("f_instructor").value.trim():"",
     horoIn:parseFloat(el("f_horoIn").value),
     motorOut:el("f_motorOut").value.trim(), motorIn:el("f_motorIn").value.trim(),
     vueloOut:el("f_vueloOut").value.trim(), vueloIn:el("f_vueloIn").value.trim(),
     obs:el("f_obs").value.trim(), multOverride
   };
+  checkDiff(data);
   if(editingEntryId!==null){
     const e=flEntries.find(x=>x.id===editingEntryId);
     if(e){
@@ -2271,12 +2382,12 @@ function executeConfirm(){ closeModal("confirmMbd"); if(confirmCb){confirmCb();c
 
 // ── EXPORTS ──
 function exportFlCSV(){
-  const hdrs=["#","Date","Aircraft","Operator","Pilot","Horo.Start","Motor.Out","Motor.In","T.Motor",
+  const hdrs=["#","Date","Aircraft","Operator","Pilot","Instructor","Horo.Start","Motor.Out","Motor.In","T.Motor",
     "Flight.Out","Flight.In","T.Flight","Default.Mult","Override.Mult","Total.TBP","Notes","Status",
     "Batch.Status","Loaded.By","Source.File","Timestamp"];
   const rows=flEntries.map((e,i)=>{
     const{tm,tv,tbp}=calcEntry(e);
-    return [i+1,e.fecha,e.aeronave,e.operador,e.piloto,e.horoIn,
+    return [i+1,e.fecha,e.aeronave,e.operador,e.piloto,e.instructor||"",e.horoIn,
       e.motorOut,e.motorIn,tm.toFixed(2),e.vueloOut,e.vueloIn,tv.toFixed(2),
       DEFAULT_MULT[e.operador]||"",e.multOverride||"",tbp.toFixed(2),
       e.obs||"",e.status,batchStatus,currentUser.name,batchSourceFile,FL_LOAD_TS.toISOString()]
@@ -2290,19 +2401,19 @@ function exportFlCSV(){
 
 function exportFlXLSX(){
   if(typeof XLSX==="undefined"){showToast("XLSX library not loaded","err");return;}
-  const headers=["#","Date","Aircraft","Operator","Pilot","Horo.Start","Motor Out","Motor In","T.Motor",
+  const headers=["#","Date","Aircraft","Operator","Pilot","Instructor","Horo.Start","Motor Out","Motor In","T.Motor",
     "Flight Out","Flight In","T.Flight","Default Mult","Override Mult","Total TBP","Notes","Status",
     "Batch Status","Loaded By","Source File","Timestamp"];
   const data=[headers,...flEntries.map((e,i)=>{
     const{tm,tv,tbp}=calcEntry(e);
-    return [i+1,e.fecha,e.aeronave,e.operador,e.piloto,e.horoIn,
+    return [i+1,e.fecha,e.aeronave,e.operador,e.piloto,e.instructor||"",e.horoIn,
       e.motorOut,e.motorIn,parseFloat(tm.toFixed(2)),
       e.vueloOut,e.vueloIn,parseFloat(tv.toFixed(2)),
       DEFAULT_MULT[e.operador]||"",e.multOverride||"",parseFloat(tbp.toFixed(2)),
       e.obs||"",e.status,batchStatus,currentUser.name,batchSourceFile,FL_LOAD_TS.toISOString()];
   })];
   const ws=XLSX.utils.aoa_to_sheet(data);
-  ws["!cols"]=[4,12,12,10,18,11,10,10,9,10,10,9,9,10,10,20,10,12,16,22,22].map(w=>({wch:w}));
+  ws["!cols"]=[4,12,12,10,18,18,11,10,10,9,10,10,9,9,10,10,20,10,12,16,22,22].map(w=>({wch:w}));
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,"Flight Log");
   let fmM=0,fmT=0,magM=0,magT=0;
@@ -2330,6 +2441,62 @@ function dlFile(name,content,type){
   a.download=name; a.click();
 }
 
+
+
+// ── BATCH CONSTANTS ──
+function initBatchConstants(){
+  // Populate aircraft dropdown from AIRCRAFT array
+  const acSel = el("bc_aircraft");
+  const opSel = el("bc_operator");
+  const multInp = el("bc_mult");
+  if(!acSel||!opSel||!multInp) return;
+  // Build aircraft options from AIRCRAFT data
+  acSel.innerHTML='<option value="">Auto-detect</option>';
+  AIRCRAFT.forEach(ac=>{
+    const opt=document.createElement("option");
+    opt.value=ac.matricula; opt.textContent=ac.matricula;
+    acSel.appendChild(opt);
+  });
+  acSel.addEventListener("change", function(){
+    const ac = AIRCRAFT.find(a=>a.matricula===this.value);
+    if(ac){
+      opSel.value = ac.operador;
+      multInp.value = ac.multiplicador.toFixed(3);
+    } else {
+      opSel.value = "";
+      multInp.value = "";
+      multInp.placeholder = "Auto from aircraft";
+    }
+  });
+  opSel.addEventListener("change", function(){
+    // If user manually changes operator, clear mult unless aircraft is selected
+    const ac = AIRCRAFT.find(a=>a.matricula===acSel.value);
+    if(!ac){
+      const mults={FM:"1.150",MAG:"1.275"};
+      multInp.value = this.value ? mults[this.value]||"" : "";
+      multInp.placeholder = this.value ? "" : "Auto from aircraft";
+    }
+  });
+}
+
+// ── SOURCE IMAGE SIDE PANEL ──
+function openSidePanel(fileIdx){
+  const f = fileQueue[fileIdx];
+  if(!f||!f._preview) return;
+  el("sp_img").src = f._preview;
+  el("sp_title").textContent = "Source: "+f.name;
+  el("sp_meta").textContent = f.name+" · "+(f.size/1024).toFixed(1)+" KB · "+
+    (f._entryCount||0)+" "+(f._entryCount===1?"entry":"entries")+" extracted";
+  el("sidePanel").classList.add("open");
+  el("spOverlay").classList.add("open");
+  document.body.style.overflow="hidden";
+}
+
+function closeSidePanel(){
+  el("sidePanel").classList.remove("open");
+  el("spOverlay").classList.remove("open");
+  document.body.style.overflow="";
+}
 function resetBatch(){
   flEntries=[]; flAuditLog=[]; fileQueue=[]; batchStatus="DRAFT";
   batchSourceFile=""; editingEntryId=null; nextEntryId=1;
@@ -2347,6 +2514,94 @@ function renderAll(){
   if(flEntries.length) renderFlTable();
   renderFlAudit();
   updateApiStatus();
+  renderFleetSettings();
+}
+
+// ── XLSX IMPORTER ──
+function importFromXLSX(file){
+  if(typeof XLSX==="undefined"){showToast("XLSX library not loaded","err");return;}
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try {
+      const wb=XLSX.read(e.target.result,{type:"array"});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+      // Find header row by scanning for "Nº Bit." in any cell
+      let hdrIdx=-1;
+      for(let i=0;i<rows.length;i++){
+        if(rows[i].some(c=>String(c||"").includes("Nº Bit."))){hdrIdx=i;break;}
+      }
+      if(hdrIdx===-1){showToast("Header row not found in Excel file","err");return;}
+      const dataRows=rows.slice(hdrIdx+1);
+      let imported=0;
+      dataRows.forEach(row=>{
+        // Skip totals footer, blank rows, and blank-bitacora rows
+        if(!row||row[0]==="TOTALES"||row[1]===null||row[1]===undefined) return;
+        const piloto=String(row[3]||"").trim();
+        if(piloto==="—"||piloto==="") return;
+        const obsRaw=String(row[14]||"").trim();
+        const flagRaw=String(row[16]||"").trim();
+        const obs=obsRaw+(flagRaw?(obsRaw?" | ":"")+flagRaw:"");
+        const entry={
+          fecha:String(row[2]||"").trim(),
+          aeronave:String(el("bc_aircraft")?el("bc_aircraft").value||"HP-1861":"HP-1861"),
+          operador:String(el("bc_operator")?el("bc_operator").value||"FM":"FM"),
+          piloto:piloto,
+          instructor:String(row[4]||"").trim(),
+          horoIn:parseFloat(row[13])||0,
+          motorOut:String(row[5]||"").trim(),
+          motorIn:String(row[6]||"").trim(),
+          vueloOut:String(row[8]||"").trim(),
+          vueloIn:String(row[9]||"").trim(),
+          mult:parseFloat(row[11])||null,
+          obs:obs,
+          multOverride:parseFloat(row[11])||null,
+          status:"pending"
+        };
+        // Don't double-flag if Bandera already contains a diff flag
+        if(!flagRaw.includes("Dif Motor/Vuelo")) checkDiff(entry);
+        flEntries.push({id:nextEntryId++,...entry});
+        imported++;
+      });
+      if(!imported){showToast("No valid entries found in Excel","err");return;}
+      batchSourceFile=file.name;
+      if(el("srcFile")) el("srcFile").textContent=batchSourceFile;
+      if(el("srcTs")) el("srcTs").textContent=new Date().toLocaleString(lang==="es"?"es-PA":"en-US");
+      el("srcBar").style.display="flex";
+      el("reviewSection").style.display="block";
+      batchStatus="DRAFT";
+      addFlAudit("📊",currentUser.name,"imported from Excel",imported+" entries from "+file.name);
+      renderWfBar(); setupFlRoleUI(); renderFlTable();
+      showToast("✓ "+imported+" "+t("xlsxImported"));
+      showResultBanner("ok","✓ "+imported+" "+t("xlsxImported")+" "+file.name);
+    } catch(err){
+      showToast("Excel import error: "+err.message,"err");
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── FLEET SETTINGS RENDER ──
+function renderFleetSettings(){
+  const grid=el("fleetGrid"); if(!grid) return;
+  grid.innerHTML="";
+  AIRCRAFT.forEach(ac=>{
+    const card=document.createElement("div");
+    card.style.cssText="background:var(--s2);border:1px solid var(--border2);border-top:3px solid var(--cyan);padding:14px;";
+    card.innerHTML=
+      '<div style="font-family:var(--display);font-weight:700;font-size:16px;color:var(--cyan);margin-bottom:10px">'+ac.matricula+"</div>"+
+      '<div style="display:grid;gap:5px;font-family:var(--mono);font-size:10px">'+
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Make/Model</span><span>'+ac.makeModel+"</span></div>"+
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Operator</span><span style="color:var(--green)">'+ac.operador+"</span></div>"+
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Multiplier</span><span style="color:var(--yellow)">'+ac.multiplicador.toFixed(3)+"×</span></div>"+
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Engine</span><span>'+ac.motorId+"</span></div>"+
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Fuel (gal/hr)</span><span>'+ac.consumoGalHr+"</span></div>"+
+      '<div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">'+
+      '<span style="color:var(--dim)">Diff Threshold</span>'+
+      '<span style="color:'+(ac.diffThreshold<=0.2?"var(--green)":"var(--yellow)")+'">'+ac.diffThreshold.toFixed(1)+" hrs</span></div>"+
+      "</div>";
+    grid.appendChild(card);
+  });
 }
 
 // ── EVENT WIRING (all addEventListener, no inline handlers) ──
@@ -2417,6 +2672,13 @@ function wireEvents(){
   el("apiWarnLink").addEventListener("click",()=>switchTab("settings"));
   el("btn_clearQueue").addEventListener("click",clearFileQueue);
   el("btnExtract").addEventListener("click",extractAll);
+  el("btn_xlsxImport").addEventListener("click",()=>el("xlsxImportInput").click());
+  el("xlsxImportInput").addEventListener("change",function(e){
+    if(e.target.files&&e.target.files[0]){
+      importFromXLSX(e.target.files[0]);
+      e.target.value="";
+    }
+  });
   el("sb_dlcsv").addEventListener("click",exportFlCSV);
   el("btn_approveAll").addEventListener("click",()=>setAllFlStatus("approved"));
   el("btn_resetAll").addEventListener("click",()=>setAllFlStatus("pending"));
@@ -2431,19 +2693,19 @@ function wireEvents(){
   el("btn_approve").addEventListener("click",handleApprove);
   el("btn_reqChanges").addEventListener("click",openReqChanges);
 
-  // Flight entry table delegation
-  el("flTbody").addEventListener("click",function(e){
-    const editBtn=e.target.closest("[data-edit-entry]");
-    const stBtn=e.target.closest("[data-st-entry]");
-    if(editBtn) openEditEntry(parseInt(editBtn.dataset.editEntry));
-    else if(stBtn) setEntrySt(parseInt(stBtn.dataset.stEntry),stBtn.dataset.st);
-  });
-
   // FL entry modal
   el("fl_close").addEventListener("click",()=>closeModal("flMbd"));
   el("fl_cancel").addEventListener("click",()=>closeModal("flMbd"));
   el("fl_save").addEventListener("click",saveEntryForm);
   el("flMbd").addEventListener("click",e=>{ if(e.target===el("flMbd")) closeModal("flMbd"); });
+  // Auto-set default mult when aircraft changes in entry modal
+  el("f_aeronave").addEventListener("change",function(){
+    const ac=AIRCRAFT.find(a=>a.matricula===this.value);
+    if(ac&&!el("f_mult").value){
+      el("f_operador").value=ac.operador;
+    }
+    liveCalcEntry();
+  });
   ["f_operador","f_motorOut","f_motorIn","f_vueloOut","f_vueloIn","f_mult"].forEach(id=>{
     el(id).addEventListener("input",liveCalcEntry);
     el(id).addEventListener("change",liveCalcEntry);
@@ -2473,13 +2735,35 @@ function wireEvents(){
 
   // Init upload zone
   initUploadZone();
+
+  // Batch constants
+  initBatchConstants();
+
+  // Side panel
+  el("sp_close").addEventListener("click", closeSidePanel);
+  el("spOverlay").addEventListener("click", closeSidePanel);
+
+  // File queue delegation for view button
+  el("fileQueue").addEventListener("click", function(e){
+    const viewBtn = e.target.closest("[data-view]");
+    const rmBtn = e.target.closest("[data-rm]");
+    if(viewBtn) openSidePanel(parseInt(viewBtn.dataset.view));
+    else if(rmBtn) removeFromQueue(parseInt(rmBtn.dataset.rm));
+  });
+
+  // Entry table click for side panel (click row # to view source)
+  el("flTbody").addEventListener("click", function(e){
+    const editBtn=e.target.closest("[data-edit-entry]");
+    const stBtn=e.target.closest("[data-st-entry]");
+    if(editBtn) openEditEntry(parseInt(editBtn.dataset.editEntry));
+    else if(stBtn) setEntrySt(parseInt(stBtn.dataset.stEntry),stBtn.dataset.st);
+  });
 }
 
 // ── BOOT ──
 function init(){
   applyI18n();
   wireEvents();
-  el("versionBadge").textContent = APP_VERSION;
 }
 
 init();
