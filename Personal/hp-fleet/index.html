@@ -1803,6 +1803,7 @@ async function extractAll(){
   flEntries=[...flEntries,...allExtracted.map(e=>({
     id:nextEntryId++,status:"pending",multOverride:null,...e,horoIn:parseFloat(e.horoIn)||0
   }))];
+  console.log("flEntries after push:", flEntries.length, JSON.stringify(flEntries));
   batchSourceFile=fileQueue.map(f=>f.name).join(", ");
   el("srcFile").textContent=batchSourceFile;
   el("srcTs").textContent=new Date().toLocaleString(lang==="es"?"es-PA":"en-US");
@@ -1980,6 +1981,7 @@ function getFilteredEntries(){
 }
 
 function renderFlTable(){
+  console.log("renderFlTable called, flEntries:", flEntries.length);
   const tbody=el("flTbody"); if(!tbody) return;
   const visible=getFilteredEntries();
   const canEdit=(currentUser.role==="ADMIN"||currentUser.role==="OPERATOR")&&batchStatus==="DRAFT";
