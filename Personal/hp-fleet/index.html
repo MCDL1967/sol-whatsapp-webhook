@@ -1988,6 +1988,7 @@ function renderFlTable(){
   const canEdit=(currentUser.role==="ADMIN"||currentUser.role==="OPERATOR")&&batchStatus==="DRAFT";
   tbody.innerHTML="";
   visible.forEach(e=>{
+  try {
     const gi=flEntries.indexOf(e);
     const{tm,tv,mult,tbp}=calcEntry(e);
     const h=horoCheck(e,gi);
@@ -2013,7 +2014,10 @@ function renderFlTable(){
       "<td>"+mkFlToggle(e,canEdit)+"</td>"+
       '<td><button class="btn-edit-r" data-edit-entry="'+e.id+'"'+(canEdit?"":" disabled")+'>✎</button></td>';
     tbody.appendChild(tr);
-  });
+  } catch(err) {
+    console.log("Row render error:", err.message, "entry:", JSON.stringify(e));
+  }
+});
   if(el("ptab_count")) el("ptab_count").textContent=flEntries.length;
   updateFlSummary(); runHoroChecks();
 }
