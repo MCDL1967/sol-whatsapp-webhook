@@ -495,7 +495,11 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet v1.0</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="cf-dot"></div>
+        <span style="font-family:var(--mono);font-size:9px">HP Fleet</span>
+        <span style="color:var(--cyan);font-family:var(--mono);font-size:10px;letter-spacing:1px" id="versionBadge"></span>
+      </div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -897,6 +901,8 @@ table.fl-tbl td:last-child{border-right:none}
 
 <div class="toast" id="toast"></div>
 <script>
+const APP_VERSION = "v5.1";
+
 // ── DATA ──
 let COMPANIES = [
   {id:"c001",name:"Flightmax Advanced Training",code:"FM",multiplier:1.15,status:"active",notes:"Primary flight school client",
@@ -2473,6 +2479,7 @@ function wireEvents(){
 function init(){
   applyI18n();
   wireEvents();
+  el("versionBadge").textContent = APP_VERSION;
 }
 
 init();
