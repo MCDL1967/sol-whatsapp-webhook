@@ -1889,7 +1889,13 @@ function showResultBanner(type,msg){
 }
 
 // ── FLIGHT LOG — CALCULATIONS ──
-function t2h(s){if(!s||!s.includes(":"))return 0;const[h,m]=s.split(":").map(Number);return h+m/60;}
+function t2h(s){
+  if(!s) return 0;
+  if(s.includes(":")) {
+    const[h,m]=s.split(":").map(Number);return h+m/60;
+  }
+  return parseFloat(s)||0;
+}
 function calcEntry(e){
   const tm=Math.max(0,t2h(e.motorIn)-t2h(e.motorOut));
   const tv=Math.max(0,t2h(e.vueloIn)-t2h(e.vueloOut));
