@@ -1842,6 +1842,7 @@ async function extractFile(file,apiKey){
   const text=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("")||"[]";
   const cleaned=text.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
   const parsed=JSON.parse(cleaned);
+  console.log("Parsed entries:", JSON.stringify(parsed));
   if(!Array.isArray(parsed)) throw new Error("Response was not a JSON array");
   return parsed;
 }
