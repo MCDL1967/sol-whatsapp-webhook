@@ -1984,6 +1984,7 @@ function renderFlTable(){
   console.log("renderFlTable called, flEntries:", flEntries.length);
   const tbody=el("flTbody"); if(!tbody) return;
   const visible=getFilteredEntries();
+  console.log("visible entries:", visible.length, "filter:", el("filterOp")?el("filterOp").value:"no filter element");
   const canEdit=(currentUser.role==="ADMIN"||currentUser.role==="OPERATOR")&&batchStatus==="DRAFT";
   tbody.innerHTML="";
   visible.forEach(e=>{
