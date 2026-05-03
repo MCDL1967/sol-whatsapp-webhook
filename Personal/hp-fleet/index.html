@@ -1753,15 +1753,28 @@ function renderQueue(){
 
 // ── FLIGHT LOG — EXTRACTION ──
 function buildExtractionPrompt(){
-  return "You are processing a Panamanian flight school bitacora (flight log). "+
-    "Extract ALL flight entries and return ONLY a valid JSON array, no markdown, no explanation.\n\n"+
-    "Each entry must have these exact fields:\n"+
-    '{"fecha":"DD/MM/YYYY","aeronave":"HP-1862FX or HP-1861","operador":"FM or MAG",'+
-    '"piloto":"pilot name","horoIn":number,"motorOut":"HH:MM","motorIn":"HH:MM",'+
-    '"vueloOut":"HH:MM","vueloIn":"HH:MM","obs":"notes"}\n\n'+
-    "Rules: extract every entry, use empty string for missing times, 0 for missing numbers, "+
-    "dates in DD/MM/YYYY, times in HH:MM 24h, infer FM or MAG from company name/stamp, "+
-    "return [] if no entries found. Return ONLY the JSON array.";
+  return "You are processing a Panamanian flight school bitacora (flight log) form. "+
+    "The form has a consistent layout - extract ALL fields carefully.\n\n"+
+    "LEFT SIDE of form contains TACH section:\n"+
+    "- LLEGADA (arrival/Motor In) = ending tach reading\n"+
+    "- SALIDA (departure/Motor Out) = starting tach reading\n"+
+    "- TIEMPO = tach time difference (T.Motor)\n\n"+
+    "RIGHT SIDE of form contains HOBBS section:\n"+
+    "- HOY (today) = ending hobbs reading\n"+
+    "- ANTERIOR (previous) = starting hobbs reading (this is horoIn)\n"+
+    "- TOTAL = hobbs time difference (T.Flight)\n\n"+
+    "Also extract from the form header:\n"+
+    "- PILOTO = pilot name\n"+
+    "- INSTRUCTOR = instructor name (put in obs field)\n"+
+    "- MATRICULA = aircraft registration (e.g. HP-1861)\n"+
+    "- FECHA = date\n"+
+    "- The multiplier shown (e.g. 1.275) indicates MAG operator, 1.15 indicates FM\n\n"+
+    "Return ONLY a valid JSON array, no markdown, no explanation:\n"+
+    '[{"fecha":"DD/MM/YYYY","aeronave":"HP-XXXX","operador":"FM or MAG",'+
+    '"piloto":"pilot name","horoIn":number,"motorOut":"tach SALIDA value as HH:MM or decimal",'+
+    '"motorIn":"tach LLEGADA value as HH:MM or decimal","vueloOut":"hobbs ANTERIOR as decimal",'+
+    '"vueloIn":"hobbs HOY as decimal","obs":"instructor name and any notes"}]\n\n'+
+    "If a field is truly illegible use empty string or 0. Return [] only if no bitacora data exists at all.";
 }
 
 async function extractAll(){
@@ -1835,10 +1848,32 @@ async function extractFile(file,apiKey){
 
 function fileToBase64(file){
   return new Promise((resolve,reject)=>{
-    const reader=new FileReader();
-    reader.onload=()=>resolve(reader.result.split(",")[1]);
-    reader.onerror=()=>reject(new Error("File read failed"));
-    reader.readAsDataURL(file);
+    const isPdf=file.type==="application/pdf"||file.name.endsWith(".pdf");
+    if(isPdf){
+      const reader=new FileReader();
+      reader.onload=()=>resolve(reader.result.split(",")[1]);
+      reader.onerror=()=>reject(new Error("File read failed"));
+      reader.readAsDataURL(file);
+      return;
+    }
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      const MAX=4000000;
+      let w=img.width, h=img.height;
+      if(file.size>MAX){
+        const ratio=Math.sqrt(MAX/file.size);
+        w=Math.floor(w*ratio); h=Math.floor(h*ratio);
+      }
+      const canvas=document.createElement("canvas");
+      canvas.width=w; canvas.height=h;
+      canvas.getContext("2d").drawImage(img,0,0,w,h);
+      const data=canvas.toDataURL("image/jpeg",0.85).split(",")[1];
+      resolve(data);
+    };
+    img.onerror=()=>reject(new Error("Image load failed"));
+    img.src=url;
   });
 }
 
