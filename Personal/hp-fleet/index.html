@@ -1803,7 +1803,6 @@ async function extractAll(){
   flEntries=[...flEntries,...allExtracted.map(e=>({
     id:nextEntryId++,status:"pending",multOverride:null,...e,horoIn:parseFloat(e.horoIn)||0
   }))];
-  console.log("flEntries after push:", flEntries.length, JSON.stringify(flEntries));
   batchSourceFile=fileQueue.map(f=>f.name).join(", ");
   el("srcFile").textContent=batchSourceFile;
   el("srcTs").textContent=new Date().toLocaleString(lang==="es"?"es-PA":"en-US");
@@ -1843,7 +1842,6 @@ async function extractFile(file,apiKey){
   const text=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("")||"[]";
   const cleaned=text.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
   const parsed=JSON.parse(cleaned);
-  console.log("Parsed entries:", JSON.stringify(parsed));
   if(!Array.isArray(parsed)) throw new Error("Response was not a JSON array");
   return parsed;
 }
@@ -1983,14 +1981,11 @@ function getFilteredEntries(){
 }
 
 function renderFlTable(){
-  console.log("renderFlTable called, flEntries:", flEntries.length);
   const tbody=el("flTbody"); if(!tbody) return;
   const visible=getFilteredEntries();
-  console.log("visible entries:", visible.length, "filter:", el("filterOp")?el("filterOp").value:"no filter element");
   const canEdit=(currentUser.role==="ADMIN"||currentUser.role==="OPERATOR")&&batchStatus==="DRAFT";
   tbody.innerHTML="";
   visible.forEach(e=>{
-  try {
     const gi=flEntries.indexOf(e);
     const{tm,tv,mult,tbp}=calcEntry(e);
     const h=horoCheck(e,gi);
@@ -2016,10 +2011,7 @@ function renderFlTable(){
       "<td>"+mkFlToggle(e,canEdit)+"</td>"+
       '<td><button class="btn-edit-r" data-edit-entry="'+e.id+'"'+(canEdit?"":" disabled")+'>✎</button></td>';
     tbody.appendChild(tr);
-  } catch(err) {
-    console.log("Row render error:", err.message, "entry:", JSON.stringify(e));
-  }
-});
+  });
   if(el("ptab_count")) el("ptab_count").textContent=flEntries.length;
   updateFlSummary(); runHoroChecks();
 }
@@ -2484,22 +2476,6 @@ function init(){
 }
 
 init();
-</script>
-<div id="debugPanel" style="position:fixed;bottom:0;left:0;right:0;
-max-height:200px;overflow-y:auto;background:rgba(0,0,0,.9);
-color:#0f0;font-family:monospace;font-size:11px;padding:8px;
-z-index:9999;border-top:2px solid #0f0;display:none"></div>
-
-<script>
-const _log=console.log.bind(console);
-console.log=function(){
-  _log.apply(console,arguments);
-  const p=document.getElementById("debugPanel");
-  if(p){p.style.display="block";
-    p.innerHTML+="<div>"+Array.from(arguments).map(a=>
-    typeof a==="object"?JSON.stringify(a):a).join(" ")+"</div>";
-    p.scrollTop=p.scrollHeight;}
-};
 </script>
 </body>
 </html>
