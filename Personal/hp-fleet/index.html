@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.5 — built 2026-05-03 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.6 — built 2026-05-03 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.5</title>
+<title>HP Fleet v7.6</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -772,7 +772,7 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.5</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.6</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -781,7 +781,7 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.5</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.6</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -866,7 +866,12 @@ table.fl-tbl td:last-child{border-right:none}
     <div class="tab-panel" id="panel-flightlog">
       <div class="page-hdr">
         <div class="page-title"><span>·</span> <span id="fl_title">Flight Log / Bitácora Review</span></div>
-        <button class="btn-ghost" id="fl_newBatch">+ New Batch</button>
+        <div style="display:flex;align-items:center;gap:8px">
+          <select id="batchSelector" style="background:var(--s2);border:1px solid var(--border2);color:var(--dim2);font-family:var(--mono);font-size:10px;padding:6px 10px;border-radius:2px;max-width:300px">
+            <option value="">— Select Billing Cycle —</option>
+          </select>
+          <button class="btn-ghost" id="fl_newBatch">+ New Batch</button>
+        </div>
       </div>
 
       <!-- API key warning -->
@@ -1329,6 +1334,46 @@ table.fl-tbl td:last-child{border-right:none}
   </div>
 </div>
 
+<!-- NEW BATCH MODAL -->
+<div class="mbd" id="newBatchMbd">
+  <div class="mbox" style="max-width:480px;width:100%">
+    <div class="mhdr"><div class="mhdr-t cy">New Billing Cycle</div><button class="m-x" id="nb_close">✕</button></div>
+    <div class="mbody">
+      <div class="frow fc2">
+        <div class="field"><label>Aircraft *</label>
+          <select id="nb_aircraft"></select>
+        </div>
+        <div class="field"><label>Operator *</label>
+          <select id="nb_operator"></select>
+        </div>
+      </div>
+      <div class="frow fc2">
+        <div class="field"><label>Period From *</label>
+          <input type="date" id="nb_period_from">
+        </div>
+        <div class="field"><label>Period To *</label>
+          <input type="date" id="nb_period_to">
+        </div>
+      </div>
+      <div class="frow fc2">
+        <div class="field"><label>Log # From</label>
+          <input type="text" id="nb_log_from" placeholder="e.g. 00589">
+        </div>
+        <div class="field"><label>Log # To</label>
+          <input type="text" id="nb_log_to" placeholder="e.g. 00660">
+        </div>
+      </div>
+      <div style="background:var(--s3);border:1px solid var(--border);padding:10px 14px;font-family:var(--mono);font-size:10px;color:var(--dim2);margin-top:8px">
+        ⚠ Current batch will be preserved in billing cycle history. A new empty batch will start.
+      </div>
+    </div>
+    <div class="mftr">
+      <button class="btn-ghost" id="nb_cancel">Cancel</button>
+      <button class="btn-primary" id="nb_confirm">Start New Cycle</button>
+    </div>
+  </div>
+</div>
+
 <!-- NAME PROPAGATION MODAL -->
 <div class="mbd" id="namePropMbd">
   <div class="mbox" style="max-width:500px;width:100%">
@@ -1370,17 +1415,12 @@ table.fl-tbl td:last-child{border-right:none}
         <div class="field"><label>Make/Model *</label><input type="text" id="ac_makeModel" placeholder="Piper PA-28"></div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>Operator *</label>
-          <select id="ac_operador">
-            <option value="FM">FM — Flightmax</option>
-            <option value="MAG">MAG — MAG Flight</option>
-          </select>
-        </div>
         <div class="field"><label>Type</label><input type="text" id="ac_tipo" placeholder="Single Engine"></div>
+        <div class="field"><label>Diff Threshold (hrs)</label><input type="number" id="ac_diffThreshold" step="0.1" placeholder="0.2"></div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>Multiplier *</label><input type="number" id="ac_multiplicador" step="0.001" placeholder="1.275"><span class="ferr" id="ace_multiplicador"></span></div>
-        <div class="field"><label>Diff Threshold (hrs)</label><input type="number" id="ac_diffThreshold" step="0.1" placeholder="0.2"></div>
+        <div class="field"><label>Warn Threshold (hrs)</label><input type="number" id="ac_diffWarn" step="0.1" placeholder="0.3"></div>
+        <div class="field"><label>Alert Threshold (hrs)</label><input type="number" id="ac_diffAlert" step="0.1" placeholder="0.4"></div>
       </div>
       <div class="frow fc2">
         <div class="field"><label>Engine</label><input type="text" id="ac_motorId" placeholder="Lycoming O-320"></div>
@@ -1468,12 +1508,22 @@ table.fl-tbl td:last-child{border-right:none}
         <div class="sp-field"><label>Instructor</label><input type="text" id="sp_instructor"></div>
       </div>
       <div class="sp-frow fc3">
-        <div class="sp-field"><label>Motor Out</label><input type="text" id="sp_motorOut" placeholder="decimal"></div>
+        <div class="sp-field"><label>Motor Out</label>
+          <div style="display:flex;align-items:center;gap:4px">
+            <input type="text" id="sp_motorOut" placeholder="decimal" style="flex:1">
+            <button type="button" id="sp_swap_motor" title="Swap Motor Out/In" style="background:none;border:1px solid var(--border2);color:var(--cyan);cursor:pointer;padding:4px 6px;border-radius:2px;font-size:12px;flex-shrink:0">⇄</button>
+          </div>
+        </div>
         <div class="sp-field"><label>Motor In</label><input type="text" id="sp_motorIn" placeholder="decimal"></div>
         <div class="sp-field"><label>T.Motor</label><input type="text" id="sp_tmotor" readonly></div>
       </div>
       <div class="sp-frow fc3">
-        <div class="sp-field"><label>Flight Out</label><input type="text" id="sp_vueloOut" placeholder="decimal"></div>
+        <div class="sp-field"><label>Flight Out</label>
+          <div style="display:flex;align-items:center;gap:4px">
+            <input type="text" id="sp_vueloOut" placeholder="decimal" style="flex:1">
+            <button type="button" id="sp_swap_vuelo" title="Swap Flight Out/In" style="background:none;border:1px solid var(--border2);color:var(--cyan);cursor:pointer;padding:4px 6px;border-radius:2px;font-size:12px;flex-shrink:0">⇄</button>
+          </div>
+        </div>
         <div class="sp-field"><label>Flight In</label><input type="text" id="sp_vueloIn" placeholder="decimal"></div>
         <div class="sp-field"><label>T.Flight</label><input type="text" id="sp_tvuelo" readonly></div>
       </div>
@@ -1491,6 +1541,7 @@ table.fl-tbl td:last-child{border-right:none}
         <div class="sp-calc-item"><div class="sp-calc-l">T.Flight</div><div class="sp-calc-v cx" id="sp_pv_tf">—</div></div>
         <div class="sp-calc-item"><div class="sp-calc-l">Multiplier</div><div class="sp-calc-v" id="sp_pv_mult">—</div></div>
         <div class="sp-calc-item"><div class="sp-calc-l">TBP</div><div class="sp-calc-v cg" id="sp_pv_tbp">—</div></div>
+        <div class="sp-calc-item" style="margin-left:auto"><div class="sp-calc-l">Gap</div><div class="sp-calc-v" id="sp_pv_gap" style="font-size:11px">—</div></div>
       </div>
     </div>
     <!-- Save/Cancel always visible outside collapsible body -->
@@ -1515,7 +1566,7 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.5";
+const APP_VERSION = "v7.6";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2029,6 +2080,8 @@ async function bootApp(){
   // Load API key from DB (centralized for all devices)
   await loadApiKeyFromDB();
   initDebugToggle();
+  // Load billing cycle history
+  await loadAllBatches();
   // Load batch from DB
   dbg("Loading batch from database…","info");
   const hasBatch=await loadBatchFromDB();
@@ -2424,10 +2477,11 @@ function renderCompanies(){
       '<span class="co-card-code" style="color:'+color+';border-color:'+color+'50;background:'+color+'15">'+co.code+"</span>"+
       "</div>"+
       '<div class="co-card-body">'+
-      '<div class="co-row"><span class="co-row-label">'+(lang==="es"?"Multiplicador":"Multiplier")+"</span>"+
-      '<span class="co-row-val accent">'+co.code+"</span></div>"+
       '<div class="co-row"><span class="co-row-label">Status</span>'+
       '<span class="co-row-val">'+(co.status==="active"?(lang==="es"?"activa":"active"):(lang==="es"?"inactiva":"inactive"))+"</span></div>"+
+      (co.address?'<div class="co-row"><span class="co-row-label">Address</span><span class="co-row-val" style="color:var(--dim2);font-size:10px">'+co.address+"</span></div>":"")+
+      (co.phone?'<div class="co-row"><span class="co-row-label">Phone</span><span class="co-row-val">'+co.phone+"</span></div>":"")+
+      (co.adminContact?'<div class="co-row"><span class="co-row-label">Contact</span><span class="co-row-val" style="color:var(--cyan);font-size:10px">'+co.adminContact+"</span></div>":"")+
       (co.notes?'<div class="co-row"><span class="co-row-label">'+(lang==="es"?"Notas":"Notes")+"</span>"+
       '<span class="co-row-val" style="color:var(--dim2);font-size:10px">'+co.notes+"</span></div>":"")+
       '<div style="margin-top:10px">'+
@@ -2726,16 +2780,23 @@ function buildExtractionPrompt(){
   if(bcOperator) constants.push("Operator is always: "+bcOperator+" — do NOT read from image.");
   return "You are processing a Panamanian flight school bitacora (flight log) form.\n\n"+
     (constants.length?"BATCH CONSTANTS:\n"+constants.join("\n")+"\n\n":"")+
-    "LEFT SIDE = TACH: SALIDA=motorOut, LLEGADA=motorIn, TIEMPO=T.Motor\n"+
-    "RIGHT SIDE = HOBBS: ANTERIOR=horoIn/vueloOut, HOY=vueloIn, TOTAL=T.Flight\n"+
-    "HEADER: PILOTO=piloto, INSTRUCTOR=instructor (separate field), FECHA=date, MATRICULA=aircraft\n"+
-    "Multiplier on form: 1.275=FM operator for HP-1861, 1.15=FM for HP-1862FX\n"+
+    "FIELD MAPPING:\n"+
+    "- motorOut = TACH SALIDA (departure tach, the SMALLER number)\n"+
+    "- motorIn = TACH LLEGADA (arrival tach, the LARGER number)\n"+
+    "- vueloOut = HOBBS ANTERIOR (previous hobbs, the SMALLER number)\n"+
+    "- vueloIn = HOBBS HOY (current hobbs, the LARGER number)\n"+
+    "- motorIn MUST be greater than motorOut. If reversed, swap them.\n"+
+    "- vueloIn MUST be greater than vueloOut. If reversed, swap them.\n\n"+
+    "HOBBS RANGE HINTS (to prevent decimal misreads):\n"+
+    "- HP-1861 HOBBS values are typically between 6000 and 7000.\n"+
+    "- HP-1862FX HOBBS values are typically between 1000 and 2000.\n"+
+    "- If a HOBBS value seems too small (e.g. 65.3 instead of 6530), correct the decimal.\n\n"+
     "\nReturn ONLY a valid JSON array:\n"+
-    '[{"bnum":"log number from form e.g. 00591","fecha":"DD/MM/YYYY","aeronave":"HP-XXXX","operador":"FM or MAG",'+
-    '"piloto":"name","instructor":"instructor name","horoIn":number,'+
+    '[{"bnum":"log number e.g. 00591","fecha":"DD/MM/YYYY","aeronave":"HP-XXXX","operador":"FM or MAG",'+
+    '"piloto":"name","instructor":"name or empty","horoIn":number,'+
     '"motorOut":"SALIDA decimal","motorIn":"LLEGADA decimal",'+
     '"vueloOut":"ANTERIOR decimal","vueloIn":"HOY decimal","obs":"notes only"}]\n'+
-    "Use empty string or 0 for illegible. Return [] if no bitacora found.";
+    "Return [] if page has no bitacora data (blank, maintenance-only, cover page, etc).";
 }
 
 // ── MOTOR/VUELO DIFF CHECK ──
@@ -2745,6 +2806,8 @@ function checkDiff(entry){
   const tm = Math.abs(t2h(entry.motorIn) - t2h(entry.motorOut));
   const tv = Math.abs(t2h(entry.vueloIn) - t2h(entry.vueloOut));
   const diff = Math.abs(tm - tv);
+  // Clear any existing diff flag first
+  if(entry.obs) entry.obs=entry.obs.replace(/[|]?\s*[⚠△▲]\s*Dif\s*Motor\/Vuelo[^|]*/g,"").trim();
   if(diff > threshold){
     const flag = "⚠ Dif Motor/Vuelo="+diff.toFixed(1);
     entry.obs = (entry.obs ? entry.obs+" | " : "") + flag;
@@ -2968,15 +3031,16 @@ function t2h(s){
 }
 function getAircraftMult(aeronave, operador){
   const ac=AIRCRAFT.find(a=>a.matricula===aeronave);
-  if(ac&&ac.rates&&ac.rates.length){
-    const rate=ac.rates.find(r=>r.operador===operador);
-    if(rate) return rate.multiplicador;
-    // Fall back to first rate if operator not found
-    return ac.rates[0].multiplicador;
+  if(!ac){ dbg("getAircraftMult: aircraft not found: "+aeronave,"warn"); return DEFAULT_MULT[operador]||1; }
+  const rates=ac.rates;
+  if(rates&&Array.isArray(rates)&&rates.length){
+    const rate=rates.find(r=>r.operador===operador);
+    if(rate){ return parseFloat(rate.multiplicador)||1; }
+    dbg("getAircraftMult: no rate for "+aeronave+"/"+operador+" in rates: "+JSON.stringify(rates),"warn");
+    return parseFloat(rates[0].multiplicador)||1;
   }
-  // Fall back to aircraft multiplicador field
-  if(ac&&ac.multiplicador) return ac.multiplicador;
-  // Final fallback to DEFAULT_MULT
+  dbg("getAircraftMult: no rates array on "+aeronave+", using multiplicador: "+ac.multiplicador,"warn");
+  if(ac.multiplicador) return parseFloat(ac.multiplicador)||1;
   return DEFAULT_MULT[operador]||1;
 }
 
@@ -3708,10 +3772,18 @@ function applyNameProp(mode){
 }
 async function saveBatchToDB(){
   try {
+    const meta=window._pendingBatchMeta||{};
+    const logNums=flEntries.map(e=>e.bnum).filter(Boolean).sort();
     const batchData={
       source_file:batchSourceFile,
       status:batchStatus,
-      submitted_by:currentUser.name
+      submitted_by:currentUser.name,
+      aircraft:meta.aircraft||el("bc_aircraft")?.value||"",
+      operador:meta.operador||el("bc_operator")?.value||"",
+      period_from:meta.periodFrom||null,
+      period_to:meta.periodTo||null,
+      log_from:meta.logFrom||logNums[0]||null,
+      log_to:meta.logTo||logNums[logNums.length-1]||null
     };
     if(!currentBatchId){
       // Create new batch
@@ -3794,12 +3866,10 @@ async function loadBatchFromDB(){
 }
 
 async function clearBatchFromDB(){
-  if(!currentBatchId) return;
-  try {
-    await sbDelete("batches","id=eq."+currentBatchId);
-    currentBatchId=null;
-    dbg("Batch cleared from DB","info");
-  } catch(err){ dbg("DB clear error: "+err.message,"err"); }
+  // Never delete batches — just clear the local reference
+  // Batches are permanent records (billing cycle history)
+  currentBatchId=null;
+  dbg("Batch deselected — record preserved in DB","info");
 }
 
 // ── SUPABASE SEED (first-run) ──
@@ -3841,12 +3911,14 @@ async function loadMasterData(){
     })));
     if(aircraft&&aircraft.length) AIRCRAFT.splice(0,AIRCRAFT.length,...aircraft.map(a=>({
       id:a.id, matricula:a.matricula, makeModel:a.make_model||"",
-      operador:a.operador, multiplicador:a.multiplicador, tipo:a.tipo||"",
+      operador:a.operador, multiplicador:parseFloat(a.multiplicador)||1, tipo:a.tipo||"",
       asientos:a.asientos||2, motorId:a.motor_id||"",
-      consumoGalHr:a.consumo_gal_hr||0, diffThreshold:a.diff_threshold||0.2,
+      consumoGalHr:a.consumo_gal_hr||0, diffThreshold:parseFloat(a.diff_threshold)||0.2,
+      diffWarn:parseFloat(a.diff_warn)||0.3, diffAlert:parseFloat(a.diff_alert)||0.4,
       owner:a.owner||"", ownerAddress:a.owner_address||"",
-      rates:Array.isArray(a.rates)?a.rates:(typeof a.rates==="string"&&a.rates?JSON.parse(a.rates):[])
+      rates:Array.isArray(a.rates)?a.rates.map(r=>({operador:r.operador,multiplicador:parseFloat(r.multiplicador)||1,tarifaHr:parseFloat(r.tarifaHr||r.tarifa_hr)||0})):(typeof a.rates==="string"&&a.rates?JSON.parse(a.rates).map(r=>({operador:r.operador,multiplicador:parseFloat(r.multiplicador)||1,tarifaHr:parseFloat(r.tarifaHr||r.tarifa_hr)||0})):[])
     })));
+    AIRCRAFT.forEach(ac=>dbg("Aircraft loaded: "+ac.matricula+" rates: "+JSON.stringify(ac.rates),"info"));
     dbg("Master data loaded — "+USERS.length+" users, "+COMPANIES.length+" companies, "+AIRCRAFT.length+" aircraft","ok");
   } catch(err){ dbg("Master data load error: "+err.message,"err"); }
 }
@@ -4029,18 +4101,34 @@ function populateSpEditFields(e){
 
 function spLiveCalc(){
   const fake={
-    operador:el("sp_operador").value,
-    motorOut:el("sp_motorOut").value, motorIn:el("sp_motorIn").value,
-    vueloOut:el("sp_vueloOut").value, vueloIn:el("sp_vueloIn").value,
-    multOverride:parseFloat(el("sp_mult").value)||null
+    aeronave:el("sp_aeronave")?el("sp_aeronave").value:"",
+    operador:el("sp_operador")?el("sp_operador").value:"",
+    motorOut:el("sp_motorOut")?el("sp_motorOut").value:"",
+    motorIn:el("sp_motorIn")?el("sp_motorIn").value:"",
+    vueloOut:el("sp_vueloOut")?el("sp_vueloOut").value:"",
+    vueloIn:el("sp_vueloIn")?el("sp_vueloIn").value:"",
+    multOverride:parseFloat(el("sp_mult")?el("sp_mult").value:"")||null
   };
   const{tm,tv,mult,tbp}=calcEntry(fake);
-  el("sp_tmotor").value=tm>0?tm.toFixed(2):"";
-  el("sp_tvuelo").value=tv>0?tv.toFixed(2):"";
-  el("sp_pv_tm").textContent=tm>0?fmt(tm)+" hrs":"—";
-  el("sp_pv_tf").textContent=tv>0?fmt(tv)+" hrs":"—";
-  el("sp_pv_mult").textContent=mult+"×";
-  el("sp_pv_tbp").textContent=tm>0?fmt(tbp)+" hrs":"—";
+  if(el("sp_tmotor")) el("sp_tmotor").value=tm>0?tm.toFixed(2):"";
+  if(el("sp_tvuelo")) el("sp_tvuelo").value=tv>0?tv.toFixed(2):"";
+  if(el("sp_pv_tm")) el("sp_pv_tm").textContent=tm>0?fmt(tm)+" hrs":"—";
+  if(el("sp_pv_tf")) el("sp_pv_tf").textContent=tv>0?fmt(tv)+" hrs":"—";
+  if(el("sp_pv_mult")) el("sp_pv_mult").textContent=mult+"×";
+  if(el("sp_pv_tbp")) el("sp_pv_tbp").textContent=tm>0?fmt(tbp)+" hrs":"—";
+  // Gap indicator
+  if(el("sp_pv_gap")&&tm>0&&tv>0){
+    const gap=Math.abs(tm-tv);
+    const ac=AIRCRAFT.find(a=>a.matricula===fake.aeronave);
+    const thr=ac?ac.diffThreshold:0.2;
+    const warn=ac?ac.diffWarn:0.3;
+    const alert=ac?ac.diffAlert:0.4;
+    let col="var(--green)", tri="";
+    if(gap>warn){col="var(--red)";tri=" ▲";}
+    else if(gap>thr){col="var(--yellow)";}
+    el("sp_pv_gap").textContent="Gap: "+gap.toFixed(2)+" hrs"+tri;
+    el("sp_pv_gap").style.color=col;
+  }
 }
 
 async function saveSpEntry(){
@@ -4076,6 +4164,8 @@ async function saveSpEntry(){
       obs:el("sp_obs").value.trim()
     });
     checkDiff(e);
+    // Clear stale diff flag from obs before rechecking
+    if(e.obs) e.obs=e.obs.replace(/△\s*Dif\s*Motor\/Vuelo[^|]*/g,"").replace(/\|\s*△\s*$/,"").trim();
     addFlAudit("✏️",currentUser.name,"edited entry via panel","#"+(flEntries.indexOf(e)+1));
     await saveBatchToDB();
     renderFlTable();
@@ -4110,14 +4200,96 @@ function closeSidePanel(){
   if(el("flTbody")) el("flTbody").querySelectorAll("tr").forEach(r=>r.style.outline="");
 }
 async function resetBatch(){
+  // Archive current batch — DO NOT delete
   flEntries=[]; flAuditLog=[]; fileQueue=[]; batchStatus="DRAFT";
   batchSourceFile=""; editingEntryId=null; nextEntryId=1;
-  await clearBatchFromDB();
+  currentBatchId=null; // deselect, preserve in DB
+  piAdditionalCharges=[]; piSignedBy=null; piSignedAt=null; piInvNum=null;
   el("srcBar").style.display="none";
   el("reviewSection").style.display="none";
-  el("resultBanner").style.display="none";
+  if(el("resultBanner")) el("resultBanner").style.display="none";
   el("horoAlert").classList.remove("on");
   renderQueue(); renderWfBar(); setupFlRoleUI();
+  await loadAllBatches(); // refresh selector
+  dbg("New billing cycle started — previous batch preserved","ok");
+}
+
+// ── NEW BATCH MODAL ──
+function openNewBatchModal(){
+  // Populate aircraft dropdown
+  const acSel=el("nb_aircraft");
+  if(acSel){
+    acSel.innerHTML=AIRCRAFT.map(a=>'<option value="'+a.matricula+'">'+a.matricula+"</option>").join("");
+    // Trigger operator cascade
+    acSel.dispatchEvent(new Event("change"));
+  }
+  // Set default period to current month
+  const now=new Date();
+  const firstDay=new Date(now.getFullYear(),now.getMonth(),1).toISOString().split("T")[0];
+  const lastDay=new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().split("T")[0];
+  if(el("nb_period_from")) el("nb_period_from").value=firstDay;
+  if(el("nb_period_to")) el("nb_period_to").value=lastDay;
+  if(el("nb_log_from")) el("nb_log_from").value="";
+  if(el("nb_log_to")) el("nb_log_to").value="";
+  openModal("newBatchMbd");
+}
+
+async function confirmNewBatch(){
+  const aircraft=el("nb_aircraft")?el("nb_aircraft").value:"";
+  const operador=el("nb_operator")?el("nb_operator").value:"";
+  const periodFrom=el("nb_period_from")?el("nb_period_from").value:"";
+  const periodTo=el("nb_period_to")?el("nb_period_to").value:"";
+  const logFrom=el("nb_log_from")?el("nb_log_from").value.trim():"";
+  const logTo=el("nb_log_to")?el("nb_log_to").value.trim():"";
+  if(!aircraft||!operador||!periodFrom||!periodTo){showToast("Aircraft, Operator and Period are required","err");return;}
+  closeModal("newBatchMbd");
+  await resetBatch();
+  // Store batch metadata for when batch is saved
+  window._pendingBatchMeta={aircraft,operador,periodFrom,periodTo,logFrom,logTo};
+  // Pre-fill batch constants
+  if(el("bc_aircraft")) el("bc_aircraft").value=aircraft;
+  if(el("bc_operator")) el("bc_operator").value=operador;
+  const rate=AIRCRAFT.find(a=>a.matricula===aircraft)?.rates?.find(r=>r.operador===operador);
+  if(el("bc_mult")&&rate) el("bc_mult").value=rate.multiplicador.toFixed(3);
+  showToast("New billing cycle started: "+aircraft+" / "+operador);
+  addAudit("🆕",currentUser.name,"new billing cycle",aircraft+" / "+operador+" / "+periodFrom+" → "+periodTo);
+}
+
+// ── BILLING CYCLE HISTORY SELECTOR ──
+let allBatches=[];
+async function loadAllBatches(){
+  try {
+    const batches=await sbGet("batches","order=created_at.desc&limit=50");
+    allBatches=batches||[];
+    renderBatchSelector();
+  } catch(e){ dbg("Batch history load error: "+e.message,"err"); }
+}
+
+function renderBatchSelector(){
+  const sel=el("batchSelector"); if(!sel) return;
+  sel.innerHTML='<option value="">— Select Billing Cycle —</option>';
+  allBatches.forEach(b=>{
+    const opt=document.createElement("option");
+    opt.value=b.id;
+    const ac=b.aircraft||"?";
+    const op=b.operador||"?";
+    const pf=b.period_from?b.period_from.slice(0,7):"";
+    const lf=b.log_from?"#"+b.log_from:"";
+    const lt=b.log_to?"–#"+b.log_to:"";
+    opt.textContent=ac+" · "+op+(pf?" · "+pf:"")+(lf?(" · "+lf+lt):"")+" · "+b.status;
+    if(b.id===currentBatchId) opt.selected=true;
+    sel.appendChild(opt);
+  });
+}
+
+async function switchToBatch(batchId){
+  if(!batchId) return;
+  if(batchId===currentBatchId) return;
+  // Save current state first
+  if(currentBatchId&&flEntries.length) await saveBatchToDB();
+  currentBatchId=batchId;
+  await loadBatchFromDB();
+  showToast("Billing cycle loaded");
 }
 
 // ── RENDER ALL ──
@@ -4302,10 +4474,14 @@ function openCreateAircraft(){
   editingAcId=null;
   el("acModalTitle").textContent="New Aircraft";
   el("ac_matricula").value=""; el("ac_makeModel").value="";
-  el("ac_operador").value="FM"; el("ac_tipo").value="Single Engine";
-  el("ac_multiplicador").value=""; el("ac_diffThreshold").value="0.2";
-  el("ac_motorId").value="Lycoming O-320"; el("ac_consumoGalHr").value="8.5";
+  el("ac_tipo").value="Single Engine";
+  el("ac_diffThreshold").value="0.2";
+  if(el("ac_diffWarn")) el("ac_diffWarn").value="0.3";
+  if(el("ac_diffAlert")) el("ac_diffAlert").value="0.4";
+  el("ac_motorId").value=""; el("ac_consumoGalHr").value="";
   el("ac_asientos").value="2";
+  if(el("ac_owner")) el("ac_owner").value="";
+  if(el("ac_owner_address")) el("ac_owner_address").value="";
   tempRates=[]; renderAcRates();
   openModal("acMbd");
 }
@@ -4316,13 +4492,15 @@ function openEditAircraft(id){
   el("acModalTitle").textContent="Edit Aircraft: "+ac.matricula;
   el("ac_matricula").value=ac.matricula;
   el("ac_makeModel").value=ac.makeModel||"";
-  el("ac_operador").value=ac.operador||"FM";
   el("ac_tipo").value=ac.tipo||"";
-  el("ac_multiplicador").value=ac.multiplicador||"";
   el("ac_diffThreshold").value=ac.diffThreshold||0.2;
+  if(el("ac_diffWarn")) el("ac_diffWarn").value=ac.diffWarn||0.3;
+  if(el("ac_diffAlert")) el("ac_diffAlert").value=ac.diffAlert||0.4;
   el("ac_motorId").value=ac.motorId||"";
   el("ac_consumoGalHr").value=ac.consumoGalHr||"";
   el("ac_asientos").value=ac.asientos||"";
+  if(el("ac_owner")) el("ac_owner").value=ac.owner||"";
+  if(el("ac_owner_address")) el("ac_owner_address").value=ac.ownerAddress||"";
   tempRates=JSON.parse(JSON.stringify(ac.rates||[]));
   renderAcRates();
   openModal("acMbd");
@@ -4338,26 +4516,32 @@ function openDeleteAircraft(id){
 
 async function saveAircraft(){
   const matricula=el("ac_matricula").value.trim().toUpperCase();
-  const mult=parseFloat(el("ac_multiplicador").value);
   if(!matricula){showToast("Registration required","err");return;}
-  if(isNaN(mult)||mult<=0){showToast("Valid multiplier required","err");return;}
+  if(!tempRates.length){showToast("Add at least one operator rate","err");return;}
   const data={
     matricula, makeModel:el("ac_makeModel").value.trim(),
-    operador:el("ac_operador").value, tipo:el("ac_tipo").value.trim(),
-    multiplicador:mult, diffThreshold:parseFloat(el("ac_diffThreshold").value)||0.2,
+    tipo:el("ac_tipo").value.trim(),
+    // Use first rate's multiplier as the aircraft-level fallback
+    multiplicador:tempRates[0]?parseFloat(tempRates[0].multiplicador)||1:1,
+    diffThreshold:parseFloat(el("ac_diffThreshold").value)||0.2,
+    diffWarn:parseFloat(el("ac_diffWarn")?el("ac_diffWarn").value:0.3)||0.3,
+    diffAlert:parseFloat(el("ac_diffAlert")?el("ac_diffAlert").value:0.4)||0.4,
     motorId:el("ac_motorId").value.trim(),
     consumoGalHr:parseFloat(el("ac_consumoGalHr").value)||0,
     asientos:parseInt(el("ac_asientos").value)||2,
+    owner:el("ac_owner")?el("ac_owner").value.trim():"",
+    ownerAddress:el("ac_owner_address")?el("ac_owner_address").value.trim():"",
     rates:tempRates
   };
   if(editingAcId){
     const ac=AIRCRAFT.find(a=>a.id===editingAcId); Object.assign(ac,data);
     sbPatch("aircraft","id=eq."+editingAcId,{
       matricula:data.matricula, make_model:data.makeModel||"",
-      operador:data.operador, tipo:data.tipo||"",
-      multiplicador:data.multiplicador, diff_threshold:data.diffThreshold,
+      tipo:data.tipo||"", multiplicador:data.multiplicador,
+      diff_threshold:data.diffThreshold, diff_warn:data.diffWarn, diff_alert:data.diffAlert,
       motor_id:data.motorId||"", consumo_gal_hr:data.consumoGalHr||0,
-      asientos:data.asientos||2, rates:data.rates
+      asientos:data.asientos||2, rates:data.rates,
+      owner:data.owner||"", owner_address:data.ownerAddress||""
     }).then(()=>dbg("Aircraft updated in DB: "+data.matricula,"ok"))
       .catch(e=>dbg("Aircraft update error: "+e.message,"err"));
     showToast("Aircraft updated");
@@ -4366,10 +4550,11 @@ async function saveAircraft(){
     AIRCRAFT.push(newAc);
     sbPost("aircraft",{
       id:newAc.id, matricula:data.matricula, make_model:data.makeModel||"",
-      operador:data.operador, tipo:data.tipo||"",
-      multiplicador:data.multiplicador, diff_threshold:data.diffThreshold,
+      tipo:data.tipo||"", multiplicador:data.multiplicador,
+      diff_threshold:data.diffThreshold, diff_warn:data.diffWarn, diff_alert:data.diffAlert,
       motor_id:data.motorId||"", consumo_gal_hr:data.consumoGalHr||0,
-      asientos:data.asientos||2, rates:data.rates
+      asientos:data.asientos||2, rates:data.rates,
+      owner:data.owner||"", owner_address:data.ownerAddress||""
     }).then(()=>dbg("Aircraft created in DB: "+data.matricula,"ok"))
       .catch(e=>dbg("Aircraft create error: "+e.message,"err"));
     showToast("Aircraft added");
@@ -4569,7 +4754,39 @@ function wireEvents(){
     btn.textContent=body.classList.contains("collapsed")?"▼":"▲";
   });
 
-  // Name propagation modal
+  // New Batch modal
+  if(el("fl_newBatch")) el("fl_newBatch").addEventListener("click",openNewBatchModal);
+  if(el("nb_close")) el("nb_close").addEventListener("click",()=>closeModal("newBatchMbd"));
+  if(el("nb_cancel")) el("nb_cancel").addEventListener("click",()=>closeModal("newBatchMbd"));
+  if(el("nb_confirm")) el("nb_confirm").addEventListener("click",confirmNewBatch);
+  if(el("newBatchMbd")) el("newBatchMbd").addEventListener("click",e=>{ if(e.target===el("newBatchMbd")) closeModal("newBatchMbd"); });
+  // nb_aircraft cascade to nb_operator
+  if(el("nb_aircraft")) el("nb_aircraft").addEventListener("change",function(){
+    const ac=AIRCRAFT.find(a=>a.matricula===this.value);
+    const opSel=el("nb_operator");
+    if(!opSel) return;
+    opSel.innerHTML='<option value="">Auto-detect</option>';
+    if(ac&&ac.rates) ac.rates.forEach(r=>{
+      const opt=document.createElement("option");
+      opt.value=r.operador; opt.textContent=r.operador;
+      opSel.appendChild(opt);
+    });
+  });
+
+  // Batch selector
+  if(el("batchSelector")) el("batchSelector").addEventListener("change",function(){
+    if(this.value) switchToBatch(this.value);
+  });
+
+  // Swap buttons in side panel
+  if(el("sp_swap_motor")) el("sp_swap_motor").addEventListener("click",()=>{
+    const a=el("sp_motorOut").value, b=el("sp_motorIn").value;
+    el("sp_motorOut").value=b; el("sp_motorIn").value=a; spLiveCalc();
+  });
+  if(el("sp_swap_vuelo")) el("sp_swap_vuelo").addEventListener("click",()=>{
+    const a=el("sp_vueloOut").value, b=el("sp_vueloIn").value;
+    el("sp_vueloOut").value=b; el("sp_vueloIn").value=a; spLiveCalc();
+  });
   if(el("nameProp_close")) el("nameProp_close").addEventListener("click",()=>{closeModal("namePropMbd");if(_namePropData){_namePropData.onConfirm([]);_namePropData=null;}});
   if(el("nameProp_this")) el("nameProp_this").addEventListener("click",()=>{closeModal("namePropMbd");if(_namePropData){_namePropData.onConfirm([]);_namePropData=null;}});
   if(el("nameProp_selected")) el("nameProp_selected").addEventListener("click",()=>applyNameProp("selected"));
@@ -4706,7 +4923,7 @@ function wireEvents(){
 async function init(){
   applyI18n();
   wireEvents();
-  dbg("HP Fleet v7.5 — initializing…","info");
+  dbg("HP Fleet v7.6 — initializing…","info");
   await seedIfEmpty();
   await loadMasterData();
   if(el("viewAsRole")) el("viewAsRole").value="ADMIN";
