@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.4 — built 2026-05-03 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.5 — built 2026-05-03 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.4</title>
+<title>HP Fleet v7.5</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -577,6 +577,10 @@ table.fl-tbl td:last-child{border-right:none}
 .debug-body{max-height:150px;overflow-y:auto;padding:8px 14px;
   transition:max-height .25s ease}
 .debug-body.collapsed{max-height:0;overflow:hidden;padding:0}
+
+/* SIDE PANEL — adjust bottom when debug open */
+.side-panel{bottom:0;transition:bottom .2s}
+.side-panel.debug-open{bottom:180px}
 .debug-line{padding:2px 0;border-bottom:1px solid #00ff4115;font-size:10px}
 .debug-line.err{color:#ff6b6b}
 .debug-line.ok{color:#3ddc84}
@@ -674,6 +678,70 @@ table.fl-tbl td:last-child{border-right:none}
 /* TABLE HORIZONTAL SCROLL */
 .fl-tbl-wrap{overflow-x:auto;width:100%}
 .fl-tbl{min-width:1100px}
+
+/* WORKFLOW BAR — fixed state colors */
+.wf-step.done .wf-dot{background:var(--green);box-shadow:none}
+.wf-step.done{color:var(--green)}
+.wf-step.active .wf-dot{background:var(--cyan);animation:pulse 1.5s infinite}
+.wf-step.active{color:var(--cyan)}
+.wf-step.pending .wf-dot{background:var(--border2);box-shadow:none}
+.wf-step.pending{color:var(--dim)}
+
+/* HORO SEQUENCE GAP — cell left border only */
+.horo-seq-gap{border-left:3px solid var(--yellow)!important}
+
+/* ZOOM CONTROLS */
+.sp-zoom-bar{position:absolute;bottom:8px;right:8px;display:flex;gap:4px;z-index:10}
+.sp-zoom-btn{background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.2);color:#fff;
+  width:28px;height:28px;border-radius:4px;cursor:pointer;font-size:14px;
+  display:flex;align-items:center;justify-content:center;transition:all .15s}
+.sp-zoom-btn:hover{background:rgba(41,209,255,.3);border-color:var(--cyan)}
+
+/* ROTATE BUTTON */
+.sp-rotate-btn{background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.2);color:#fff;
+  padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;font-family:var(--mono);
+  transition:all .15s;white-space:nowrap}
+.sp-rotate-btn:hover{background:rgba(255,192,67,.3);border-color:var(--yellow)}
+.sp-reextract-btn{background:rgba(41,209,255,.15);border:1px solid var(--cyan);color:var(--cyan);
+  padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;font-family:var(--mono);
+  transition:all .15s}
+.sp-reextract-btn:hover{background:rgba(41,209,255,.3)}
+
+/* PRE-INVOICE */
+.pi-invoice{background:var(--s1);border:1px solid var(--border2);max-width:860px;margin:0 auto;padding:32px}
+.pi-inv-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid var(--cyan)}
+.pi-inv-from{font-size:13px;line-height:1.7}
+.pi-inv-from strong{font-size:16px;color:var(--cyan);font-family:var(--display)}
+.pi-inv-meta{text-align:right;font-family:var(--mono);font-size:11px;color:var(--dim2)}
+.pi-inv-meta div{margin-bottom:4px}
+.pi-inv-meta strong{color:var(--text)}
+.pi-bill-to{background:var(--s2);border:1px solid var(--border);padding:14px 18px;margin-bottom:20px}
+.pi-bill-label{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.pi-bill-name{font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px}
+.pi-bill-detail{font-size:12px;color:var(--dim2);line-height:1.6}
+.pi-period{display:flex;gap:24px;margin-bottom:20px;font-family:var(--mono);font-size:11px;color:var(--dim2)}
+.pi-period span{color:var(--text)}
+.pi-tbl{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:12px}
+.pi-tbl th{background:var(--s3);padding:8px 12px;text-align:left;font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);border-bottom:1px solid var(--border2)}
+.pi-tbl td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.pi-tbl tr:last-child td{border-bottom:none}
+.pi-tbl .pi-amt{text-align:right;font-family:var(--mono);font-weight:600;color:var(--green)}
+.pi-tbl .pi-zero{color:var(--dim2)}
+.pi-subtotal{display:flex;justify-content:flex-end;padding:12px 0;border-top:1px solid var(--border2);margin-bottom:12px}
+.pi-subtotal-row{display:flex;justify-content:space-between;min-width:280px;font-family:var(--mono);font-size:12px;padding:3px 0}
+.pi-charges{margin-bottom:20px}
+.pi-charges-title{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.pi-charge-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.pi-charge-row input{background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:6px 10px;font-size:12px;border-radius:2px;outline:none}
+.pi-total{background:var(--s2);border:2px solid var(--cyan);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+.pi-total-label{font-family:var(--display);font-weight:700;font-size:14px;color:var(--dim2)}
+.pi-total-amt{font-family:var(--display);font-weight:700;font-size:28px;color:var(--green)}
+.pi-signoff{display:flex;gap:12px;align-items:center}
+.pi-signed{background:rgba(61,220,132,.1);border:1px solid var(--green);padding:10px 16px;font-family:var(--mono);font-size:11px;color:var(--green)}
+
+/* NON-BILLABLE */
+.r-nonbillable td{color:var(--dim2)!important}
+.r-nonbillable{background:rgba(90,106,136,.05)!important}
 </style>
 </head>
 <body>
@@ -704,7 +772,7 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.4</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.5</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -713,7 +781,7 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.4</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.5</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -882,7 +950,7 @@ table.fl-tbl td:last-child{border-right:none}
       <!-- Horo alert — compact collapsible -->
       <div class="alert al-horo" id="horoAlert" style="padding:0;overflow:hidden">
         <div class="al-horo-hdr" id="horoAlertHdr">
-          <div class="al-title" id="al_horoTitle" style="margin:0">⚠ Horometer Gap Detected</div>
+          <div class="al-title" id="al_horoTitle" style="margin:0;color:var(--yellow)">⚠ Sequence Breaks Detected</div>
           <div style="display:flex;align-items:center;gap:8px">
             <span id="horoGapCount" style="font-family:var(--mono);font-size:10px;color:var(--red)"></span>
             <button id="horoToggle" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">▼</button>
@@ -983,14 +1051,9 @@ table.fl-tbl td:last-child{border-right:none}
     <div class="tab-panel" id="panel-preinvoice">
       <div class="page-hdr">
         <div class="page-title"><span>·</span> <span id="pi_title">Pre-Invoice</span></div>
-      </div>
-      <div id="piDraftState" style="display:none">
-        <div class="pi-ready">
-          <div class="pi-ready-icon">✅</div>
-          <div class="pi-ready-title" id="pi_approved_title">Batch Approved for Invoicing</div>
-          <div class="pi-ready-sub" id="pi_approved_sub">Approved log data is locked. Add any additional charges below to complete the invoice.</div>
-          <div class="pi-stats" id="piStats"></div>
-          <div style="color:var(--dim2);font-family:var(--mono);font-size:11px" id="pi_approved_by"></div>
+        <div style="display:flex;gap:8px" id="pi_actions" style="display:none">
+          <button class="btn-ghost" id="pi_add_charge">+ Add Charge</button>
+          <button class="btn-primary" id="pi_export_pdf">↓ Export PDF</button>
         </div>
       </div>
       <div id="piComingSoon">
@@ -998,6 +1061,64 @@ table.fl-tbl td:last-child{border-right:none}
           <div class="cs-icon">📊</div>
           <div class="cs-title" id="cs_billing">Pre-Invoice &amp; Billing</div>
           <div class="cs-sub" id="pi_coming_msg">Approve a batch to unlock billing</div>
+        </div>
+      </div>
+      <div id="piDraftState" style="display:none">
+        <div class="pi-invoice" id="piInvoice">
+          <!-- Header -->
+          <div class="pi-inv-header">
+            <div class="pi-inv-from">
+              <strong id="pi_owner_name">—</strong><br>
+              <span id="pi_owner_detail" style="font-size:12px;color:var(--dim2)"></span>
+            </div>
+            <div class="pi-inv-meta">
+              <div>Invoice # <strong id="pi_inv_num">—</strong></div>
+              <div>Date <strong id="pi_inv_date">—</strong></div>
+              <div>Aircraft <strong id="pi_inv_aircraft">—</strong></div>
+            </div>
+          </div>
+          <!-- Bill To -->
+          <div class="pi-bill-to">
+            <div class="pi-bill-label">Bill To</div>
+            <div class="pi-bill-name" id="pi_bill_name">—</div>
+            <div class="pi-bill-detail" id="pi_bill_detail"></div>
+          </div>
+          <!-- Period -->
+          <div class="pi-period">
+            <div>Period: <span id="pi_period">—</span></div>
+            <div>Logs: <span id="pi_log_range">—</span></div>
+          </div>
+          <!-- Line items -->
+          <table class="pi-tbl">
+            <thead><tr>
+              <th>#</th><th>Log #</th><th>Date</th><th>Pilot</th>
+              <th>T.Motor</th><th>TBP</th><th>Rate</th><th style="text-align:right">Amount</th>
+            </tr></thead>
+            <tbody id="pi_line_items"></tbody>
+          </table>
+          <!-- Subtotal -->
+          <div class="pi-subtotal">
+            <div>
+              <div class="pi-subtotal-row"><span style="color:var(--dim2)">TBP Hours</span><span id="pi_sub_hrs" style="font-family:var(--mono)">—</span></div>
+              <div class="pi-subtotal-row"><span style="color:var(--dim2)">Subtotal</span><span id="pi_sub_amt" style="font-family:var(--mono);color:var(--green)">—</span></div>
+            </div>
+          </div>
+          <!-- Additional charges -->
+          <div class="pi-charges">
+            <div class="pi-charges-title">Additional Charges</div>
+            <div id="pi_charges_list"></div>
+            <button class="btn-ghost" id="pi_add_charge2" style="font-size:11px;margin-top:6px">+ Add Charge</button>
+          </div>
+          <!-- Total -->
+          <div class="pi-total">
+            <div class="pi-total-label">TOTAL AMOUNT DUE</div>
+            <div class="pi-total-amt" id="pi_total_amt">$0.00</div>
+          </div>
+          <!-- Sign-off -->
+          <div class="pi-signoff">
+            <button class="btn-primary" id="pi_signoff_btn">✓ Approve &amp; Sign Off</button>
+            <div class="pi-signed" id="pi_signed_badge" style="display:none" id="pi_signed_badge"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -1038,14 +1159,6 @@ table.fl-tbl td:last-child{border-right:none}
               <span style="font-family:var(--mono);font-size:11px;color:var(--dim2)" id="debugToggleLabel">Off</span>
             </label>
           </div>
-        </div>
-      </div>
-        <div class="settings-card">
-          <div class="settings-card-title" style="display:flex;align-items:center;justify-content:space-between">
-            <span>✈️ <span id="st_fleetTitle">Fleet / Aircraft</span></span>
-            <button class="btn-primary" id="btn_addAircraft" style="font-size:11px;padding:6px 14px">+ Add Aircraft</button>
-          </div>
-          <div id="fleetGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px"></div>
         </div>
       </div>
     </div>
@@ -1104,10 +1217,18 @@ table.fl-tbl td:last-child{border-right:none}
         <div class="field"><label>Short Code *</label><input type="text" id="co_code" placeholder="FM"><span class="ferr" id="coe_code"></span></div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>Default Multiplier *</label><input type="number" id="co_mult" step="0.001" placeholder="1.150"><span class="ferr" id="coe_mult"></span></div>
+        <div class="field"><label>Short Code *</label><input type="text" id="co_code" placeholder="FM" maxlength="6"><span class="ferr" id="coe_code"></span></div>
         <div class="field"><label>Status</label><select id="co_status"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
       </div>
       <div class="field"><label>Notes</label><textarea id="co_notes" placeholder="Contact info, notes…"></textarea></div>
+      <div class="frow fc2">
+        <div class="field"><label>Address</label><input type="text" id="co_address" placeholder="Hangar 15B, Albrook"></div>
+        <div class="field"><label>Phone</label><input type="text" id="co_phone" placeholder="+507 XXX-XXXX"></div>
+      </div>
+      <div class="frow fc2">
+        <div class="field"><label>Admin Contact</label><input type="text" id="co_admin_contact" placeholder="Name, email"></div>
+        <div class="field"><label>Accounting Contact</label><input type="text" id="co_acct_contact" placeholder="Name, email"></div>
+      </div>
       <div class="section-divider">Billing Rules</div>
       <div id="co_rules_list" style="margin-bottom:12px"></div>
       <button class="btn-ghost" id="co_addRule" style="width:100%">+ Add Billing Rule</button>
@@ -1270,6 +1391,10 @@ table.fl-tbl td:last-child{border-right:none}
         <div></div>
       </div>
       <div class="frow fc2">
+        <div class="field"><label>Owner *</label><input type="text" id="ac_owner" placeholder="Unidad Fragata, S.A."></div>
+        <div class="field"><label>Owner Address</label><input type="text" id="ac_owner_address" placeholder="Panama City, Panama"></div>
+      </div>
+      <div class="frow fc2">
         <div class="sp-field" style="flex:1"><label style="font-family:var(--mono);font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px">Operator Rates</label>
           <div id="acRatesList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
           <button type="button" class="btn-ghost" id="btn_addRate" style="width:100%;font-size:11px">+ Add Operator Rate</button>
@@ -1309,8 +1434,17 @@ table.fl-tbl td:last-child{border-right:none}
     <button class="sp-nav-btn" id="spNext">›</button>
   </div>
   <div class="sp-meta" id="sp_meta">—</div>
-  <div class="sp-img-wrap" id="sp_img_wrap">
-    <img id="sp_img" src="" alt="Source log">
+  <div class="sp-img-wrap" id="sp_img_wrap" style="position:relative;overflow:hidden">
+    <img id="sp_img" src="" alt="Source log" style="transform-origin:center;transition:transform .2s">
+    <div class="sp-zoom-bar">
+      <button class="sp-zoom-btn" id="sp_zoom_in" title="Zoom in">+</button>
+      <button class="sp-zoom-btn" id="sp_zoom_out" title="Zoom out">−</button>
+      <button class="sp-zoom-btn" id="sp_zoom_reset" title="Reset zoom" style="font-size:10px">↺</button>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;padding:8px 16px;background:var(--s2);border-bottom:1px solid var(--border2);flex-shrink:0" id="sp_img_controls">
+    <button class="sp-rotate-btn" id="sp_rotate">🔄 Rotate 90°</button>
+    <button class="sp-reextract-btn" id="sp_reextract" style="display:none">↺ Re-extract</button>
   </div>
   <!-- Editable fields section -->
   <div class="sp-edit-section" id="spEditSection" style="display:none">
@@ -1381,7 +1515,7 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.4";
+const APP_VERSION = "v7.5";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -1533,10 +1667,20 @@ let COMPANIES = [
 let AIRCRAFT = [
   {id:"ac001",matricula:"HP-1861",makeModel:"Piper PA-28",operador:"FM",
    multiplicador:1.275,tipo:"Single Engine",asientos:2,
-   motorId:"Lycoming O-320",consumoGalHr:8.5,diffThreshold:0.2},
+   motorId:"Lycoming O-320",consumoGalHr:8.5,diffThreshold:0.2,
+   owner:"Unidad Fragata, S.A.",ownerAddress:"Panama City, Panama",
+   rates:[
+     {operador:"FM",  multiplicador:1.275, tarifaHr:0},
+     {operador:"MAG", multiplicador:1.275, tarifaHr:0}
+   ]},
   {id:"ac002",matricula:"HP-1862FX",makeModel:"Piper PA-28",operador:"FM",
    multiplicador:1.15,tipo:"Single Engine",asientos:2,
-   motorId:"Lycoming O-320",consumoGalHr:8.5,diffThreshold:0.2}
+   motorId:"Lycoming O-320",consumoGalHr:8.5,diffThreshold:0.2,
+   owner:"GRANSOLUX S.A.",ownerAddress:"Panama City, Panama",
+   rates:[
+     {operador:"FM",  multiplicador:1.15,  tarifaHr:165},
+     {operador:"MAG", multiplicador:1.275, tarifaHr:155}
+   ]}
 ];
 let USERS = [
   {id:"u001",name:"Marcelo C.",email:"marcelo@hp-fleet.com",pwd:"admin1234",role:"ADMIN",companies:["FM","MAG"],phone:"+50760000001",status:"active",created:"2025-01-15",lastLogin:null},
@@ -1728,10 +1872,17 @@ const LAST_HORO = {"HP-1862FX":1298.4,"HP-1861":1105.7};
 const FL_LOAD_TS = new Date();
 const MODEL = "claude-sonnet-4-6";
 
+function _updateSpBottom(){
+  const panel=el("sidePanel"); if(!panel) return;
+  const debugOn=el("debugPanel")&&el("debugPanel").classList.contains("on")&&!el("debugBody").classList.contains("collapsed");
+  panel.classList.toggle("debug-open",debugOn);
+}
+
 // ── DEBUG LOGGER ──
 function dbg(msg, type="info"){
   const panel=el("debugPanel"); if(!panel) return;
   panel.classList.add("on");
+  _updateSpBottom();
   const body=el("debugBody");
   const line=document.createElement("div");
   line.className="debug-line "+(type||"info");
@@ -1740,8 +1891,6 @@ function dbg(msg, type="info"){
   body.appendChild(line);
   body.scrollTop=body.scrollHeight;
 }
-
-function dbgClear(){ const b=el("debugBody"); if(b) b.innerHTML=""; }
 
 function t(k){ return I18N[lang][k] ?? I18N.en[k] ?? k; }
 function el(id){ return document.getElementById(id); }
@@ -2256,7 +2405,7 @@ function renderCompanies(){
   el("coStats").innerHTML='<div class="scard sc-tot"><div class="sc-l">Total</div><div class="sc-v">'+COMPANIES.length+"</div>"+
     '<div class="sc-s">'+active+" "+(lang==="es"?"activas":"active")+"</div></div>"+
     COMPANIES.map(co=>'<div class="scard sc-co"><div class="sc-l">'+co.code+"</div>"+
-      '<div class="sc-v">'+co.multiplier.toFixed(3)+"</div>"+
+      '<div class="sc-v">'+co.code+"</div>"+
       '<div class="sc-s">'+(lang==="es"?"Multiplicador":"Multiplier")+"</div></div>").join("");
   el("coGrid").innerHTML="";
   COMPANIES.forEach(co=>{
@@ -2276,7 +2425,7 @@ function renderCompanies(){
       "</div>"+
       '<div class="co-card-body">'+
       '<div class="co-row"><span class="co-row-label">'+(lang==="es"?"Multiplicador":"Multiplier")+"</span>"+
-      '<span class="co-row-val accent">'+co.multiplier.toFixed(3)+"×</span></div>"+
+      '<span class="co-row-val accent">'+co.code+"</span></div>"+
       '<div class="co-row"><span class="co-row-label">Status</span>'+
       '<span class="co-row-val">'+(co.status==="active"?(lang==="es"?"activa":"active"):(lang==="es"?"inactiva":"inactive"))+"</span></div>"+
       (co.notes?'<div class="co-row"><span class="co-row-label">'+(lang==="es"?"Notas":"Notes")+"</span>"+
@@ -2313,7 +2462,11 @@ function openCreateCompany(){
   editingCoId=null; tempRules=[]; clearCoErrors();
   el("coModalTitle").textContent=lang==="es"?"Nueva Compañía":"New Company";
   el("co_name").value=""; el("co_code").value="";
-  el("co_mult").value=""; el("co_status").value="active"; el("co_notes").value="";
+  el("co_status").value="active"; el("co_notes").value="";
+  if(el("co_address")) el("co_address").value="";
+  if(el("co_phone")) el("co_phone").value="";
+  if(el("co_admin_contact")) el("co_admin_contact").value="";
+  if(el("co_acct_contact")) el("co_acct_contact").value="";
   renderTempRules(); openModal("coMbd");
 }
 
@@ -2322,7 +2475,11 @@ function openEditCompany(id){
   editingCoId=id; tempRules=JSON.parse(JSON.stringify(co.billingRules||[])); clearCoErrors();
   el("coModalTitle").textContent=(lang==="es"?"Editar Compañía: ":"Edit Company: ")+co.name;
   el("co_name").value=co.name; el("co_code").value=co.code;
-  el("co_mult").value=co.multiplier; el("co_status").value=co.status; el("co_notes").value=co.notes||"";
+  el("co_status").value=co.status; el("co_notes").value=co.notes||"";
+  if(el("co_address")) el("co_address").value=co.address||"";
+  if(el("co_phone")) el("co_phone").value=co.phone||"";
+  if(el("co_admin_contact")) el("co_admin_contact").value=co.adminContact||"";
+  if(el("co_acct_contact")) el("co_acct_contact").value=co.acctContact||"";
   renderTempRules(); openModal("coMbd");
 }
 
@@ -2360,27 +2517,30 @@ function addBillingRuleRow(){
 function saveCompany(){
   clearCoErrors();
   const name=el("co_name").value.trim(), code=el("co_code").value.trim().toUpperCase();
-  const mult=parseFloat(el("co_mult").value), status=el("co_status").value, notes=el("co_notes").value.trim();
+  const status=el("co_status").value, notes=el("co_notes").value.trim();
+  const address=el("co_address")?el("co_address").value.trim():"";
+  const phone=el("co_phone")?el("co_phone").value.trim():"";
+  const adminContact=el("co_admin_contact")?el("co_admin_contact").value.trim():"";
+  const acctContact=el("co_acct_contact")?el("co_acct_contact").value.trim():"";
   let ok=true;
   if(!name){setFerr("coe_name","co_name",t("required"));ok=false;}
   if(!code){setFerr("coe_code","co_code",t("required"));ok=false;}
   else if(COMPANIES.find(c=>c.code===code&&c.id!==editingCoId)){setFerr("coe_code","co_code",t("codeExists"));ok=false;}
-  if(isNaN(mult)||mult<=0){setFerr("coe_mult","co_mult",t("multInvalid"));ok=false;}
   if(!ok) return;
-  const data={name,code,multiplier:mult,status,notes,billingRules:tempRules};
+  const data={name,code,status,notes,address,phone,adminContact,acctContact,billingRules:tempRules};
   if(editingCoId){
     const co=COMPANIES.find(x=>x.id===editingCoId); Object.assign(co,data);
-    sbPatch("companies","id=eq."+co.id,{name,code,multiplier:mult,status,notes,billing_rules:JSON.stringify(tempRules)})
+    sbPatch("companies","id=eq."+co.id,{name,code,status,notes,billing_rules:JSON.stringify(tempRules)})
       .then(()=>dbg("Company updated in DB: "+name,"ok"))
       .catch(e=>dbg("Company update error: "+e.message,"err"));
     addAudit("✏️",currentUser.name,(lang==="es"?"editó compañía":"edited company"),name);
   } else {
     const newCo={id:"c"+nextCoId++,...data};
     COMPANIES.push(newCo);
-    sbPost("companies",{id:newCo.id,name,code,multiplier:mult,status,notes,billing_rules:JSON.stringify(tempRules)})
+    sbPost("companies",{id:newCo.id,name,code,status,notes,billing_rules:JSON.stringify(tempRules)})
       .then(()=>dbg("Company created in DB: "+name,"ok"))
       .catch(e=>dbg("Company create error: "+e.message,"err"));
-    addAudit("➕",currentUser.name,(lang==="es"?"creó compañía":"created company"),name+" ("+code+") mult:"+mult);
+    addAudit("➕",currentUser.name,(lang==="es"?"creó compañía":"created company"),name+" ("+code+")");
   }
   closeModal("coMbd"); renderCompanies(); renderUsers(); showToast(t("companySaved"));
 }
@@ -2830,11 +2990,12 @@ function fmt(n){return isNaN(n)||n===0?"—":n.toFixed(1);}
 
 // ── FLIGHT LOG — HOROMETER ──
 function horoCheck(entry,idx){
-  const prev=flEntries.slice(0,idx).filter(e=>e.aeronave===entry.aeronave).pop();
-  const expected=prev?(prev.horoIn+calcEntry(prev).tm):LAST_HORO[entry.aeronave];
-  if(expected===undefined) return{ok:true};
-  const diff=Math.abs(entry.horoIn-expected);
-  return{ok:diff<0.15,expected:expected.toFixed(1),got:entry.horoIn?.toFixed(1),diff:diff.toFixed(2)};
+  // Only check against previous entry in this batch — not hardcoded seed values
+  const prev=flEntries.slice(0,idx).filter(e=>e.aeronave===entry.aeronave&&e.status!=="skipped"&&e.status!=="void").pop();
+  if(!prev) return{ok:true}; // no prior entry in batch — no gap flag
+  const expected=prev.horoIn+(calcEntry(prev).tm||0);
+  const diff=Math.abs((entry.horoIn||0)-expected);
+  return{ok:diff<0.15,expected:expected.toFixed(1),got:(entry.horoIn||0).toFixed(1),diff:diff.toFixed(2)};
 }
 
 function runHoroChecks(){
@@ -2849,9 +3010,9 @@ function runHoroChecks(){
   if(gaps.length){
     al.classList.add("on");
     if(body) body.innerHTML=gaps.map(g=>"<div>• "+g+"</div>").join("");
-    if(countEl) countEl.textContent=gaps.length+" gap(s)";
-    el("srcHoro").textContent="⚠ "+gaps.length+" gap(s)";
-    el("srcHoro").className="sb-v err";
+    if(countEl) countEl.textContent=gaps.length+" break(s)";
+    el("srcHoro").textContent="⚠ "+gaps.length+" break(s)";
+    el("srcHoro").className="sb-v warn"; // yellow — informational
   } else {
     al.classList.remove("on");
     if(countEl) countEl.textContent="";
@@ -2862,17 +3023,19 @@ function runHoroChecks(){
 
 // ── FLIGHT LOG — WORKFLOW BAR ──
 function renderWfBar(){
+  const hasEntries=flEntries.length>0;
+  const st=batchStatus;
   const steps=[
-    {key:"wfUpload",done:true},{key:"wfExtract",done:flEntries.length>0},
-    {key:"wfReview",active:batchStatus==="DRAFT"||batchStatus==="CHANGES"},
-    {key:"wfSubmit",active:batchStatus==="SUBMITTED"},
-    {key:"wfApproved",active:batchStatus==="APPROVED"}
+    {key:"wfUpload",  state: "done"},
+    {key:"wfExtract", state: hasEntries?"done":"pending"},
+    {key:"wfReview",  state: hasEntries&&(st==="DRAFT"||st==="CHANGES")?"active":hasEntries&&(st==="SUBMITTED"||st==="APPROVED")?"done":"pending"},
+    {key:"wfSubmit",  state: st==="SUBMITTED"?"active":st==="APPROVED"?"done":"pending"},
+    {key:"wfApproved",state: st==="APPROVED"?"active":"pending"}
   ];
   const bar=el("wfBar"); if(!bar) return;
   bar.innerHTML=steps.map((s,i)=>{
-    const cls=s.done?"done":s.active?"active":"pending";
     const arrow=i<steps.length-1?'<span class="wf-arrow">›</span>':"";
-    return '<div class="wf-step '+cls+'"><div class="wf-dot"></div>'+t(s.key)+"</div>"+arrow;
+    return '<div class="wf-step '+s.state+'"><div class="wf-dot"></div>'+t(s.key)+"</div>"+arrow;
   }).join("");
   if(el("srcStatus")){
     const labels={DRAFT:t("wfReview"),SUBMITTED:t("wfSubmit"),APPROVED:t("wfApproved"),CHANGES:lang==="es"?"Cambios Solicitados":"Changes Requested"};
@@ -2924,15 +3087,18 @@ function renderFlTable(){
     const gi=flEntries.indexOf(e);
     const{tm,tv,mult,tbp}=calcEntry(e);
     const h=horoCheck(e,gi);
+    const hasDiffGap=e.obs&&e.obs.includes("Dif Motor/Vuelo");
     const isOverride=e.multOverride&&e.multOverride!==getAircraftMult(e.aeronave,e.operador);
     const tr=document.createElement("tr");
-    tr.className=e.status==="approved"?"r-ok":e.status==="rejected"?"r-rej":e.status==="flagged"?"r-flagged":e.status==="skipped"?"r-skipped":"";
+    tr.className=e.status==="approved"?"r-ok":e.status==="rejected"?"r-rej":e.status==="flagged"?"r-flagged":e.status==="skipped"?"r-skipped":e.status==="nonbillable"?"r-nonbillable":"";
     tr.style.cursor="pointer";
     tr.dataset.entryId=e.id;
-    // Review comment indicator
+    // Notes — show flag note or obs, plus red triangle if diff gap
+    const diffTriangle=hasDiffGap?'<span style="color:var(--red);margin-left:4px" title="Motor/Vuelo diff exceeds threshold">▲</span>':"";
     const notesDisplay=e.flagNote
       ?'<span style="color:var(--yellow);font-size:10px" title="'+e.flagNote+'">⚠ '+e.flagNote+"</span>"
       :(e.obs||"—");
+    const motorOutCell='<td class="cb'+((!h.ok)?' horo-seq-gap':'')+'">'+(e.motorOut||"—")+"</td>";
     tr.innerHTML=
       '<td class="cd" style="font-family:var(--mono);font-size:10px;color:var(--dim2);text-align:center">'+String(rowIdx+1).padStart(2,"0")+"</td>"+
       '<td class="bnum-cell">'+(e.bnum||"—")+"</td>"+
@@ -2941,7 +3107,7 @@ function renderFlTable(){
       '<td><span style="color:'+(e.operador==="FM"?"var(--green)":"var(--yellow)")+'">'+( e.operador||"—")+"</span></td>"+
       "<td>"+(e.piloto||"—")+"</td>"+
       '<td style="color:var(--dim2);font-size:12px">'+(e.instructor||"—")+"</td>"+
-      '<td class="cb">'+(e.motorOut||"—")+'<div class="horo-ind '+(h.ok?"hi-ok":"hi-gap")+'">'+(h.ok?t("horoOk"):t("horoGap"))+"</div></td>"+
+      motorOutCell+
       '<td class="cb">'+(e.motorIn||"—")+"</td>"+
       '<td class="cb">'+fmt(tm)+"</td>"+
       "<td>"+(e.vueloOut||"—")+"</td>"+
@@ -2950,7 +3116,7 @@ function renderFlTable(){
       '<td class="cd" style="'+(isOverride?"color:var(--yellow)":"")+'">'+mult+(isOverride?" ⚠":"")+"</td>"+
       '<td class="cg">'+fmt(tbp)+"</td>"+
       '<td class="cd">'+(e.horoIn?.toFixed(1)||"—")+"</td>"+
-      '<td class="cd" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+notesDisplay+"</td>"+
+      '<td class="cd" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+notesDisplay+diffTriangle+"</td>"+
       "<td>"+mkFlToggle(e,canEdit)+"</td>";
     tbody.appendChild(tr);
   });
@@ -3202,32 +3368,96 @@ function handleApprove(){
 }
 
 // ── PRE-INVOICE RENDER ──
+let piAdditionalCharges=[];
+let piSignedBy=null, piSignedAt=null, piInvNum=null;
+
+function generateInvNum(){
+  const now=new Date();
+  return "INV-"+now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(Math.floor(Math.random()*900)+100);
+}
+
 function renderPreInvoice(){
   const ready=el("piDraftState");
   const soon=el("piComingSoon");
   if(!ready||!soon) return;
   if(batchStatus==="APPROVED"){
     ready.style.display="block"; soon.style.display="none";
-    // Calculate totals
-    let fmM=0,fmT=0,magM=0,magT=0,totV=0,count=0;
-    flEntries.filter(e=>e.status==="approved").forEach(e=>{
-      count++;
-      const{tm,tv,tbp}=calcEntry(e); totV+=tv;
-      if(e.operador==="FM"){fmM+=tm;fmT+=tbp;}else{magM+=tm;magT+=tbp;}
-    });
-    const stats=el("piStats");
-    if(stats) stats.innerHTML=
-      '<div class="pi-stat"><div class="pi-stat-v">'+count+"</div><div class=\"pi-stat-l\">Approved Entries</div></div>"+
-      '<div class="pi-stat"><div class="pi-stat-v">'+fmt(fmM+magM)+"</div><div class=\"pi-stat-l\">Total T.Motor (hrs)</div></div>"+
-      '<div class="pi-stat"><div class="pi-stat-v">'+fmt(totV)+"</div><div class=\"pi-stat-l\">Total T.Flight (hrs)</div></div>"+
-      '<div class="pi-stat"><div class="pi-stat-v" style="color:var(--green)">'+fmt(fmT+magT)+"</div><div class=\"pi-stat-l\">Total TBP (hrs)</div></div>";
-    const byLine=el("pi_approved_by");
-    if(byLine) byLine.textContent="Source: "+batchSourceFile;
+    if(!piInvNum) piInvNum=generateInvNum();
+    const approved=flEntries.filter(e=>e.status==="approved");
+    const aircraft=approved.length?AIRCRAFT.find(a=>a.matricula===approved[0].aeronave):null;
+    const operatorCode=approved.length?approved[0].operador:"";
+    const company=COMPANIES.find(c=>c.code===operatorCode);
+    const rate=aircraft?.rates?.find(r=>r.operador===operatorCode);
+    const tarifaHr=rate?rate.tarifaHr:0;
+    if(el("pi_owner_name")) el("pi_owner_name").textContent=aircraft?.owner||"—";
+    if(el("pi_owner_detail")) el("pi_owner_detail").textContent=aircraft?.ownerAddress||"";
+    if(el("pi_inv_num")) el("pi_inv_num").textContent=piInvNum;
+    if(el("pi_inv_date")) el("pi_inv_date").textContent=new Date().toLocaleDateString("es-PA");
+    if(el("pi_inv_aircraft")) el("pi_inv_aircraft").textContent=aircraft?.matricula||"—";
+    if(el("pi_bill_name")) el("pi_bill_name").textContent=company?.name||"—";
+    if(el("pi_bill_detail")){
+      const parts=[];
+      if(company?.address) parts.push(company.address);
+      if(company?.phone) parts.push(company.phone);
+      if(company?.adminContact) parts.push("Attn: "+company.adminContact);
+      if(company?.acctContact) parts.push("Acctg: "+company.acctContact);
+      el("pi_bill_detail").innerHTML=parts.join("<br>");
+    }
+    const dates=approved.map(e=>e.fecha).filter(Boolean).sort();
+    const bnums=approved.map(e=>e.bnum).filter(Boolean).sort();
+    if(el("pi_period")) el("pi_period").textContent=dates.length?(dates[0]+" — "+dates[dates.length-1]):"—";
+    if(el("pi_log_range")) el("pi_log_range").textContent=bnums.length?("#"+bnums[0]+" — #"+bnums[bnums.length-1]):"—";
+    let totalTbp=0, totalAmt=0;
+    const tbody=el("pi_line_items");
+    if(tbody){
+      tbody.innerHTML="";
+      approved.forEach((e,i)=>{
+        const{tm,tbp}=calcEntry(e);
+        const amt=tarifaHr>0?parseFloat((tbp*tarifaHr).toFixed(2)):0;
+        totalTbp+=tbp; totalAmt+=amt;
+        const tr=document.createElement("tr");
+        tr.innerHTML="<td>"+(i+1)+"</td><td>"+(e.bnum||"—")+"</td><td>"+(e.fecha||"—")+"</td><td>"+(e.piloto||"—")+"</td><td>"+fmt(tm)+" hrs</td><td>"+fmt(tbp)+" hrs</td><td>"+(tarifaHr>0?"$"+tarifaHr.toFixed(2)+"/hr":"—")+"</td><td class='pi-amt"+(amt===0?" pi-zero":"")+"'>$"+amt.toFixed(2)+"</td>";
+        tbody.appendChild(tr);
+      });
+    }
+    if(el("pi_sub_hrs")) el("pi_sub_hrs").textContent=fmt(totalTbp)+" hrs";
+    if(el("pi_sub_amt")) el("pi_sub_amt").textContent="$"+totalAmt.toFixed(2);
+    renderPiCharges(totalAmt);
+    if(piSignedBy&&el("pi_signed_badge")){
+      el("pi_signed_badge").style.display="flex";
+      el("pi_signed_badge").textContent="✓ Approved by "+piSignedBy+" on "+piSignedAt;
+      if(el("pi_signoff_btn")) el("pi_signoff_btn").style.display="none";
+    }
   } else {
     ready.style.display="none"; soon.style.display="block";
     const msg=el("pi_coming_msg");
     if(msg) msg.textContent=batchStatus==="SUBMITTED"?"Batch under review — awaiting approval":"Approve a batch to unlock billing";
   }
+}
+
+function renderPiCharges(subtotal){
+  const wrap=el("pi_charges_list"); if(!wrap) return;
+  wrap.innerHTML="";
+  let chargesTotal=0;
+  piAdditionalCharges.forEach((c,i)=>{
+    chargesTotal+=c.amount;
+    const row=document.createElement("div");
+    row.className="pi-charge-row";
+    row.innerHTML='<input type="text" value="'+c.desc+'" placeholder="Description" style="flex:2" data-ci="'+i+'" data-cf="desc"><input type="number" value="'+c.amount+'" step="0.01" placeholder="0.00" style="width:100px" data-ci="'+i+'" data-cf="amt"><span style="font-family:var(--mono);font-size:12px;color:var(--green);min-width:80px;text-align:right">$'+c.amount.toFixed(2)+'</span><button style="background:none;border:1px solid var(--border2);color:var(--red);cursor:pointer;padding:4px 8px;border-radius:2px" data-del-charge="'+i+'">✕</button>';
+    wrap.appendChild(row);
+  });
+  wrap.querySelectorAll("input").forEach(inp=>{
+    inp.addEventListener("change",()=>{
+      const i=parseInt(inp.dataset.ci);
+      if(inp.dataset.cf==="desc") piAdditionalCharges[i].desc=inp.value;
+      else piAdditionalCharges[i].amount=parseFloat(inp.value)||0;
+      renderPiCharges(subtotal);
+    });
+  });
+  wrap.querySelectorAll("[data-del-charge]").forEach(btn=>{
+    btn.addEventListener("click",()=>{piAdditionalCharges.splice(parseInt(btn.dataset.delCharge),1);renderPiCharges(subtotal);});
+  });
+  if(el("pi_total_amt")) el("pi_total_amt").textContent="$"+(subtotal+chargesTotal).toFixed(2);
 }
 
 async function doApprove(){
@@ -3369,7 +3599,70 @@ function notifyWhatsApp(toRole, message){
 function sendWhatsApp(){ closeModal("waMbd"); if(_waPendingUrl){window.open(_waPendingUrl,"_blank");_waPendingUrl=null;} }
 function skipWhatsApp(){ closeModal("waMbd"); _waPendingUrl=null; }
 
-// ── NAME CORRECTION PROPAGATION ──
+// ── SIDE PANEL IMAGE ZOOM & ROTATE ──
+let spZoom=1, spRotation=0;
+
+function spApplyTransform(){
+  const img=el("sp_img"); if(!img) return;
+  img.style.transform=`rotate(${spRotation}deg) scale(${spZoom})`;
+}
+
+function spZoomIn(){ spZoom=Math.min(4,spZoom+0.25); spApplyTransform(); }
+function spZoomOut(){ spZoom=Math.max(0.25,spZoom-0.25); spApplyTransform(); }
+function spZoomReset(){ spZoom=1; spApplyTransform(); }
+
+function spRotateImg(){
+  spRotation=(spRotation+90)%360;
+  spApplyTransform();
+  if(el("sp_reextract")) el("sp_reextract").style.display="inline-flex";
+}
+
+function spResetTransform(){ spZoom=1; spRotation=0; spApplyTransform(); if(el("sp_reextract")) el("sp_reextract").style.display="none"; }
+
+async function spReextract(){
+  if(!spEditingEntryId) return;
+  const apiKey=getApiKey();
+  if(!apiKey){showToast("API key not configured","err");return;}
+  const entry=flEntries.find(e=>e.id===spEditingEntryId); if(!entry||!entry.imageUrl) return;
+  showToast("Re-extracting…","info");
+  try {
+    // Fetch image from storage URL
+    const resp=await fetch(entry.imageUrl);
+    const blob=await resp.blob();
+    // Apply current rotation to canvas
+    const img=new Image();
+    await new Promise(r=>{img.onload=r;img.src=URL.createObjectURL(blob);});
+    const canvas=document.createElement("canvas");
+    const swap=spRotation===90||spRotation===270;
+    canvas.width=swap?img.height:img.width;
+    canvas.height=swap?img.width:img.height;
+    const ctx=canvas.getContext("2d");
+    ctx.translate(canvas.width/2,canvas.height/2);
+    ctx.rotate(spRotation*Math.PI/180);
+    ctx.drawImage(img,-img.width/2,-img.height/2);
+    const rotatedBlob=await new Promise(r=>canvas.toBlob(r,"image/jpeg",0.9));
+    const rotatedFile=new File([rotatedBlob],"reextract.jpg",{type:"image/jpeg"});
+    const results=await extractImageFile(rotatedFile,apiKey);
+    if(!results||!results.length){showToast("No log data found on this page","warn");return;}
+    const r=results[0];
+    // Populate side panel fields
+    if(el("sp_bnum")) el("sp_bnum").value=r.bnum||"";
+    if(el("sp_fecha")) el("sp_fecha").value=r.fecha||"";
+    if(el("sp_piloto")) el("sp_piloto").value=r.piloto||"";
+    if(el("sp_instructor")) el("sp_instructor").value=r.instructor||"";
+    if(el("sp_motorOut")) el("sp_motorOut").value=r.motorOut||"";
+    if(el("sp_motorIn")) el("sp_motorIn").value=r.motorIn||"";
+    if(el("sp_vueloOut")) el("sp_vueloOut").value=r.vueloOut||"";
+    if(el("sp_vueloIn")) el("sp_vueloIn").value=r.vueloIn||"";
+    if(el("sp_obs")) el("sp_obs").value=r.obs||"";
+    spLiveCalc();
+    showToast("Re-extraction complete — review and save");
+    // Upload corrected image to storage
+    const compressed=await compressImage(rotatedBlob,800,0.7);
+    const newUrl=await uploadImageToStorage(compressed,"reextract_"+Date.now()+".jpg");
+    if(newUrl) entry.imageUrl=newUrl;
+  } catch(err){ showToast("Re-extract error: "+err.message,"err"); dbg("Re-extract error: "+err.message,"err"); }
+}
 let _namePropData=null; // {field, oldVal, newVal, matches, currentEntryId}
 
 function checkNamePropagation(entryId, field, oldVal, newVal, onConfirm){
@@ -3551,44 +3844,61 @@ async function loadMasterData(){
       operador:a.operador, multiplicador:a.multiplicador, tipo:a.tipo||"",
       asientos:a.asientos||2, motorId:a.motor_id||"",
       consumoGalHr:a.consumo_gal_hr||0, diffThreshold:a.diff_threshold||0.2,
+      owner:a.owner||"", ownerAddress:a.owner_address||"",
       rates:Array.isArray(a.rates)?a.rates:(typeof a.rates==="string"&&a.rates?JSON.parse(a.rates):[])
     })));
     dbg("Master data loaded — "+USERS.length+" users, "+COMPANIES.length+" companies, "+AIRCRAFT.length+" aircraft","ok");
   } catch(err){ dbg("Master data load error: "+err.message,"err"); }
 }
 function initBatchConstants(){
-  // Populate aircraft dropdown from AIRCRAFT array
-  const acSel = el("bc_aircraft");
-  const opSel = el("bc_operator");
-  const multInp = el("bc_mult");
+  const acSel=el("bc_aircraft");
+  const opSel=el("bc_operator");
+  const multInp=el("bc_mult");
   if(!acSel||!opSel||!multInp) return;
-  // Build aircraft options from AIRCRAFT data
+  // Build aircraft options
   acSel.innerHTML='<option value="">Auto-detect</option>';
   AIRCRAFT.forEach(ac=>{
     const opt=document.createElement("option");
     opt.value=ac.matricula; opt.textContent=ac.matricula;
     acSel.appendChild(opt);
   });
-  acSel.addEventListener("change", function(){
-    const ac = AIRCRAFT.find(a=>a.matricula===this.value);
-    if(ac){
-      opSel.value = ac.operador;
-      multInp.value = ac.multiplicador.toFixed(3);
+  function rebuildOperators(ac){
+    opSel.innerHTML='<option value="">Auto-detect</option>';
+    if(ac&&ac.rates&&ac.rates.length){
+      ac.rates.forEach(r=>{
+        const opt=document.createElement("option");
+        opt.value=r.operador; opt.textContent=r.operador;
+        opSel.appendChild(opt);
+      });
     } else {
-      opSel.value = "";
-      multInp.value = "";
-      multInp.placeholder = "Auto from aircraft";
+      // No rates — show all operators
+      COMPANIES.forEach(c=>{
+        const opt=document.createElement("option");
+        opt.value=c.code; opt.textContent=c.code;
+        opSel.appendChild(opt);
+      });
+    }
+    multInp.value=""; multInp.placeholder="Auto from aircraft";
+  }
+  acSel.addEventListener("change",function(){
+    const ac=AIRCRAFT.find(a=>a.matricula===this.value);
+    rebuildOperators(ac);
+    if(ac&&ac.rates&&ac.rates.length===1){
+      opSel.value=ac.rates[0].operador;
+      multInp.value=ac.rates[0].multiplicador.toFixed(3);
     }
   });
-  opSel.addEventListener("change", function(){
-    // If user manually changes operator, clear mult unless aircraft is selected
-    const ac = AIRCRAFT.find(a=>a.matricula===acSel.value);
-    if(!ac){
-      const mults={FM:"1.150",MAG:"1.275"};
-      multInp.value = this.value ? mults[this.value]||"" : "";
-      multInp.placeholder = this.value ? "" : "Auto from aircraft";
+  opSel.addEventListener("change",function(){
+    const ac=AIRCRAFT.find(a=>a.matricula===acSel.value);
+    if(ac&&ac.rates){
+      const rate=ac.rates.find(r=>r.operador===this.value);
+      multInp.value=rate?rate.multiplicador.toFixed(3):"";
+      multInp.placeholder=rate?"":"Auto from aircraft";
+    } else {
+      multInp.value=""; multInp.placeholder="Auto from aircraft";
     }
   });
+  rebuildOperators(null);
 }
 
 // ── SOURCE IMAGE SIDE PANEL ──
@@ -3628,6 +3938,7 @@ function openSidePanel(entryIdOrFileIdx, isEntryId=false){
 }
 
 function _loadSpEntry(entry){
+  spResetTransform();
   const imgEl=el("sp_img");
   if(entry.imageUrl){ imgEl.src=entry.imageUrl; }
   else { imgEl.src=""; imgEl.alt="No source image available"; }
@@ -4216,13 +4527,36 @@ function wireEvents(){
     showToast("View As: "+(viewRole||"Admin"));
   });
 
-  // Debug panel — toggle, copy, close
+  // Side panel zoom and rotate
+  if(el("sp_zoom_in")) el("sp_zoom_in").addEventListener("click",spZoomIn);
+  if(el("sp_zoom_out")) el("sp_zoom_out").addEventListener("click",spZoomOut);
+  if(el("sp_zoom_reset")) el("sp_zoom_reset").addEventListener("click",spZoomReset);
+  if(el("sp_rotate")) el("sp_rotate").addEventListener("click",spRotateImg);
+  if(el("sp_reextract")) el("sp_reextract").addEventListener("click",spReextract);
+
+  // Pre-invoice add charge and sign-off
+  const addCharge=()=>{piAdditionalCharges.push({desc:"Additional Charge",amount:0});renderPreInvoice();};
+  if(el("pi_add_charge")) el("pi_add_charge").addEventListener("click",addCharge);
+  if(el("pi_add_charge2")) el("pi_add_charge2").addEventListener("click",addCharge);
+  if(el("pi_signoff_btn")) el("pi_signoff_btn").addEventListener("click",()=>{
+    piSignedBy=currentUser.name;
+    piSignedAt=new Date().toLocaleString("es-PA");
+    addFlAudit("✍️",currentUser.name,"signed off pre-invoice",piInvNum);
+    renderPreInvoice();
+    showToast("Pre-Invoice signed off");
+  });
+
+  // Debug panel toggle — update sp bottom
   if(el("debugToggle")) el("debugToggle").addEventListener("click",()=>{
     const body=el("debugBody"); const btn=el("debugToggle");
     body.classList.toggle("collapsed");
     btn.textContent=body.classList.contains("collapsed")?"▲":"▼";
+    _updateSpBottom();
   });
-  if(el("debugClose")) el("debugClose").addEventListener("click",()=>el("debugPanel").classList.remove("on"));
+  if(el("debugClose")) el("debugClose").addEventListener("click",()=>{
+    el("debugPanel").classList.remove("on");
+    _updateSpBottom();
+  });
   if(el("debugCopy")) el("debugCopy").addEventListener("click",()=>{
     const lines=Array.from(el("debugBody").querySelectorAll(".debug-line")).map(l=>l.textContent).join("\n");
     navigator.clipboard.writeText(lines).then(()=>showToast("Debug log copied"));
@@ -4372,7 +4706,7 @@ function wireEvents(){
 async function init(){
   applyI18n();
   wireEvents();
-  dbg("HP Fleet v7.4 — initializing…","info");
+  dbg("HP Fleet v7.5 — initializing…","info");
   await seedIfEmpty();
   await loadMasterData();
   if(el("viewAsRole")) el("viewAsRole").value="ADMIN";
