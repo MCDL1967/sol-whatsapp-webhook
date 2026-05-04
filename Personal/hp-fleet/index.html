@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.9 — built 2026-05-04 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.10 — built 2026-05-04 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.9</title>
+<title>HP Fleet v7.10</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -780,7 +780,7 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.9</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.10</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -789,7 +789,7 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.9</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.10</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1603,7 +1603,7 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.9";
+const APP_VERSION = "v7.10";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -3551,21 +3551,8 @@ async function openPiLoadModal(){
       desc.style.color="var(--dim2)";
     }
   }
-  // Populate historic selector — APPROVED batches only
-  const sel=el("piLoad_batchSel");
-  if(sel){
-    sel.innerHTML='<option value="">— '+(lang==="es"?"Seleccionar ciclo":"Select a billing cycle")+' —</option>';
-    allBatches.filter(b=>b.status==="APPROVED").forEach(b=>{
-      const opt=document.createElement("option");
-      opt.value=b.id;
-      const ac=b.aircraft||"?"; const op=b.operador||"?";
-      const pf=b.period_from?b.period_from.slice(0,7):"";
-      const lf=b.log_from?"#"+b.log_from:""; const lt=b.log_to?"–#"+b.log_to:"";
-      opt.textContent=ac+" · "+op+(pf?" · "+pf:"")+(lf?" · "+lf+lt:"")+" · "+b.status;
-      if(b.id===currentBatchId) opt.selected=true;
-      sel.appendChild(opt);
-    });
-  }
+  // Populate historic selector — APPROVED batches only, using shared function
+  populateBatchSelect(el("piLoad_batchSel"), true);
   // Reset historic section
   const historicSel=el("piLoad_historicSel");
   if(historicSel) historicSel.style.display="none";
@@ -4016,41 +4003,6 @@ async function saveBatchToDB(){
   } catch(err){ dbg("DB save error: "+err.message,"err"); showToast("DB save error: "+err.message,"err"); }
 }
 
-async function loadBatchFromDB(){
-  try {
-    // Prefer most recent non-CLOSED batch; fall back to most recent overall
-    let batches=await sbGet("batches","status=neq.CLOSED&order=created_at.desc&limit=1");
-    if(!batches||!batches.length){
-      batches=await sbGet("batches","order=created_at.desc&limit=1");
-    }
-    if(!batches||!batches.length){ dbg("No batch found in DB","info"); return false; }
-    const batch=batches[0];
-    currentBatchId=batch.id;
-    batchStatus=batch.status;
-    batchSourceFile=batch.source_file||"";
-    dbg("Batch loaded from DB — id: "+currentBatchId+" status: "+batchStatus+" by: "+batch.submitted_by,"ok");
-    // Load entries
-    const entries=await sbGet("entries","batch_id=eq."+currentBatchId+"&order=sort_order.asc");
-    flEntries=(entries||[]).map((e,i)=>({
-      id:i+1, bnum:e.bnum||"", fecha:e.fecha, aeronave:e.aeronave, operador:e.operador,
-      piloto:e.piloto, instructor:e.instructor||"",
-      horoIn:e.horo_in||0,
-      motorOut:e.motor_out, motorIn:e.motor_in,
-      vueloOut:e.vuelo_out, vueloIn:e.vuelo_in,
-      multOverride:e.mult_override||null,
-      obs:e.obs||"", flagNote:e.flag_note||"",
-      status:e.status||"pending",
-      imageUrl:e.image_url||null
-    }));
-    nextEntryId=flEntries.length+1;
-    // Load audit
-    const audit=await sbGet("audit_log","batch_id=eq."+currentBatchId+"&order=ts.desc");
-    flAuditLog=(audit||[]).map(a=>({...a,ts:new Date(a.ts)}));
-    dbg("Loaded "+flEntries.length+" entries, "+flAuditLog.length+" audit rows","ok");
-    return flEntries.length>0;
-  } catch(err){ dbg("DB load error: "+err.message,"err"); return false; }
-}
-
 async function clearBatchFromDB(){
   // Never delete batches — just clear the local reference
   // Batches are permanent records (billing cycle history)
@@ -4451,36 +4403,89 @@ async function loadAllBatches(){
   } catch(e){ dbg("Batch history load error: "+e.message,"err"); }
 }
 
-function renderBatchSelector(){
-  const sel=el("batchSelector"); if(!sel) return;
-  sel.innerHTML='<option value="">— Select Billing Cycle —</option>';
-  allBatches.forEach(b=>{
+// ── BATCH UTILITIES — single source of truth ──
+function batchLabel(b){
+  const hasData=b.aircraft||b.operador||b.period_from;
+  if(!hasData){
+    const created=b.created_at?b.created_at.slice(0,10):"—";
+    return created+" · "+b.status+" · (no metadata)";
+  }
+  const ac=b.aircraft||"?";
+  const op=b.operador||"?";
+  const pf=b.period_from?b.period_from.slice(0,7):"";
+  const lf=b.log_from?"#"+b.log_from:"";
+  const lt=b.log_to?"–#"+b.log_to:"";
+  return ac+" · "+op+(pf?" · "+pf:"")+(lf?" · "+lf+lt:"")+" · "+b.status;
+}
+
+function populateBatchSelect(selEl, approvedOnly=false){
+  if(!selEl) return;
+  selEl.innerHTML='<option value="">— '+(lang==="es"?"Seleccionar ciclo":"Select Billing Cycle")+' —</option>';
+  const list=approvedOnly?allBatches.filter(b=>b.status==="APPROVED"):allBatches;
+  list.forEach(b=>{
     const opt=document.createElement("option");
     opt.value=b.id;
-    const ac=b.aircraft||"?";
-    const op=b.operador||"?";
-    const pf=b.period_from?b.period_from.slice(0,7):"";
-    const lf=b.log_from?"#"+b.log_from:"";
-    const lt=b.log_to?"–#"+b.log_to:"";
-    const created=b.created_at?b.created_at.slice(0,10):"";
-    // If all metadata is null, fall back to created date + status
-    const hasData=b.aircraft||b.operador||b.period_from;
-    opt.textContent=hasData
-      ?(ac+" · "+op+(pf?" · "+pf:"")+(lf?(" · "+lf+lt):"")+" · "+b.status)
-      :(created+" · "+b.status+" · (no metadata)");
+    opt.textContent=batchLabel(b);
     if(b.id===currentBatchId) opt.selected=true;
-    sel.appendChild(opt);
+    selEl.appendChild(opt);
   });
+}
+
+function renderBatchSelector(){
+  populateBatchSelect(el("batchSelector"), false);
+}
+
+async function loadBatchFromDB(id){
+  try {
+    let batch=null;
+    if(id){
+      // Load specific batch by ID
+      const rows=await sbGet("batches","id=eq."+id);
+      if(rows&&rows.length) batch=rows[0];
+    }
+    if(!batch){
+      // On login: prefer most recent non-CLOSED batch
+      let rows=await sbGet("batches","status=neq.CLOSED&order=created_at.desc&limit=1");
+      if(!rows||!rows.length) rows=await sbGet("batches","order=created_at.desc&limit=1");
+      if(rows&&rows.length) batch=rows[0];
+    }
+    if(!batch){ dbg("No batch found in DB","info"); return false; }
+    currentBatchId=batch.id;
+    batchStatus=batch.status;
+    batchSourceFile=batch.source_file||"";
+    dbg("Batch loaded — id: "+currentBatchId+" status: "+batchStatus,"ok");
+    const entries=await sbGet("entries","batch_id=eq."+currentBatchId+"&order=sort_order.asc");
+    flEntries=(entries||[]).map((e,i)=>({
+      id:i+1, bnum:e.bnum||"", fecha:e.fecha, aeronave:e.aeronave, operador:e.operador,
+      piloto:e.piloto, instructor:e.instructor||"",
+      horoIn:e.horo_in||0,
+      motorOut:e.motor_out, motorIn:e.motor_in,
+      vueloOut:e.vuelo_out, vueloIn:e.vuelo_in,
+      multOverride:e.mult_override||null,
+      obs:e.obs||"", flagNote:e.flag_note||"",
+      status:e.status||"pending",
+      imageUrl:e.image_url||null
+    }));
+    nextEntryId=flEntries.length+1;
+    const audit=await sbGet("audit_log","batch_id=eq."+currentBatchId+"&order=ts.desc");
+    flAuditLog=(audit||[]).map(a=>({...a,ts:new Date(a.ts)}));
+    dbg("Loaded "+flEntries.length+" entries, "+flAuditLog.length+" audit rows","ok");
+    return true;
+  } catch(err){ dbg("DB load error: "+err.message,"err"); return false; }
 }
 
 async function switchToBatch(batchId){
   if(!batchId) return;
   if(batchId===currentBatchId) return;
-  // Save current state first
   if(currentBatchId&&flEntries.length) await saveBatchToDB();
-  currentBatchId=batchId;
-  await loadBatchFromDB();
-  showToast("Billing cycle loaded");
+  await loadBatchFromDB(batchId);
+  renderBatchSelector();
+  if(el("srcBar")) el("srcBar").style.display="flex";
+  if(el("reviewSection")) el("reviewSection").style.display="block";
+  if(el("srcFile")) el("srcFile").textContent=batchSourceFile;
+  renderWfBar(); setupFlRoleUI(); renderFlTable(); renderFlAudit();
+  piAdditionalCharges=[]; piSignedBy=null; piSignedAt=null; piInvNum=null; piRulesSeeded=false;
+  showToast("Billing cycle loaded","info");
 }
 
 // ── RENDER ALL ──
@@ -4958,20 +4963,12 @@ function wireEvents(){
     const batchId=el("piLoad_batchSel").value;
     if(!batchId){showToast("Select a billing cycle","warn");return;}
     closeModal("piLoadMbd");
-    // Switch to selected batch
-    if(batchId!==currentBatchId){
-      if(currentBatchId&&flEntries.length) await saveBatchToDB();
-      currentBatchId=batchId;
-      await loadBatchFromDB();
-    }
+    await switchToBatch(batchId);
     if(batchStatus!=="APPROVED"){
       showToast("Selected batch is not APPROVED — cannot load into Pre-Invoice","warn"); return;
     }
-    piAdditionalCharges=[]; piSignedBy=null; piSignedAt=null; piInvNum=null; piRulesSeeded=false;
-    renderWfBar(); setupFlRoleUI(); renderFlTable();
     renderPreInvoice();
     switchTab("preinvoice");
-    showToast("Billing cycle loaded","info");
   });
 
   // Debug panel toggle — update sp bottom
@@ -5018,19 +5015,12 @@ function wireEvents(){
 
   // Batch selector
   if(el("batchSelector")) el("batchSelector").addEventListener("change",async function(){
-    const newId=this.value; if(!newId) return;
-    if(newId===currentBatchId){ return; }
+    const newId=this.value; if(!newId||newId===currentBatchId) return;
     if(flEntries.length){
-      const msg=lang==="es"
-        ?"¿Guardar el lote actual antes de cambiar?"
-        :"Save current batch before switching?";
+      const msg=lang==="es"?"¿Guardar el lote actual antes de cambiar?":"Save current batch before switching?";
       if(confirm(msg)) await saveBatchToDB();
     }
     await switchToBatch(newId);
-    if(el("srcBar")) el("srcBar").style.display="flex";
-    if(el("reviewSection")) el("reviewSection").style.display="block";
-    renderWfBar(); setupFlRoleUI(); renderFlTable(); renderFlAudit();
-    showToast("Billing cycle loaded","info");
   });
 
   // Swap buttons in side panel
