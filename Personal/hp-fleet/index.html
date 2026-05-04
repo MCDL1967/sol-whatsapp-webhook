@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.10 — built 2026-05-04 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.11 — built 2026-05-04 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.10</title>
+<title>HP Fleet v7.11</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -773,14 +773,18 @@ table.fl-tbl td:last-child{border-right:none}
       <div class="field"><label id="lbl_user">Email / Username</label>
         <input type="text" id="li_user" placeholder="you@hp-fleet.com" autocomplete="username"></div>
       <div class="field"><label id="lbl_pass">Password</label>
-        <input type="password" id="li_pass" placeholder="••••••••" autocomplete="current-password"></div>
+        <div style="position:relative">
+          <input type="password" id="li_pass" placeholder="••••••••" autocomplete="current-password" style="width:100%;padding-right:36px">
+          <button id="li_pass_toggle" type="button" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--dim2);cursor:pointer;font-size:15px;padding:0;line-height:1" title="Show/hide password">👁</button>
+        </div>
+      </div>
       <label class="remember-row">
         <input type="checkbox" id="rememberMe"> <span id="lbl_remember">Remember username</span>
       </label>
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.10</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.11</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -789,7 +793,7 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.10</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.11</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1046,7 +1050,6 @@ table.fl-tbl td:last-child{border-right:none}
           <button class="btn-primary" id="btn_submit">Submit for Review</button>
           <button class="btn-success" id="btn_approve" style="display:none">Approve for Invoicing</button>
           <button class="btn-warn" id="btn_reqChanges" style="display:none">Request Changes</button>
-          <button class="btn-warn" id="btn_reopen" style="display:none">↩ Reopen Batch</button>
           <div class="action-note" id="actionNote"></div>
         </div>
       </div>
@@ -1064,7 +1067,7 @@ table.fl-tbl td:last-child{border-right:none}
     <!-- PRE-INVOICE TAB -->
     <div class="tab-panel" id="panel-preinvoice">
       <div class="page-hdr">
-        <div class="page-title"><span>·</span> <span id="pi_title">Pre-Invoice</span></div>
+        <div class="page-title"><span>·</span> <span id="pi_title">Billing</span></div>
         <div style="display:flex;gap:8px;align-items:center">
           <button class="btn-primary" id="pi_load_cycle_btn" style="font-size:12px;padding:8px 18px;letter-spacing:1px">⬇ Load Billing Cycle</button>
           <button class="btn-ghost" id="pi_export_pdf" style="font-size:11px">↓ Export PDF</button>
@@ -1073,8 +1076,9 @@ table.fl-tbl td:last-child{border-right:none}
       <div id="piComingSoon">
         <div class="coming-soon">
           <div class="cs-icon">📊</div>
-          <div class="cs-title" id="cs_billing">Pre-Invoice &amp; Billing</div>
+          <div class="cs-title" id="cs_billing">Billing</div>
           <div class="cs-sub" id="pi_coming_msg">Approve a batch to unlock billing</div>
+          <button class="btn-primary" id="pi_load_placeholder" style="margin-top:16px;font-size:12px;padding:8px 20px">⬇ Load Billing Cycle</button>
         </div>
       </div>
       <div id="piDraftState" style="display:none">
@@ -1086,7 +1090,7 @@ table.fl-tbl td:last-child{border-right:none}
               <span id="pi_owner_detail" style="font-size:12px;color:var(--dim2)"></span>
             </div>
             <div class="pi-inv-meta">
-              <div>Pre-Invoice # <strong id="pi_inv_num">—</strong></div>
+              <div>Billing # <strong id="pi_inv_num">—</strong></div>
               <div>Date <strong id="pi_inv_date">—</strong></div>
               <div>Aircraft <strong id="pi_inv_aircraft">—</strong></div>
             </div>
@@ -1353,18 +1357,18 @@ table.fl-tbl td:last-child{border-right:none}
     <div class="mhdr"><div class="mhdr-t cy">New Billing Cycle</div><button class="m-x" id="nb_close">✕</button></div>
     <div class="mbody">
       <div class="frow fc2">
-        <div class="field"><label>Aircraft *</label>
+        <div class="field"><label>Aircraft</label>
           <select id="nb_aircraft"></select>
         </div>
-        <div class="field"><label>Operator *</label>
+        <div class="field"><label>Operator</label>
           <select id="nb_operator"></select>
         </div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>Period From *</label>
+        <div class="field"><label>Period From</label>
           <input type="date" id="nb_period_from">
         </div>
-        <div class="field"><label>Period To *</label>
+        <div class="field"><label>Period To</label>
           <input type="date" id="nb_period_to">
         </div>
       </div>
@@ -1376,8 +1380,7 @@ table.fl-tbl td:last-child{border-right:none}
           <input type="text" id="nb_log_to" placeholder="e.g. 00660">
         </div>
       </div>
-      <div style="background:var(--s3);border:1px solid var(--border);padding:10px 14px;font-family:var(--mono);font-size:10px;color:var(--dim2);margin-top:8px">
-        ⚠ Current batch will be preserved in billing cycle history. A new empty batch will start.
+      <div id="nb_prev_label" style="background:var(--s3);border:1px solid var(--border);padding:10px 14px;font-family:var(--mono);font-size:10px;color:var(--dim2);margin-top:8px;display:none">
       </div>
     </div>
     <div class="mftr">
@@ -1603,7 +1606,7 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.10";
+const APP_VERSION = "v7.11";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -1799,7 +1802,7 @@ const I18N = {
     signIn:"Sign In",signingIn:"Checking…",signOut:"↩ Sign Out",
     emailLbl:"Email / Username",pwdLbl:"Password",
     loginErr:"Incorrect username or password.",inactiveErr:"Account inactive. Contact your administrator.",
-    tabUsers:"Users",tabCompanies:"Companies",tabAircraft:"Aircraft",tabFlightLog:"Flight Log",tabBilling:"Pre-Invoice",tabSettings:"Settings",
+    tabUsers:"Users",tabCompanies:"Companies",tabAircraft:"Aircraft",tabFlightLog:"Flight Log",tabBilling:"Billing",tabSettings:"Settings",
     utTitle:"User Management",utAdd:"+ New User",utExport:"↓ Export JSON",
     utAudit:"Audit Log",utClear:"Clear Log",
     thUser:"User",thRole:"Role",thCompanies:"Companies",thStatus:"Status",thCreated:"Created",thLast:"Last Login",thActions:"Actions",
@@ -1866,8 +1869,8 @@ const I18N = {
     roleDescReadonly:"Read Only — view only for assigned companies.",
     noCompanySelected:"Select at least one company.",
     srcCsvReady:"✓ Ready",srcCsvDone:"✓ Archived",
-    csBilling:"Pre-Invoice & Billing",
-    piGoTo:"Pre-Invoice",piLoadCycle:"Load Billing Cycle",piCurrent:"Current Batch",piHistoric:"Historic",
+    csBilling:"Billing",
+    piGoTo:"Billing",piLoadCycle:"Load Billing Cycle",piCurrent:"Current Batch",piHistoric:"Historic",
     piLoadTitle:"Load Billing Cycle",piNoApproved:"No approved batch in memory.",
   },
   es:{
@@ -4273,6 +4276,19 @@ async function saveSpEntry(){
   if(!spEditingEntryId) return;
   const e=flEntries.find(x=>x.id===spEditingEntryId); if(!e) return;
   const role=effectiveRole();
+  // APPROVED lock — intercept and confirm reopen before first write
+  if(batchStatus==="APPROVED" && role!=="REVIEWER"){
+    const msg=lang==="es"
+      ?"Este lote está APROBADO. ¿Reabrir a BORRADOR para editar?"
+      :"This batch is APPROVED. Reopen to DRAFT to allow edits?";
+    if(!confirm(msg)) return;
+    batchStatus="DRAFT";
+    await saveBatchToDB();
+    addFlAudit("↩",currentUser.name,"batch reopened via edit","Auto-reopened to DRAFT on entry edit");
+    addAudit("↩",currentUser.name,"batch auto-reopened",currentBatchId);
+    renderWfBar(); setupFlRoleUI();
+    showToast("Batch reopened to DRAFT","warn");
+  }
   if(role==="REVIEWER"){
     // Save review comment only
     const comment=el("sp_comment")?el("sp_comment").value.trim():"";
@@ -4343,11 +4359,13 @@ async function resetBatch(){
   batchSourceFile=""; editingEntryId=null; nextEntryId=1;
   currentBatchId=null; // deselect, preserve in DB
   piAdditionalCharges=[]; piSignedBy=null; piSignedAt=null; piInvNum=null; piRulesSeeded=false;
+  if(el("pi_signed_badge")){ el("pi_signed_badge").style.display="none"; el("pi_signed_badge").textContent=""; }
+  if(el("pi_signoff_btn")) el("pi_signoff_btn").style.display="";
   el("srcBar").style.display="none";
   el("reviewSection").style.display="none";
   if(el("resultBanner")) el("resultBanner").style.display="none";
   el("horoAlert").classList.remove("on");
-  renderQueue(); renderWfBar(); setupFlRoleUI();
+  renderQueue(); renderWfBar(); setupFlRoleUI(); renderPreInvoice();
   await loadAllBatches(); // refresh selector
   dbg("New billing cycle started — previous batch preserved","ok");
 }
@@ -4357,8 +4375,7 @@ function openNewBatchModal(){
   // Populate aircraft dropdown
   const acSel=el("nb_aircraft");
   if(acSel){
-    acSel.innerHTML=AIRCRAFT.map(a=>'<option value="'+a.matricula+'">'+a.matricula+"</option>").join("");
-    // Trigger operator cascade
+    acSel.innerHTML='<option value="">Auto-detect</option>'+AIRCRAFT.map(a=>'<option value="'+a.matricula+'">'+a.matricula+"</option>").join("");
     acSel.dispatchEvent(new Event("change"));
   }
   // Set default period to current month
@@ -4369,6 +4386,18 @@ function openNewBatchModal(){
   if(el("nb_period_to")) el("nb_period_to").value=lastDay;
   if(el("nb_log_from")) el("nb_log_from").value="";
   if(el("nb_log_to")) el("nb_log_to").value="";
+  // Show previous batch label if one exists
+  const prevLabel=el("nb_prev_label");
+  if(prevLabel){
+    if(currentBatchId&&flEntries.length){
+      const prev=allBatches.find(b=>b.id===currentBatchId);
+      const label=prev?batchLabel(prev):"current batch";
+      prevLabel.style.display="block";
+      prevLabel.textContent="This will begin a new billing cycle. Previous work has been saved as: "+label;
+    } else {
+      prevLabel.style.display="none";
+    }
+  }
   openModal("newBatchMbd");
 }
 
@@ -4379,7 +4408,6 @@ async function confirmNewBatch(){
   const periodTo=el("nb_period_to")?el("nb_period_to").value:"";
   const logFrom=el("nb_log_from")?el("nb_log_from").value.trim():"";
   const logTo=el("nb_log_to")?el("nb_log_to").value.trim():"";
-  if(!aircraft||!operador||!periodFrom||!periodTo){showToast("Aircraft, Operator and Period are required","err");return;}
   closeModal("newBatchMbd");
   await resetBatch();
   // Store batch metadata for when batch is saved
@@ -4485,6 +4513,9 @@ async function switchToBatch(batchId){
   if(el("srcFile")) el("srcFile").textContent=batchSourceFile;
   renderWfBar(); setupFlRoleUI(); renderFlTable(); renderFlAudit();
   piAdditionalCharges=[]; piSignedBy=null; piSignedAt=null; piInvNum=null; piRulesSeeded=false;
+  if(el("pi_signed_badge")){ el("pi_signed_badge").style.display="none"; el("pi_signed_badge").textContent=""; }
+  if(el("pi_signoff_btn")) el("pi_signoff_btn").style.display="";
+  renderPreInvoice();
   showToast("Billing cycle loaded","info");
 }
 
@@ -4773,6 +4804,10 @@ function wireEvents(){
   if(savedEmail){ el("li_user").value=savedEmail; el("rememberMe").checked=true; }
   el("loginBtn").addEventListener("click",doLogin);
   el("li_pass").addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
+  if(el("li_pass_toggle")) el("li_pass_toggle").addEventListener("click",()=>{
+    const inp=el("li_pass");
+    inp.type=inp.type==="password"?"text":"password";
+  });
   el("btnSignOut").addEventListener("click",doLogout);
 
   // Users tab
@@ -4943,6 +4978,7 @@ function wireEvents(){
   if(el("reopen_confirm")) el("reopen_confirm").addEventListener("click",reopenBatch);
   if(el("reopenMbd")) el("reopenMbd").addEventListener("click",e=>{ if(e.target===el("reopenMbd")) closeModal("reopenMbd"); });
   if(el("pi_load_cycle_btn")) el("pi_load_cycle_btn").addEventListener("click",openPiLoadModal);
+  if(el("pi_load_placeholder")) el("pi_load_placeholder").addEventListener("click",openPiLoadModal);
   if(el("piLoad_close")) el("piLoad_close").addEventListener("click",()=>closeModal("piLoadMbd"));
   if(el("piLoad_cancel")) el("piLoad_cancel").addEventListener("click",()=>closeModal("piLoadMbd"));
   if(el("piLoadMbd")) el("piLoadMbd").addEventListener("click",e=>{ if(e.target===el("piLoadMbd")) closeModal("piLoadMbd"); });
@@ -5126,9 +5162,18 @@ function wireEvents(){
   // Batch constants collapse
   if(el("bcToggle")) el("bcToggle").addEventListener("click",()=>{
     const fields=el("bcFields");
+    const upload=el("uploadSection");
     const btn=el("bcToggle");
-    if(fields.style.display==="none"){fields.style.display="flex";btn.textContent="▲";}
-    else{fields.style.display="none";btn.textContent="▼";}
+    const collapsed=fields.style.display==="none";
+    if(collapsed){
+      fields.style.display="flex";
+      if(upload) upload.style.display="";
+      btn.textContent="▲";
+    } else {
+      fields.style.display="none";
+      if(upload) upload.style.display="none";
+      btn.textContent="▼";
+    }
   });
 
   // Init upload zone and batch constants
