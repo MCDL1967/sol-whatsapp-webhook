@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.6 — built 2026-05-03 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.7 — built 2026-05-04 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.6</title>
+<title>HP Fleet v7.7</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -617,6 +617,20 @@ table.fl-tbl td:last-child{border-right:none}
 /* AIRCRAFT MODAL */
 .ac-box{max-width:560px;width:100%}
 
+/* SORTABLE TABLE HEADERS */
+.sortable-th{cursor:pointer;user-select:none;white-space:nowrap}
+.sortable-th:hover{color:var(--cyan)}
+.sort-ind{font-family:var(--mono);font-size:9px;color:var(--dim);margin-left:2px}
+.sort-ind.asc::after{content:"▲";color:var(--cyan)}
+.sort-ind.desc::after{content:"▼";color:var(--cyan)}
+
+/* WF APPROVED → PRE-INVOICE CTA */
+.wf-pi-cta{display:inline-flex;align-items:center;gap:6px;margin-left:12px;
+  padding:4px 12px;background:rgba(65,209,255,.12);border:1px solid var(--cyan);
+  border-radius:2px;color:var(--cyan);font-family:var(--mono);font-size:10px;
+  cursor:pointer;letter-spacing:.5px;transition:background .15s;vertical-align:middle}
+.wf-pi-cta:hover{background:rgba(65,209,255,.22)}
+
 /* REMEMBER ME */
 .remember-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;
   font-family:var(--mono);font-size:11px;color:var(--dim2);cursor:pointer}
@@ -840,9 +854,9 @@ table.fl-tbl td:last-child{border-right:none}
       </div>
       <div class="tbl-wrap">
         <table class="utbl"><thead><tr>
-          <th id="th_user">User</th><th id="th_role">Role</th><th id="th_companies">Companies</th>
-          <th id="th_status">Status</th><th id="th_created">Created</th>
-          <th id="th_last">Last Login</th><th id="th_actions">Actions</th>
+          <th id="th_user" class="sortable-th" data-sort="name">User <span class="sort-ind" id="si_name"></span></th><th id="th_role" class="sortable-th" data-sort="role">Role <span class="sort-ind" id="si_role"></span></th><th id="th_companies">Companies</th>
+          <th id="th_status" class="sortable-th" data-sort="status">Status <span class="sort-ind" id="si_status"></span></th><th id="th_created" class="sortable-th" data-sort="created">Created <span class="sort-ind" id="si_created"></span></th>
+          <th id="th_last" class="sortable-th" data-sort="lastLogin">Last Login <span class="sort-ind" id="si_last"></span></th><th id="th_actions">Actions</th>
         </tr></thead><tbody id="userTbody"></tbody></table>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
@@ -1019,7 +1033,7 @@ table.fl-tbl td:last-child{border-right:none}
                   <tr>
                     <th class="gm" id="th_mout">Out</th><th class="gm" id="th_min">In</th><th class="gm" id="th_tm">T.Motor</th>
                     <th class="gf" id="th_fout">Out</th><th class="gf" id="th_fin">In</th><th class="gf" id="th_tf">T.Flight</th>
-                    <th class="gb" id="th_mult">Mult.</th><th class="gb" id="th_tbp">TBP</th>
+                    <th class="gb" id="th_mult">Mult.</th><th class="gb" id="th_tbp">TBH</th>
                   </tr>
                 </thead>
                 <tbody id="flTbody"></tbody>
@@ -1061,6 +1075,14 @@ table.fl-tbl td:last-child{border-right:none}
           <button class="btn-primary" id="pi_export_pdf">↓ Export PDF</button>
         </div>
       </div>
+      <!-- Batch selector -->
+      <div id="piBatchSelectorWrap" style="display:none;padding:0 0 14px">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--dim2);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Load Approved Batch</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="piBatchSelect" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 10px;border-radius:2px;min-width:280px"></select>
+          <button class="btn-primary" id="btn_loadPiBatch" style="font-size:11px;padding:7px 14px">Load →</button>
+        </div>
+      </div>
       <div id="piComingSoon">
         <div class="coming-soon">
           <div class="cs-icon">📊</div>
@@ -1093,18 +1115,20 @@ table.fl-tbl td:last-child{border-right:none}
             <div>Period: <span id="pi_period">—</span></div>
             <div>Logs: <span id="pi_log_range">—</span></div>
           </div>
-          <!-- Line items -->
+          <!-- Rate shown once in section header -->
+          <div id="pi_rate_header" style="font-family:var(--mono);font-size:11px;color:var(--dim2);margin-bottom:6px;text-align:right;padding:0 2px"></div>
+          <!-- Line items — TBH only, Rate in header -->
           <table class="pi-tbl">
             <thead><tr>
               <th>#</th><th>Log #</th><th>Date</th><th>Pilot</th>
-              <th>T.Motor</th><th>TBP</th><th>Rate</th><th style="text-align:right">Amount</th>
+              <th>TBH</th><th style="text-align:right">Amount</th>
             </tr></thead>
             <tbody id="pi_line_items"></tbody>
           </table>
           <!-- Subtotal -->
           <div class="pi-subtotal">
             <div>
-              <div class="pi-subtotal-row"><span style="color:var(--dim2)">TBP Hours</span><span id="pi_sub_hrs" style="font-family:var(--mono)">—</span></div>
+              <div class="pi-subtotal-row"><span style="color:var(--dim2)">TBH Hours</span><span id="pi_sub_hrs" style="font-family:var(--mono)">—</span></div>
               <div class="pi-subtotal-row"><span style="color:var(--dim2)">Subtotal</span><span id="pi_sub_amt" style="font-family:var(--mono);color:var(--green)">—</span></div>
             </div>
           </div>
@@ -1148,6 +1172,23 @@ table.fl-tbl td:last-child{border-right:none}
           </div>
           <div class="settings-hint" id="st_apiHint">
             Used for flight log PDF extraction. Stored in localStorage on this device — Admin sets once, persists until cleared or key expires. Get your key at console.anthropic.com
+          </div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-card">
+          <div class="settings-card-title">💬 <span id="st_waTitle">WhatsApp Group</span>
+          </div>
+          <div class="field">
+            <label id="st_waLabel">Group Invite Link</label>
+            <input type="url" id="waGroupLinkInput" placeholder="https://chat.whatsapp.com/…" autocomplete="off">
+          </div>
+          <div style="display:flex;gap:10px;margin-top:12px">
+            <button class="btn-primary" id="btn_saveWaGroup">Save Link</button>
+            <button class="btn-ghost" id="btn_testWaGroup">Test ↗</button>
+          </div>
+          <div class="settings-hint" id="st_waHint">
+            Group invite link for team notifications. Admin sets once. Used in Submit/Approve WhatsApp messages.
           </div>
         </div>
       </div>
@@ -1284,7 +1325,7 @@ table.fl-tbl td:last-child{border-right:none}
         <div><div class="cp-l">T.Motor</div><div class="cp-v cb" id="pv_tm">—</div></div>
         <div><div class="cp-l">T.Flight</div><div class="cp-v cx" id="pv_tf">—</div></div>
         <div><div class="cp-l">Multiplier</div><div class="cp-v" id="pv_mult">—</div></div>
-        <div><div class="cp-l">Total TBP</div><div class="cp-v bill" id="pv_tbp">—</div></div>
+        <div><div class="cp-l">Total TBH</div><div class="cp-v bill" id="pv_tbp">—</div></div>
       </div>
     </div>
     <div class="mftr"><button class="btn-ghost" id="fl_cancel">Cancel</button><button class="btn-primary" id="fl_save">Save Entry</button></div>
@@ -1540,7 +1581,7 @@ table.fl-tbl td:last-child{border-right:none}
         <div class="sp-calc-item"><div class="sp-calc-l">T.Motor</div><div class="sp-calc-v cb" id="sp_pv_tm">—</div></div>
         <div class="sp-calc-item"><div class="sp-calc-l">T.Flight</div><div class="sp-calc-v cx" id="sp_pv_tf">—</div></div>
         <div class="sp-calc-item"><div class="sp-calc-l">Multiplier</div><div class="sp-calc-v" id="sp_pv_mult">—</div></div>
-        <div class="sp-calc-item"><div class="sp-calc-l">TBP</div><div class="sp-calc-v cg" id="sp_pv_tbp">—</div></div>
+        <div class="sp-calc-item"><div class="sp-calc-l">TBH</div><div class="sp-calc-v cg" id="sp_pv_tbp">—</div></div>
         <div class="sp-calc-item" style="margin-left:auto"><div class="sp-calc-l">Gap</div><div class="sp-calc-v" id="sp_pv_gap" style="font-size:11px">—</div></div>
       </div>
     </div>
@@ -1566,7 +1607,11 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.6";
+const APP_VERSION = "v7.7";
+
+// ── USER TABLE SORT STATE ──
+let userSortCol = "name";
+let userSortDir = "asc";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -1784,8 +1829,8 @@ const I18N = {
     thDate:"Date",thAc:"Aircraft",thOp:"Operator",thPilot:"Pilot",
     thMotor:"Motor",thFlight:"Flight",thBilling:"Billing",
     thMout:"Out",thMin:"In",thTm:"T.Motor",thFout:"Out",thFin:"In",thTf:"T.Flight",
-    thMult:"Mult.",thTbp:"TBP",thHoro:"Horo",thObs:"Notes",thStatus2:"Status",
-    fmMotor:"FM — T.Motor",magMotor:"MAG — T.Motor",totMotor:"Total T.Motor",totTbp:"Total TBP",
+    thMult:"Mult.",thTbp:"TBH",thHoro:"Horo",thObs:"Notes",thStatus2:"Status",
+    fmMotor:"FM — T.Motor",magMotor:"MAG — T.Motor",totMotor:"Total T.Motor",totTbp:"Total TBH",
     approved2:"Approved",tbpHours:"hrs to invoice",tFlight:"T.Flight",
     btnCsv:"↓ CSV",btnXlsx:"↓ XLSX",btnDraft:"Save Draft",
     btnSubmit:"Submit for Review",btnApprove:"Approve for Invoicing",btnReqChanges:"Request Changes",
@@ -1857,8 +1902,8 @@ const I18N = {
     thDate:"Fecha",thAc:"Aeronave",thOp:"Operador",thPilot:"Piloto",
     thMotor:"Motor",thFlight:"Vuelo",thBilling:"Facturación",
     thMout:"Out",thMin:"In",thTm:"T.Motor",thFout:"Out",thFin:"In",thTf:"T.Vuelo",
-    thMult:"Mult.",thTbp:"TBP",thHoro:"Horo",thObs:"Obs.",thStatus2:"Estado",
-    fmMotor:"FM — T.Motor",magMotor:"MAG — T.Motor",totMotor:"Total T.Motor",totTbp:"Total TBP",
+    thMult:"Mult.",thTbp:"TBH",thHoro:"Horo",thObs:"Obs.",thStatus2:"Estado",
+    fmMotor:"FM — T.Motor",magMotor:"MAG — T.Motor",totMotor:"Total T.Motor",totTbp:"Total TBH",
     approved2:"Aprobados",tbpHours:"hrs a facturar",tFlight:"T.Vuelo",
     btnCsv:"↓ CSV",btnXlsx:"↓ XLSX",btnDraft:"Guardar Borrador",
     btnSubmit:"Enviar para Revisión",btnApprove:"Aprobar para Facturación",btnReqChanges:"Solicitar Cambios",
@@ -2079,6 +2124,8 @@ async function bootApp(){
   updateApiStatus();
   // Load API key from DB (centralized for all devices)
   await loadApiKeyFromDB();
+  // Load WhatsApp group link from DB
+  await loadWaGroupLink();
   initDebugToggle();
   // Load billing cycle history
   await loadAllBatches();
@@ -2219,6 +2266,32 @@ async function clearApiKey(){
   showToast(t("keyCleared"),"warn");
 }
 
+// ── WHATSAPP GROUP LINK ──
+let _waGroupLink = "";
+
+async function loadWaGroupLink(){
+  try {
+    const rows=await sbGet("settings","key=eq.wa_group_link");
+    if(rows&&rows.length){ _waGroupLink=rows[0].value||""; }
+    else { _waGroupLink=localStorage.getItem("hpfleet_wagroup")||""; }
+    if(el("waGroupLinkInput")) el("waGroupLinkInput").value=_waGroupLink;
+  } catch(e){ dbg("WA group link load error: "+e.message,"err"); }
+}
+
+async function saveWaGroupLink(){
+  const val=el("waGroupLinkInput").value.trim();
+  _waGroupLink=val;
+  localStorage.setItem("hpfleet_wagroup",val);
+  try {
+    await sbDelete("settings","key=eq.wa_group_link");
+    if(val) await sbPost("settings",{key:"wa_group_link",value:val});
+    dbg("WA group link saved","ok");
+  } catch(e){ dbg("WA group link DB save error: "+e.message,"err"); }
+  showToast(lang==="es"?"Enlace guardado.":"Group link saved.");
+}
+
+function getWaGroupLink(){ return _waGroupLink||localStorage.getItem("hpfleet_wagroup")||""; }
+
 // ── USER STATS ──
 function renderUserStats(){
   const roles=["ADMIN","OPERATOR","REVIEWER","READONLY"];
@@ -2252,14 +2325,29 @@ function getFilteredUsers(){
   const r=el("filterRole").value;
   const co=el("filterCompany").value;
   const s=el("filterStatus").value;
-  return USERS.filter(u=>{
+  const list=USERS.filter(u=>{
     const mq=!q||u.name.toLowerCase().includes(q)||u.email.toLowerCase().includes(q);
     return mq&&(r==="ALL"||u.role===r)&&(co==="ALL"||(u.companies||[]).includes(co))&&(s==="ALL"||u.status===s);
   });
+  list.sort((a,b)=>{
+    let av=a[userSortCol]||""; let bv=b[userSortCol]||"";
+    if(typeof av==="string") av=av.toLowerCase();
+    if(typeof bv==="string") bv=bv.toLowerCase();
+    if(av<bv) return userSortDir==="asc"?-1:1;
+    if(av>bv) return userSortDir==="asc"?1:-1;
+    return 0;
+  });
+  return list;
 }
 
 function renderUsers(){
   renderUserStats(); populateCompanyFilter();
+  // Update sort indicators
+  ["name","role","status","created","lastLogin"].forEach(col=>{
+    const siMap={name:"si_name",role:"si_role",status:"si_status",created:"si_created",lastLogin:"si_last"};
+    const si=el(siMap[col]); if(!si) return;
+    si.className="sort-ind"+(col===userSortCol?" "+(userSortDir==="asc"?"asc":"desc"):"");
+  });
   const list=getFilteredUsers();
   el("userCount").textContent=t("showing")+" "+list.length+" "+t("of")+" "+USERS.length+" "+t("users");
   const tbody=el("userTbody"); tbody.innerHTML="";
@@ -2550,7 +2638,7 @@ function renderTempRules(){
       '<option value="per Flight Hour"'+(r.unit==="per Flight Hour"?" selected":"")+'>/ Flt Hr</option>'+
       '<option value="per Flight"'+(r.unit==="per Flight"?" selected":"")+'>/ Flight</option>'+
       '<option value="flat"'+(r.unit==="flat"?" selected":"")+'>Flat</option>'+
-      '<option value="% of TBP"'+(r.unit==="% of TBP"?" selected":"")+'>% TBP</option>'+
+      '<option value="% of TBH"'+(r.unit==="% of TBH"?" selected":"")+'>% TBH</option>'+
       "</select>"+
       '<button style="font-family:var(--mono);font-size:9px;padding:5px 8px;background:transparent;border:1px solid '+(r.active?"rgba(61,220,132,.4)":"var(--border2)")+';color:'+(r.active?"var(--green)":"var(--dim)")+';cursor:pointer;border-radius:2px">'+(r.active?"ON":"OFF")+"</button>"+
       '<button style="font-family:var(--mono);font-size:9px;padding:5px 8px;background:transparent;border:1px solid var(--border2);color:var(--red);cursor:pointer;border-radius:2px">✕</button>';
@@ -3097,10 +3185,18 @@ function renderWfBar(){
     {key:"wfApproved",state: st==="APPROVED"?"active":"pending"}
   ];
   const bar=el("wfBar"); if(!bar) return;
-  bar.innerHTML=steps.map((s,i)=>{
+  let html=steps.map((s,i)=>{
     const arrow=i<steps.length-1?'<span class="wf-arrow">›</span>':"";
     return '<div class="wf-step '+s.state+'"><div class="wf-dot"></div>'+t(s.key)+"</div>"+arrow;
   }).join("");
+  // CTA bridge to Pre-Invoice when APPROVED
+  if(st==="APPROVED"){
+    html+='<button class="wf-pi-cta" id="wfGoPiBtn">→ Pre-Invoice</button>';
+  }
+  bar.innerHTML=html;
+  if(st==="APPROVED"&&el("wfGoPiBtn")){
+    el("wfGoPiBtn").addEventListener("click",()=>switchTab("preinvoice"));
+  }
   if(el("srcStatus")){
     const labels={DRAFT:t("wfReview"),SUBMITTED:t("wfSubmit"),APPROVED:t("wfApproved"),CHANGES:lang==="es"?"Cambios Solicitados":"Changes Requested"};
     el("srcStatus").textContent=labels[batchStatus]||batchStatus;
@@ -3221,8 +3317,8 @@ function updateFlSummary(){
   });
   const sg=el("sumGrid"); if(!sg) return;
   sg.innerHTML=
-    '<div class="scard sc-fm"><div class="sc-l">'+t("fmMotor")+"</div><div class=\"sc-v\">"+fmt(fmM)+"</div><div class=\"sc-s\">TBP: "+fmt(fmT)+" hrs</div></div>"+
-    '<div class="scard sc-mag"><div class="sc-l">'+t("magMotor")+"</div><div class=\"sc-v\">"+fmt(magM)+"</div><div class=\"sc-s\">TBP: "+fmt(magT)+" hrs</div></div>"+
+    '<div class="scard sc-fm"><div class="sc-l">'+t("fmMotor")+"</div><div class=\"sc-v\">"+fmt(fmM)+"</div><div class=\"sc-s\">TBH: "+fmt(fmT)+" hrs</div></div>"+
+    '<div class="scard sc-mag"><div class="sc-l">'+t("magMotor")+"</div><div class=\"sc-v\">"+fmt(magM)+"</div><div class=\"sc-s\">TBH: "+fmt(magT)+" hrs</div></div>"+
     '<div class="scard sc-tot"><div class="sc-l">'+t("totMotor")+"</div><div class=\"sc-v\">"+fmt(fmM+magM)+"</div><div class=\"sc-s\">"+t("tFlight")+": "+fmt(totV)+" hrs</div></div>"+
     '<div class="scard sc-tbp"><div class="sc-l">'+t("totTbp")+"</div><div class=\"sc-v\">"+fmt(fmT+magT)+"</div><div class=\"sc-s\">"+t("tbpHours")+"</div></div>"+
     '<div class="scard sc-ent"><div class="sc-l">'+t("approved2")+"</div><div class=\"sc-v\">"+approved+"</div><div class=\"sc-s\">"+t("showing")+" "+getFilteredEntries().length+" "+t("of")+" "+flEntries.length+"</div></div>";
@@ -3443,7 +3539,41 @@ function generateInvNum(){
 function renderPreInvoice(){
   const ready=el("piDraftState");
   const soon=el("piComingSoon");
+  const batchSel=el("piBatchSelectorWrap");
   if(!ready||!soon) return;
+
+  // Show batch selector if there are any APPROVED batches in history
+  const approvedBatches=(allBatches||[]).filter(b=>b.status==="APPROVED");
+  if(batchSel){
+    if(approvedBatches.length>0||batchStatus==="APPROVED"){
+      batchSel.style.display="block";
+      const sel=el("piBatchSelect");
+      if(sel){
+        const cur=sel.value;
+        sel.innerHTML="";
+        // Current in-memory batch if APPROVED
+        if(batchStatus==="APPROVED"){
+          const opt=document.createElement("option");
+          opt.value="current";
+          opt.textContent="[Current] "+batchSourceFile+(batchPeriodFrom?" | "+batchPeriodFrom+" — "+batchPeriodTo:"");
+          opt.style.color="var(--cyan)";
+          sel.appendChild(opt);
+        }
+        approvedBatches.forEach(b=>{
+          if(b.id===currentBatchId) return; // already shown as current
+          const opt=document.createElement("option");
+          opt.value=b.id;
+          const label=(b.source_file||b.id.slice(0,8))+(b.period_from?" | "+b.period_from+" — "+b.period_to:"");
+          opt.textContent=label;
+          sel.appendChild(opt);
+        });
+        if(cur) sel.value=cur;
+      }
+    } else {
+      batchSel.style.display="none";
+    }
+  }
+
   if(batchStatus==="APPROVED"){
     ready.style.display="block"; soon.style.display="none";
     if(!piInvNum) piInvNum=generateInvNum();
@@ -3471,16 +3601,19 @@ function renderPreInvoice(){
     const bnums=approved.map(e=>e.bnum).filter(Boolean).sort();
     if(el("pi_period")) el("pi_period").textContent=dates.length?(dates[0]+" — "+dates[dates.length-1]):"—";
     if(el("pi_log_range")) el("pi_log_range").textContent=bnums.length?("#"+bnums[0]+" — #"+bnums[bnums.length-1]):"—";
+    // Rate shown once in section header
+    if(el("pi_rate_header")) el("pi_rate_header").textContent=tarifaHr>0?
+      "Rate: $"+tarifaHr.toFixed(2)+"/hr × "+( rate?.multiplicador?.toFixed(3)||"1.000")+" mult":"";
     let totalTbp=0, totalAmt=0;
     const tbody=el("pi_line_items");
     if(tbody){
       tbody.innerHTML="";
       approved.forEach((e,i)=>{
-        const{tm,tbp}=calcEntry(e);
+        const{tbp}=calcEntry(e);
         const amt=tarifaHr>0?parseFloat((tbp*tarifaHr).toFixed(2)):0;
         totalTbp+=tbp; totalAmt+=amt;
         const tr=document.createElement("tr");
-        tr.innerHTML="<td>"+(i+1)+"</td><td>"+(e.bnum||"—")+"</td><td>"+(e.fecha||"—")+"</td><td>"+(e.piloto||"—")+"</td><td>"+fmt(tm)+" hrs</td><td>"+fmt(tbp)+" hrs</td><td>"+(tarifaHr>0?"$"+tarifaHr.toFixed(2)+"/hr":"—")+"</td><td class='pi-amt"+(amt===0?" pi-zero":"")+"'>$"+amt.toFixed(2)+"</td>";
+        tr.innerHTML="<td>"+(i+1)+"</td><td>"+(e.bnum||"—")+"</td><td>"+(e.fecha||"—")+"</td><td>"+(e.piloto||"—")+"</td><td>"+fmt(tbp)+" hrs</td><td class='pi-amt"+(amt===0?" pi-zero":"")+"'>$"+amt.toFixed(2)+"</td>";
         tbody.appendChild(tr);
       });
     }
@@ -3552,10 +3685,10 @@ function showFlConfirm(title,body,approvedEntries,cb){
   let fmM=0,fmT=0,magM=0,magT=0;
   approvedEntries.forEach(e=>{ const{tm,tbp}=calcEntry(e); if(e.operador==="FM"){fmM+=tm;fmT+=tbp;}else{magM+=tm;magT+=tbp;} });
   el("confirmStats").innerHTML=
-    '<div class="cs-ok">FM — T.Motor: '+fmt(fmM)+" hrs | TBP: "+fmt(fmT)+" hrs</div>"+
-    '<div class="cs-w">MAG — T.Motor: '+fmt(magM)+" hrs | TBP: "+fmt(magT)+" hrs</div>"+
+    '<div class="cs-ok">FM — T.Motor: '+fmt(fmM)+" hrs | TBH: "+fmt(fmT)+" hrs</div>"+
+    '<div class="cs-w">MAG — T.Motor: '+fmt(magM)+" hrs | TBH: "+fmt(magT)+" hrs</div>"+
     '<div class="cs-c" style="margin-top:4px">'+t("totalApproved")+": "+approvedEntries.length+"</div>"+
-    '<div class="cs-c">Total TBP: '+fmt(fmT+magT)+" hrs</div>"+
+    '<div class="cs-c">Total TBH: '+fmt(fmT+magT)+" hrs</div>"+
     '<div class="cs-d">'+t("csvNote")+"</div>";
   confirmCb=cb; openModal("confirmMbd");
 }
@@ -3565,7 +3698,7 @@ function executeConfirm(){ closeModal("confirmMbd"); if(confirmCb){confirmCb();c
 // ── EXPORTS ──
 function exportFlCSV(){
   const hdrs=["#","Log#","Date","Aircraft","Operator","Pilot","Instructor","Horo.Start","Motor.Out","Motor.In","T.Motor",
-    "Flight.Out","Flight.In","T.Flight","Default.Mult","Override.Mult","Total.TBP","Notes","Review.Comment","Status",
+    "Flight.Out","Flight.In","T.Flight","Default.Mult","Override.Mult","Total.TBH","Notes","Review.Comment","Status",
     "Batch.Status","Loaded.By","Source.File","Timestamp"];
   const rows=flEntries.map((e,i)=>{
     const{tm,tv,tbp}=calcEntry(e);
@@ -3584,7 +3717,7 @@ function exportFlCSV(){
 function exportFlXLSX(){
   if(typeof XLSX==="undefined"){showToast("XLSX library not loaded","err");return;}
   const headers=["#","Log#","Date","Aircraft","Operator","Pilot","Instructor","Horo.Start","Motor Out","Motor In","T.Motor",
-    "Flight Out","Flight In","T.Flight","Default Mult","Override Mult","Total TBP","Notes","Review Comment","Status",
+    "Flight Out","Flight In","T.Flight","Default Mult","Override Mult","Total TBH","Notes","Review Comment","Status",
     "Batch Status","Loaded By","Source File","Timestamp"];
   const data=[headers,...flEntries.map((e,i)=>{
     const{tm,tv,tbp}=calcEntry(e);
@@ -3604,7 +3737,7 @@ function exportFlXLSX(){
     ["HP Fleet — Flight Log Summary",""],
     ["Generated",new Date().toLocaleString()],
     ["Source File",batchSourceFile],["Batch Status",batchStatus],["Loaded By",currentUser.name],["",""],
-    ["Operator","T.Motor (hrs)","Total TBP (hrs)"],
+    ["Operator","T.Motor (hrs)","Total TBH (hrs)"],
     ["FM",parseFloat(fmM.toFixed(2)),parseFloat(fmT.toFixed(2))],
     ["MAG",parseFloat(magM.toFixed(2)),parseFloat(magT.toFixed(2))],
     ["TOTAL",parseFloat((fmM+magM).toFixed(2)),parseFloat((fmT+magT).toFixed(2))]
@@ -4273,11 +4406,20 @@ function renderBatchSelector(){
     opt.value=b.id;
     const ac=b.aircraft||"?";
     const op=b.operador||"?";
-    const pf=b.period_from?b.period_from.slice(0,7):"";
+    // Period: show full from–to dates
+    const pf=b.period_from||"";
+    const pt=b.period_to||"";
+    const periodStr=pf&&pt?(" · "+pf+" — "+pt):pf?(" · "+pf):"";
+    // Log range
     const lf=b.log_from?"#"+b.log_from:"";
     const lt=b.log_to?"–#"+b.log_to:"";
-    opt.textContent=ac+" · "+op+(pf?" · "+pf:"")+(lf?(" · "+lf+lt):"")+" · "+b.status;
+    const logStr=lf?(" · "+lf+lt):"";
+    const isActive=!["CLOSED","INVOICED"].includes(b.status);
+    const statusTag=isActive?"★ "+b.status:b.status;
+    opt.textContent=ac+" · "+op+periodStr+logStr+" · "+statusTag;
     if(b.id===currentBatchId) opt.selected=true;
+    // Style active (non-closed) batches distinctly
+    if(isActive) opt.style.color="var(--cyan)";
     sel.appendChild(opt);
   });
 }
@@ -4382,11 +4524,11 @@ function renderAircraftTab(){
     const card=document.createElement("div");
     card.style.cssText="background:var(--s2);border:1px solid var(--border2);border-top:3px solid var(--cyan);padding:18px;";
     const ratesHtml=(ac.rates||[]).map(r=>
-      '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--s3);border-radius:2px;margin-bottom:4px">'+
-      '<span style="color:var(--green);font-weight:600">'+r.operador+'</span>'+
-      '<span style="color:var(--dim2)">×'+r.multiplicador.toFixed(3)+'</span>'+
-      '<span style="color:var(--yellow)">$'+(r.tarifaHr||0).toFixed(2)+'/hr</span>'+
-      '<span style="color:var(--cyan);font-size:10px">TBP: $'+((r.tarifaHr||0)*r.multiplicador).toFixed(2)+'/hr</span>'+
+      '<div style="display:grid;grid-template-columns:60px 1fr 1fr 1fr;align-items:center;padding:6px 10px;background:var(--s3);border-radius:2px;margin-bottom:4px;gap:4px">'+
+      '<span style="color:var(--green);font-weight:600;font-family:var(--mono);font-size:11px">'+r.operador+'</span>'+
+      '<span style="color:var(--dim2);font-family:var(--mono);font-size:10px;text-align:center">×'+r.multiplicador.toFixed(3)+'</span>'+
+      '<span style="color:var(--yellow);font-family:var(--mono);font-size:10px;text-align:center">$'+(r.tarifaHr||0).toFixed(2)+'/hr</span>'+
+      '<span style="color:var(--cyan);font-family:var(--mono);font-size:10px;text-align:right">TBH: $'+((r.tarifaHr||0)*r.multiplicador).toFixed(2)+'/hr</span>'+
       '</div>'
     ).join("");
     card.innerHTML=
@@ -4588,6 +4730,16 @@ function wireEvents(){
   el("filterCompany").addEventListener("change",renderUsers);
   el("filterStatus").addEventListener("change",renderUsers);
 
+  // Sortable user table headers
+  document.querySelectorAll(".sortable-th").forEach(th=>{
+    th.addEventListener("click",()=>{
+      const col=th.dataset.sort;
+      if(userSortCol===col){ userSortDir=userSortDir==="asc"?"desc":"asc"; }
+      else{ userSortCol=col; userSortDir="asc"; }
+      renderUsers();
+    });
+  });
+
   // User modal
   el("um_close").addEventListener("click",()=>closeModal("userMbd"));
   el("um_cancel").addEventListener("click",()=>closeModal("userMbd"));
@@ -4704,6 +4856,11 @@ function wireEvents(){
   // Settings
   el("btn_saveApiKey").addEventListener("click",saveApiKey);
   el("btn_clearApiKey").addEventListener("click",clearApiKey);
+  if(el("btn_saveWaGroup")) el("btn_saveWaGroup").addEventListener("click",saveWaGroupLink);
+  if(el("btn_testWaGroup")) el("btn_testWaGroup").addEventListener("click",()=>{
+    const link=el("waGroupLinkInput").value.trim();
+    if(link) window.open(link,"_blank"); else showToast(lang==="es"?"No hay enlace configurado.":"No link configured.","err");
+  });
 
   // View As toggle (Admin only)
   if(el("viewAsRole")) el("viewAsRole").addEventListener("change",function(){
@@ -4729,6 +4886,20 @@ function wireEvents(){
     addFlAudit("✍️",currentUser.name,"signed off pre-invoice",piInvNum);
     renderPreInvoice();
     showToast("Pre-Invoice signed off");
+  });
+
+  // Load approved batch into Pre-Invoice
+  if(el("btn_loadPiBatch")) el("btn_loadPiBatch").addEventListener("click",async()=>{
+    const sel=el("piBatchSelect"); if(!sel||!sel.value) return;
+    if(sel.value==="current"){ renderPreInvoice(); return; }
+    await switchToBatch(sel.value);
+    renderPreInvoice();
+    showToast("Batch loaded into Pre-Invoice");
+  });
+
+  // Export PDF placeholder
+  if(el("pi_export_pdf")) el("pi_export_pdf").addEventListener("click",()=>{
+    showToast(lang==="es"?"Exportar PDF próximamente.":"PDF export coming soon.","info");
   });
 
   // Debug panel toggle — update sp bottom
