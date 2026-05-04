@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.8 — built 2026-05-04 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.9 — built 2026-05-04 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.8</title>
+<title>HP Fleet v7.9</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -742,6 +742,14 @@ table.fl-tbl td:last-child{border-right:none}
 /* NON-BILLABLE */
 .r-nonbillable td{color:var(--dim2)!important}
 .r-nonbillable{background:rgba(90,106,136,.05)!important}
+
+/* DEBUG TOGGLE SLIDER */
+.dbg-slider{position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0}
+.dbg-slider input{opacity:0;width:0;height:0}
+.dbg-slider-track{position:absolute;cursor:pointer;inset:0;background:var(--border2);border-radius:22px;transition:background .2s}
+.dbg-slider-track::before{content:"";position:absolute;width:16px;height:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .2s}
+.dbg-slider input:checked+.dbg-slider-track{background:var(--cyan)}
+.dbg-slider input:checked+.dbg-slider-track::before{transform:translateX(18px)}
 </style>
 </head>
 <body>
@@ -772,7 +780,7 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.8</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.9</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -781,7 +789,7 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.8</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.9</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1038,6 +1046,7 @@ table.fl-tbl td:last-child{border-right:none}
           <button class="btn-primary" id="btn_submit">Submit for Review</button>
           <button class="btn-success" id="btn_approve" style="display:none">Approve for Invoicing</button>
           <button class="btn-warn" id="btn_reqChanges" style="display:none">Request Changes</button>
+          <button class="btn-warn" id="btn_reopen" style="display:none">↩ Reopen Batch</button>
           <div class="action-note" id="actionNote"></div>
         </div>
       </div>
@@ -1160,8 +1169,11 @@ table.fl-tbl td:last-child{border-right:none}
               <div style="font-size:13px;color:var(--text)">Debug Console</div>
               <div style="font-size:11px;color:var(--dim2);font-family:var(--mono)">Show real-time system log at bottom of screen</div>
             </div>
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-              <input type="checkbox" id="debugToggleCheck" style="accent-color:var(--cyan);width:16px;height:16px">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+              <label class="dbg-slider">
+                <input type="checkbox" id="debugToggleCheck">
+                <span class="dbg-slider-track"></span>
+              </label>
               <span style="font-family:var(--mono);font-size:11px;color:var(--dim2)" id="debugToggleLabel">Off</span>
             </label>
           </div>
@@ -1591,7 +1603,7 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.8";
+const APP_VERSION = "v7.9";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -1964,8 +1976,11 @@ function _updateSpBottom(){
 // ── DEBUG LOGGER ──
 function dbg(msg, type="info"){
   const panel=el("debugPanel"); if(!panel) return;
-  panel.classList.add("on");
-  _updateSpBottom();
+  // Only show panel if debug is enabled in settings
+  if(localStorage.getItem("hpfleet_debug")==="1"){
+    panel.classList.add("on");
+    _updateSpBottom();
+  }
   const body=el("debugBody");
   const line=document.createElement("div");
   line.className="debug-line "+(type||"info");
@@ -2154,6 +2169,8 @@ function switchTab(id){
   const panel=el("panel-"+id);
   if(panel) panel.classList.add("active");
   renderTabs();
+  // Refresh batch list when entering flight log or pre-invoice
+  if(id==="flightlog"||id==="preinvoice") loadAllBatches();
 }
 
 // ── ROLE BANNER ──
@@ -2680,14 +2697,14 @@ function initDebugToggle(){
   if(!check) return;
   const saved=localStorage.getItem("hpfleet_debug")==="1";
   check.checked=saved;
-  if(label) label.textContent=saved?"On":"Off";
+  if(label){ label.textContent=saved?"On":"Off"; label.style.color=saved?"var(--cyan)":"var(--dim2)"; }
   if(saved) el("debugPanel").classList.add("on");
   check.addEventListener("change",function(){
     const on=this.checked;
     localStorage.setItem("hpfleet_debug",on?"1":"0");
-    if(label) label.textContent=on?"On":"Off";
-    if(on) el("debugPanel").classList.add("on");
-    else el("debugPanel").classList.remove("on");
+    if(label){ label.textContent=on?"On":"Off"; label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+    if(on){ el("debugPanel").classList.add("on"); _updateSpBottom(); }
+    else{ el("debugPanel").classList.remove("on"); _updateSpBottom(); }
   });
 }
 
@@ -3151,7 +3168,7 @@ function renderWfBar(){
   }).join("");
   // CTA when APPROVED
   if(st==="APPROVED"){
-    html+='<span class="wf-arrow">›</span><button id="wf_goto_pi" style="font-family:var(--mono);font-size:10px;padding:4px 14px;background:transparent;color:var(--cyan);border:1px solid var(--cyan);cursor:pointer;border-radius:2px;font-weight:700;letter-spacing:1px;white-space:nowrap;transition:all .15s" onmouseover="this.style.background=\'rgba(65,209,255,.12)\'" onmouseout="this.style.background=\'transparent\'">📊 '+t("piGoTo")+' →</button>';
+    html+='<span class="wf-arrow">›</span><button id="wf_goto_pi" style="font-family:var(--mono);font-size:10px;padding:4px 14px;background:transparent;color:var(--cyan);border:1px solid var(--cyan);cursor:pointer;border-radius:2px;font-weight:700;letter-spacing:1px;white-space:nowrap;text-transform:uppercase;transition:all .15s" onmouseover="this.style.background=\'rgba(65,209,255,.12)\'" onmouseout="this.style.background=\'transparent\'">'+t("piGoTo")+' →</button>';
   }
   bar.innerHTML=html;
   // Wire CTA button
@@ -3180,6 +3197,8 @@ function setupFlRoleUI(){
   if(el("btn_submit")) el("btn_submit").style.display=canSubmit?"":"none";
   if(el("btn_approve")) el("btn_approve").style.display=canApprove?"flex":"none";
   if(el("btn_reqChanges")) el("btn_reqChanges").style.display="none"; // replaced by per-row flag
+  const canReopen=role==="ADMIN"&&batchStatus!=="DRAFT"&&batchStatus!=="CLOSED";
+  if(el("btn_reopen")) el("btn_reopen").style.display=canReopen?"":"none";
   if(role==="REVIEWER"||role==="READONLY"){
     const us=el("uploadSection"); if(us) us.style.display="none";
     const bc=el("batchConstants"); if(bc) bc.style.display="none";
@@ -3514,7 +3533,8 @@ function generateInvNum(){
   return "INV-"+now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(Math.floor(Math.random()*900)+100);
 }
 
-function openPiLoadModal(){
+async function openPiLoadModal(){
+  await loadAllBatches();
   // Update i18n labels
   if(el("piLoadTitle")) el("piLoadTitle").textContent=t("piLoadTitle");
   if(el("piLoad_currentLabel")) el("piLoad_currentLabel").textContent=t("piCurrent");
@@ -3531,11 +3551,11 @@ function openPiLoadModal(){
       desc.style.color="var(--dim2)";
     }
   }
-  // Populate historic selector
+  // Populate historic selector — APPROVED batches only
   const sel=el("piLoad_batchSel");
   if(sel){
     sel.innerHTML='<option value="">— '+(lang==="es"?"Seleccionar ciclo":"Select a billing cycle")+' —</option>';
-    allBatches.forEach(b=>{
+    allBatches.filter(b=>b.status==="APPROVED").forEach(b=>{
       const opt=document.createElement("option");
       opt.value=b.id;
       const ac=b.aircraft||"?"; const op=b.operador||"?";
@@ -3570,11 +3590,18 @@ function renderPreInvoice(){
       const totalTv=approved.reduce((s,e)=>s+calcEntry(e).tv,0);
       const totalEntries=approved.length;
       company.billingRules.filter(r=>r.active).forEach(r=>{
-        let amt=0;
-        if(r.unit==="per Flight Hour") amt=parseFloat((r.amount*totalTv).toFixed(2));
-        else if(r.unit==="per Flight") amt=parseFloat((r.amount*totalEntries).toFixed(2));
-        else amt=r.amount; // unknown unit — add at face value
-        piAdditionalCharges.push({desc:r.name,amount:amt,_auto:true});
+        let amt=0, formula="";
+        if(r.unit==="per Flight Hour"){
+          amt=parseFloat((r.amount*totalTv).toFixed(2));
+          formula="$"+r.amount.toFixed(2)+" × "+totalTv.toFixed(2)+" hrs";
+        } else if(r.unit==="per Flight"){
+          amt=parseFloat((r.amount*totalEntries).toFixed(2));
+          formula="$"+r.amount.toFixed(2)+" × "+totalEntries+" flights";
+        } else {
+          amt=r.amount;
+          formula="$"+r.amount.toFixed(2)+" ("+r.unit+")";
+        }
+        piAdditionalCharges.push({desc:r.name,amount:amt,_auto:true,_formula:formula});
       });
       piRulesSeeded=true;
     }
@@ -3633,7 +3660,23 @@ function renderPiCharges(subtotal){
     chargesTotal+=c.amount;
     const row=document.createElement("div");
     row.className="pi-charge-row";
-    row.innerHTML='<input type="text" value="'+c.desc+'" placeholder="Description" style="flex:2" data-ci="'+i+'" data-cf="desc"><input type="number" value="'+c.amount+'" step="0.01" placeholder="0.00" style="width:100px" data-ci="'+i+'" data-cf="amt"><span style="font-family:var(--mono);font-size:12px;color:var(--green);min-width:80px;text-align:right">$'+c.amount.toFixed(2)+'</span><button style="background:none;border:1px solid var(--border2);color:var(--red);cursor:pointer;padding:4px 8px;border-radius:2px" data-del-charge="'+i+'">✕</button>';
+    if(c._auto){
+      // Auto-populated from billing rules — read-only computed display
+      row.innerHTML=
+        '<div style="flex:2;font-family:var(--mono);font-size:11px;color:var(--text);padding:6px 10px;background:var(--s3);border:1px solid var(--border2);border-radius:2px">'+c.desc+'</div>'+
+        '<div style="font-family:var(--mono);font-size:11px;color:var(--dim2);padding:6px 10px;background:var(--s3);border:1px solid var(--border2);border-radius:2px;width:200px;text-align:center">'+
+          (c._formula||'$'+c.amount.toFixed(2))+
+        '</div>'+
+        '<span style="font-family:var(--mono);font-size:12px;color:var(--green);min-width:80px;text-align:right">$'+c.amount.toFixed(2)+'</span>'+
+        '<button style="background:none;border:1px solid var(--border2);color:var(--red);cursor:pointer;padding:4px 8px;border-radius:2px" data-del-charge="'+i+'">✕</button>';
+    } else {
+      // Manually added charge — editable
+      row.innerHTML=
+        '<input type="text" value="'+c.desc+'" placeholder="Description" style="flex:2" data-ci="'+i+'" data-cf="desc">'+
+        '<input type="number" value="'+c.amount+'" step="0.01" placeholder="0.00" style="width:100px" data-ci="'+i+'" data-cf="amt">'+
+        '<span style="font-family:var(--mono);font-size:12px;color:var(--green);min-width:80px;text-align:right">$'+c.amount.toFixed(2)+'</span>'+
+        '<button style="background:none;border:1px solid var(--border2);color:var(--red);cursor:pointer;padding:4px 8px;border-radius:2px" data-del-charge="'+i+'">✕</button>';
+    }
     wrap.appendChild(row);
   });
   wrap.querySelectorAll("input").forEach(inp=>{
@@ -3648,6 +3691,20 @@ function renderPiCharges(subtotal){
     btn.addEventListener("click",()=>{piAdditionalCharges.splice(parseInt(btn.dataset.delCharge),1);renderPiCharges(subtotal);});
   });
   if(el("pi_total_amt")) el("pi_total_amt").textContent="$"+(subtotal+chargesTotal).toFixed(2);
+}
+
+async function reopenBatch(){
+  const reason=el("reopen_reason")?el("reopen_reason").value.trim():"";
+  if(!reason){showToast("Reason required","err");return;}
+  const prevStatus=batchStatus;
+  batchStatus="DRAFT";
+  await saveBatchToDB();
+  addFlAudit("↩",currentUser.name,"batch reopened","From: "+prevStatus+" — Reason: "+reason);
+  addAudit("↩",currentUser.name,"batch reopened",currentBatchId+" from "+prevStatus+" — "+reason);
+  closeModal("reopenMbd");
+  if(el("reopen_reason")) el("reopen_reason").value="";
+  renderWfBar(); setupFlRoleUI();
+  showToast("Batch reopened — status set to DRAFT","warn");
 }
 
 async function doApprove(){
@@ -3961,8 +4018,11 @@ async function saveBatchToDB(){
 
 async function loadBatchFromDB(){
   try {
-    // Find most recent non-APPROVED batch, or most recent APPROVED
-    const batches=await sbGet("batches","order=created_at.desc&limit=1");
+    // Prefer most recent non-CLOSED batch; fall back to most recent overall
+    let batches=await sbGet("batches","status=neq.CLOSED&order=created_at.desc&limit=1");
+    if(!batches||!batches.length){
+      batches=await sbGet("batches","order=created_at.desc&limit=1");
+    }
     if(!batches||!batches.length){ dbg("No batch found in DB","info"); return false; }
     const batch=batches[0];
     currentBatchId=batch.id;
@@ -4402,7 +4462,12 @@ function renderBatchSelector(){
     const pf=b.period_from?b.period_from.slice(0,7):"";
     const lf=b.log_from?"#"+b.log_from:"";
     const lt=b.log_to?"–#"+b.log_to:"";
-    opt.textContent=ac+" · "+op+(pf?" · "+pf:"")+(lf?(" · "+lf+lt):"")+" · "+b.status;
+    const created=b.created_at?b.created_at.slice(0,10):"";
+    // If all metadata is null, fall back to created date + status
+    const hasData=b.aircraft||b.operador||b.period_from;
+    opt.textContent=hasData
+      ?(ac+" · "+op+(pf?" · "+pf:"")+(lf?(" · "+lf+lt):"")+" · "+b.status)
+      :(created+" · "+b.status+" · (no metadata)");
     if(b.id===currentBatchId) opt.selected=true;
     sel.appendChild(opt);
   });
@@ -4864,7 +4929,14 @@ function wireEvents(){
     showToast("Pre-Invoice signed off");
   });
 
-  // Load Billing Cycle modal
+  if(el("btn_reopen")) el("btn_reopen").addEventListener("click",()=>{
+    if(el("reopen_reason")) el("reopen_reason").value="";
+    openModal("reopenMbd");
+  });
+  if(el("reopen_close")) el("reopen_close").addEventListener("click",()=>closeModal("reopenMbd"));
+  if(el("reopen_cancel")) el("reopen_cancel").addEventListener("click",()=>closeModal("reopenMbd"));
+  if(el("reopen_confirm")) el("reopen_confirm").addEventListener("click",reopenBatch);
+  if(el("reopenMbd")) el("reopenMbd").addEventListener("click",e=>{ if(e.target===el("reopenMbd")) closeModal("reopenMbd"); });
   if(el("pi_load_cycle_btn")) el("pi_load_cycle_btn").addEventListener("click",openPiLoadModal);
   if(el("piLoad_close")) el("piLoad_close").addEventListener("click",()=>closeModal("piLoadMbd"));
   if(el("piLoad_cancel")) el("piLoad_cancel").addEventListener("click",()=>closeModal("piLoadMbd"));
@@ -4945,8 +5017,20 @@ function wireEvents(){
   });
 
   // Batch selector
-  if(el("batchSelector")) el("batchSelector").addEventListener("change",function(){
-    if(this.value) switchToBatch(this.value);
+  if(el("batchSelector")) el("batchSelector").addEventListener("change",async function(){
+    const newId=this.value; if(!newId) return;
+    if(newId===currentBatchId){ return; }
+    if(flEntries.length){
+      const msg=lang==="es"
+        ?"¿Guardar el lote actual antes de cambiar?"
+        :"Save current batch before switching?";
+      if(confirm(msg)) await saveBatchToDB();
+    }
+    await switchToBatch(newId);
+    if(el("srcBar")) el("srcBar").style.display="flex";
+    if(el("reviewSection")) el("reviewSection").style.display="block";
+    renderWfBar(); setupFlRoleUI(); renderFlTable(); renderFlAudit();
+    showToast("Billing cycle loaded","info");
   });
 
   // Swap buttons in side panel
