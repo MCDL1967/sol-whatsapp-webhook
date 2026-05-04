@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.2 — built 2026-05-03 — ICTLabs / UNIDAD FRAGATA 01 S.A. -->
+<!-- HP Fleet v7.3 — built 2026-05-03 — ICTLabs / UNIDAD FRAGATA 01 S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.2</title>
+<title>HP Fleet v7.3</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -693,7 +693,7 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.2</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.3</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -702,7 +702,7 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.2</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.3</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -871,7 +871,7 @@ table.fl-tbl td:last-child{border-right:none}
           <div class="al-title" id="al_horoTitle" style="margin:0">⚠ Horometer Gap Detected</div>
           <div style="display:flex;align-items:center;gap:8px">
             <span id="horoGapCount" style="font-family:var(--mono);font-size:10px;color:var(--red)"></span>
-            <button id="horoToggle" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">▲</button>
+            <button id="horoToggle" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">▼</button>
           </div>
         </div>
         <div class="al-horo-body collapsed" id="horoAlertBody"></div>
@@ -1100,14 +1100,14 @@ table.fl-tbl td:last-child{border-right:none}
       </div>
       <div class="fg-title"><div class="fg-dot" style="background:var(--blue)"></div>Motor</div>
       <div class="frow fc3">
-        <div class="field"><label>Motor Out *</label><input type="text" id="f_motorOut" placeholder="HH:MM"><span class="ferr" id="fe_motorOut"></span></div>
-        <div class="field"><label>Motor In *</label><input type="text" id="f_motorIn" placeholder="HH:MM"><span class="ferr" id="fe_motorIn"></span></div>
+        <div class="field"><label>Motor Out *</label><input type="text" id="f_motorOut" placeholder="e.g. 4702.33"><span class="ferr" id="fe_motorOut"></span></div>
+        <div class="field"><label>Motor In *</label><input type="text" id="f_motorIn" placeholder="e.g. 4703.52"><span class="ferr" id="fe_motorIn"></span></div>
         <div class="field"><label>T.Motor (calc.)</label><input type="text" id="f_tmotor" readonly></div>
       </div>
       <div class="fg-title"><div class="fg-dot" style="background:var(--cyan)"></div>Flight</div>
       <div class="frow fc3">
-        <div class="field"><label>Flight Out *</label><input type="text" id="f_vueloOut" placeholder="HH:MM"><span class="ferr" id="fe_vueloOut"></span></div>
-        <div class="field"><label>Flight In *</label><input type="text" id="f_vueloIn" placeholder="HH:MM"><span class="ferr" id="fe_vueloIn"></span></div>
+        <div class="field"><label>Flight Out *</label><input type="text" id="f_vueloOut" placeholder="e.g. 6538.9"><span class="ferr" id="fe_vueloOut"></span></div>
+        <div class="field"><label>Flight In *</label><input type="text" id="f_vueloIn" placeholder="e.g. 6540.3"><span class="ferr" id="fe_vueloIn"></span></div>
         <div class="field"><label>T.Flight (calc.)</label><input type="text" id="f_tvuelo" readonly></div>
       </div>
       <div class="frow fc2">
@@ -1166,6 +1166,22 @@ table.fl-tbl td:last-child{border-right:none}
     <div class="mftr">
       <button class="btn-ghost" id="flag_cancel">Cancel</button>
       <button class="btn-warn" id="flag_save">Flag Entry</button>
+    </div>
+  </div>
+</div>
+
+<!-- NAME PROPAGATION MODAL -->
+<div class="mbd" id="namePropMbd">
+  <div class="mbox" style="max-width:500px;width:100%">
+    <div class="mhdr"><div class="mhdr-t cy" id="namePropTitle">Name Correction</div><button class="m-x" id="nameProp_close">✕</button></div>
+    <div class="mbody">
+      <p style="font-size:13px;color:var(--dim2);margin-bottom:14px" id="namePropMsg"></p>
+      <div id="namePropList" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+    <div class="mftr">
+      <button class="btn-ghost" id="nameProp_this">This Entry Only</button>
+      <button class="btn-ghost" id="nameProp_selected">Apply to Selected</button>
+      <button class="btn-primary" id="nameProp_all">Apply to All</button>
     </div>
   </div>
 </div>
@@ -1298,10 +1314,11 @@ table.fl-tbl td:last-child{border-right:none}
         <div class="sp-calc-item"><div class="sp-calc-l">Multiplier</div><div class="sp-calc-v" id="sp_pv_mult">—</div></div>
         <div class="sp-calc-item"><div class="sp-calc-l">TBP</div><div class="sp-calc-v cg" id="sp_pv_tbp">—</div></div>
       </div>
-      <div class="sp-save-bar">
-        <button class="btn-primary" id="sp_save" style="flex:1">Save Entry</button>
-        <button class="btn-ghost" id="sp_cancel">Cancel</button>
-      </div>
+    </div>
+    <!-- Save/Cancel always visible outside collapsible body -->
+    <div class="sp-save-bar" style="padding:12px 16px;border-top:1px solid var(--border2);background:var(--s2);flex-shrink:0">
+      <button class="btn-primary" id="sp_save" style="flex:1">Save Entry</button>
+      <button class="btn-ghost" id="sp_cancel">Cancel</button>
     </div>
   </div>
 </div>
@@ -1320,7 +1337,7 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.2";
+const APP_VERSION = "v7.3";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -1804,6 +1821,8 @@ async function bootApp(){
   const defaultTab=currentUser.role==="ADMIN"?"users":"flightlog";
   switchTab(defaultTab);
   updateApiStatus();
+  // Load API key from DB (centralized for all devices)
+  await loadApiKeyFromDB();
   // Load batch from DB
   dbg("Loading batch from database…","info");
   const hasBatch=await loadBatchFromDB();
@@ -1863,32 +1882,78 @@ function renderRoleBanner(){
 }
 
 // ── SETTINGS / API KEY ──
-function getApiKey(){ return localStorage.getItem("hpfleet_apikey")||""; }
+let _cachedApiKey="";
+
+async function loadApiKeyFromDB(){
+  try {
+    const rows=await sbGet("settings","key=eq.anthropic_api_key");
+    if(rows&&rows.length&&rows[0].value){
+      _cachedApiKey=rows[0].value;
+      localStorage.setItem("hpfleet_apikey",_cachedApiKey);
+      dbg("API key loaded from DB","ok");
+    } else {
+      // Fall back to localStorage
+      _cachedApiKey=localStorage.getItem("hpfleet_apikey")||"";
+      if(_cachedApiKey) dbg("API key loaded from localStorage","info");
+    }
+  } catch(err){
+    _cachedApiKey=localStorage.getItem("hpfleet_apikey")||"";
+    dbg("API key DB load failed, using localStorage: "+err.message,"warn");
+  }
+  updateApiStatus();
+}
+
+function getApiKey(){ return _cachedApiKey||localStorage.getItem("hpfleet_apikey")||""; }
 
 function updateApiStatus(){
   const key=getApiKey();
   const badge=el("apiStatusBadge");
+  const isAdmin=currentUser&&(currentUser.role==="ADMIN");
   if(badge){
     badge.textContent=key?t("apiOk"):t("apiMissing");
     badge.className="api-status "+(key?"api-ok":"api-missing");
   }
-  if(el("apiKeyInput")) el("apiKeyInput").value=key?"••••••••••••••":"";
-  // show/hide warning in flight log tab
+  // Non-admin sees masked configured status only
+  if(el("apiKeyInput")){
+    if(!isAdmin){
+      el("apiKeyInput").value=key?"[Configured by Admin]":"";
+      el("apiKeyInput").readOnly=true;
+      el("apiKeyInput").style.color="var(--dim2)";
+    } else {
+      el("apiKeyInput").value=key?"••••••••••••••":"";
+      el("apiKeyInput").readOnly=false;
+      el("apiKeyInput").style.color="";
+    }
+  }
+  if(el("btn_saveApiKey")) el("btn_saveApiKey").style.display=isAdmin?"":"none";
+  if(el("btn_clearApiKey")) el("btn_clearApiKey").style.display=isAdmin?"":"none";
   const warn=el("apiWarn");
   if(warn){ if(!key) warn.classList.add("on"); else warn.classList.remove("on"); }
 }
 
-function saveApiKey(){
+async function saveApiKey(){
   const val=el("apiKeyInput").value.trim();
   if(!val||val.startsWith("•")){ showToast("Enter a valid API key","err"); return; }
+  _cachedApiKey=val;
   localStorage.setItem("hpfleet_apikey",val);
+  // Save to DB settings table
+  try {
+    await sbDelete("settings","key=eq.anthropic_api_key");
+    await sbPost("settings",{key:"anthropic_api_key",value:val});
+    dbg("API key saved to DB","ok");
+  } catch(e){ dbg("API key DB save error: "+e.message,"err"); }
   el("apiKeyInput").value="••••••••••••••";
   updateApiStatus();
   showToast(t("keySaved"));
 }
 
-function clearApiKey(){
+async function clearApiKey(){
+  _cachedApiKey="";
   localStorage.removeItem("hpfleet_apikey");
+  try {
+    await sbDelete("settings","key=eq.anthropic_api_key");
+    dbg("API key cleared from DB","ok");
+  } catch(e){ dbg("API key DB clear error: "+e.message,"err"); }
   if(el("apiKeyInput")) el("apiKeyInput").value="";
   updateApiStatus();
   showToast(t("keyCleared"),"warn");
@@ -1977,7 +2042,9 @@ function toggleUserStatus(id){
   const u=USERS.find(x=>x.id===id); if(!u) return;
   if(currentUser.id===id){showToast(t("cantDeactivateSelf"),"err");return;}
   u.status=u.status==="active"?"inactive":"active";
-  sbPatch("users","id=eq."+u.id,{status:u.status}).catch(e=>dbg("User status error: "+e.message,"err"));
+  sbPatch("users","id=eq."+u.id,{status:u.status})
+    .then(()=>dbg("User status updated: "+u.name+" → "+u.status,"ok"))
+    .catch(e=>dbg("User status error: "+e.message,"err"));
   addAudit("🔄",currentUser.name,(lang==="es"?"cambió estado":"toggled status"),u.name+" → "+t(u.status));
   renderUsers(); showToast(t("statusUpdated"));
 }
@@ -2058,13 +2125,21 @@ function saveUser(){
     if(pwd) changes.push("password updated");
     u.name=name; u.email=email; u.role=role; u.status=status; u.phone=phone; u.companies=companies;
     if(pwd) u.pwd=pwd;
-    sbPatch("users","id=eq."+u.id,{name:u.name,email:u.email,role:u.role,status:u.status,phone:u.phone,companies:u.companies,...(pwd?{pwd}:{})}).catch(e=>dbg("User update error: "+e.message,"err"));
+    sbPatch("users","id=eq."+u.id,{
+      name:u.name, email:u.email, role:u.role, status:u.status,
+      phone:u.phone||"", companies:u.companies,
+      ...(pwd?{pwd}:{})
+    }).then(()=>dbg("User updated in DB: "+u.name,"ok"))
+      .catch(e=>dbg("User update error: "+e.message,"err"));
     addAudit("✏️",currentUser.name,(lang==="es"?"editó usuario":"edited user"),u.name+(changes.length?" ("+changes.join(", ")+")":""));
     showToast(t("userUpdated"));
   } else {
     const nu={id:"u"+nextUserId++,name,email,pwd,role,status,phone,companies,created:new Date().toISOString().slice(0,10),lastLogin:null};
     USERS.push(nu);
-    sbPost("users",nu).catch(e=>dbg("User create error: "+e.message,"err"));
+    sbPost("users",{id:nu.id,name,email,pwd,role,status,phone:phone||"",companies,
+      created:nu.created,last_login:null})
+      .then(()=>dbg("User created in DB: "+name,"ok"))
+      .catch(e=>dbg("User create error: "+e.message,"err"));
     addAudit("➕",currentUser.name,(lang==="es"?"creó usuario":"created user"),name+" ("+email+") — "+ROLES[role][lang].label+" ["+companies.join(",")+"]");
     showToast(t("userCreated"));
   }
@@ -2237,12 +2312,16 @@ function saveCompany(){
   const data={name,code,multiplier:mult,status,notes,billingRules:tempRules};
   if(editingCoId){
     const co=COMPANIES.find(x=>x.id===editingCoId); Object.assign(co,data);
-    sbPatch("companies","id=eq."+co.id,{name,code,multiplier:mult,status,notes,billing_rules:JSON.stringify(tempRules)}).catch(e=>dbg("Company update error: "+e.message,"err"));
+    sbPatch("companies","id=eq."+co.id,{name,code,multiplier:mult,status,notes,billing_rules:JSON.stringify(tempRules)})
+      .then(()=>dbg("Company updated in DB: "+name,"ok"))
+      .catch(e=>dbg("Company update error: "+e.message,"err"));
     addAudit("✏️",currentUser.name,(lang==="es"?"editó compañía":"edited company"),name);
   } else {
     const newCo={id:"c"+nextCoId++,...data};
     COMPANIES.push(newCo);
-    sbPost("companies",{id:newCo.id,name,code,multiplier:mult,status,notes,billing_rules:JSON.stringify(tempRules)}).catch(e=>dbg("Company create error: "+e.message,"err"));
+    sbPost("companies",{id:newCo.id,name,code,multiplier:mult,status,notes,billing_rules:JSON.stringify(tempRules)})
+      .then(()=>dbg("Company created in DB: "+name,"ok"))
+      .catch(e=>dbg("Company create error: "+e.message,"err"));
     addAudit("➕",currentUser.name,(lang==="es"?"creó compañía":"created company"),name+" ("+code+") mult:"+mult);
   }
   closeModal("coMbd"); renderCompanies(); renderUsers(); showToast(t("companySaved"));
@@ -2490,21 +2569,26 @@ async function extractAll(){
         fq.status="done"; fq._entryCount=pdfExtracted.length;
         addFlAudit("🤖",currentUser.name,"extracted PDF",pdfExtracted.length+" entries from "+numPages+" pages — "+fq.name);
       } else {
-        // Image file: fix rotation, extract, compress, upload
+        // Image file: fix rotation, compress, extract, upload
         fq._label="["+(i+1)+"/"+total+"] "+fq.name+" — Extracting…";
-        renderQueue();
+        fq.progress=10; renderQueue();
         const fixedFile=await fixImageRotation(fq.file);
-        const extracted=await extractImageFile(fixedFile,apiKey);
+        // Compress BEFORE sending to Claude (fixes large/sideways image errors)
+        const rawBlob=await fetch(URL.createObjectURL(fixedFile)).then(r=>r.blob());
+        const compressedBlob=await compressImage(rawBlob,1200,0.85);
+        const compressedFile=new File([compressedBlob],fixedFile.name,{type:"image/jpeg"});
+        fq.progress=30; renderQueue();
+        const extracted=await extractImageFile(compressedFile,apiKey);
         extracted.forEach(e=>checkDiff(e));
-        // Compress and upload
-        const blob=await fetch(URL.createObjectURL(fixedFile)).then(r=>r.blob());
-        const compressed=await compressImage(blob);
+        fq.progress=70; renderQueue();
+        // Further compress for storage (smaller for DB)
+        const storageBlob=await compressImage(rawBlob,800,0.7);
         const filename="img_"+Date.now()+"_"+i+".jpg";
-        const imageUrl=await uploadImageToStorage(compressed,filename);
+        const imageUrl=await uploadImageToStorage(storageBlob,filename);
         extracted.forEach(e=>{e._imageUrl=imageUrl;});
-        fq._preview=URL.createObjectURL(compressed);
+        fq._preview=URL.createObjectURL(storageBlob);
         allExtracted=[...allExtracted,...extracted];
-        fq.status="done"; fq._entryCount=extracted.length;
+        fq.status="done"; fq._entryCount=extracted.length; fq.progress=100;
         addFlAudit("🤖",currentUser.name,"extracted image",extracted.length+" from "+fq.name);
       }
     } catch(err){
@@ -2905,16 +2989,17 @@ function validateEntryForm(){
   else if(!DATERE.test(fecha)){setFerr("fe_fecha","f_fecha",lang==="es"?"Formato: DD/MM/AAAA":"Format: DD/MM/YYYY");ok=false;}
   if(!piloto){setFerr("fe_piloto","f_piloto",t("required"));ok=false;}
   if(isNaN(horoIn)||horoIn<=0){setFerr("fe_horoIn","f_horoIn",lang==="es"?"Debe ser mayor a 0":"Must be > 0");ok=false;}
+  // Accept decimal (4702.33) or HH:MM — valid if t2h returns non-zero or value is "0"
   if(!mOut){setFerr("fe_motorOut","f_motorOut",t("required"));ok=false;}
-  else if(!TIMERE.test(mOut)){setFerr("fe_motorOut","f_motorOut",lang==="es"?"Formato: HH:MM":"Format: HH:MM");ok=false;}
+  else if(isNaN(t2h(mOut))){setFerr("fe_motorOut","f_motorOut",lang==="es"?"Valor inválido":"Invalid value");ok=false;}
   if(!mIn){setFerr("fe_motorIn","f_motorIn",t("required"));ok=false;}
-  else if(!TIMERE.test(mIn)){setFerr("fe_motorIn","f_motorIn",lang==="es"?"Formato: HH:MM":"Format: HH:MM");ok=false;}
-  else if(mOut&&TIMERE.test(mOut)&&t2h(mIn)<=t2h(mOut)){setFerr("fe_motorIn","f_motorIn",lang==="es"?"Motor In debe ser posterior":"Motor In must be after Motor Out");ok=false;}
+  else if(isNaN(t2h(mIn))){setFerr("fe_motorIn","f_motorIn",lang==="es"?"Valor inválido":"Invalid value");ok=false;}
+  else if(mOut&&t2h(mIn)<=t2h(mOut)){setFerr("fe_motorIn","f_motorIn",lang==="es"?"Motor In debe ser posterior":"Motor In must be after Motor Out");ok=false;}
   if(!vOut){setFerr("fe_vueloOut","f_vueloOut",t("required"));ok=false;}
-  else if(!TIMERE.test(vOut)){setFerr("fe_vueloOut","f_vueloOut",lang==="es"?"Formato: HH:MM":"Format: HH:MM");ok=false;}
+  else if(isNaN(t2h(vOut))){setFerr("fe_vueloOut","f_vueloOut",lang==="es"?"Valor inválido":"Invalid value");ok=false;}
   if(!vIn){setFerr("fe_vueloIn","f_vueloIn",t("required"));ok=false;}
-  else if(!TIMERE.test(vIn)){setFerr("fe_vueloIn","f_vueloIn",lang==="es"?"Formato: HH:MM":"Format: HH:MM");ok=false;}
-  else if(vOut&&TIMERE.test(vOut)&&t2h(vIn)<=t2h(vOut)){setFerr("fe_vueloIn","f_vueloIn",lang==="es"?"Vuelo In debe ser posterior":"Flight In must be after Flight Out");ok=false;}
+  else if(isNaN(t2h(vIn))){setFerr("fe_vueloIn","f_vueloIn",lang==="es"?"Valor inválido":"Invalid value");ok=false;}
+  else if(vOut&&t2h(vIn)<=t2h(vOut)){setFerr("fe_vueloIn","f_vueloIn",lang==="es"?"Vuelo In debe ser posterior":"Flight In must be after Flight Out");ok=false;}
   return ok;
 }
 
@@ -2978,6 +3063,7 @@ function handleSubmit(){
 
 async function doSubmit(){
   batchStatus="SUBMITTED";
+  if(el("resultBanner")) el("resultBanner").style.display="none";
   await saveBatchToDB();
   addFlAudit("📤",currentUser.name,"submitted batch",flEntries.filter(e=>e.status==="approved").length+" approved entries");
   const flagged=flEntries.filter(e=>e.status==="flagged").length;
@@ -3027,6 +3113,7 @@ function renderPreInvoice(){
 
 async function doApprove(){
   batchStatus="APPROVED";
+  if(el("resultBanner")) el("resultBanner").style.display="none";
   await saveBatchToDB();
   exportFlCSV();
   addFlAudit("✅",currentUser.name,"approved for invoicing",flEntries.filter(e=>e.status==="approved").length+" entries");
@@ -3163,7 +3250,50 @@ function notifyWhatsApp(toRole, message){
 function sendWhatsApp(){ closeModal("waMbd"); if(_waPendingUrl){window.open(_waPendingUrl,"_blank");_waPendingUrl=null;} }
 function skipWhatsApp(){ closeModal("waMbd"); _waPendingUrl=null; }
 
-// ── SUPABASE BATCH PERSISTENCE ──
+// ── NAME CORRECTION PROPAGATION ──
+let _namePropData=null; // {field, oldVal, newVal, matches, currentEntryId}
+
+function checkNamePropagation(entryId, field, oldVal, newVal, onConfirm){
+  if(!oldVal||!newVal||oldVal===newVal) { onConfirm([]); return; }
+  const matches=flEntries.filter(e=>
+    e.id!==entryId &&
+    String(e[field]||"").trim().toLowerCase()===oldVal.trim().toLowerCase()
+  );
+  if(!matches.length){ onConfirm([]); return; }
+  // Show propagation dialog
+  _namePropData={field,oldVal,newVal,matches,currentEntryId:entryId,onConfirm};
+  el("namePropTitle").textContent=field==="piloto"?"Pilot Name Correction":"Instructor Name Correction";
+  el("namePropMsg").textContent=
+    '"'+oldVal+'" → "'+newVal+'" — This name appears in '+matches.length+' other entr'+(matches.length===1?"y":"ies")+'. Apply correction?';
+  const list=el("namePropList");
+  list.innerHTML=matches.map((e,i)=>
+    '<label style="display:flex;align-items:center;gap:8px;padding:6px;background:var(--s3);border-radius:2px;cursor:pointer">'+
+    '<input type="checkbox" checked data-prop-idx="'+i+'" style="accent-color:var(--cyan)">'+
+    '<span style="font-family:var(--mono);font-size:10px">Entry #'+(flEntries.indexOf(e)+1)+" — "+e.fecha+" | "+e.aeronave+"</span>"+
+    "</label>"
+  ).join("");
+  openModal("namePropMbd");
+}
+
+function applyNameProp(mode){
+  if(!_namePropData) return;
+  const{field,newVal,matches,onConfirm}=_namePropData;
+  let toUpdate=[];
+  if(mode==="all") toUpdate=matches;
+  else if(mode==="selected"){
+    const checks=el("namePropList").querySelectorAll("input[type=checkbox]");
+    toUpdate=matches.filter((_,i)=>checks[i]&&checks[i].checked);
+  }
+  toUpdate.forEach(e=>{ e[field]=newVal; });
+  if(toUpdate.length){
+    addFlAudit("✏️",currentUser.name,"name correction: "+field,
+      '"'+_namePropData.oldVal+'" → "'+newVal+'" applied to '+toUpdate.length+" entries");
+  }
+  closeModal("namePropMbd");
+  onConfirm(toUpdate);
+  _namePropData=null;
+  renderFlTable();
+}
 async function saveBatchToDB(){
   try {
     const batchData={
@@ -3494,15 +3624,18 @@ async function saveSpEntry(){
     e.status="flagged";
     addFlAudit("🚩",currentUser.name,"review comment on entry #"+(flEntries.indexOf(e)+1),comment);
   } else {
-    // Full edit
+    // Full edit — check name propagation
     const multRaw=parseFloat(el("sp_mult").value);
+    const oldPiloto=e.piloto, oldInstructor=e.instructor;
+    const newPiloto=el("sp_piloto").value.trim();
+    const newInstructor=el("sp_instructor").value.trim();
     Object.assign(e,{
       bnum:el("sp_bnum")?el("sp_bnum").value.trim():"",
       fecha:el("sp_fecha").value.trim(),
       aeronave:el("sp_aeronave").value,
       operador:el("sp_operador").value,
-      piloto:el("sp_piloto").value.trim(),
-      instructor:el("sp_instructor").value.trim(),
+      piloto:newPiloto,
+      instructor:newInstructor,
       horoIn:parseFloat(el("sp_horoIn").value)||0,
       motorOut:el("sp_motorOut").value.trim(),
       motorIn:el("sp_motorIn").value.trim(),
@@ -3513,11 +3646,26 @@ async function saveSpEntry(){
     });
     checkDiff(e);
     addFlAudit("✏️",currentUser.name,"edited entry via panel","#"+(flEntries.indexOf(e)+1));
+    await saveBatchToDB();
+    renderFlTable();
+    showToast("Entry updated");
+    _loadSpEntry(e);
+    // Check name propagation
+    if(newPiloto!==oldPiloto){
+      checkNamePropagation(e.id,"piloto",oldPiloto,newPiloto,async(updated)=>{
+        if(updated.length) await saveBatchToDB();
+      });
+    } else if(newInstructor!==oldInstructor){
+      checkNamePropagation(e.id,"instructor",oldInstructor,newInstructor,async(updated)=>{
+        if(updated.length) await saveBatchToDB();
+      });
+    }
+    return; // already saved above
   }
+  // Reviewer comment path
   await saveBatchToDB();
   renderFlTable();
   showToast(role==="REVIEWER"?"Comment saved":"Entry updated");
-  // Stay on panel, reload entry
   _loadSpEntry(e);
 }
 
@@ -3701,22 +3849,26 @@ async function saveAircraft(){
   };
   if(editingAcId){
     const ac=AIRCRAFT.find(a=>a.id===editingAcId); Object.assign(ac,data);
-    await sbPatch("aircraft","id=eq."+editingAcId,{
+    sbPatch("aircraft","id=eq."+editingAcId,{
       matricula:data.matricula, make_model:data.makeModel,
-      operador:data.operador, tipo:data.tipo,
+      operador:data.operador, tipo:data.tipo||"",
       multiplicador:data.multiplicador, diff_threshold:data.diffThreshold,
-      motor_id:data.motorId, consumo_gal_hr:data.consumoGalHr, asientos:data.asientos
-    }).catch(e=>dbg("Aircraft update error: "+e.message,"err"));
+      motor_id:data.motorId||"", consumo_gal_hr:data.consumoGalHr||0,
+      asientos:data.asientos||2
+    }).then(()=>dbg("Aircraft updated in DB: "+data.matricula,"ok"))
+      .catch(e=>dbg("Aircraft update error: "+e.message,"err"));
     showToast("Aircraft updated");
   } else {
     const newAc={id:"ac"+Date.now(),...data};
     AIRCRAFT.push(newAc);
-    await sbPost("aircraft",{
-      id:newAc.id, matricula:data.matricula, make_model:data.makeModel,
-      operador:data.operador, tipo:data.tipo,
+    sbPost("aircraft",{
+      id:newAc.id, matricula:data.matricula, make_model:data.makeModel||"",
+      operador:data.operador, tipo:data.tipo||"",
       multiplicador:data.multiplicador, diff_threshold:data.diffThreshold,
-      motor_id:data.motorId, consumo_gal_hr:data.consumoGalHr, asientos:data.asientos
-    }).catch(e=>dbg("Aircraft create error: "+e.message,"err"));
+      motor_id:data.motorId||"", consumo_gal_hr:data.consumoGalHr||0,
+      asientos:data.asientos||2
+    }).then(()=>dbg("Aircraft created in DB: "+data.matricula,"ok"))
+      .catch(e=>dbg("Aircraft create error: "+e.message,"err"));
     showToast("Aircraft added");
   }
   closeModal("acMbd");
@@ -3879,6 +4031,12 @@ function wireEvents(){
     btn.textContent=body.classList.contains("collapsed")?"▼":"▲";
   });
 
+  // Name propagation modal
+  if(el("nameProp_close")) el("nameProp_close").addEventListener("click",()=>{closeModal("namePropMbd");if(_namePropData){_namePropData.onConfirm([]);_namePropData=null;}});
+  if(el("nameProp_this")) el("nameProp_this").addEventListener("click",()=>{closeModal("namePropMbd");if(_namePropData){_namePropData.onConfirm([]);_namePropData=null;}});
+  if(el("nameProp_selected")) el("nameProp_selected").addEventListener("click",()=>applyNameProp("selected"));
+  if(el("nameProp_all")) el("nameProp_all").addEventListener("click",()=>applyNameProp("all"));
+
   // WhatsApp confirmation modal
   if(el("wa_close")) el("wa_close").addEventListener("click",skipWhatsApp);
   if(el("wa_skip")) el("wa_skip").addEventListener("click",skipWhatsApp);
@@ -3988,7 +4146,7 @@ function wireEvents(){
 async function init(){
   applyI18n();
   wireEvents();
-  dbg("HP Fleet v7.2 — initializing…","info");
+  dbg("HP Fleet v7.3 — initializing…","info");
   await seedIfEmpty();
   await loadMasterData();
   if(el("viewAsRole")) el("viewAsRole").value="ADMIN";
