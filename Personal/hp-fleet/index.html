@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.1 — built 2026-05-03 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.2 — built 2026-05-03 — ICTLabs / UNIDAD FRAGATA 01 S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.1</title>
+<title>HP Fleet v7.2</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -617,6 +617,52 @@ table.fl-tbl td:last-child{border-right:none}
 .remember-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;
   font-family:var(--mono);font-size:11px;color:var(--dim2);cursor:pointer}
 .remember-row input{accent-color:var(--cyan);cursor:pointer}
+
+/* SIDEBAR TOGGLE ICON BUTTON */
+.sp-toggle-btn{background:var(--s2);border:1px solid var(--border2);border-radius:6px;
+  padding:5px 7px;cursor:pointer;color:var(--dim2);display:inline-flex;
+  align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.sp-toggle-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.sp-toggle-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8}
+
+/* SIDE PANEL NAV */
+.sp-nav{display:flex;align-items:center;gap:8px;padding:8px 16px;
+  border-bottom:1px solid var(--border2);background:var(--s2);flex-shrink:0}
+.sp-nav-btn{background:var(--s3);border:1px solid var(--border2);color:var(--text);
+  padding:4px 10px;cursor:pointer;font-size:14px;border-radius:2px;transition:all .15s}
+.sp-nav-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.sp-nav-pos{font-family:var(--mono);font-size:10px;color:var(--dim2);flex:1;text-align:center}
+
+/* SIDE PANEL RESIZE */
+.sp-resize-handle{position:absolute;left:0;top:0;bottom:0;width:5px;cursor:col-resize;
+  background:transparent;z-index:10;transition:background .15s}
+.sp-resize-handle:hover{background:var(--cyan)}
+
+/* WHATSAPP CONFIRM DIALOG */
+.wa-confirm-box{max-width:420px;width:100%}
+.wa-confirm-body{padding:16px;font-size:14px;color:var(--dim2);line-height:1.6}
+.wa-recipient{font-family:var(--mono);font-size:12px;color:var(--green);
+  background:var(--s3);padding:8px 12px;border-radius:2px;margin:10px 0;
+  border-left:3px solid var(--green)}
+
+/* PRE-INVOICE READY STATE */
+.pi-ready{padding:32px;text-align:center}
+.pi-ready-icon{font-size:48px;margin-bottom:16px}
+.pi-ready-title{font-family:var(--display);font-size:22px;font-weight:700;
+  color:var(--green);margin-bottom:8px}
+.pi-ready-sub{color:var(--dim2);font-size:14px;margin-bottom:24px}
+.pi-stats{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:24px}
+.pi-stat{background:var(--s2);border:1px solid var(--border2);border-top:3px solid var(--cyan);
+  padding:16px 24px;text-align:center}
+.pi-stat-v{font-family:var(--display);font-size:24px;font-weight:700;color:var(--cyan)}
+.pi-stat-l{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;
+  margin-top:4px}
+
+/* REVIEW COMMENT INDICATOR */
+.rc-indicator{color:var(--yellow);font-size:11px;cursor:help}
+
+/* BNUM COLUMN */
+.bnum-cell{font-family:var(--mono);font-size:10px;color:var(--violet)}
 </style>
 </head>
 <body>
@@ -647,7 +693,7 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.1</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.2</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -656,7 +702,7 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.1</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.2</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -863,7 +909,12 @@ table.fl-tbl td:last-child{border-right:none}
               <table class="fl-tbl">
                 <thead>
                   <tr>
-                    <th rowspan="2" style="vertical-align:bottom">#</th>
+                    <th rowspan="2" style="vertical-align:bottom">
+                      <button class="sp-toggle-btn" id="spTableToggle" title="Open source image panel" style="margin:0 auto;display:block">
+                        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/><polyline points="11,9 8,12 11,15"/></svg>
+                      </button>
+                    </th>
+                    <th rowspan="2" style="vertical-align:bottom;font-family:var(--mono);color:var(--violet)">Log #</th>
                     <th rowspan="2" style="vertical-align:bottom" id="th_date">Date</th>
                     <th rowspan="2" style="vertical-align:bottom" id="th_ac">Aircraft</th>
                     <th rowspan="2" style="vertical-align:bottom" id="th_op">Operator</th>
@@ -906,10 +957,24 @@ table.fl-tbl td:last-child{border-right:none}
 
     <!-- PRE-INVOICE TAB -->
     <div class="tab-panel" id="panel-preinvoice">
-      <div class="coming-soon">
-        <div class="cs-icon">📊</div>
-        <div class="cs-title" id="cs_billing">Pre-Invoice & Billing</div>
-        <div class="cs-sub">Coming Soon</div>
+      <div class="page-hdr">
+        <div class="page-title"><span>·</span> <span id="pi_title">Pre-Invoice</span></div>
+      </div>
+      <div id="piDraftState" style="display:none">
+        <div class="pi-ready">
+          <div class="pi-ready-icon">✅</div>
+          <div class="pi-ready-title" id="pi_approved_title">Batch Approved for Invoicing</div>
+          <div class="pi-ready-sub" id="pi_approved_sub">Approved log data is locked. Add any additional charges below to complete the invoice.</div>
+          <div class="pi-stats" id="piStats"></div>
+          <div style="color:var(--dim2);font-family:var(--mono);font-size:11px" id="pi_approved_by"></div>
+        </div>
+      </div>
+      <div id="piComingSoon">
+        <div class="coming-soon">
+          <div class="cs-icon">📊</div>
+          <div class="cs-title" id="cs_billing">Pre-Invoice &amp; Billing</div>
+          <div class="cs-sub" id="pi_coming_msg">Approve a batch to unlock billing</div>
+        </div>
       </div>
     </div>
 
@@ -1105,6 +1170,21 @@ table.fl-tbl td:last-child{border-right:none}
   </div>
 </div>
 
+<!-- WHATSAPP CONFIRM MODAL -->
+<div class="mbd" id="waMbd">
+  <div class="mbox wa-confirm-box">
+    <div class="mhdr"><div class="mhdr-t" style="color:var(--green)">💬 Send WhatsApp</div><button class="m-x" id="wa_close">✕</button></div>
+    <div class="wa-confirm-body">
+      <div id="wa_msg_preview"></div>
+      <div class="wa-recipient" id="wa_recipient"></div>
+    </div>
+    <div class="mftr">
+      <button class="btn-ghost" id="wa_skip">Skip</button>
+      <button class="btn-success" id="wa_send">Send</button>
+    </div>
+  </div>
+</div>
+
 <!-- AIRCRAFT MODAL -->
 <div class="mbd" id="acMbd">
   <div class="mbox ac-box">
@@ -1152,24 +1232,36 @@ table.fl-tbl td:last-child{border-right:none}
 
 <!-- SOURCE IMAGE SIDE PANEL -->
 <div class="sp-overlay" id="spOverlay"></div>
-<div class="side-panel" id="sidePanel">
+<div class="side-panel" id="sidePanel" style="width:420px">
+  <div class="sp-resize-handle" id="spResizeHandle"></div>
   <div class="sp-header">
-    <div class="sp-title" id="sp_title">Source Image</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="sp-toggle-btn" id="spCollapseBtn" title="Close panel">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/><polyline points="11,9 8,12 11,15"/></svg>
+      </button>
+      <div class="sp-title" id="sp_title">Source Image</div>
+    </div>
     <button class="sp-close" id="sp_close">✕</button>
+  </div>
+  <div class="sp-nav" id="spNav" style="display:none">
+    <button class="sp-nav-btn" id="spPrev">‹</button>
+    <div class="sp-nav-pos" id="spNavPos">Entry — of —</div>
+    <button class="sp-nav-btn" id="spNext">›</button>
   </div>
   <div class="sp-meta" id="sp_meta">—</div>
   <div class="sp-img-wrap" id="sp_img_wrap">
-    <img id="sp_img" src="" alt="Source bitacora">
+    <img id="sp_img" src="" alt="Source log">
   </div>
   <!-- Editable fields section -->
   <div class="sp-edit-section" id="spEditSection" style="display:none">
     <div class="sp-edit-hdr" id="spEditHdr">
-      <span class="sp-edit-title">✎ Entry Data</span>
+      <span class="sp-edit-title" id="spEditTitle">✎ Entry Data</span>
       <button id="spEditToggle" style="background:none;border:none;color:var(--dim2);cursor:pointer;font-size:14px">▲</button>
     </div>
     <div class="sp-edit-body" id="spEditBody">
       <div class="diff-alert" id="spDiffAlert">⚠ Motor/Vuelo gap: <span id="spDiffMsg"></span></div>
-      <div class="sp-frow">
+      <div class="sp-frow fc3">
+        <div class="sp-field"><label>Log #</label><input type="text" id="sp_bnum" placeholder="00000"></div>
         <div class="sp-field"><label>Date</label><input type="text" id="sp_fecha" placeholder="DD/MM/YYYY"></div>
         <div class="sp-field"><label>Aircraft</label><select id="sp_aeronave"></select></div>
       </div>
@@ -1182,18 +1274,23 @@ table.fl-tbl td:last-child{border-right:none}
         <div class="sp-field"><label>Instructor</label><input type="text" id="sp_instructor"></div>
       </div>
       <div class="sp-frow fc3">
-        <div class="sp-field"><label>Motor Out</label><input type="text" id="sp_motorOut" placeholder="HH:MM or decimal"></div>
-        <div class="sp-field"><label>Motor In</label><input type="text" id="sp_motorIn" placeholder="HH:MM or decimal"></div>
+        <div class="sp-field"><label>Motor Out</label><input type="text" id="sp_motorOut" placeholder="decimal"></div>
+        <div class="sp-field"><label>Motor In</label><input type="text" id="sp_motorIn" placeholder="decimal"></div>
         <div class="sp-field"><label>T.Motor</label><input type="text" id="sp_tmotor" readonly></div>
       </div>
       <div class="sp-frow fc3">
-        <div class="sp-field"><label>Flight Out</label><input type="text" id="sp_vueloOut" placeholder="HH:MM or decimal"></div>
-        <div class="sp-field"><label>Flight In</label><input type="text" id="sp_vueloIn" placeholder="HH:MM or decimal"></div>
+        <div class="sp-field"><label>Flight Out</label><input type="text" id="sp_vueloOut" placeholder="decimal"></div>
+        <div class="sp-field"><label>Flight In</label><input type="text" id="sp_vueloIn" placeholder="decimal"></div>
         <div class="sp-field"><label>T.Flight</label><input type="text" id="sp_tvuelo" readonly></div>
       </div>
       <div class="sp-frow">
         <div class="sp-field"><label>Mult. Override</label><input type="number" id="sp_mult" step="0.001" placeholder="Leave blank for default"></div>
         <div class="sp-field"><label>Notes</label><input type="text" id="sp_obs"></div>
+      </div>
+      <div class="sp-frow fc1" id="spCommentRow" style="display:none">
+        <div class="sp-field"><label id="spCommentLabel">Review Comment</label>
+          <textarea id="sp_comment" rows="3" style="background:var(--s3);border:1px solid rgba(255,192,67,.4);color:var(--yellow);font-family:var(--body);font-size:12px;padding:8px;width:100%;border-radius:2px;outline:none;resize:vertical" placeholder="Enter review comment…"></textarea>
+        </div>
       </div>
       <div class="sp-calc">
         <div class="sp-calc-item"><div class="sp-calc-l">T.Motor</div><div class="sp-calc-v cb" id="sp_pv_tm">—</div></div>
@@ -1223,7 +1320,7 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.1";
+const APP_VERSION = "v7.2";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2316,7 +2413,7 @@ function buildExtractionPrompt(){
     "HEADER: PILOTO=piloto, INSTRUCTOR=instructor (separate field), FECHA=date, MATRICULA=aircraft\n"+
     "Multiplier on form: 1.275=FM operator for HP-1861, 1.15=FM for HP-1862FX\n"+
     "\nReturn ONLY a valid JSON array:\n"+
-    '[{"fecha":"DD/MM/YYYY","aeronave":"HP-XXXX","operador":"FM or MAG",'+
+    '[{"bnum":"log number from form e.g. 00591","fecha":"DD/MM/YYYY","aeronave":"HP-XXXX","operador":"FM or MAG",'+
     '"piloto":"name","instructor":"instructor name","horoIn":number,'+
     '"motorOut":"SALIDA decimal","motorIn":"LLEGADA decimal",'+
     '"vueloOut":"ANTERIOR decimal","vueloIn":"HOY decimal","obs":"notes only"}]\n'+
@@ -2368,15 +2465,13 @@ async function extractAll(){
         let pdfExtracted=[];
         for(let p=1;p<=numPages;p++){
           fq._label="[Page "+p+"/"+numPages+"] "+fq.name+" — Extracting…";
+          fq.progress=Math.round((p/numPages)*100);
           renderQueue();
           try {
-            // Render page to image
             const pageBlob=await pdfPageToBlob(pdfDoc,p);
-            // Extract with Claude
             const pageFile=new File([pageBlob],"page_"+p+".jpg",{type:"image/jpeg"});
             const pageEntries=await extractImageFile(pageFile,apiKey);
             pageEntries.forEach(e=>checkDiff(e));
-            // Compress and upload page image
             const compressed=await compressImage(pageBlob);
             const filename="pg"+String(p).padStart(3,"0")+"_"+Date.now()+".jpg";
             const imageUrl=await uploadImageToStorage(compressed,filename);
@@ -2384,7 +2479,11 @@ async function extractAll(){
             pdfExtracted=[...pdfExtracted,...pageEntries];
             dbg("Page "+p+"/"+numPages+": "+pageEntries.length+" entries","ok");
           } catch(pageErr){
-            dbg("Page "+p+" error: "+pageErr.message,"err"); hasErrors=true;
+            if(pageErr.message.startsWith("NO_BITACORA")){
+              dbg("Page "+p+": skipped — no log data found","info");
+            } else {
+              dbg("Page "+p+" error: "+pageErr.message,"err"); hasErrors=true;
+            }
           }
         }
         allExtracted=[...allExtracted,...pdfExtracted];
@@ -2461,13 +2560,27 @@ async function extractImageFile(file, apiKey){
       ]}]
     })
   });
-  if(!response.ok){const err=await response.json().catch(()=>({}));throw new Error(err.error?.message||"HTTP "+response.status);}
+  if(!response.ok){
+    const err=await response.json().catch(()=>({}));
+    const msg=err.error?.message||"HTTP "+response.status;
+    if(response.status===429) throw new Error("RATE_LIMIT: System busy — wait and retry");
+    if(response.status===401) throw new Error("API_ERROR: Invalid API key");
+    throw new Error("API_ERROR: "+msg);
+  }
   const data=await response.json();
   const text=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("")||"[]";
   const cleaned=text.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
-  const parsed=JSON.parse(cleaned);
-  if(!Array.isArray(parsed)) throw new Error("Response was not a JSON array");
-  return parsed;
+  // Graceful handling of non-JSON responses
+  if(!cleaned.startsWith("[")&&!cleaned.startsWith("{")){
+    throw new Error("NO_BITACORA: No log data found on this page");
+  }
+  try {
+    const parsed=JSON.parse(cleaned);
+    if(!Array.isArray(parsed)) return [];
+    return parsed;
+  } catch(e){
+    throw new Error("NO_BITACORA: No log data found on this page");
+  }
 }
 
 function fileToBase64(file){
@@ -2490,7 +2603,16 @@ function showResultBanner(type,msg){
 }
 
 // ── FLIGHT LOG — CALCULATIONS ──
-function t2h(s){s=String(s||"");if(!s||!s.includes(":"))return parseFloat(s)||0;const[h,m]=s.split(":").map(Number);return h+m/60;}
+function t2h(s){
+  s=String(s||"").trim();
+  if(!s) return 0;
+  if(s.includes(":")){
+    const[h,m]=s.split(":").map(Number);
+    return (isNaN(h)||isNaN(m))?0:h+m/60;
+  }
+  const n=parseFloat(s);
+  return isNaN(n)?0:n;
+}
 function calcEntry(e){
   const tm=Math.max(0,t2h(e.motorIn)-t2h(e.motorOut));
   const tv=Math.max(0,t2h(e.vueloIn)-t2h(e.vueloOut));
@@ -2590,7 +2712,6 @@ function renderFlTable(){
   const visible=getFilteredEntries();
   const role=effectiveRole();
   const canEdit=(role==="ADMIN"||role==="OPERATOR")&&batchStatus==="DRAFT";
-  const canFlag=(role==="ADMIN"||role==="REVIEWER")&&batchStatus==="SUBMITTED";
   tbody.innerHTML="";
   visible.forEach(e=>{
     const gi=flEntries.indexOf(e);
@@ -2599,12 +2720,18 @@ function renderFlTable(){
     const isOverride=e.multOverride&&e.multOverride!==DEFAULT_MULT[e.operador];
     const tr=document.createElement("tr");
     tr.className=e.status==="approved"?"r-ok":e.status==="rejected"?"r-rej":e.status==="flagged"?"r-flagged":"";
-    const flagBtn=canFlag
-      ?'<button class="btn-sm'+(e.status==="flagged"?" tf":"")+'" data-flag-entry="'+e.id+'" title="Flag for correction">🚩</button>':"";
-    const waBtn=e.status==="flagged"&&e.flagNote
-      ?'<button class="btn-sm" data-wa-entry="'+e.id+'" title="Notify via WhatsApp">💬</button>':"";
+    // Review comment indicator
+    const rcInd=e.flagNote?'<span class="rc-indicator" title="'+e.flagNote+'"> ⚠</span>':"";
+    // Notes display — show obs, flag review comment separately
+    const notesDisplay=e.flagNote
+      ?'<span style="color:var(--yellow);font-size:10px" title="'+e.flagNote+'">⚠ '+e.flagNote+"</span>"
+      :(e.obs||"—");
     tr.innerHTML=
-      '<td class="cd" style="font-size:10px;cursor:pointer;color:var(--cyan)" data-sp-entry="'+e.id+'">'+String(gi+1).padStart(2,"0")+"</td>"+
+      '<td class="cd" style="font-size:10px;cursor:pointer" data-sp-entry="'+e.id+'" title="Open in panel">'+
+        '<button class="sp-toggle-btn" style="padding:3px 4px;margin:0 auto;display:block" tabindex="-1">'+
+        '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/><polyline points="11,9 8,12 11,15"/></svg>'+
+        "</button></td>"+
+      '<td class="bnum-cell">'+(e.bnum||"—")+"</td>"+
       "<td>"+(e.fecha||"—")+"</td>"+
       "<td>"+(e.aeronave||"—")+"</td>"+
       '<td><span style="color:'+(e.operador==="FM"?"var(--green)":"var(--yellow)")+'">'+( e.operador||"—")+"</span></td>"+
@@ -2619,13 +2746,9 @@ function renderFlTable(){
       '<td class="cd" style="'+(isOverride?"color:var(--yellow)":"")+'">'+mult+(isOverride?" ⚠":"")+"</td>"+
       '<td class="cg">'+fmt(tbp)+"</td>"+
       '<td class="cd">'+(e.horoIn?.toFixed(1)||"—")+"</td>"+
-      '<td class="cd" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(e.obs||"")+(e.flagNote?" 🚩"+e.flagNote:"")+'">'+
-        (e.flagNote?'<span style="color:var(--yellow)">🚩 '+e.flagNote+"</span>":(e.obs||"—"))+"</td>"+
+      '<td class="cd" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+notesDisplay+rcInd+"</td>"+
       "<td>"+mkFlToggle(e,canEdit)+"</td>"+
-      '<td style="display:flex;gap:4px;align-items:center">'+
-        '<button class="btn-edit-r" data-edit-entry="'+e.id+'"'+(canEdit?"":" disabled")+'>✎</button>'+
-        flagBtn+waBtn+
-      "</td>";
+      '<td><button class="btn-edit-r" data-edit-entry="'+e.id+'"'+(canEdit?"":" disabled")+'>✎</button></td>';
     tbody.appendChild(tr);
   });
   if(el("ptab_count")) el("ptab_count").textContent=flEntries.length;
@@ -2873,12 +2996,41 @@ function handleApprove(){
   showFlConfirm(t("confirmApprove"),t("confirmApproveBody"),approved,()=>doApprove());
 }
 
+// ── PRE-INVOICE RENDER ──
+function renderPreInvoice(){
+  const ready=el("piDraftState");
+  const soon=el("piComingSoon");
+  if(!ready||!soon) return;
+  if(batchStatus==="APPROVED"){
+    ready.style.display="block"; soon.style.display="none";
+    // Calculate totals
+    let fmM=0,fmT=0,magM=0,magT=0,totV=0,count=0;
+    flEntries.filter(e=>e.status==="approved").forEach(e=>{
+      count++;
+      const{tm,tv,tbp}=calcEntry(e); totV+=tv;
+      if(e.operador==="FM"){fmM+=tm;fmT+=tbp;}else{magM+=tm;magT+=tbp;}
+    });
+    const stats=el("piStats");
+    if(stats) stats.innerHTML=
+      '<div class="pi-stat"><div class="pi-stat-v">'+count+"</div><div class=\"pi-stat-l\">Approved Entries</div></div>"+
+      '<div class="pi-stat"><div class="pi-stat-v">'+fmt(fmM+magM)+"</div><div class=\"pi-stat-l\">Total T.Motor (hrs)</div></div>"+
+      '<div class="pi-stat"><div class="pi-stat-v">'+fmt(totV)+"</div><div class=\"pi-stat-l\">Total T.Flight (hrs)</div></div>"+
+      '<div class="pi-stat"><div class="pi-stat-v" style="color:var(--green)">'+fmt(fmT+magT)+"</div><div class=\"pi-stat-l\">Total TBP (hrs)</div></div>";
+    const byLine=el("pi_approved_by");
+    if(byLine) byLine.textContent="Source: "+batchSourceFile;
+  } else {
+    ready.style.display="none"; soon.style.display="block";
+    const msg=el("pi_coming_msg");
+    if(msg) msg.textContent=batchStatus==="SUBMITTED"?"Batch under review — awaiting approval":"Approve a batch to unlock billing";
+  }
+}
+
 async function doApprove(){
   batchStatus="APPROVED";
   await saveBatchToDB();
   exportFlCSV();
   addFlAudit("✅",currentUser.name,"approved for invoicing",flEntries.filter(e=>e.status==="approved").length+" entries");
-  renderWfBar(); setupFlRoleUI();
+  renderWfBar(); setupFlRoleUI(); renderPreInvoice();
   showToast(lang==="es"?"Lote aprobado para facturación.":"Batch approved for invoicing.");
   notifyWhatsApp("OPERATOR",
     "HP Fleet — Batch APPROVED for invoicing by "+currentUser.name+".\n"+
@@ -2912,15 +3064,15 @@ function executeConfirm(){ closeModal("confirmMbd"); if(confirmCb){confirmCb();c
 
 // ── EXPORTS ──
 function exportFlCSV(){
-  const hdrs=["#","Date","Aircraft","Operator","Pilot","Instructor","Horo.Start","Motor.Out","Motor.In","T.Motor",
-    "Flight.Out","Flight.In","T.Flight","Default.Mult","Override.Mult","Total.TBP","Notes","Status",
+  const hdrs=["#","Log#","Date","Aircraft","Operator","Pilot","Instructor","Horo.Start","Motor.Out","Motor.In","T.Motor",
+    "Flight.Out","Flight.In","T.Flight","Default.Mult","Override.Mult","Total.TBP","Notes","Review.Comment","Status",
     "Batch.Status","Loaded.By","Source.File","Timestamp"];
   const rows=flEntries.map((e,i)=>{
     const{tm,tv,tbp}=calcEntry(e);
-    return [i+1,e.fecha,e.aeronave,e.operador,e.piloto,e.instructor||"",e.horoIn,
+    return [i+1,e.bnum||"",e.fecha,e.aeronave,e.operador,e.piloto,e.instructor||"",e.horoIn,
       e.motorOut,e.motorIn,tm.toFixed(2),e.vueloOut,e.vueloIn,tv.toFixed(2),
       DEFAULT_MULT[e.operador]||"",e.multOverride||"",tbp.toFixed(2),
-      e.obs||"",e.status,batchStatus,currentUser.name,batchSourceFile,FL_LOAD_TS.toISOString()]
+      e.obs||"",e.flagNote||"",e.status,batchStatus,currentUser.name,batchSourceFile,FL_LOAD_TS.toISOString()]
       .map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(",");
   });
   const ts=FL_LOAD_TS.toISOString().slice(0,16).replace(/[T:]/g,"-");
@@ -2931,16 +3083,16 @@ function exportFlCSV(){
 
 function exportFlXLSX(){
   if(typeof XLSX==="undefined"){showToast("XLSX library not loaded","err");return;}
-  const headers=["#","Date","Aircraft","Operator","Pilot","Instructor","Horo.Start","Motor Out","Motor In","T.Motor",
-    "Flight Out","Flight In","T.Flight","Default Mult","Override Mult","Total TBP","Notes","Status",
+  const headers=["#","Log#","Date","Aircraft","Operator","Pilot","Instructor","Horo.Start","Motor Out","Motor In","T.Motor",
+    "Flight Out","Flight In","T.Flight","Default Mult","Override Mult","Total TBP","Notes","Review Comment","Status",
     "Batch Status","Loaded By","Source File","Timestamp"];
   const data=[headers,...flEntries.map((e,i)=>{
     const{tm,tv,tbp}=calcEntry(e);
-    return [i+1,e.fecha,e.aeronave,e.operador,e.piloto,e.instructor||"",e.horoIn,
+    return [i+1,e.bnum||"",e.fecha,e.aeronave,e.operador,e.piloto,e.instructor||"",e.horoIn,
       e.motorOut,e.motorIn,parseFloat(tm.toFixed(2)),
       e.vueloOut,e.vueloIn,parseFloat(tv.toFixed(2)),
       DEFAULT_MULT[e.operador]||"",e.multOverride||"",parseFloat(tbp.toFixed(2)),
-      e.obs||"",e.status,batchStatus,currentUser.name,batchSourceFile,FL_LOAD_TS.toISOString()];
+      e.obs||"",e.flagNote||"",e.status,batchStatus,currentUser.name,batchSourceFile,FL_LOAD_TS.toISOString()];
   })];
   const ws=XLSX.utils.aoa_to_sheet(data);
   ws["!cols"]=[4,12,12,10,18,18,11,10,10,9,10,10,9,9,10,10,20,10,12,16,22,22].map(w=>({wch:w}));
@@ -2995,16 +3147,21 @@ async function saveFlagEntry(){
   showToast("Entry flagged");
 }
 
-// ── WHATSAPP NOTIFY ──
+// ── WHATSAPP NOTIFY — with confirmation dialog ──
+let _waPendingUrl=null;
 function notifyWhatsApp(toRole, message){
-  const recipient = USERS.find(u=>u.role===toRole&&u.status==="active"&&u.phone);
-  if(!recipient||!recipient.phone){
-    showToast("No WhatsApp number for "+toRole,"warn"); return;
-  }
+  const recipient=USERS.find(u=>u.role===toRole&&u.status==="active"&&u.phone);
+  if(!recipient||!recipient.phone){ dbg("No WhatsApp number for "+toRole,"warn"); return; }
   const phone=recipient.phone.replace(/[^0-9]/g,"");
-  const url="https://wa.me/"+phone+"?text="+encodeURIComponent(message);
-  window.open(url,"_blank");
+  _waPendingUrl="https://wa.me/"+phone+"?text="+encodeURIComponent(message);
+  // Show confirmation dialog
+  if(el("wa_msg_preview")) el("wa_msg_preview").textContent=message.split("\n")[0];
+  if(el("wa_recipient")) el("wa_recipient").textContent=recipient.name+" · "+recipient.phone;
+  openModal("waMbd");
 }
+
+function sendWhatsApp(){ closeModal("waMbd"); if(_waPendingUrl){window.open(_waPendingUrl,"_blank");_waPendingUrl=null;} }
+function skipWhatsApp(){ closeModal("waMbd"); _waPendingUrl=null; }
 
 // ── SUPABASE BATCH PERSISTENCE ──
 async function saveBatchToDB(){
@@ -3035,6 +3192,7 @@ async function saveBatchToDB(){
     if(flEntries.length){
       const entryRows=flEntries.map((e,i)=>({
         batch_id:currentBatchId,
+        bnum:e.bnum||null,
         fecha:e.fecha, aeronave:e.aeronave, operador:e.operador,
         piloto:e.piloto, instructor:e.instructor||"",
         horo_in:e.horoIn||0,
@@ -3074,7 +3232,7 @@ async function loadBatchFromDB(){
     // Load entries
     const entries=await sbGet("entries","batch_id=eq."+currentBatchId+"&order=sort_order.asc");
     flEntries=(entries||[]).map((e,i)=>({
-      id:i+1, fecha:e.fecha, aeronave:e.aeronave, operador:e.operador,
+      id:i+1, bnum:e.bnum||"", fecha:e.fecha, aeronave:e.aeronave, operador:e.operador,
       piloto:e.piloto, instructor:e.instructor||"",
       horoIn:e.horo_in||0,
       motorOut:e.motor_out, motorIn:e.motor_in,
@@ -3185,57 +3343,113 @@ function initBatchConstants(){
 
 // ── SOURCE IMAGE SIDE PANEL ──
 let spEditingEntryId=null;
+let spCurrentIndex=-1; // index in flEntries for navigation
 
 function openSidePanel(entryIdOrFileIdx, isEntryId=false){
   const panel=el("sidePanel");
   const editSection=el("spEditSection");
+  const navBar=el("spNav");
   if(isEntryId){
-    // Open by entry ID — load imageUrl from entry
     const entry=flEntries.find(e=>e.id===entryIdOrFileIdx);
     if(!entry) return;
     spEditingEntryId=entry.id;
-    const imgEl=el("sp_img");
-    if(entry.imageUrl){
-      imgEl.src=entry.imageUrl;
-      el("sp_title").textContent="Source: Entry #"+(flEntries.indexOf(entry)+1);
-    } else {
-      imgEl.src="";
-      el("sp_title").textContent="No source image";
-    }
-    el("sp_meta").textContent=(entry.fecha||"—")+" | "+(entry.piloto||"—")+" | "+(entry.aeronave||"—");
-    populateSpEditFields(entry);
+    spCurrentIndex=flEntries.indexOf(entry);
+    _loadSpEntry(entry);
+    if(navBar) navBar.style.display="flex";
+    _updateSpNav();
     if(editSection) editSection.style.display="block";
   } else {
-    // Open by fileQueue index — legacy image preview
     const f=fileQueue[entryIdOrFileIdx];
     if(!f||!f._preview) return;
-    spEditingEntryId=null;
+    spEditingEntryId=null; spCurrentIndex=-1;
     el("sp_img").src=f._preview;
     el("sp_title").textContent="Source: "+f.name;
     el("sp_meta").textContent=f.name+" · "+(f.size/1024).toFixed(1)+" KB · "+
       (f._entryCount||0)+" "+(f._entryCount===1?"entry":"entries")+" extracted";
+    if(navBar) navBar.style.display="none";
     if(editSection) editSection.style.display="none";
   }
   panel.classList.add("open");
   el("spOverlay").classList.add("open");
   document.body.style.overflow="hidden";
+  // Restore saved width
+  const savedW=localStorage.getItem("hpfleet_sp_width");
+  if(savedW) panel.style.width=savedW;
+}
+
+function _loadSpEntry(entry){
+  const imgEl=el("sp_img");
+  if(entry.imageUrl){ imgEl.src=entry.imageUrl; }
+  else { imgEl.src=""; imgEl.alt="No source image available"; }
+  el("sp_title").textContent="Log Entry #"+(flEntries.indexOf(entry)+1);
+  el("sp_meta").textContent=(entry.fecha||"—")+" | "+(entry.bnum?"Log #"+entry.bnum+" | ":"")+(entry.piloto||"—")+" | "+(entry.aeronave||"—");
+  populateSpEditFields(entry);
+  // Role-aware mode
+  const role=effectiveRole();
+  const isReviewer=role==="REVIEWER";
+  const isReadOnly=role==="READONLY";
+  const editTitle=el("spEditTitle");
+  const commentRow=el("spCommentRow");
+  const saveBtn=el("sp_save");
+  // Make fields readonly for non-editors
+  ["sp_bnum","sp_fecha","sp_piloto","sp_instructor","sp_horoIn",
+   "sp_motorOut","sp_motorIn","sp_vueloOut","sp_vueloIn","sp_mult","sp_obs"].forEach(id=>{
+    const f=el(id); if(!f) return;
+    f.readOnly=isReviewer||isReadOnly;
+    f.style.opacity=(isReviewer||isReadOnly)?"0.7":"1";
+  });
+  ["sp_aeronave","sp_operador"].forEach(id=>{
+    const f=el(id); if(!f) return;
+    f.disabled=isReviewer||isReadOnly;
+  });
+  if(isReviewer){
+    if(editTitle) editTitle.textContent="👁 Review Entry";
+    if(commentRow) commentRow.style.display="block";
+    if(saveBtn){ saveBtn.textContent="Save Comment"; saveBtn.className="btn-warn"; }
+    // Pre-fill comment
+    if(el("sp_comment")) el("sp_comment").value=entry.flagNote||"";
+  } else if(isReadOnly){
+    if(editTitle) editTitle.textContent="👁 View Entry";
+    if(commentRow) commentRow.style.display="none";
+    if(saveBtn) saveBtn.style.display="none";
+  } else {
+    if(editTitle) editTitle.textContent="✎ Entry Data";
+    if(commentRow) commentRow.style.display="none";
+    if(saveBtn){ saveBtn.textContent="Save Entry"; saveBtn.className="btn-primary"; saveBtn.style.display=""; }
+  }
+}
+
+function _updateSpNav(){
+  const pos=el("spNavPos");
+  if(pos) pos.textContent="Entry "+(spCurrentIndex+1)+" of "+flEntries.length;
+}
+
+function spNavigate(dir){
+  const newIdx=spCurrentIndex+dir;
+  if(newIdx<0||newIdx>=flEntries.length) return;
+  spCurrentIndex=newIdx;
+  const entry=flEntries[newIdx];
+  spEditingEntryId=entry.id;
+  _loadSpEntry(entry);
+  _updateSpNav();
 }
 
 function populateSpEditFields(e){
-  // Populate aircraft dropdown
+  if(!e) return;
   const acSel=el("sp_aeronave");
-  acSel.innerHTML=AIRCRAFT.map(a=>'<option value="'+a.matricula+'"'+(a.matricula===e.aeronave?" selected":"")+'>'+a.matricula+"</option>").join("");
-  el("sp_operador").value=e.operador||"FM";
-  el("sp_fecha").value=e.fecha||"";
-  el("sp_piloto").value=e.piloto||"";
-  el("sp_instructor").value=e.instructor||"";
-  el("sp_horoIn").value=e.horoIn||"";
-  el("sp_motorOut").value=e.motorOut||"";
-  el("sp_motorIn").value=e.motorIn||"";
-  el("sp_vueloOut").value=e.vueloOut||"";
-  el("sp_vueloIn").value=e.vueloIn||"";
-  el("sp_mult").value=e.multOverride||"";
-  el("sp_obs").value=e.obs||"";
+  if(acSel) acSel.innerHTML=AIRCRAFT.map(a=>'<option value="'+a.matricula+'"'+(a.matricula===e.aeronave?" selected":"")+'>'+a.matricula+"</option>").join("");
+  if(el("sp_operador")) el("sp_operador").value=e.operador||"FM";
+  if(el("sp_bnum")) el("sp_bnum").value=e.bnum||"";
+  if(el("sp_fecha")) el("sp_fecha").value=e.fecha||"";
+  if(el("sp_piloto")) el("sp_piloto").value=e.piloto||"";
+  if(el("sp_instructor")) el("sp_instructor").value=e.instructor||"";
+  if(el("sp_horoIn")) el("sp_horoIn").value=e.horoIn||"";
+  if(el("sp_motorOut")) el("sp_motorOut").value=e.motorOut||"";
+  if(el("sp_motorIn")) el("sp_motorIn").value=e.motorIn||"";
+  if(el("sp_vueloOut")) el("sp_vueloOut").value=e.vueloOut||"";
+  if(el("sp_vueloIn")) el("sp_vueloIn").value=e.vueloIn||"";
+  if(el("sp_mult")) el("sp_mult").value=e.multOverride||"";
+  if(el("sp_obs")) el("sp_obs").value=e.obs||"";
   spLiveCalc();
   // Diff alert
   const ac=AIRCRAFT.find(a=>a.matricula===e.aeronave);
@@ -3245,8 +3459,8 @@ function populateSpEditFields(e){
   const diff=Math.abs(tm-tv);
   const da=el("spDiffAlert");
   if(da){
-    if(diff>threshold){
-      el("spDiffMsg").textContent="T.Motor="+fmt(tm)+" vs T.Flight="+fmt(tv)+" — gap: "+diff.toFixed(2)+" hrs";
+    if(e.motorOut&&e.motorIn&&diff>threshold){
+      if(el("spDiffMsg")) el("spDiffMsg").textContent="T.Motor="+fmt(tm)+" vs T.Flight="+fmt(tv)+" — gap: "+diff.toFixed(2)+" hrs";
       da.classList.add("on");
     } else da.classList.remove("on");
   }
@@ -3271,27 +3485,40 @@ function spLiveCalc(){
 async function saveSpEntry(){
   if(!spEditingEntryId) return;
   const e=flEntries.find(x=>x.id===spEditingEntryId); if(!e) return;
-  const multRaw=parseFloat(el("sp_mult").value);
-  Object.assign(e,{
-    fecha:el("sp_fecha").value.trim(),
-    aeronave:el("sp_aeronave").value,
-    operador:el("sp_operador").value,
-    piloto:el("sp_piloto").value.trim(),
-    instructor:el("sp_instructor").value.trim(),
-    horoIn:parseFloat(el("sp_horoIn").value)||0,
-    motorOut:el("sp_motorOut").value.trim(),
-    motorIn:el("sp_motorIn").value.trim(),
-    vueloOut:el("sp_vueloOut").value.trim(),
-    vueloIn:el("sp_vueloIn").value.trim(),
-    multOverride:isNaN(multRaw)||!el("sp_mult").value.trim()?null:multRaw,
-    obs:el("sp_obs").value.trim()
-  });
-  checkDiff(e);
-  addFlAudit("✏️",currentUser.name,"edited entry via side panel","#"+(flEntries.indexOf(e)+1));
+  const role=effectiveRole();
+  if(role==="REVIEWER"){
+    // Save review comment only
+    const comment=el("sp_comment")?el("sp_comment").value.trim():"";
+    if(!comment){showToast("Please enter a review comment","err");return;}
+    e.flagNote=comment;
+    e.status="flagged";
+    addFlAudit("🚩",currentUser.name,"review comment on entry #"+(flEntries.indexOf(e)+1),comment);
+  } else {
+    // Full edit
+    const multRaw=parseFloat(el("sp_mult").value);
+    Object.assign(e,{
+      bnum:el("sp_bnum")?el("sp_bnum").value.trim():"",
+      fecha:el("sp_fecha").value.trim(),
+      aeronave:el("sp_aeronave").value,
+      operador:el("sp_operador").value,
+      piloto:el("sp_piloto").value.trim(),
+      instructor:el("sp_instructor").value.trim(),
+      horoIn:parseFloat(el("sp_horoIn").value)||0,
+      motorOut:el("sp_motorOut").value.trim(),
+      motorIn:el("sp_motorIn").value.trim(),
+      vueloOut:el("sp_vueloOut").value.trim(),
+      vueloIn:el("sp_vueloIn").value.trim(),
+      multOverride:isNaN(multRaw)||!el("sp_mult").value.trim()?null:multRaw,
+      obs:el("sp_obs").value.trim()
+    });
+    checkDiff(e);
+    addFlAudit("✏️",currentUser.name,"edited entry via panel","#"+(flEntries.indexOf(e)+1));
+  }
   await saveBatchToDB();
   renderFlTable();
-  closeSidePanel();
-  showToast("Entry updated");
+  showToast(role==="REVIEWER"?"Comment saved":"Entry updated");
+  // Stay on panel, reload entry
+  _loadSpEntry(e);
 }
 
 function closeSidePanel(){
@@ -3318,6 +3545,7 @@ function renderAll(){
   renderFlAudit();
   updateApiStatus();
   renderFleetSettings();
+  renderPreInvoice();
 }
 
 // ── XLSX IMPORTER ──
@@ -3651,12 +3879,63 @@ function wireEvents(){
     btn.textContent=body.classList.contains("collapsed")?"▼":"▲";
   });
 
-  // Side panel edit fields toggle and save
-  if(el("spEditHdr")) el("spEditHdr").addEventListener("click",()=>{
+  // WhatsApp confirmation modal
+  if(el("wa_close")) el("wa_close").addEventListener("click",skipWhatsApp);
+  if(el("wa_skip")) el("wa_skip").addEventListener("click",skipWhatsApp);
+  if(el("wa_send")) el("wa_send").addEventListener("click",sendWhatsApp);
+  if(el("waMbd")) el("waMbd").addEventListener("click",e=>{ if(e.target===el("waMbd")) skipWhatsApp(); });
+
+  // Side panel — next/prev navigation
+  if(el("spPrev")) el("spPrev").addEventListener("click",()=>spNavigate(-1));
+  if(el("spNext")) el("spNext").addEventListener("click",()=>spNavigate(1));
+  // Keyboard navigation when panel open
+  document.addEventListener("keydown",e=>{
+    const panel=el("sidePanel");
+    if(!panel||!panel.classList.contains("open")) return;
+    if(e.key==="ArrowLeft") spNavigate(-1);
+    else if(e.key==="ArrowRight") spNavigate(1);
+    else if(e.key==="Escape") closeSidePanel();
+  });
+
+  // Side panel collapse button
+  if(el("spCollapseBtn")) el("spCollapseBtn").addEventListener("click",closeSidePanel);
+
+  // Table sidebar toggle button — opens panel for first entry or last viewed
+  if(el("spTableToggle")) el("spTableToggle").addEventListener("click",()=>{
+    if(el("sidePanel").classList.contains("open")){ closeSidePanel(); return; }
+    if(flEntries.length) openSidePanel(flEntries[0].id,true);
+  });
+
+  // Side panel resize handle
+  const handle=el("spResizeHandle");
+  const panel=el("sidePanel");
+  if(handle&&panel){
+    let startX, startW;
+    handle.addEventListener("mousedown",e=>{
+      startX=e.clientX; startW=panel.offsetWidth;
+      document.addEventListener("mousemove",onResize);
+      document.addEventListener("mouseup",stopResize);
+    });
+    function onResize(e){
+      const newW=Math.max(380,Math.min(window.innerWidth*0.8,startW-(e.clientX-startX)));
+      panel.style.width=newW+"px";
+    }
+    function stopResize(){
+      localStorage.setItem("hpfleet_sp_width",panel.style.width);
+      document.removeEventListener("mousemove",onResize);
+      document.removeEventListener("mouseup",stopResize);
+    }
+  }
+
+  // spEditHdr — collapse only on toggle button, not full header
+  if(el("spEditToggle")) el("spEditToggle").addEventListener("click",e=>{
+    e.stopPropagation();
     const body=el("spEditBody"); const btn=el("spEditToggle");
     body.classList.toggle("collapsed");
     btn.textContent=body.classList.contains("collapsed")?"▼":"▲";
   });
+  // Remove click on full header (override previous wiring)
+  if(el("spEditHdr")) el("spEditHdr").onclick=null;
   if(el("sp_save")) el("sp_save").addEventListener("click",saveSpEntry);
   if(el("sp_cancel")) el("sp_cancel").addEventListener("click",closeSidePanel);
   ["sp_motorOut","sp_motorIn","sp_vueloOut","sp_vueloIn","sp_mult","sp_operador"].forEach(id=>{
@@ -3698,23 +3977,10 @@ function wireEvents(){
   el("flTbody").addEventListener("click", function(e){
     const editBtn=e.target.closest("[data-edit-entry]");
     const stBtn=e.target.closest("[data-st-entry]");
-    const flagBtn=e.target.closest("[data-flag-entry]");
-    const waBtn=e.target.closest("[data-wa-entry]");
     const spBtn=e.target.closest("[data-sp-entry]");
     if(editBtn) openEditEntry(parseInt(editBtn.dataset.editEntry));
     else if(stBtn) setEntrySt(parseInt(stBtn.dataset.stEntry),stBtn.dataset.st);
-    else if(flagBtn) openFlagEntry(parseInt(flagBtn.dataset.flagEntry));
     else if(spBtn) openSidePanel(parseInt(spBtn.dataset.spEntry),true);
-    else if(waBtn){
-      const entry=flEntries.find(x=>x.id===parseInt(waBtn.dataset.waEntry));
-      if(entry){
-        const op=USERS.find(u=>u.role==="OPERATOR"&&u.status==="active"&&u.phone);
-        if(op){
-          const msg="HP Fleet — Entry #"+(flEntries.indexOf(entry)+1)+" flagged for correction.\n🚩 "+entry.flagNote+"\nDate: "+entry.fecha+" | Pilot: "+entry.piloto;
-          window.open("https://wa.me/"+op.phone.replace(/[^0-9]/g,"")+"?text="+encodeURIComponent(msg),"_blank");
-        } else showToast("No Operator WhatsApp number found","warn");
-      }
-    }
   });
 }
 
@@ -3722,7 +3988,7 @@ function wireEvents(){
 async function init(){
   applyI18n();
   wireEvents();
-  dbg("HP Fleet v7.1 — initializing…","info");
+  dbg("HP Fleet v7.2 — initializing…","info");
   await seedIfEmpty();
   await loadMasterData();
   if(el("viewAsRole")) el("viewAsRole").value="ADMIN";
