@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.3 — built 2026-05-03 — ICTLabs / UNIDAD FRAGATA 01 S.A. -->
+<!-- HP Fleet v7.4 — built 2026-05-03 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.3</title>
+<title>HP Fleet v7.4</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -663,6 +663,17 @@ table.fl-tbl td:last-child{border-right:none}
 
 /* BNUM COLUMN */
 .bnum-cell{font-family:var(--mono);font-size:10px;color:var(--violet)}
+
+/* COLLAPSED SECTION */
+.collapsed-section{display:none!important}
+
+/* SKIPPED ROW */
+.r-skipped{background:rgba(90,106,136,.08)!important;opacity:0.7}
+.r-skipped td{color:var(--dim)!important}
+
+/* TABLE HORIZONTAL SCROLL */
+.fl-tbl-wrap{overflow-x:auto;width:100%}
+.fl-tbl{min-width:1100px}
 </style>
 </head>
 <body>
@@ -693,7 +704,7 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.3</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.4</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -702,7 +713,7 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.3</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.4</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -801,11 +812,13 @@ table.fl-tbl td:last-child{border-right:none}
 
       <!-- Batch Constants -->
       <div class="batch-constants" id="batchConstants">
-        <div style="flex-basis:100%">
+        <div style="flex-basis:100%;display:flex;align-items:center;justify-content:space-between">
           <div class="bc-title">⚙ Batch Constants
             <span style="color:var(--dim);font-weight:400;font-size:10px"> — leave blank to auto-detect from each file</span>
           </div>
+          <button id="bcToggle" style="background:none;border:none;color:var(--dim2);cursor:pointer;font-size:14px;padding:2px 8px" title="Collapse">▲</button>
         </div>
+        <div id="bcFields" style="display:flex;gap:12px;flex-wrap:wrap;width:100%">
         <div class="bc-field">
           <label>Aircraft</label>
           <select id="bc_aircraft">
@@ -824,6 +837,7 @@ table.fl-tbl td:last-child{border-right:none}
           <label>Multiplier</label>
           <input type="text" id="bc_mult" placeholder="Auto from aircraft" readonly style="color:var(--dim2);cursor:default">
         </div>
+        </div><!-- end bcFields -->
       </div>
 
       <!-- Upload zone -->
@@ -895,12 +909,17 @@ table.fl-tbl td:last-child{border-right:none}
             <button class="btn-ghost" id="btn_newEntry">+ New Entry</button>
           </div>
         </div>
-        <div class="panel-tabs">
+        <div class="panel-tabs" style="display:flex;align-items:center">
           <button class="ptab active" id="ptab_entries">
             <span id="pt_entries">Entries</span><span class="ptab-count" id="ptab_count">0</span>
           </button>
           <button class="ptab" id="ptab_audit">
             <span id="pt_audit">Audit Log</span><span class="ptab-count" id="ptab_audit_count">0</span>
+          </button>
+          <div style="flex:1"></div>
+          <button class="sp-toggle-btn" id="spTableToggle" title="Open/Close Source Panel" style="margin-right:8px;padding:6px 10px;display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--dim2)" id="spMainToggle">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/><polyline points="11,9 8,12 11,15"/></svg>
+            <span id="spToggleLabel">Source Panel</span>
           </button>
         </div>
         <div class="panel-content">
@@ -909,11 +928,7 @@ table.fl-tbl td:last-child{border-right:none}
               <table class="fl-tbl">
                 <thead>
                   <tr>
-                    <th rowspan="2" style="vertical-align:bottom">
-                      <button class="sp-toggle-btn" id="spTableToggle" title="Open source image panel" style="margin:0 auto;display:block">
-                        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/><polyline points="11,9 8,12 11,15"/></svg>
-                      </button>
-                    </th>
+                    <th rowspan="2" style="vertical-align:bottom;color:var(--dim2);font-family:var(--mono);font-size:10px">#</th>
                     <th rowspan="2" style="vertical-align:bottom;font-family:var(--mono);color:var(--violet)">Log #</th>
                     <th rowspan="2" style="vertical-align:bottom" id="th_date">Date</th>
                     <th rowspan="2" style="vertical-align:bottom" id="th_ac">Aircraft</th>
@@ -953,6 +968,15 @@ table.fl-tbl td:last-child{border-right:none}
           <div class="action-note" id="actionNote"></div>
         </div>
       </div>
+    </div>
+
+    <!-- AIRCRAFT TAB -->
+    <div class="tab-panel" id="panel-aircraft">
+      <div class="page-hdr">
+        <div class="page-title"><span>·</span> ✈️ Aircraft Fleet</div>
+        <button class="btn-primary" id="btn_addAircraft2" style="font-size:12px;padding:7px 16px">+ Add Aircraft</button>
+      </div>
+      <div id="aircraftTabGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;padding:16px 0"></div>
     </div>
 
     <!-- PRE-INVOICE TAB -->
@@ -1001,7 +1025,21 @@ table.fl-tbl td:last-child{border-right:none}
           </div>
         </div>
       </div>
-      <div class="settings-section" id="fleetSettingsSection">
+      <div class="settings-section">
+        <div class="settings-card">
+          <div class="settings-card-title">🛠 Developer</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
+            <div>
+              <div style="font-size:13px;color:var(--text)">Debug Console</div>
+              <div style="font-size:11px;color:var(--dim2);font-family:var(--mono)">Show real-time system log at bottom of screen</div>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="debugToggleCheck" style="accent-color:var(--cyan);width:16px;height:16px">
+              <span style="font-family:var(--mono);font-size:11px;color:var(--dim2)" id="debugToggleLabel">Off</span>
+            </label>
+          </div>
+        </div>
+      </div>
         <div class="settings-card">
           <div class="settings-card-title" style="display:flex;align-items:center;justify-content:space-between">
             <span>✈️ <span id="st_fleetTitle">Fleet / Aircraft</span></span>
@@ -1231,6 +1269,12 @@ table.fl-tbl td:last-child{border-right:none}
         <div class="field"><label>Seats</label><input type="number" id="ac_asientos" placeholder="2"></div>
         <div></div>
       </div>
+      <div class="frow fc2">
+        <div class="sp-field" style="flex:1"><label style="font-family:var(--mono);font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px">Operator Rates</label>
+          <div id="acRatesList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+          <button type="button" class="btn-ghost" id="btn_addRate" style="width:100%;font-size:11px">+ Add Operator Rate</button>
+        </div>
+      </div>
     </div>
     <div class="mftr"><button class="btn-ghost" id="ac_cancel">Cancel</button><button class="btn-primary" id="ac_save">Save Aircraft</button></div>
   </div>
@@ -1337,7 +1381,7 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.3";
+const APP_VERSION = "v7.4";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -1408,13 +1452,23 @@ async function compressImage(blob, maxPx=800, quality=0.7){
   });
 }
 
-// ── PDF.JS — RENDER PAGE TO IMAGE BLOB ──
+// ── PDF.JS — RENDER PAGE TO IMAGE BLOB WITH ROTATION FIX ──
 async function pdfPageToBlob(pdfDoc, pageNum){
   const page=await pdfDoc.getPage(pageNum);
-  const viewport=page.getViewport({scale:1.5});
+  const rotation=page.rotate||0; // 0, 90, 180, 270
+  const viewport=page.getViewport({scale:1.5, rotation:0}); // render without rotation first
   const canvas=document.createElement("canvas");
-  canvas.width=viewport.width; canvas.height=viewport.height;
+  // For 90/270 degree rotations, swap width/height
+  const swap=rotation===90||rotation===270;
+  canvas.width=swap?viewport.height:viewport.width;
+  canvas.height=swap?viewport.width:viewport.height;
   const ctx=canvas.getContext("2d");
+  // Apply rotation correction
+  if(rotation!==0){
+    ctx.translate(canvas.width/2,canvas.height/2);
+    ctx.rotate(rotation*Math.PI/180);
+    ctx.translate(-viewport.width/2,-viewport.height/2);
+  }
   await page.render({canvasContext:ctx,viewport}).promise;
   return new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",0.85));
 }
@@ -1513,7 +1567,7 @@ const I18N = {
     signIn:"Sign In",signingIn:"Checking…",signOut:"↩ Sign Out",
     emailLbl:"Email / Username",pwdLbl:"Password",
     loginErr:"Incorrect username or password.",inactiveErr:"Account inactive. Contact your administrator.",
-    tabUsers:"Users",tabCompanies:"Companies",tabFlightLog:"Flight Log",tabBilling:"Pre-Invoice",tabSettings:"Settings",
+    tabUsers:"Users",tabCompanies:"Companies",tabAircraft:"Aircraft",tabFlightLog:"Flight Log",tabBilling:"Pre-Invoice",tabSettings:"Settings",
     utTitle:"User Management",utAdd:"+ New User",utExport:"↓ Export JSON",
     utAudit:"Audit Log",utClear:"Clear Log",
     thUser:"User",thRole:"Role",thCompanies:"Companies",thStatus:"Status",thCreated:"Created",thLast:"Last Login",thActions:"Actions",
@@ -1586,7 +1640,7 @@ const I18N = {
     signIn:"Iniciar Sesión",signingIn:"Verificando…",signOut:"↩ Salir",
     emailLbl:"Email / Usuario",pwdLbl:"Contraseña",
     loginErr:"Usuario o contraseña incorrectos.",inactiveErr:"Cuenta inactiva. Contacta al administrador.",
-    tabUsers:"Usuarios",tabCompanies:"Compañías",tabFlightLog:"Flight Log",tabBilling:"Pre-Factura",tabSettings:"Configuración",
+    tabUsers:"Usuarios",tabCompanies:"Compañías",tabAircraft:"Aeronaves",tabFlightLog:"Flight Log",tabBilling:"Pre-Factura",tabSettings:"Configuración",
     utTitle:"Gestión de Usuarios",utAdd:"+ Nuevo Usuario",utExport:"↓ Exportar JSON",
     utAudit:"Log de Auditoría",utClear:"Limpiar Log",
     thUser:"Usuario",thRole:"Rol",thCompanies:"Compañías",thStatus:"Estado",thCreated:"Creado",thLast:"Último Acceso",thActions:"Acciones",
@@ -1665,6 +1719,8 @@ let nextUserId=200, nextCoId=300, nextRuleId=400, tempRules=[];
 let flEntries=[], flAuditLog=[], fileQueue=[], editingEntryId=null;
 let batchStatus="DRAFT", confirmCb=null, batchSourceFile="", nextEntryId=1;
 let currentBatchId=null;
+let isExtracting=false;
+let extractionAbort=null;
 let viewRole=null;
 let flaggingEntryId=null;
 const DEFAULT_MULT = {FM:1.15, MAG:1.275};
@@ -1823,6 +1879,7 @@ async function bootApp(){
   updateApiStatus();
   // Load API key from DB (centralized for all devices)
   await loadApiKeyFromDB();
+  initDebugToggle();
   // Load batch from DB
   dbg("Loading batch from database…","info");
   const hasBatch=await loadBatchFromDB();
@@ -1839,8 +1896,9 @@ async function bootApp(){
 const TAB_CONFIG=[
   {id:"users",     icon:"👥",labelKey:"tabUsers",     roles:["ADMIN"]},
   {id:"companies", icon:"🏢",labelKey:"tabCompanies", roles:["ADMIN"]},
-  {id:"flightlog", icon:"✈️",labelKey:"tabFlightLog", roles:["ADMIN","OPERATOR","REVIEWER","READONLY"]},
-  {id:"preinvoice",icon:"📊",labelKey:"tabBilling",   roles:["ADMIN"]},
+  {id:"aircraft",  icon:"✈️",labelKey:"tabAircraft",  roles:["ADMIN","OPERATOR"]},
+  {id:"flightlog", icon:"📋",labelKey:"tabFlightLog", roles:["ADMIN","OPERATOR","REVIEWER","READONLY"]},
+  {id:"preinvoice",icon:"📊",labelKey:"tabBilling",   roles:["ADMIN","REVIEWER"]},
   {id:"settings",  icon:"⚙️",labelKey:"tabSettings",  roles:["ADMIN"]},
 ];
 
@@ -2343,11 +2401,32 @@ function exportUsersJSON(){
   showToast("↓ hp_fleet_data.json exported");
 }
 
-// ── AUDIT LOG (shared) ──
+// ── AUDIT LOG (shared) — persists to Supabase ──
 function addAudit(icon,actor,action,detail){
   auditLog.unshift({icon,actor,action,detail,ts:new Date()});
   if(auditLog.length>300) auditLog=auditLog.slice(0,300);
   renderAudit();
+  // Persist to DB silently
+  sbPost("audit_log_app",{icon,actor,action,detail,ts:new Date().toISOString()})
+    .catch(()=>{}); // never block UI for audit failures
+}
+
+// ── DEBUG TOGGLE ──
+function initDebugToggle(){
+  const check=el("debugToggleCheck");
+  const label=el("debugToggleLabel");
+  if(!check) return;
+  const saved=localStorage.getItem("hpfleet_debug")==="1";
+  check.checked=saved;
+  if(label) label.textContent=saved?"On":"Off";
+  if(saved) el("debugPanel").classList.add("on");
+  check.addEventListener("change",function(){
+    const on=this.checked;
+    localStorage.setItem("hpfleet_debug",on?"1":"0");
+    if(label) label.textContent=on?"On":"Off";
+    if(on) el("debugPanel").classList.add("on");
+    else el("debugPanel").classList.remove("on");
+  });
 }
 
 function renderAudit(){
@@ -2456,7 +2535,7 @@ function renderQueue(){
       '<div class="fq-info">'+
       '<div class="fq-name">'+f.name+"</div>"+
       '<div class="fq-meta">'+(f.size/1024).toFixed(1)+" KB</div>"+
-      '<div class="prog-wrap"><div class="prog-bar'+(f.status==="processing"?" shimmer":"")+'" style="width:'+(f.status==="done"?100:f.status==="processing"?60:0)+'%"></div></div>'+
+      '<div class="prog-wrap"><div class="prog-bar'+(f.status==="processing"?" shimmer":"")+'" style="width:'+(f.status==="done"?100:f.status==="processing"?(f.progress||10):0)+'%;transition:width .3s ease"></div></div>'+
       '<div class="fq-progress-label">'+progressLabel+"</div>"+
       "</div>"+
       viewBtn+
@@ -2514,12 +2593,15 @@ function checkDiff(entry){
 }
 
 async function extractAll(){
+  if(isExtracting){ showToast("Extraction already running","warn"); return; }
   const apiKey=getApiKey();
   if(!apiKey){showToast(t("noApiKey"),"err");switchTab("settings");return;}
   if(!fileQueue.length){showToast(t("noFiles"),"err");return;}
+  isExtracting=true;
+  extractionAbort=new AbortController();
   const btn=el("btnExtract"); const btnTxt=el("btnExtractTxt");
-  btn.disabled=true;
-  btnTxt.innerHTML='<span class="spinner"></span>'+t("extracting");
+  btn.disabled=false;
+  btnTxt.innerHTML='<span style="font-size:14px">⏸</span> Pause';
   let allExtracted=[]; let hasErrors=false;
   const total=fileQueue.length;
 
@@ -2558,8 +2640,28 @@ async function extractAll(){
             pdfExtracted=[...pdfExtracted,...pageEntries];
             dbg("Page "+p+"/"+numPages+": "+pageEntries.length+" entries","ok");
           } catch(pageErr){
-            if(pageErr.message.startsWith("NO_BITACORA")){
-              dbg("Page "+p+": skipped — no log data found","info");
+            if(pageErr.name==="AbortError"){
+              dbg("Extraction aborted at page "+p,"warn");
+              break;
+            } else if(pageErr.message.startsWith("NO_BITACORA")){
+              // Still upload image and create stub entry
+              try {
+                const pageBlob=await pdfPageToBlob(pdfDoc,p);
+                const compressed=await compressImage(pageBlob);
+                const filename="pg"+String(p).padStart(3,"0")+"_skip_"+Date.now()+".jpg";
+                const imageUrl=await uploadImageToStorage(compressed,filename);
+                pdfExtracted.push({
+                  _imageUrl:imageUrl, _sourcePage:p, _isStub:true,
+                  bnum:"", fecha:"", aeronave:"", operador:"",
+                  piloto:"", instructor:"", horoIn:0,
+                  motorOut:"", motorIn:"", vueloOut:"", vueloIn:"",
+                  multOverride:null, obs:"Skipped — no log data on page "+p,
+                  status:"skipped"
+                });
+                dbg("Page "+p+": skipped — image stored as stub","info");
+              } catch(imgErr){
+                dbg("Page "+p+": skipped — image upload failed","info");
+              }
             } else {
               dbg("Page "+p+" error: "+pageErr.message,"err"); hasErrors=true;
             }
@@ -2599,7 +2701,13 @@ async function extractAll(){
     renderQueue();
   }
 
+  isExtracting=false; extractionAbort=null;
   btn.disabled=false; btnTxt.textContent=t("extractBtn");
+  // Auto-collapse upload zone after extraction
+  const uploadSec=el("uploadSection");
+  if(uploadSec) uploadSec.classList.add("collapsed-section");
+  const bcSec=el("batchConstants");
+  if(bcSec) bcSec.classList.add("collapsed-section");
   if(!allExtracted.length&&hasErrors){showResultBanner("err","✗ "+t("extractError"));return;}
   flEntries=[...flEntries,...allExtracted.map(e=>({
     id:nextEntryId++,status:"pending",multOverride:null,...e,
@@ -2630,6 +2738,7 @@ async function extractImageFile(file, apiKey){
   const mediaType=file.type||"image/jpeg";
   const response=await fetch("https://api.anthropic.com/v1/messages",{
     method:"POST",
+    signal:extractionAbort?.signal,
     headers:{
       "Content-Type":"application/json",
       "x-api-key":apiKey,
@@ -2697,11 +2806,25 @@ function t2h(s){
   const n=parseFloat(s);
   return isNaN(n)?0:n;
 }
+function getAircraftMult(aeronave, operador){
+  const ac=AIRCRAFT.find(a=>a.matricula===aeronave);
+  if(ac&&ac.rates&&ac.rates.length){
+    const rate=ac.rates.find(r=>r.operador===operador);
+    if(rate) return rate.multiplicador;
+    // Fall back to first rate if operator not found
+    return ac.rates[0].multiplicador;
+  }
+  // Fall back to aircraft multiplicador field
+  if(ac&&ac.multiplicador) return ac.multiplicador;
+  // Final fallback to DEFAULT_MULT
+  return DEFAULT_MULT[operador]||1;
+}
+
 function calcEntry(e){
   const tm=Math.max(0,t2h(e.motorIn)-t2h(e.motorOut));
   const tv=Math.max(0,t2h(e.vueloIn)-t2h(e.vueloOut));
-  const mult=e.multOverride||DEFAULT_MULT[e.operador]||1;
-  return{tm,tv,mult,tbp:tm*mult};
+  const mult=e.multOverride||getAircraftMult(e.aeronave,e.operador);
+  return{tm,tv,mult,tbp:parseFloat((tm*mult).toFixed(3))};
 }
 function fmt(n){return isNaN(n)||n===0?"—":n.toFixed(1);}
 
@@ -2797,24 +2920,21 @@ function renderFlTable(){
   const role=effectiveRole();
   const canEdit=(role==="ADMIN"||role==="OPERATOR")&&batchStatus==="DRAFT";
   tbody.innerHTML="";
-  visible.forEach(e=>{
+  visible.forEach((e,rowIdx)=>{
     const gi=flEntries.indexOf(e);
     const{tm,tv,mult,tbp}=calcEntry(e);
     const h=horoCheck(e,gi);
-    const isOverride=e.multOverride&&e.multOverride!==DEFAULT_MULT[e.operador];
+    const isOverride=e.multOverride&&e.multOverride!==getAircraftMult(e.aeronave,e.operador);
     const tr=document.createElement("tr");
-    tr.className=e.status==="approved"?"r-ok":e.status==="rejected"?"r-rej":e.status==="flagged"?"r-flagged":"";
+    tr.className=e.status==="approved"?"r-ok":e.status==="rejected"?"r-rej":e.status==="flagged"?"r-flagged":e.status==="skipped"?"r-skipped":"";
+    tr.style.cursor="pointer";
+    tr.dataset.entryId=e.id;
     // Review comment indicator
-    const rcInd=e.flagNote?'<span class="rc-indicator" title="'+e.flagNote+'"> ⚠</span>':"";
-    // Notes display — show obs, flag review comment separately
     const notesDisplay=e.flagNote
       ?'<span style="color:var(--yellow);font-size:10px" title="'+e.flagNote+'">⚠ '+e.flagNote+"</span>"
       :(e.obs||"—");
     tr.innerHTML=
-      '<td class="cd" style="font-size:10px;cursor:pointer" data-sp-entry="'+e.id+'" title="Open in panel">'+
-        '<button class="sp-toggle-btn" style="padding:3px 4px;margin:0 auto;display:block" tabindex="-1">'+
-        '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/><polyline points="11,9 8,12 11,15"/></svg>'+
-        "</button></td>"+
+      '<td class="cd" style="font-family:var(--mono);font-size:10px;color:var(--dim2);text-align:center">'+String(rowIdx+1).padStart(2,"0")+"</td>"+
       '<td class="bnum-cell">'+(e.bnum||"—")+"</td>"+
       "<td>"+(e.fecha||"—")+"</td>"+
       "<td>"+(e.aeronave||"—")+"</td>"+
@@ -2830,9 +2950,8 @@ function renderFlTable(){
       '<td class="cd" style="'+(isOverride?"color:var(--yellow)":"")+'">'+mult+(isOverride?" ⚠":"")+"</td>"+
       '<td class="cg">'+fmt(tbp)+"</td>"+
       '<td class="cd">'+(e.horoIn?.toFixed(1)||"—")+"</td>"+
-      '<td class="cd" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+notesDisplay+rcInd+"</td>"+
-      "<td>"+mkFlToggle(e,canEdit)+"</td>"+
-      '<td><button class="btn-edit-r" data-edit-entry="'+e.id+'"'+(canEdit?"":" disabled")+'>✎</button></td>';
+      '<td class="cd" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+notesDisplay+"</td>"+
+      "<td>"+mkFlToggle(e,canEdit)+"</td>";
     tbody.appendChild(tr);
   });
   if(el("ptab_count")) el("ptab_count").textContent=flEntries.length;
@@ -3428,10 +3547,11 @@ async function loadMasterData(){
       ...c, billingRules:typeof c.billing_rules==="string"?JSON.parse(c.billing_rules):c.billing_rules||[]
     })));
     if(aircraft&&aircraft.length) AIRCRAFT.splice(0,AIRCRAFT.length,...aircraft.map(a=>({
-      id:a.id, matricula:a.matricula, makeModel:a.make_model,
-      operador:a.operador, multiplicador:a.multiplicador, tipo:a.tipo,
-      asientos:a.asientos, motorId:a.motor_id,
-      consumoGalHr:a.consumo_gal_hr, diffThreshold:a.diff_threshold
+      id:a.id, matricula:a.matricula, makeModel:a.make_model||"",
+      operador:a.operador, multiplicador:a.multiplicador, tipo:a.tipo||"",
+      asientos:a.asientos||2, motorId:a.motor_id||"",
+      consumoGalHr:a.consumo_gal_hr||0, diffThreshold:a.diff_threshold||0.2,
+      rates:Array.isArray(a.rates)?a.rates:(typeof a.rates==="string"&&a.rates?JSON.parse(a.rates):[])
     })));
     dbg("Master data loaded — "+USERS.length+" users, "+COMPANIES.length+" companies, "+AIRCRAFT.length+" aircraft","ok");
   } catch(err){ dbg("Master data load error: "+err.message,"err"); }
@@ -3673,6 +3793,10 @@ function closeSidePanel(){
   el("sidePanel").classList.remove("open");
   el("spOverlay").classList.remove("open");
   document.body.style.overflow="";
+  if(el("spTableToggle")) el("spTableToggle").style.color="var(--dim2)";
+  if(el("spToggleLabel")) el("spToggleLabel").textContent="Source Panel";
+  // Clear row highlight
+  if(el("flTbody")) el("flTbody").querySelectorAll("tr").forEach(r=>r.style.outline="");
 }
 async function resetBatch(){
   flEntries=[]; flAuditLog=[]; fileQueue=[]; batchStatus="DRAFT";
@@ -3693,6 +3817,7 @@ function renderAll(){
   renderFlAudit();
   updateApiStatus();
   renderFleetSettings();
+  renderAircraftTab();
   renderPreInvoice();
 }
 
@@ -3766,8 +3891,71 @@ async function importFromXLSX(file){
   reader.readAsArrayBuffer(file);
 }
 
+// ── AIRCRAFT TAB RENDER ──
+function renderAircraftTab(){
+  const grid=el("aircraftTabGrid"); if(!grid) return;
+  grid.innerHTML="";
+  AIRCRAFT.forEach(ac=>{
+    const card=document.createElement("div");
+    card.style.cssText="background:var(--s2);border:1px solid var(--border2);border-top:3px solid var(--cyan);padding:18px;";
+    const ratesHtml=(ac.rates||[]).map(r=>
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--s3);border-radius:2px;margin-bottom:4px">'+
+      '<span style="color:var(--green);font-weight:600">'+r.operador+'</span>'+
+      '<span style="color:var(--dim2)">×'+r.multiplicador.toFixed(3)+'</span>'+
+      '<span style="color:var(--yellow)">$'+(r.tarifaHr||0).toFixed(2)+'/hr</span>'+
+      '<span style="color:var(--cyan);font-size:10px">TBP: $'+((r.tarifaHr||0)*r.multiplicador).toFixed(2)+'/hr</span>'+
+      '</div>'
+    ).join("");
+    card.innerHTML=
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'+
+      '<div style="font-family:var(--display);font-weight:700;font-size:20px;color:var(--cyan)">'+ac.matricula+'</div>'+
+      '<div style="display:flex;gap:6px">'+
+      '<button class="btn-sm" data-edit-ac="'+ac.id+'">Edit</button>'+
+      '<button class="btn-sm del" data-del-ac="'+ac.id+'">Delete</button>'+
+      '</div></div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-family:var(--mono);font-size:10px;margin-bottom:14px">'+
+      '<div><span style="color:var(--dim)">Make/Model</span><br><span>'+( ac.makeModel||"—")+'</span></div>'+
+      '<div><span style="color:var(--dim)">Engine</span><br><span>'+(ac.motorId||"—")+'</span></div>'+
+      '<div><span style="color:var(--dim)">Fuel (gal/hr)</span><br><span>'+(ac.consumoGalHr||"—")+'</span></div>'+
+      '<div><span style="color:var(--dim)">Diff Threshold</span><br><span style="color:'+(ac.diffThreshold<=0.2?"var(--green)":"var(--yellow)")+'">'+ac.diffThreshold.toFixed(1)+' hrs</span></div>'+
+      '</div>'+
+      '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Operator Rates</div>'+
+      (ratesHtml||'<div style="color:var(--dim);font-size:10px;font-family:var(--mono)">No rates configured</div>');
+    grid.appendChild(card);
+  });
+  grid.querySelectorAll("[data-edit-ac]").forEach(btn=>btn.addEventListener("click",()=>openEditAircraft(btn.dataset.editAc)));
+  grid.querySelectorAll("[data-del-ac]").forEach(btn=>btn.addEventListener("click",()=>openDeleteAircraft(btn.dataset.delAc)));
+}
+
 // ── FLEET SETTINGS — FULL CRUD ──
-let editingAcId=null;
+let tempRates=[];
+
+function renderAcRates(){
+  const wrap=el("acRatesList"); if(!wrap) return;
+  wrap.innerHTML="";
+  tempRates.forEach((r,i)=>{
+    const row=document.createElement("div");
+    row.style.cssText="display:grid;grid-template-columns:80px 110px 110px 32px;gap:6px;align-items:center";
+    row.innerHTML=
+      '<select style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:6px;font-family:var(--mono);font-size:11px;border-radius:2px">'+
+        COMPANIES.map(c=>'<option value="'+c.code+'"'+(c.code===r.operador?" selected":"")+'>'+c.code+'</option>').join("")+
+      '</select>'+
+      '<input type="number" step="0.001" placeholder="Mult e.g. 1.275" value="'+(r.multiplicador||"")+'" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:6px;font-size:11px;border-radius:2px;width:100%">'+
+      '<input type="number" step="0.01" placeholder="$/hr e.g. 165" value="'+(r.tarifaHr||"")+'" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:6px;font-size:11px;border-radius:2px;width:100%">'+
+      '<button style="background:none;border:1px solid var(--border2);color:var(--red);cursor:pointer;padding:4px 6px;border-radius:2px">✕</button>';
+    const [opSel,multInp,tarifaInp,delBtn]=row.children;
+    opSel.addEventListener("change",()=>{tempRates[i].operador=opSel.value;});
+    multInp.addEventListener("input",()=>{tempRates[i].multiplicador=parseFloat(multInp.value)||0;});
+    tarifaInp.addEventListener("input",()=>{tempRates[i].tarifaHr=parseFloat(tarifaInp.value)||0;});
+    delBtn.addEventListener("click",()=>{tempRates.splice(i,1);renderAcRates();});
+    wrap.appendChild(row);
+  });
+}
+
+function addAcRate(){
+  tempRates.push({operador:COMPANIES[0]?.code||"FM",multiplicador:1.275,tarifaHr:0});
+  renderAcRates();
+}
 
 function renderFleetSettings(){
   const grid=el("fleetGrid"); if(!grid) return;
@@ -3807,6 +3995,7 @@ function openCreateAircraft(){
   el("ac_multiplicador").value=""; el("ac_diffThreshold").value="0.2";
   el("ac_motorId").value="Lycoming O-320"; el("ac_consumoGalHr").value="8.5";
   el("ac_asientos").value="2";
+  tempRates=[]; renderAcRates();
   openModal("acMbd");
 }
 
@@ -3823,6 +4012,8 @@ function openEditAircraft(id){
   el("ac_motorId").value=ac.motorId||"";
   el("ac_consumoGalHr").value=ac.consumoGalHr||"";
   el("ac_asientos").value=ac.asientos||"";
+  tempRates=JSON.parse(JSON.stringify(ac.rates||[]));
+  renderAcRates();
   openModal("acMbd");
 }
 
@@ -3845,16 +4036,17 @@ async function saveAircraft(){
     multiplicador:mult, diffThreshold:parseFloat(el("ac_diffThreshold").value)||0.2,
     motorId:el("ac_motorId").value.trim(),
     consumoGalHr:parseFloat(el("ac_consumoGalHr").value)||0,
-    asientos:parseInt(el("ac_asientos").value)||2
+    asientos:parseInt(el("ac_asientos").value)||2,
+    rates:tempRates
   };
   if(editingAcId){
     const ac=AIRCRAFT.find(a=>a.id===editingAcId); Object.assign(ac,data);
     sbPatch("aircraft","id=eq."+editingAcId,{
-      matricula:data.matricula, make_model:data.makeModel,
+      matricula:data.matricula, make_model:data.makeModel||"",
       operador:data.operador, tipo:data.tipo||"",
       multiplicador:data.multiplicador, diff_threshold:data.diffThreshold,
       motor_id:data.motorId||"", consumo_gal_hr:data.consumoGalHr||0,
-      asientos:data.asientos||2
+      asientos:data.asientos||2, rates:data.rates
     }).then(()=>dbg("Aircraft updated in DB: "+data.matricula,"ok"))
       .catch(e=>dbg("Aircraft update error: "+e.message,"err"));
     showToast("Aircraft updated");
@@ -3866,13 +4058,14 @@ async function saveAircraft(){
       operador:data.operador, tipo:data.tipo||"",
       multiplicador:data.multiplicador, diff_threshold:data.diffThreshold,
       motor_id:data.motorId||"", consumo_gal_hr:data.consumoGalHr||0,
-      asientos:data.asientos||2
+      asientos:data.asientos||2, rates:data.rates
     }).then(()=>dbg("Aircraft created in DB: "+data.matricula,"ok"))
       .catch(e=>dbg("Aircraft create error: "+e.message,"err"));
     showToast("Aircraft added");
   }
   closeModal("acMbd");
   renderFleetSettings();
+  renderAircraftTab();
   initBatchConstants(); // refresh dropdowns
 }
 
@@ -3946,7 +4139,18 @@ function wireEvents(){
   el("fl_newBatch").addEventListener("click",resetBatch);
   el("apiWarnLink").addEventListener("click",()=>switchTab("settings"));
   el("btn_clearQueue").addEventListener("click",clearFileQueue);
-  el("btnExtract").addEventListener("click",extractAll);
+  el("btnExtract").addEventListener("click",()=>{
+    if(isExtracting){
+      // Abort/stop extraction
+      if(extractionAbort) extractionAbort.abort();
+      isExtracting=false;
+      el("btnExtractTxt").textContent=t("extractBtn");
+      showToast("Extraction stopped","warn");
+      dbg("Extraction aborted by user","warn");
+    } else {
+      extractAll();
+    }
+  });
   el("btn_xlsxImport").addEventListener("click",()=>el("xlsxImportInput").click());
   el("xlsxImportInput").addEventListener("change",function(e){
     if(e.target.files&&e.target.files[0]){
@@ -4058,10 +4262,18 @@ function wireEvents(){
   // Side panel collapse button
   if(el("spCollapseBtn")) el("spCollapseBtn").addEventListener("click",closeSidePanel);
 
-  // Table sidebar toggle button — opens panel for first entry or last viewed
+  // Table sidebar toggle button
   if(el("spTableToggle")) el("spTableToggle").addEventListener("click",()=>{
-    if(el("sidePanel").classList.contains("open")){ closeSidePanel(); return; }
-    if(flEntries.length) openSidePanel(flEntries[0].id,true);
+    const panel=el("sidePanel");
+    if(panel.classList.contains("open")){
+      closeSidePanel();
+      el("spTableToggle").style.color="var(--dim2)";
+      if(el("spToggleLabel")) el("spToggleLabel").textContent="Source Panel";
+    } else {
+      if(flEntries.length) openSidePanel(flEntries[0].id,true);
+      el("spTableToggle").style.color="var(--cyan)";
+      if(el("spToggleLabel")) el("spToggleLabel").textContent="Panel Open";
+    }
   });
 
   // Side panel resize handle
@@ -4100,8 +4312,10 @@ function wireEvents(){
     if(el(id)) el(id).addEventListener("input",spLiveCalc);
   });
 
-  // Aircraft modal
+  // Aircraft modal (both buttons)
   if(el("btn_addAircraft")) el("btn_addAircraft").addEventListener("click",openCreateAircraft);
+  if(el("btn_addAircraft2")) el("btn_addAircraft2").addEventListener("click",openCreateAircraft);
+  if(el("btn_addRate")) el("btn_addRate").addEventListener("click",addAcRate);
   if(el("ac_close")) el("ac_close").addEventListener("click",()=>closeModal("acMbd"));
   if(el("ac_cancel")) el("ac_cancel").addEventListener("click",()=>closeModal("acMbd"));
   if(el("ac_save")) el("ac_save").addEventListener("click",saveAircraft);
@@ -4113,10 +4327,16 @@ function wireEvents(){
   el("flag_save").addEventListener("click",saveFlagEntry);
   el("flagMbd").addEventListener("click",e=>{ if(e.target===el("flagMbd")) closeModal("flagMbd"); });
 
-  // Init upload zone
-  initUploadZone();
+  // Batch constants collapse
+  if(el("bcToggle")) el("bcToggle").addEventListener("click",()=>{
+    const fields=el("bcFields");
+    const btn=el("bcToggle");
+    if(fields.style.display==="none"){fields.style.display="flex";btn.textContent="▲";}
+    else{fields.style.display="none";btn.textContent="▼";}
+  });
 
-  // Batch constants
+  // Init upload zone and batch constants
+  initUploadZone();
   initBatchConstants();
 
   // Side panel
@@ -4135,10 +4355,16 @@ function wireEvents(){
   el("flTbody").addEventListener("click", function(e){
     const editBtn=e.target.closest("[data-edit-entry]");
     const stBtn=e.target.closest("[data-st-entry]");
-    const spBtn=e.target.closest("[data-sp-entry]");
+    const tr=e.target.closest("tr[data-entry-id]");
     if(editBtn) openEditEntry(parseInt(editBtn.dataset.editEntry));
     else if(stBtn) setEntrySt(parseInt(stBtn.dataset.stEntry),stBtn.dataset.st);
-    else if(spBtn) openSidePanel(parseInt(spBtn.dataset.spEntry),true);
+    else if(tr){
+      const entryId=parseInt(tr.dataset.entryId);
+      openSidePanel(entryId,true);
+      // Highlight active row
+      el("flTbody").querySelectorAll("tr").forEach(r=>r.style.outline="");
+      tr.style.outline="1px solid var(--cyan)";
+    }
   });
 }
 
@@ -4146,7 +4372,7 @@ function wireEvents(){
 async function init(){
   applyI18n();
   wireEvents();
-  dbg("HP Fleet v7.3 — initializing…","info");
+  dbg("HP Fleet v7.4 — initializing…","info");
   await seedIfEmpty();
   await loadMasterData();
   if(el("viewAsRole")) el("viewAsRole").value="ADMIN";
