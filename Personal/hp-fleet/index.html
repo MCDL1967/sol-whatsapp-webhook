@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.7 — built 2026-05-04 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.8 — built 2026-05-04 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.7</title>
+<title>HP Fleet v7.8</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -772,7 +772,7 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.7</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.8</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -781,7 +781,7 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.7</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.8</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1056,9 +1056,9 @@ table.fl-tbl td:last-child{border-right:none}
     <div class="tab-panel" id="panel-preinvoice">
       <div class="page-hdr">
         <div class="page-title"><span>·</span> <span id="pi_title">Pre-Invoice</span></div>
-        <div style="display:flex;gap:8px" id="pi_actions" style="display:none">
-          <button class="btn-ghost" id="pi_add_charge">+ Add Charge</button>
-          <button class="btn-primary" id="pi_export_pdf">↓ Export PDF</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn-primary" id="pi_load_cycle_btn" style="font-size:12px;padding:8px 18px;letter-spacing:1px">⬇ Load Billing Cycle</button>
+          <button class="btn-ghost" id="pi_export_pdf" style="font-size:11px">↓ Export PDF</button>
         </div>
       </div>
       <div id="piComingSoon">
@@ -1077,7 +1077,7 @@ table.fl-tbl td:last-child{border-right:none}
               <span id="pi_owner_detail" style="font-size:12px;color:var(--dim2)"></span>
             </div>
             <div class="pi-inv-meta">
-              <div>Invoice # <strong id="pi_inv_num">—</strong></div>
+              <div>Pre-Invoice # <strong id="pi_inv_num">—</strong></div>
               <div>Date <strong id="pi_inv_date">—</strong></div>
               <div>Aircraft <strong id="pi_inv_aircraft">—</strong></div>
             </div>
@@ -1391,6 +1391,30 @@ table.fl-tbl td:last-child{border-right:none}
   </div>
 </div>
 
+<!-- LOAD BILLING CYCLE MODAL -->
+<div class="mbd" id="piLoadMbd">
+  <div class="mbox" style="max-width:420px;border-top:2px solid var(--cyan)">
+    <div class="mhdr"><div class="mhdr-t ct" id="piLoadTitle">Load Billing Cycle</div><button class="m-x" id="piLoad_close">✕</button></div>
+    <div class="mbody" style="display:flex;flex-direction:column;gap:12px">
+      <button id="piLoad_current" style="background:var(--s2);border:1px solid var(--cyan);color:var(--cyan);font-family:var(--display);font-weight:700;font-size:13px;padding:16px;cursor:pointer;text-align:left;transition:background .15s;border-radius:2px">
+        <div style="font-size:16px;margin-bottom:4px">📋 <span id="piLoad_currentLabel">Current Batch</span></div>
+        <div id="piLoad_currentDesc" style="font-family:var(--mono);font-size:10px;color:var(--dim2)">Load approved batch from current session</div>
+      </button>
+      <button id="piLoad_historic" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--display);font-weight:700;font-size:13px;padding:16px;cursor:pointer;text-align:left;transition:all .15s;border-radius:2px">
+        <div style="font-size:16px;margin-bottom:4px">🗂 <span id="piLoad_historicLabel">Historic</span></div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--dim2)">Select from billing cycle history</div>
+      </button>
+      <div id="piLoad_historicSel" style="display:none;margin-top:4px">
+        <select id="piLoad_batchSel" style="width:100%;background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 10px;border-radius:2px;outline:none">
+          <option value="">— Select a billing cycle —</option>
+        </select>
+        <button class="btn-primary" id="piLoad_confirm" style="width:100%;margin-top:10px">Load Selected</button>
+      </div>
+    </div>
+    <div class="mftr"><button class="btn-ghost" id="piLoad_cancel">Cancel</button></div>
+  </div>
+</div>
+
 <!-- WHATSAPP CONFIRM MODAL -->
 <div class="mbd" id="waMbd">
   <div class="mbox wa-confirm-box">
@@ -1567,7 +1591,7 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.7";
+const APP_VERSION = "v7.8";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -1831,6 +1855,8 @@ const I18N = {
     noCompanySelected:"Select at least one company.",
     srcCsvReady:"✓ Ready",srcCsvDone:"✓ Archived",
     csBilling:"Pre-Invoice & Billing",
+    piGoTo:"Pre-Invoice",piLoadCycle:"Load Billing Cycle",piCurrent:"Current Batch",piHistoric:"Historic",
+    piLoadTitle:"Load Billing Cycle",piNoApproved:"No approved batch in memory.",
   },
   es:{
     signIn:"Iniciar Sesión",signingIn:"Verificando…",signOut:"↩ Salir",
@@ -1904,6 +1930,8 @@ const I18N = {
     noCompanySelected:"Selecciona al menos una compañía.",
     srcCsvReady:"✓ Listo",srcCsvDone:"✓ Archivado",
     csBilling:"Pre-Factura y Facturación",
+    piGoTo:"Pre-Factura",piLoadCycle:"Cargar Ciclo de Facturación",piCurrent:"Lote Activo",piHistoric:"Histórico",
+    piLoadTitle:"Cargar Ciclo de Facturación",piNoApproved:"No hay lote aprobado en memoria.",
   }
 };
 
@@ -2008,6 +2036,7 @@ function applyI18n(){
     st_title:"stTitle",st_apiTitle:"stApiTitle",st_apiLabel:"stApiLabel",st_apiHint:"stApiHint",
     btn_saveApiKey:"saveKey",btn_clearApiKey:"clearKey",
     cs_billing:"csBilling",st_fleetTitle:"stFleetTitle",
+    pi_title:"tabBilling",pi_load_cycle_btn:"piLoadCycle",cs_billing:"csBilling",
   };
   const roleLabels={OPERATOR:ROLES.OPERATOR[lang].label,REVIEWER:ROLES.REVIEWER[lang].label,READONLY:ROLES.READONLY[lang].label};
   if(el("fo_op")) el("fo_op").textContent=roleLabels.OPERATOR;
@@ -3122,7 +3151,7 @@ function renderWfBar(){
   }).join("");
   // CTA when APPROVED
   if(st==="APPROVED"){
-    html+='<span class="wf-arrow">›</span><button id="wf_goto_pi" style="font-family:var(--mono);font-size:10px;padding:4px 12px;background:var(--green);color:#000;border:none;cursor:pointer;border-radius:2px;font-weight:700;letter-spacing:1px;white-space:nowrap" title="Go to Pre-Invoice">📊 Pre-Invoice →</button>';
+    html+='<span class="wf-arrow">›</span><button id="wf_goto_pi" style="font-family:var(--mono);font-size:10px;padding:4px 14px;background:transparent;color:var(--cyan);border:1px solid var(--cyan);cursor:pointer;border-radius:2px;font-weight:700;letter-spacing:1px;white-space:nowrap;transition:all .15s" onmouseover="this.style.background=\'rgba(65,209,255,.12)\'" onmouseout="this.style.background=\'transparent\'">📊 '+t("piGoTo")+' →</button>';
   }
   bar.innerHTML=html;
   // Wire CTA button
@@ -3478,10 +3507,49 @@ function handleApprove(){
 // ── PRE-INVOICE RENDER ──
 let piAdditionalCharges=[];
 let piSignedBy=null, piSignedAt=null, piInvNum=null;
+let piRulesSeeded=false;
 
 function generateInvNum(){
   const now=new Date();
   return "INV-"+now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(Math.floor(Math.random()*900)+100);
+}
+
+function openPiLoadModal(){
+  // Update i18n labels
+  if(el("piLoadTitle")) el("piLoadTitle").textContent=t("piLoadTitle");
+  if(el("piLoad_currentLabel")) el("piLoad_currentLabel").textContent=t("piCurrent");
+  if(el("piLoad_historicLabel")) el("piLoad_historicLabel").textContent=t("piHistoric");
+  // Describe current batch
+  const desc=el("piLoad_currentDesc");
+  if(desc){
+    if(batchStatus==="APPROVED"){
+      const approved=flEntries.filter(e=>e.status==="approved");
+      desc.textContent=approved.length+" approved entries · "+batchStatus;
+      desc.style.color="var(--green)";
+    } else {
+      desc.textContent=lang==="es"?"Estado actual: "+batchStatus:"Current status: "+batchStatus;
+      desc.style.color="var(--dim2)";
+    }
+  }
+  // Populate historic selector
+  const sel=el("piLoad_batchSel");
+  if(sel){
+    sel.innerHTML='<option value="">— '+(lang==="es"?"Seleccionar ciclo":"Select a billing cycle")+' —</option>';
+    allBatches.forEach(b=>{
+      const opt=document.createElement("option");
+      opt.value=b.id;
+      const ac=b.aircraft||"?"; const op=b.operador||"?";
+      const pf=b.period_from?b.period_from.slice(0,7):"";
+      const lf=b.log_from?"#"+b.log_from:""; const lt=b.log_to?"–#"+b.log_to:"";
+      opt.textContent=ac+" · "+op+(pf?" · "+pf:"")+(lf?" · "+lf+lt:"")+" · "+b.status;
+      if(b.id===currentBatchId) opt.selected=true;
+      sel.appendChild(opt);
+    });
+  }
+  // Reset historic section
+  const historicSel=el("piLoad_historicSel");
+  if(historicSel) historicSel.style.display="none";
+  openModal("piLoadMbd");
 }
 
 function renderPreInvoice(){
@@ -3497,6 +3565,19 @@ function renderPreInvoice(){
     const company=COMPANIES.find(c=>c.code===operatorCode);
     const rate=aircraft?.rates?.find(r=>r.operador===operatorCode);
     const tarifaHr=rate?rate.tarifaHr:0;
+    // Auto-seed billing rules from company if not yet seeded for this invoice
+    if(!piRulesSeeded && company?.billingRules?.length){
+      const totalTv=approved.reduce((s,e)=>s+calcEntry(e).tv,0);
+      const totalEntries=approved.length;
+      company.billingRules.filter(r=>r.active).forEach(r=>{
+        let amt=0;
+        if(r.unit==="per Flight Hour") amt=parseFloat((r.amount*totalTv).toFixed(2));
+        else if(r.unit==="per Flight") amt=parseFloat((r.amount*totalEntries).toFixed(2));
+        else amt=r.amount; // unknown unit — add at face value
+        piAdditionalCharges.push({desc:r.name,amount:amt,_auto:true});
+      });
+      piRulesSeeded=true;
+    }
     if(el("pi_owner_name")) el("pi_owner_name").textContent=aircraft?.owner||"—";
     if(el("pi_owner_detail")) el("pi_owner_detail").textContent=aircraft?.ownerAddress||"";
     if(el("pi_inv_num")) el("pi_inv_num").textContent=piInvNum;
@@ -4249,7 +4330,7 @@ async function resetBatch(){
   flEntries=[]; flAuditLog=[]; fileQueue=[]; batchStatus="DRAFT";
   batchSourceFile=""; editingEntryId=null; nextEntryId=1;
   currentBatchId=null; // deselect, preserve in DB
-  piAdditionalCharges=[]; piSignedBy=null; piSignedAt=null; piInvNum=null;
+  piAdditionalCharges=[]; piSignedBy=null; piSignedAt=null; piInvNum=null; piRulesSeeded=false;
   el("srcBar").style.display="none";
   el("reviewSection").style.display="none";
   if(el("resultBanner")) el("resultBanner").style.display="none";
@@ -4774,7 +4855,6 @@ function wireEvents(){
 
   // Pre-invoice add charge and sign-off
   const addCharge=()=>{piAdditionalCharges.push({desc:"Additional Charge",amount:0});renderPreInvoice();};
-  if(el("pi_add_charge")) el("pi_add_charge").addEventListener("click",addCharge);
   if(el("pi_add_charge2")) el("pi_add_charge2").addEventListener("click",addCharge);
   if(el("pi_signoff_btn")) el("pi_signoff_btn").addEventListener("click",()=>{
     piSignedBy=currentUser.name;
@@ -4782,6 +4862,44 @@ function wireEvents(){
     addFlAudit("✍️",currentUser.name,"signed off pre-invoice",piInvNum);
     renderPreInvoice();
     showToast("Pre-Invoice signed off");
+  });
+
+  // Load Billing Cycle modal
+  if(el("pi_load_cycle_btn")) el("pi_load_cycle_btn").addEventListener("click",openPiLoadModal);
+  if(el("piLoad_close")) el("piLoad_close").addEventListener("click",()=>closeModal("piLoadMbd"));
+  if(el("piLoad_cancel")) el("piLoad_cancel").addEventListener("click",()=>closeModal("piLoadMbd"));
+  if(el("piLoadMbd")) el("piLoadMbd").addEventListener("click",e=>{ if(e.target===el("piLoadMbd")) closeModal("piLoadMbd"); });
+  if(el("piLoad_current")) el("piLoad_current").addEventListener("click",()=>{
+    if(batchStatus!=="APPROVED"){
+      showToast(t("piNoApproved"),"warn");
+      closeModal("piLoadMbd"); return;
+    }
+    closeModal("piLoadMbd");
+    renderPreInvoice();
+    showToast("Current batch loaded into Pre-Invoice","info");
+  });
+  if(el("piLoad_historic")) el("piLoad_historic").addEventListener("click",()=>{
+    const sel=el("piLoad_historicSel");
+    if(sel) sel.style.display=sel.style.display==="none"?"block":"none";
+  });
+  if(el("piLoad_confirm")) el("piLoad_confirm").addEventListener("click",async()=>{
+    const batchId=el("piLoad_batchSel").value;
+    if(!batchId){showToast("Select a billing cycle","warn");return;}
+    closeModal("piLoadMbd");
+    // Switch to selected batch
+    if(batchId!==currentBatchId){
+      if(currentBatchId&&flEntries.length) await saveBatchToDB();
+      currentBatchId=batchId;
+      await loadBatchFromDB();
+    }
+    if(batchStatus!=="APPROVED"){
+      showToast("Selected batch is not APPROVED — cannot load into Pre-Invoice","warn"); return;
+    }
+    piAdditionalCharges=[]; piSignedBy=null; piSignedAt=null; piInvNum=null; piRulesSeeded=false;
+    renderWfBar(); setupFlRoleUI(); renderFlTable();
+    renderPreInvoice();
+    switchTab("preinvoice");
+    showToast("Billing cycle loaded","info");
   });
 
   // Debug panel toggle — update sp bottom
