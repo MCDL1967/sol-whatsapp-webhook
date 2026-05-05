@@ -1,7 +1,7 @@
 {
   "file": "property_master_data.json",
-  "version": "v14.0.0",
-  "date": "2026-04-30",
+  "version": "v14.1.0",
+  "date": "2026-05-04",
   "role": "Property master data for SOL V14 Fast Path trial",
   "status": "trial_demo_data_from_kb",
   "source_notes": [
@@ -11,7 +11,10 @@
   ],
   "property": {
     "property_name": "Your Casino",
-    "timezone": "America/Panama"
+    "timezone": "America/Panama",
+    "team_name_1": "Guest Services",
+    "team_name_2": "Reservations",
+    "team_name_3": "Security"
   },
   "dining": {
     "reservation_facts": {
@@ -26,6 +29,16 @@
         "time",
         "number_of_guests",
         "special_requests_if_any"
+      ],
+      "vip_group_required_fields": [
+        "type_of_service",
+        "date",
+        "time",
+        "number_of_guests",
+        "event_details_if_any",
+        "transportation_needs",
+        "accessibility_needs",
+        "special_requests_if_any"
       ]
     },
     "hours_boundary": {
@@ -33,25 +46,54 @@
       "venue_specific_hours_configured": false,
       "guest_safe_rule": "Do not provide exact outlet hours unless configured. Offer staff confirmation for live or same-day outlet hour questions."
     },
+    "escalation_routing": {
+      "team_name_1": "Guest Services",
+      "team_name_2": "Reservations",
+      "team_name_1_scope": "live availability, same-day confirmation, operating status, large group or VIP, poolside conditions, existing booking support",
+      "team_name_2_scope": "advance reservations, group bookings over threshold, private dining"
+    },
+    "sol_may_answer_directly": [
+      "named venue list",
+      "room service is available 24 hours",
+      "dinner reservations are recommended",
+      "walk-ins depend on availability",
+      "groups larger than 8 should reserve in advance",
+      "reservation intake for new bookings at supported venues"
+    ],
+    "sol_must_escalate": [
+      "live availability or real-time seating",
+      "same-day confirmation requiring staff approval",
+      "private dining",
+      "large group dining over threshold",
+      "VIP or multi-service arrangements",
+      "existing reservation changes or cancellations",
+      "exact outlet hours not currently configured"
+    ],
     "venues": [
       {
         "id": 1,
+        "menu_key": "la_brasserie",
         "canonical_name": "La Brasserie",
         "aliases": [
           "la brasserie restaurant",
           "brasserie"
         ],
         "type": "all-day café and restaurant",
+        "service_class": "full_service_dining",
+        "cuisine_or_service_type": "international all-day dining",
         "location_role": "dining venue within the hotel / casino complex",
         "short_description_en": "All-day café serving breakfast, lunch, and dinner",
         "short_description_es": "Café-restaurante todo el día para desayuno, almuerzo y cena",
         "supported_hours": "exact outlet hours not currently configured in runtime data",
         "reservation_note": "dinner reservations recommended",
         "reservation_led": true,
-        "escalation_note": "exact current hours or same-day live availability may require staff confirmation"
+        "group_reservation_supported": true,
+        "escalation_note": "exact current hours or same-day live availability may require staff confirmation",
+        "handoff_team_key": "team_name_1"
       },
       {
         "id": 2,
+        "menu_key": "larrys_sports_bar_terrace",
         "canonical_name": "Larry's Sports Bar & Terrace",
         "aliases": [
           "larrys sports bar",
@@ -59,16 +101,21 @@
           "sports bar and terrace"
         ],
         "type": "sports bar / casual dining venue",
+        "service_class": "bar_casual_dining",
+        "cuisine_or_service_type": "sports bar, casual food and beverages",
         "location_role": "bar and casual dining outlet",
-        "short_description_en": "Casual sports bar with large screens",
+        "short_description_en": "Casual sports bar with large screens and casual dining",
         "short_description_es": "Bar deportivo con pantallas y comida casual",
         "supported_hours": "exact outlet hours not currently configured in runtime data",
         "reservation_note": "walk-ins may be possible based on availability",
         "reservation_led": false,
-        "escalation_note": "exact current hours or game-day live seating questions may require staff confirmation"
+        "group_reservation_supported": false,
+        "escalation_note": "exact current hours or game-day live seating questions may require staff confirmation",
+        "handoff_team_key": "team_name_1"
       },
       {
         "id": 3,
+        "menu_key": "acua_pool_lounge_bar",
         "canonical_name": "Acua Pool Lounge & Bar",
         "aliases": [
           "acua",
@@ -76,16 +123,21 @@
           "pool bar"
         ],
         "type": "poolside lounge and bar",
+        "service_class": "lounge_bar",
+        "cuisine_or_service_type": "cocktails and light bites",
         "location_role": "pool leisure area venue",
         "short_description_en": "Poolside lounge for cocktails and light bites",
         "short_description_es": "Lounge junto a la piscina, cocteles y bocados ligeros",
         "supported_hours": "exact outlet hours not currently configured in runtime data",
         "reservation_note": "usually treated as venue guidance rather than reservation-first dining",
         "reservation_led": false,
-        "escalation_note": "poolside operating status or weather-related availability may require staff"
+        "group_reservation_supported": false,
+        "escalation_note": "poolside operating status or weather-related availability may require staff",
+        "handoff_team_key": "team_name_1"
       },
       {
         "id": 4,
+        "menu_key": "larrys_market",
         "canonical_name": "Larry's Market",
         "aliases": [
           "larrys market",
@@ -93,16 +145,21 @@
           "coffee shop"
         ],
         "type": "coffee shop / grab-and-go venue",
+        "service_class": "grab_and_go",
+        "cuisine_or_service_type": "coffee, sandwiches, salads, smoothies",
         "location_role": "casual quick-service option",
         "short_description_en": "Coffee shop / grab-and-go sandwiches, salads, smoothies, and coffee",
         "short_description_es": "Coffee shop y opción grab-and-go con sándwiches, ensaladas, smoothies y café",
         "supported_hours": "exact outlet hours not currently configured in runtime data",
         "reservation_note": "not typically reservation-led",
         "reservation_led": false,
-        "escalation_note": "current opening status may require staff confirmation"
+        "group_reservation_supported": false,
+        "escalation_note": "current opening status may require staff confirmation",
+        "handoff_team_key": "team_name_1"
       },
       {
         "id": 5,
+        "menu_key": "garden_lobby_bar",
         "canonical_name": "The Garden Lobby Bar",
         "aliases": [
           "garden lobby bar",
@@ -110,46 +167,62 @@
           "garden bar"
         ],
         "type": "lobby cocktail lounge",
+        "service_class": "lounge_bar",
+        "cuisine_or_service_type": "cocktails and beverages",
         "location_role": "lobby beverage and social venue",
         "short_description_en": "Relaxed lobby cocktail lounge",
         "short_description_es": "Bar de lobby relajado para bebidas y socializar",
         "supported_hours": "exact outlet hours not currently configured in runtime data",
         "reservation_note": "usually not reservation-led",
         "reservation_led": false,
-        "escalation_note": "current opening status or special-event use may require staff confirmation"
+        "group_reservation_supported": false,
+        "escalation_note": "current opening status or special-event use may require staff confirmation",
+        "handoff_team_key": "team_name_1"
       },
       {
         "id": 6,
+        "menu_key": "fenicia",
         "canonical_name": "Fenicia",
         "aliases": [
           "fenicia restaurant",
           "mediterranean restaurant",
-          "lebanese restaurant"
+          "lebanese restaurant",
+          "mediterranean",
+          "lebanese"
         ],
         "type": "Lebanese and Mediterranean restaurant",
+        "service_class": "full_service_dining",
+        "cuisine_or_service_type": "Lebanese, Mediterranean",
         "location_role": "destination dining venue with lounge and terrace",
         "short_description_en": "Lebanese / Mediterranean restaurant with lounge and terrace",
         "short_description_es": "Restaurante de cocina libanesa / mediterránea con terraza",
         "supported_hours": "exact outlet hours not currently configured in runtime data",
         "reservation_note": "dinner reservations recommended",
         "reservation_led": true,
-        "escalation_note": "exact current hours or same-day live availability may require staff confirmation"
+        "group_reservation_supported": true,
+        "escalation_note": "exact current hours or same-day live availability may require staff confirmation",
+        "handoff_team_key": "team_name_1"
       },
       {
         "id": 7,
+        "menu_key": "room_service",
         "canonical_name": "Room Service",
         "aliases": [
           "in-room dining",
           "room service"
         ],
         "type": "in-room dining service",
+        "service_class": "room_service",
+        "cuisine_or_service_type": "in-room dining",
         "location_role": "hotel guest-room service",
         "short_description_en": "24-hour hotel room service for in-room dining",
         "short_description_es": "Servicio a la habitación disponible 24 horas",
         "supported_hours": "available 24 hours",
         "reservation_note": "handled as a service request rather than a table reservation",
         "reservation_led": false,
-        "escalation_note": "unusual service questions or live wait-time issues may require staff"
+        "group_reservation_supported": false,
+        "escalation_note": "unusual service questions or live wait-time issues may require staff",
+        "handoff_team_key": "team_name_1"
       }
     ]
   }
