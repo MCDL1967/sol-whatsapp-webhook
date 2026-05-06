@@ -505,9 +505,12 @@ table.fl-tbl td:last-child{border-right:none}
 .sp-close:hover{color:var(--text)}
 .sp-meta{padding:10px 16px;border-bottom:1px solid var(--border);
   font-family:var(--mono);font-size:10px;color:var(--dim2);flex-shrink:0}
-.sp-img-wrap{flex:1;overflow:auto;padding:12px;display:flex;
-  align-items:flex-start;justify-content:center}
-.sp-img-wrap img{max-width:100%;border:1px solid var(--border);border-radius:2px}
+.sp-img-wrap{flex:1;overflow:hidden;padding:8px;display:flex;
+  align-items:center;justify-content:center;position:relative}
+.sp-img-wrap img{max-width:100%;max-height:100%;object-fit:contain;
+  border:1px solid var(--border);border-radius:2px;display:block}
+.sp-img-wrap.panning{cursor:grab}
+.sp-img-wrap.panning:active{cursor:grabbing}
 .sp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);
   z-index:99;display:none}
 .sp-overlay.open{display:block}
@@ -630,7 +633,7 @@ table.fl-tbl td:last-child{border-right:none}
 .sp-toggle-btn:hover{border-color:var(--cyan);color:var(--cyan)}
 .sp-toggle-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8}
 
-/* SIDE PANEL NAV */
+/* sp-zoom-bar removed — replaced by sp-img-toolbar */
 .sp-nav{display:flex;align-items:center;gap:8px;padding:8px 16px;
   border-bottom:1px solid var(--border2);background:var(--s2);flex-shrink:0}
 .sp-nav-btn{background:var(--s3);border:1px solid var(--border2);color:var(--text);
@@ -642,6 +645,18 @@ table.fl-tbl td:last-child{border-right:none}
 .sp-resize-handle{position:absolute;left:0;top:0;bottom:0;width:5px;cursor:col-resize;
   background:transparent;z-index:10;transition:background .15s}
 .sp-resize-handle:hover{background:var(--cyan)}
+
+/* IMAGE TOOLBAR (replaces floating zoom bar) */
+.sp-img-toolbar{display:flex;align-items:center;gap:4px;padding:6px 10px;
+  background:var(--s2);border-bottom:1px solid var(--border2);flex-shrink:0;flex-wrap:wrap}
+.sp-img-toolbar button{background:var(--s3);border:1px solid var(--border2);color:var(--dim2);
+  font-family:var(--mono);font-size:10px;padding:4px 8px;cursor:pointer;border-radius:2px;
+  transition:all .15s;white-space:nowrap}
+.sp-img-toolbar button:hover{border-color:var(--cyan);color:var(--cyan)}
+.sp-img-toolbar button.active{border-color:var(--cyan);color:var(--cyan);background:rgba(65,209,255,.1)}
+.sp-zoom-level{font-family:var(--mono);font-size:10px;color:var(--dim2);
+  min-width:36px;text-align:center;user-select:none}
+.sp-toolbar-sep{width:1px;height:16px;background:var(--border2);margin:0 2px;flex-shrink:0}
 
 /* WHATSAPP CONFIRM DIALOG */
 .wa-confirm-box{max-width:420px;width:100%}
@@ -691,18 +706,7 @@ table.fl-tbl td:last-child{border-right:none}
 /* HORO SEQUENCE GAP — cell left border only */
 .horo-seq-gap{border-left:3px solid var(--yellow)!important}
 
-/* ZOOM CONTROLS */
-.sp-zoom-bar{position:absolute;bottom:8px;right:8px;display:flex;gap:4px;z-index:10}
-.sp-zoom-btn{background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.2);color:#fff;
-  width:28px;height:28px;border-radius:4px;cursor:pointer;font-size:14px;
-  display:flex;align-items:center;justify-content:center;transition:all .15s}
-.sp-zoom-btn:hover{background:rgba(41,209,255,.3);border-color:var(--cyan)}
-
-/* ROTATE BUTTON */
-.sp-rotate-btn{background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.2);color:#fff;
-  padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;font-family:var(--mono);
-  transition:all .15s;white-space:nowrap}
-.sp-rotate-btn:hover{background:rgba(255,192,67,.3);border-color:var(--yellow)}
+/* sp-zoom-btn / sp-rotate-btn / sp-reextract-btn — now part of sp-img-toolbar */
 .sp-reextract-btn{background:rgba(41,209,255,.15);border:1px solid var(--cyan);color:var(--cyan);
   padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;font-family:var(--mono);
   transition:all .15s}
@@ -1011,7 +1015,7 @@ table.fl-tbl td:last-child{border-right:none}
             <span id="pt_audit">Audit Log</span><span class="ptab-count" id="ptab_audit_count">0</span>
           </button>
           <div style="flex:1"></div>
-          <button class="sp-toggle-btn" id="spTableToggle" title="Open/Close Source Panel" style="margin-right:8px;padding:6px 10px;display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--dim2)" id="spMainToggle">
+          <button class="sp-toggle-btn" id="spTableToggle" title="Open/Close Source Panel" style="margin-right:8px;padding:6px 10px;display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--dim2)">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/><polyline points="11,9 8,12 11,15"/></svg>
             <span id="spToggleLabel">Source Panel</span>
           </button>
@@ -1561,17 +1565,21 @@ table.fl-tbl td:last-child{border-right:none}
     <button class="sp-nav-btn" id="spNext">›</button>
   </div>
   <div class="sp-meta" id="sp_meta">—</div>
-  <div class="sp-img-wrap" id="sp_img_wrap" style="position:relative;overflow:hidden">
-    <img id="sp_img" src="" alt="Source log" style="transform-origin:center;transition:transform .2s">
-    <div class="sp-zoom-bar">
-      <button class="sp-zoom-btn" id="sp_zoom_in" title="Zoom in">+</button>
-      <button class="sp-zoom-btn" id="sp_zoom_out" title="Zoom out">−</button>
-      <button class="sp-zoom-btn" id="sp_zoom_reset" title="Reset zoom" style="font-size:10px">↺</button>
-    </div>
-  </div>
-  <div style="display:flex;gap:8px;padding:8px 16px;background:var(--s2);border-bottom:1px solid var(--border2);flex-shrink:0" id="sp_img_controls">
-    <button class="sp-rotate-btn" id="sp_rotate">🔄 Rotate 90°</button>
+  <!-- Image toolbar: Fit | − | zoom% | + | Pan | sep | Rotate | Re-extract -->
+  <div class="sp-img-toolbar" id="sp_img_toolbar">
+    <button id="sp_fit" title="Fit to window">⊡ Fit</button>
+    <div class="sp-toolbar-sep"></div>
+    <button id="sp_zoom_out" title="Zoom out">−</button>
+    <span class="sp-zoom-level" id="sp_zoom_level">100%</span>
+    <button id="sp_zoom_in" title="Zoom in">+</button>
+    <div class="sp-toolbar-sep"></div>
+    <button id="sp_pan_toggle" title="Toggle pan mode">✋ Pan</button>
+    <div class="sp-toolbar-sep"></div>
+    <button id="sp_rotate" title="Rotate 90°">↻ Rotate</button>
     <button class="sp-reextract-btn" id="sp_reextract">↺ Re-extract</button>
+  </div>
+  <div class="sp-img-wrap" id="sp_img_wrap">
+    <img id="sp_img" src="" alt="Source log" style="transform-origin:center;transition:transform .15s">
   </div>
   <!-- Editable fields section -->
   <div class="sp-edit-section" id="spEditSection" style="display:none">
@@ -3981,24 +3989,36 @@ function sendWhatsApp(){ closeModal("waMbd"); if(_waPendingUrl){window.open(_waP
 function skipWhatsApp(){ closeModal("waMbd"); _waPendingUrl=null; }
 
 // ── SIDE PANEL IMAGE ZOOM & ROTATE ──
-let spZoom=1, spRotation=0, spPanX=0, spPanY=0;
+let spZoom=1, spRotation=0, spPanX=0, spPanY=0, spPanMode=false;
 
 function spApplyTransform(){
   const img=el("sp_img"); if(!img) return;
   img.style.transform=`rotate(${spRotation}deg) scale(${spZoom}) translate(${spPanX}px,${spPanY}px)`;
-  img.style.cursor=spZoom>1?"grab":"default";
+  // Update zoom level indicator
+  if(el("sp_zoom_level")) el("sp_zoom_level").textContent=Math.round(spZoom*100)+"%";
+  // Update pan button active state
+  const panBtn=el("sp_pan_toggle");
+  if(panBtn) panBtn.classList.toggle("active", spPanMode);
+  // Update wrap cursor
+  const wrap=el("sp_img_wrap");
+  if(wrap) wrap.classList.toggle("panning", spPanMode);
 }
 
-function spZoomIn(){ spZoom=Math.min(4,spZoom+0.25); spApplyTransform(); }
-function spZoomOut(){ spZoom=Math.max(0.25,spZoom-0.25); if(spZoom===1){spPanX=0;spPanY=0;} spApplyTransform(); }
+function spFitToWindow(){
+  spZoom=1; spPanX=0; spPanY=0; spPanMode=false; spApplyTransform();
+}
+
+function spZoomIn(){ spZoom=Math.min(4,+(spZoom+0.25).toFixed(2)); spApplyTransform(); }
+function spZoomOut(){ spZoom=Math.max(0.25,+(spZoom-0.25).toFixed(2)); if(spZoom===1){spPanX=0;spPanY=0;} spApplyTransform(); }
 function spZoomReset(){ spZoom=1; spPanX=0; spPanY=0; spApplyTransform(); }
+function spTogglePan(){ spPanMode=!spPanMode; spApplyTransform(); }
 
 function spRotateImg(){
   spRotation=(spRotation+90)%360;
   spApplyTransform();
 }
 
-function spResetTransform(){ spZoom=1; spRotation=0; spPanX=0; spPanY=0; spApplyTransform(); }
+function spResetTransform(){ spZoom=1; spRotation=0; spPanX=0; spPanY=0; spPanMode=false; spApplyTransform(); }
 
 async function spReextract(){
   if(!spEditingEntryId) return;
@@ -4299,23 +4319,28 @@ function openSidePanel(entryIdOrFileIdx, isEntryId=false){
   panel.classList.add("open");
   el("spOverlay").classList.add("open");
   document.body.style.overflow="hidden";
-  // Shift main content left to keep table visible
+  // Sync toggle button label
+  if(el("spToggleLabel")) el("spToggleLabel").textContent="Panel Open";
+  if(el("spTableToggle")) el("spTableToggle").style.color="var(--cyan)";
+  // Shift main content left — dynamic based on actual panel width
   const tabContent=document.querySelector(".tab-content");
-  if(tabContent) tabContent.classList.add("sp-open-shift");
-  // Highlight active row, dim others
+  // Restore saved width first so spSyncTableWidth measures correctly
+  const savedW=localStorage.getItem("hpfleet_sp_width");
+  if(savedW) panel.style.width=savedW;
+  if(tabContent){
+    tabContent.classList.add("sp-open-shift");
+    const panelW=panel.offsetWidth||420;
+    tabContent.style.maxWidth=(window.innerWidth-panelW-10)+"px";
+  }
+  // Highlight active row
   if(isEntryId){
     const rows=el("flTbody")?el("flTbody").querySelectorAll("tr[data-entry-id]"):[];
     rows.forEach(r=>{
       if(parseInt(r.dataset.entryId)===entryIdOrFileIdx){
         r.classList.add("sp-active-row"); r.classList.remove("sp-dim-row");
-      } else {
-        
       }
     });
   }
-  // Restore saved width
-  const savedW=localStorage.getItem("hpfleet_sp_width");
-  if(savedW) panel.style.width=savedW;
 }
 
 function _loadSpEntry(entry){
@@ -4526,7 +4551,7 @@ function closeSidePanel(){
   el("spOverlay").classList.remove("open");
   document.body.style.overflow="";
   const tabContent=document.querySelector(".tab-content");
-  if(tabContent) tabContent.classList.remove("sp-open-shift");
+  if(tabContent){ tabContent.classList.remove("sp-open-shift"); tabContent.style.maxWidth=""; }
   if(el("spTableToggle")) el("spTableToggle").style.color="var(--dim2)";
   if(el("spToggleLabel")) el("spToggleLabel").textContent="Source Panel";
   if(el("flTbody")) el("flTbody").querySelectorAll("tr").forEach(r=>{
@@ -5196,18 +5221,19 @@ function wireEvents(){
     showToast("View As: "+(viewRole||"Admin"));
   });
 
-  // Side panel zoom and rotate
+  // Side panel image toolbar
   if(el("sp_zoom_in")) el("sp_zoom_in").addEventListener("click",spZoomIn);
   if(el("sp_zoom_out")) el("sp_zoom_out").addEventListener("click",spZoomOut);
-  if(el("sp_zoom_reset")) el("sp_zoom_reset").addEventListener("click",spZoomReset);
+  if(el("sp_fit")) el("sp_fit").addEventListener("click",spFitToWindow);
+  if(el("sp_pan_toggle")) el("sp_pan_toggle").addEventListener("click",spTogglePan);
   if(el("sp_rotate")) el("sp_rotate").addEventListener("click",spRotateImg);
   if(el("sp_reextract")) el("sp_reextract").addEventListener("click",spReextract);
-  // Pan/drag when zoomed — scoped to avoid interfering with resize handle
+  // Pan/drag — active when spPanMode is true
   const spImgWrap=el("sp_img_wrap");
   if(spImgWrap){
     let isDragging=false, dragStartX=0, dragStartY=0, panStartX=0, panStartY=0;
     spImgWrap.addEventListener("mousedown",e=>{
-      if(spZoom<=1||e.button!==0) return;
+      if(!spPanMode||e.button!==0) return;
       isDragging=true; dragStartX=e.clientX; dragStartY=e.clientY;
       panStartX=spPanX; panStartY=spPanY;
       spImgWrap.style.cursor="grabbing";
@@ -5222,13 +5248,17 @@ function wireEvents(){
     spImgWrap.addEventListener("mouseleave",()=>{
       if(!isDragging) return;
       isDragging=false;
-      spImgWrap.style.cursor=spZoom>1?"grab":"default";
     });
     spImgWrap.addEventListener("mouseup",()=>{
       if(!isDragging) return;
       isDragging=false;
-      spImgWrap.style.cursor=spZoom>1?"grab":"default";
     });
+    // Scroll wheel zoom when panel is open
+    spImgWrap.addEventListener("wheel",e=>{
+      if(!el("sidePanel").classList.contains("open")) return;
+      e.preventDefault();
+      if(e.deltaY<0) spZoomIn(); else spZoomOut();
+    },{passive:false});
   }
 
   // Pre-invoice add charge and sign-off
@@ -5366,33 +5396,40 @@ function wireEvents(){
   // Side panel collapse button
   if(el("spCollapseBtn")) el("spCollapseBtn").addEventListener("click",closeSidePanel);
 
-  // Table sidebar toggle button
+  // Table sidebar toggle button — always reads live panel state, no memory
   if(el("spTableToggle")) el("spTableToggle").addEventListener("click",()=>{
     const panel=el("sidePanel");
-    if(panel.classList.contains("open")){
+    const isOpen=panel.classList.contains("open");
+    if(isOpen){
       closeSidePanel();
-      el("spTableToggle").style.color="var(--dim2)";
-      if(el("spToggleLabel")) el("spToggleLabel").textContent="Source Panel";
     } else {
-      if(flEntries.length) openSidePanel(flEntries[0].id,true);
-      el("spTableToggle").style.color="var(--cyan)";
-      if(el("spToggleLabel")) el("spToggleLabel").textContent="Panel Open";
+      // Open to last active entry, or first entry as fallback
+      const activeEntry=flEntries.find(e=>e.id===spEditingEntryId)||flEntries[0];
+      if(activeEntry) openSidePanel(activeEntry.id, true);
     }
   });
 
-  // Side panel resize handle
+  // Side panel resize handle — dynamically updates table width
   const handle=el("spResizeHandle");
   const panel=el("sidePanel");
+  function spSyncTableWidth(){
+    const tabContent=document.querySelector(".tab-content");
+    if(!tabContent||!panel.classList.contains("open")) return;
+    const panelW=panel.offsetWidth;
+    tabContent.style.maxWidth=(window.innerWidth-panelW-10)+"px";
+  }
   if(handle&&panel){
     let startX, startW;
     handle.addEventListener("mousedown",e=>{
       startX=e.clientX; startW=panel.offsetWidth;
       document.addEventListener("mousemove",onResize);
       document.addEventListener("mouseup",stopResize);
+      e.preventDefault();
     });
     function onResize(e){
-      const newW=Math.max(380,Math.min(window.innerWidth*0.8,startW-(e.clientX-startX)));
+      const newW=Math.max(340,Math.min(window.innerWidth*0.75,startW-(e.clientX-startX)));
       panel.style.width=newW+"px";
+      spSyncTableWidth();
     }
     function stopResize(){
       localStorage.setItem("hpfleet_sp_width",panel.style.width);
