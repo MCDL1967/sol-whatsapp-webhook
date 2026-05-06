@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.19 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.20 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.19</title>
+<title>HP Fleet v7.20</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -797,7 +797,7 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.19</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.20</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -806,7 +806,7 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.19</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.20</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -908,72 +908,17 @@ table.fl-tbl td:last-child{border-right:none}
       <!-- Workflow bar -->
       <div class="wf-bar" id="wfBar"></div>
 
-      <!-- Batch Constants -->
-      <div class="batch-constants" id="batchConstants">
-        <div style="flex-basis:100%;display:flex;align-items:center;justify-content:space-between">
-          <div class="bc-title">⚙ Batch Constants
-            <span style="color:var(--dim);font-weight:400;font-size:10px"> — leave blank to auto-detect from each file</span>
-          </div>
-          <button id="bcToggle" style="background:none;border:none;color:var(--dim2);cursor:pointer;font-size:14px;padding:2px 8px" title="Collapse">▲</button>
-        </div>
-        <div id="bcFields" style="display:flex;gap:12px;flex-wrap:wrap;width:100%">
-        <div class="bc-field">
-          <label>Aircraft</label>
-          <select id="bc_aircraft">
-            <option value="">Auto-detect</option>
-          </select>
-        </div>
-        <div class="bc-field">
-          <label>Operator</label>
-          <select id="bc_operator">
-            <option value="">Auto-detect</option>
-            <option value="FM">FM</option>
-            <option value="MAG">MAG</option>
-          </select>
-        </div>
-        <div class="bc-field">
-          <label>Multiplier</label>
-          <input type="text" id="bc_mult" placeholder="Auto from aircraft" readonly style="color:var(--dim2);cursor:default">
-        </div>
-        </div><!-- end bcFields -->
-      </div>
-
-      <!-- Upload zone -->
-      <div class="fl-section" id="uploadSection">
-        <div class="upload-zone" id="uploadZone">
-          <div class="uz-icon">📂</div>
-          <div class="uz-title" id="uz_title">Drop flight log files here</div>
-          <div class="uz-sub" id="uz_sub">or click to browse</div>
-          <div class="uz-types">
-            <span class="uz-type ok">PDF</span>
-            <span class="uz-type ok">JPG</span>
-            <span class="uz-type ok">PNG</span>
-            <span class="uz-type ok">XLSX</span>
-          </div>
-        </div>
-        <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls" style="display:none">
-        <div class="file-queue" id="fileQueue"></div>
-        <div class="extract-bar" id="extractBar" style="display:none">
-          <button class="btn-extract" id="btnExtract" disabled>
-            <span id="btnExtractTxt">✦ Upload</span>
-          </button>
-          <button class="btn-ghost" id="btn_xlsxImport" style="display:flex;align-items:center;gap:6px" title="Import entries from HP Fleet Excel format">↑ Import from Excel</button>
-          <input type="file" id="xlsxImportInput" accept=".xlsx,.xls" style="display:none">
-          <span style="font-family:var(--mono);font-size:10px;color:var(--dim)" id="extractNote"></span>
-          <button class="btn-ghost" id="btn_clearQueue">Clear Queue</button>
-        </div>
-      </div>
-
       <!-- Result banner -->
       <div id="resultBanner" style="display:none"></div>
 
-      <!-- Source bar -->
+      <!-- Session bar — persistent after extraction -->
       <div class="src-bar" id="srcBar" style="display:none">
         <div class="sb-item"><div class="sb-l" id="sb_file">Source File</div><div class="sb-v" id="srcFile">—</div></div>
-        <div class="sb-item"><div class="sb-l" id="sb_horo">Horometer</div><div class="sb-v ok" id="srcHoro">—</div></div>
-        <div class="sb-item"><div class="sb-l" id="sb_csv">Audit CSV</div><div class="sb-v ok" id="srcCsv">✓ Ready</div></div>
-        <div class="sb-item"><div class="sb-l" id="sb_ts">Extracted At</div><div class="sb-v" id="srcTs">—</div></div>
-        <div class="sb-item"><div class="sb-l" id="sb_batch">Batch Status</div><div class="sb-v" id="srcStatus">—</div></div>
+        <div class="sb-item"><div class="sb-l">Records</div><div class="sb-v" id="srcTotalRecords">—</div></div>
+        <div class="sb-item"><div class="sb-l">Read</div><div class="sb-v ok" id="srcRead">—</div></div>
+        <div class="sb-item"><div class="sb-l">Not Read</div><div class="sb-v" id="srcNotRead">—</div></div>
+        <div class="sb-item"><div class="sb-l" id="sb_horo">Seq. Alerts</div><div class="sb-v" id="srcHoro">—</div></div>
+        <div class="sb-item"><div class="sb-l" id="sb_batch">Status</div><div class="sb-v" id="srcStatus">—</div></div>
         <div class="sb-item"><button class="sb-link" id="sb_dlcsv">↓ CSV</button></div>
       </div>
 
@@ -1716,7 +1661,7 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.19";
+const APP_VERSION = "v7.20";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2131,7 +2076,6 @@ let flaggingEntryId=null;
 // Sort state
 let userSortCol=null, userSortDir=1; // dir: 1=asc, -1=desc
 let flSortCol=null, flSortDir=1;
-let bcZoneCollapsed=false;
 const DEFAULT_MULT = {FM:1.15, MAG:1.275};
 const LAST_HORO = {"HP-1862FX":1298.4,"HP-1861":1105.7};
 const FL_LOAD_TS = new Date();
@@ -2206,7 +2150,6 @@ function applyI18n(){
     ct_title:"ctTitle",ct_add:"ctAdd",
     fl_title:"flTitle",fl_newBatch:"flNewBatch",
     apiWarnMsg:"apiWarnMsg",apiWarnLink:"apiWarnLink",
-    uz_title:"uzTitle",uz_sub:"uzSub",btn_clearQueue:"clearQueue",
     sb_file:"sbFile",sb_horo:"sbHoro",sb_csv:"sbCsv",sb_ts:"sbTs",sb_batch:"sbBatch",sb_dlcsv:"sbDlCsv",
     al_horoTitle:"horoAlert",tb_entries:"tbEntries",
     fo_allop:"allOp",
@@ -2307,8 +2250,7 @@ async function bootApp(){
   if(hasBatch){
     if(el("srcBar")) el("srcBar").style.display="flex";
     if(el("reviewSection")) el("reviewSection").style.display="block";
-    if(el("srcFile")) el("srcFile").textContent=batchSourceFile;
-    collapseUploadZone();
+    updateSrcBar();
     renderWfBar(); setupFlRoleUI(); renderFlTable(); renderFlAudit();
     showToast("Batch restored from database","info");
   }
@@ -2914,126 +2856,26 @@ function renderAudit(){
 function clearAudit(){auditLog=[];renderAudit();showToast(lang==="es"?"Log limpiado.":"Log cleared.");}
 
 // ── FLIGHT LOG — UPLOAD ──
-function initUploadZone(){
-  const zone=el("uploadZone");
-  const inp=el("fileInput");
-
-  zone.addEventListener("click", function(e){
-    e.preventDefault(); e.stopPropagation();
-    inp.click();
-  });
-
-  zone.addEventListener("dragenter", function(e){
-    e.preventDefault(); e.stopPropagation();
-    zone.classList.add("dragover");
-  });
-  zone.addEventListener("dragover", function(e){
-    e.preventDefault(); e.stopPropagation();
-    e.dataTransfer.dropEffect="copy";
-    zone.classList.add("dragover");
-  });
-  zone.addEventListener("dragleave", function(e){
-    e.preventDefault(); e.stopPropagation();
-    if(!zone.contains(e.relatedTarget)) zone.classList.remove("dragover");
-  });
-  zone.addEventListener("drop", function(e){
-    e.preventDefault(); e.stopPropagation();
-    zone.classList.remove("dragover");
-    const files=Array.from(e.dataTransfer.files);
-    addFilesToQueue(files);
-  });
-
-  inp.addEventListener("change", function(e){
-    addFilesToQueue(Array.from(e.target.files));
-    e.target.value="";
-  });
-}
+function initUploadZone(){ /* inline upload zone removed — handled by New Batch modal */ }
 
 function addFilesToQueue(files){
-  el("resultBanner").style.display="none";
   const allowed=["application/pdf","image/jpeg","image/jpg","image/png"];
-  const xlsxTypes=["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/vnd.ms-excel"];
   files.forEach(f=>{
-    const isXlsx=xlsxTypes.includes(f.type)||f.name.match(/\.(xlsx|xls)$/i);
-    if(isXlsx){ importFromXLSX(f); return; }
     if(!allowed.includes(f.type)&&!f.name.match(/\.(pdf|jpg|jpeg|png)$/i)){
       showToast(f.name+": unsupported format","err"); return;
     }
     if(fileQueue.find(q=>q.name===sanitizeFilename(f.name)&&q.size===f.size)) return;
     fileQueue.push({file:f,name:sanitizeFilename(f.name),size:f.size,type:f.type,status:"waiting",progress:0,_preview:null});
-    showToast(f.name+" "+t("fileAdded"),"info");
-  });
-  renderQueue();
-}
-
-function removeFromQueue(idx){
-  const name=fileQueue[idx].name; fileQueue.splice(idx,1);
-  renderQueue(); showToast(name+" "+t("fileRemoved"));
-}
-
-function clearFileQueue(){ el("resultBanner").style.display="none"; fileQueue=[]; renderQueue(); }
-
-function renderQueue(){
-  const wrap=el("fileQueue"); const bar=el("extractBar");
-  if(!fileQueue.length){wrap.innerHTML="";bar.style.display="none";return;}
-  bar.style.display="flex";
-  el("extractNote").textContent=t("filesLoaded");
-  el("btnExtract").disabled=false;
-  wrap.innerHTML="";
-  fileQueue.forEach((f,i)=>{
-    const div=document.createElement("div");
-    div.className="fq-item";
-    const isPdf=f.type==="application/pdf"||f.name.endsWith(".pdf");
-    const thumb=isPdf?'<div class="fq-thumb-pdf">PDF</div>':'<img class="fq-thumb" id="fqthumb'+i+'" alt="">';
-    const statusMap={
-      waiting:'<span class="fq-status fqs-wait">⏳ '+(lang==="es"?"Esperando":"Waiting")+"</span>",
-      processing:'<span class="fq-status fqs-proc"><span class="spinner"></span>'+(lang==="es"?"Extrayendo…":"Extracting…")+"</span>",
-      done:'<span class="fq-status fqs-done">✓ '+(lang==="es"?"Extraído":"Extracted")+"</span>",
-      error:'<span class="fq-status fqs-err">✗ Error</span>',
-    };
-    const entryCount = f._entryCount !== undefined ? f._entryCount : "";
-    const progressLabel = f.status==="done"
-      ? (entryCount ? "✓ "+entryCount+" "+(entryCount===1?"entry":"entries")+" extracted" : "✓ Extracted")
-      : f.status==="processing" ? (f._label||"Sending to Claude…")
-      : f.status==="error" ? (f._error||"Error")
-      : "";
-    const viewBtn = f._preview && f.status==="done"
-      ? '<button class="fq-view-btn" data-view="'+i+'">👁 View</button>' : "";
-    div.innerHTML=thumb+
-      '<div class="fq-info">'+
-      '<div class="fq-name">'+f.name+"</div>"+
-      '<div class="fq-meta">'+(f.size/1024).toFixed(1)+" KB</div>"+
-      '<div class="prog-wrap"><div class="prog-bar'+(f.status==="processing"?" shimmer":"")+'" style="width:'+(f.status==="done"?100:f.status==="processing"?(f.progress||10):0)+'%;transition:width .3s ease"></div></div>'+
-      '<div class="fq-progress-label">'+progressLabel+"</div>"+
-      "</div>"+
-      viewBtn+
-      (statusMap[f.status]||"")+
-      '<button class="fq-rm" data-rm="'+i+'">✕</button>';
-    if(!isPdf&&!f._preview){
-      const reader=new FileReader();
-      reader.onload=ev=>{
-        f._preview=ev.target.result;
-        const img=wrap.querySelector("#fqthumb"+i);
-        if(img) img.src=f._preview;
-      };
-      reader.readAsDataURL(f.file);
-    } else if(!isPdf&&f._preview){
-      const img=div.querySelector("img");
-      if(img) img.src=f._preview;
-    }
-    wrap.appendChild(div);
   });
 }
+
+function removeFromQueue(idx){ fileQueue.splice(idx,1); }
+function clearFileQueue(){ fileQueue=[]; }
+function renderQueue(){ /* no-op — inline queue UI removed */ }
 
 // ── FLIGHT LOG — EXTRACTION ──
 function buildExtractionPrompt(){
-  const bcAircraft = el("bc_aircraft") ? el("bc_aircraft").value : "";
-  const bcOperator = el("bc_operator") ? el("bc_operator").value : "";
-  const constants = [];
-  if(bcAircraft) constants.push("Aircraft is always: "+bcAircraft+" — do NOT read from image.");
-  if(bcOperator) constants.push("Operator is always: "+bcOperator+" — do NOT read from image.");
   return "You are processing a Panamanian flight school bitacora (flight log) form.\n\n"+
-    (constants.length?"BATCH CONSTANTS:\n"+constants.join("\n")+"\n\n":"")+
     "FIELD MAPPING:\n"+
     "- motorOut = TACH SALIDA (departure tach, the SMALLER number)\n"+
     "- motorIn = TACH LLEGADA (arrival tach, the LARGER number)\n"+
@@ -3076,9 +2918,6 @@ async function extractAll(){
   if(!fileQueue.length){showToast(t("noFiles"),"err");return;}
   isExtracting=true;
   extractionAbort=new AbortController();
-  const btn=el("btnExtract"); const btnTxt=el("btnExtractTxt");
-  btn.disabled=false;
-  btnTxt.innerHTML='<span style="font-size:14px">⏸</span> Pause';
   let allExtracted=[]; let hasErrors=false;
   const total=fileQueue.length;
 
@@ -3187,7 +3026,6 @@ async function extractAll(){
   }
 
   isExtracting=false; extractionAbort=null;
-  btn.disabled=false; btnTxt.textContent=t("extractBtn");
   if(!allExtracted.length&&hasErrors){
     uploadLog("✕ Extraction failed — no entries extracted");
     showResultBanner("err","✗ "+t("extractError"));return;
@@ -3198,8 +3036,8 @@ async function extractAll(){
     imageUrl:e._imageUrl||null
   }))];
   batchSourceFile=fileQueue.map(f=>f.name).join(", ");
-  el("srcFile").textContent=batchSourceFile;
-  el("srcTs").textContent=new Date().toLocaleString(lang==="es"?"es-PA":"en-US");
+  // Populate session bar
+  updateSrcBar();
   const msg=hasErrors?"⚠ "+allExtracted.length+" "+t("extractPartial"):"✓ "+allExtracted.length+" "+t("extractSuccess")+" "+batchSourceFile;
   uploadLog(msg);
   uploadLog("Extraction complete — ready for review");
@@ -3208,6 +3046,19 @@ async function extractAll(){
   el("reviewSection").style.display="block";
   await saveBatchToDB();
   renderWfBar(); setupFlRoleUI(); renderFlTable();
+}
+
+function updateSrcBar(){
+  const total=flEntries.length;
+  const read=flEntries.filter(e=>e.status!=="skipped"&&e.status!=="void"&&e.aeronave&&e.fecha).length;
+  const notRead=total-read;
+  const seqAlerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; }).length;
+  if(el("srcFile")) el("srcFile").textContent=batchSourceFile||"—";
+  if(el("srcTotalRecords")) el("srcTotalRecords").textContent=total||"—";
+  if(el("srcRead")){ el("srcRead").textContent=read; el("srcRead").style.color=read>0?"var(--green)":"var(--dim2)"; }
+  if(el("srcNotRead")){ el("srcNotRead").textContent=notRead||"—"; el("srcNotRead").style.color=notRead>0?"var(--yellow)":"var(--dim2)"; }
+  if(el("srcHoro")){ el("srcHoro").textContent=seqAlerts||"—"; el("srcHoro").style.color=seqAlerts>0?"var(--red)":"var(--dim2)"; }
+  if(el("srcStatus")) el("srcStatus").textContent=batchStatus||"—";
 }
 
 function translateFetchError(msg){
@@ -3324,18 +3175,6 @@ function sanitizeFilename(name){
     .replace(/^_|_$/g,"");                           // trim leading/trailing _
 }
 
-
-function setUploadZoneCollapsed(collapsed){
-  bcZoneCollapsed=collapsed;
-  const fields=el("bcFields");
-  const upload=el("uploadSection");
-  const btn=el("bcToggle");
-  if(fields) fields.style.display=collapsed?"none":"flex";
-  if(upload) upload.style.display=collapsed?"none":"";
-  if(btn) btn.textContent=collapsed?"▼":"▲";
-}
-
-function collapseUploadZone(){ setUploadZoneCollapsed(true); }
 
 function fmt(n){return isNaN(n)||n===0?"—":n.toFixed(1);}
 function fmtCurrency(n){
@@ -4226,8 +4065,8 @@ async function saveBatchToDB(){
       source_file:batchSourceFile,
       status:batchStatus,
       submitted_by:currentUser.name,
-      aircraft:meta.aircraft||el("bc_aircraft")?.value||"",
-      operador:meta.operador||el("bc_operator")?.value||"",
+      aircraft:meta.aircraft||"",
+      operador:meta.operador||"",
       period_from:meta.periodFrom||null,
       period_to:meta.periodTo||null,
       log_from:meta.logFrom||logNums[0]||null,
@@ -4344,57 +4183,6 @@ async function loadMasterData(){
     dbg("Master data loaded — "+USERS.length+" users, "+COMPANIES.length+" companies, "+AIRCRAFT.length+" aircraft","ok");
   } catch(err){ dbg("Master data load error: "+err.message,"err"); }
 }
-function initBatchConstants(){
-  const acSel=el("bc_aircraft");
-  const opSel=el("bc_operator");
-  const multInp=el("bc_mult");
-  if(!acSel||!opSel||!multInp) return;
-  // Build aircraft options
-  acSel.innerHTML='<option value="">Auto-detect</option>';
-  AIRCRAFT.forEach(ac=>{
-    const opt=document.createElement("option");
-    opt.value=ac.matricula; opt.textContent=ac.matricula;
-    acSel.appendChild(opt);
-  });
-  function rebuildOperators(ac){
-    opSel.innerHTML='<option value="">Auto-detect</option>';
-    if(ac&&ac.rates&&ac.rates.length){
-      ac.rates.forEach(r=>{
-        const opt=document.createElement("option");
-        opt.value=r.operador; opt.textContent=r.operador;
-        opSel.appendChild(opt);
-      });
-    } else {
-      // No rates — show all operators
-      COMPANIES.forEach(c=>{
-        const opt=document.createElement("option");
-        opt.value=c.code; opt.textContent=c.code;
-        opSel.appendChild(opt);
-      });
-    }
-    multInp.value=""; multInp.placeholder="Auto from aircraft";
-  }
-  acSel.addEventListener("change",function(){
-    const ac=AIRCRAFT.find(a=>a.matricula===this.value);
-    rebuildOperators(ac);
-    if(ac&&ac.rates&&ac.rates.length===1){
-      opSel.value=ac.rates[0].operador;
-      multInp.value=ac.rates[0].multiplicador.toFixed(3);
-    }
-  });
-  opSel.addEventListener("change",function(){
-    const ac=AIRCRAFT.find(a=>a.matricula===acSel.value);
-    if(ac&&ac.rates){
-      const rate=ac.rates.find(r=>r.operador===this.value);
-      multInp.value=rate?rate.multiplicador.toFixed(3):"";
-      multInp.placeholder=rate?"":"Auto from aircraft";
-    } else {
-      multInp.value=""; multInp.placeholder="Auto from aircraft";
-    }
-  });
-  rebuildOperators(null);
-}
-
 // ── SOURCE IMAGE SIDE PANEL ──
 let spEditingEntryId=null;
 let spCurrentIndex=-1; // index in flEntries for navigation
@@ -4425,13 +4213,17 @@ function openSidePanel(entryIdOrFileIdx, isEntryId=false){
   }
   panel.classList.add("open");
   el("spOverlay").classList.add("open");
-  document.body.style.overflow="hidden";
+  
   // Sync toggle button label
   if(el("spToggleLabel")) el("spToggleLabel").textContent="Panel Open";
   if(el("spTableToggle")) el("spTableToggle").style.color="var(--cyan)";
   // Push page content left by padding appShell — panel is fixed, this yields the space
   const savedW=localStorage.getItem("hpfleet_sp_width");
-  if(savedW) panel.style.width=savedW;
+  const maxW=Math.floor(window.innerWidth*0.5);
+  if(savedW){
+    const clamped=Math.min(parseInt(savedW),maxW);
+    panel.style.width=clamped+"px";
+  }
   const panelW=panel.offsetWidth||420;
   const shell=el("appShell");
   if(shell) shell.style.paddingRight=panelW+"px";
@@ -4661,7 +4453,7 @@ function closeSidePanel(){
   const panel=el("sidePanel");
   panel.classList.remove("open");
   el("spOverlay").classList.remove("open");
-  document.body.style.overflow="";
+  
   // Clear padding after panel slide-out completes (300ms matches CSS transition)
   setTimeout(()=>{ el("appShell").style.paddingRight=""; }, 320);
   const tabContent=document.querySelector(".tab-content");
@@ -4732,17 +4524,12 @@ async function confirmNewBatch(){
   closeModal("newBatchMbd");
   await resetBatch();
   window._pendingBatchMeta={aircraft,operador,periodFrom,periodTo,logFrom,logTo};
-  if(el("bc_aircraft")) el("bc_aircraft").value=aircraft;
-  if(el("bc_operator")) el("bc_operator").value=operador;
-  const rate=AIRCRAFT.find(a=>a.matricula===aircraft)?.rates?.find(r=>r.operador===operador);
-  if(el("bc_mult")&&rate) el("bc_mult").value=rate.multiplicador.toFixed(3);
   addAudit("🆕",currentUser.name,"new billing cycle",aircraft+" / "+operador+" / "+periodFrom+" → "+periodTo);
   // Add files to main queue and trigger extraction
   nbFiles.forEach(f=>fileQueue.push({file:f,name:sanitizeFilename(f.name),size:f.size,type:f.type,status:"waiting",progress:0,_preview:null}));
   nbFiles=[];
-  renderQueue();
   openUploadStatusWindow();
-  el("btnExtract").click();
+  extractAll();
 }
 
 // ── NB MODAL FILE QUEUE ──
@@ -4975,8 +4762,7 @@ async function switchToBatch(batchId){
   renderBatchSelector();
   if(el("srcBar")) el("srcBar").style.display="flex";
   if(el("reviewSection")) el("reviewSection").style.display="block";
-  if(el("srcFile")) el("srcFile").textContent=batchSourceFile;
-  collapseUploadZone();
+  updateSrcBar();
   renderWfBar(); setupFlRoleUI(); renderFlTable(); renderFlAudit();
   piAdditionalCharges=[]; piSignedBy=null; piSignedAt=null; piInvNum=null; piRulesSeeded=false;
   if(el("pi_signed_badge")){ el("pi_signed_badge").style.display="none"; el("pi_signed_badge").textContent=""; }
@@ -5026,8 +4812,8 @@ async function importFromXLSX(file){
         const obsRaw=String(row[14]||"").trim();
         const flagRaw=String(row[16]||"").trim();
         const obs=obsRaw+(flagRaw?(obsRaw?" | ":"")+flagRaw:"");
-        const acVal=el("bc_aircraft")?el("bc_aircraft").value||"HP-1861":"HP-1861";
-        const opVal=el("bc_operator")?el("bc_operator").value||"FM":"FM";
+        const acVal=(window._pendingBatchMeta?.aircraft)||"HP-1861";
+        const opVal=(window._pendingBatchMeta?.operador)||"FM";
         const entry={
           fecha:String(row[2]||"").trim(),
           aeronave:acVal, operador:opVal,
@@ -5343,26 +5129,6 @@ function wireEvents(){
   // Flight Log tab
   el("fl_newBatch").addEventListener("click",resetBatch);
   el("apiWarnLink").addEventListener("click",()=>switchTab("settings"));
-  el("btn_clearQueue").addEventListener("click",clearFileQueue);
-  el("btnExtract").addEventListener("click",()=>{
-    if(isExtracting){
-      // Abort/stop extraction
-      if(extractionAbort) extractionAbort.abort();
-      isExtracting=false;
-      el("btnExtractTxt").textContent=t("extractBtn");
-      showToast("Extraction stopped","warn");
-      dbg("Extraction aborted by user","warn");
-    } else {
-      extractAll();
-    }
-  });
-  el("btn_xlsxImport").addEventListener("click",()=>el("xlsxImportInput").click());
-  el("xlsxImportInput").addEventListener("change",function(e){
-    if(e.target.files&&e.target.files[0]){
-      importFromXLSX(e.target.files[0]);
-      e.target.value="";
-    }
-  });
   el("sb_dlcsv").addEventListener("click",exportFlCSV);
   el("btn_approveAll").addEventListener("click",()=>setAllFlStatus("approved"));
   el("btn_resetAll").addEventListener("click",()=>setAllFlStatus("pending"));
@@ -5642,12 +5408,13 @@ function wireEvents(){
       e.preventDefault();
     });
     function onResize(e){
-      const newW=Math.max(340,Math.min(window.innerWidth*0.75,startW-(e.clientX-startX)));
+      const newW=Math.max(340,Math.min(Math.floor(window.innerWidth*0.5),startW-(e.clientX-startX)));
       panel.style.width=newW+"px";
       spSyncTableWidth();
     }
     function stopResize(){
-      localStorage.setItem("hpfleet_sp_width",panel.style.width);
+      const w=Math.min(parseInt(panel.style.width)||420,Math.floor(window.innerWidth*0.5));
+      localStorage.setItem("hpfleet_sp_width",w+"px");
       document.removeEventListener("mousemove",onResize);
       document.removeEventListener("mouseup",stopResize);
     }
@@ -5683,26 +5450,9 @@ function wireEvents(){
   el("flag_save").addEventListener("click",saveFlagEntry);
   el("flagMbd").addEventListener("click",e=>{ if(e.target===el("flagMbd")) closeModal("flagMbd"); });
 
-  // Batch constants collapse
-  if(el("bcToggle")) el("bcToggle").addEventListener("click",()=>{
-    setUploadZoneCollapsed(!bcZoneCollapsed);
-  });
-
-  // Init upload zone and batch constants
-  initUploadZone();
-  initBatchConstants();
-
   // Side panel
   el("sp_close").addEventListener("click", closeSidePanel);
   el("spOverlay").addEventListener("click", closeSidePanel);
-
-  // File queue delegation for view button
-  el("fileQueue").addEventListener("click", function(e){
-    const viewBtn = e.target.closest("[data-view]");
-    const rmBtn = e.target.closest("[data-rm]");
-    if(viewBtn) openSidePanel(parseInt(viewBtn.dataset.view),false);
-    else if(rmBtn) removeFromQueue(parseInt(rmBtn.dataset.rm));
-  });
 
   // Entry table click for side panel (click row # to view source)
   el("flTbody").addEventListener("click", function(e){
