@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.15 — built 2026-05-04 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.17 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.15</title>
+<title>HP Fleet v7.17</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -130,7 +130,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 .perm-tag{font-family:var(--mono);font-size:9px;letter-spacing:.5px;padding:3px 8px;
   border-radius:2px;border:1px solid;color:var(--green);border-color:rgba(61,220,132,.3);background:rgba(61,220,132,.08)}
 .tab-content{flex:1;padding:24px;max-width:1300px;margin:0 auto;width:100%;transition:max-width .3s cubic-bezier(.16,1,.3,1)}
-.sp-open-shift{max-width:calc(100vw - 450px)!important;margin-left:0!important;margin-right:auto!important}
+.sp-open-shift{margin-left:0;margin-right:auto}
 .tab-panel{display:none;animation:up .2s ease}
 .tab-panel.active{display:block}
 
@@ -511,7 +511,7 @@ table.fl-tbl td:last-child{border-right:none}
   border:1px solid var(--border);border-radius:2px;display:block}
 .sp-img-wrap.panning{cursor:grab}
 .sp-img-wrap.panning:active{cursor:grabbing}
-.sp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);
+.sp-overlay{position:fixed;inset:0;background:transparent;
   z-index:99;display:none}
 .sp-overlay.open{display:block}
 
@@ -795,7 +795,7 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.15</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.17</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -804,7 +804,7 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.15</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.17</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1565,6 +1565,9 @@ table.fl-tbl td:last-child{border-right:none}
     <button class="sp-nav-btn" id="spNext">›</button>
   </div>
   <div class="sp-meta" id="sp_meta">—</div>
+  <div class="sp-img-wrap" id="sp_img_wrap">
+    <img id="sp_img" src="" alt="Source log" style="transform-origin:center;transition:transform .15s">
+  </div>
   <!-- Image toolbar: Fit | − | zoom% | + | Pan | sep | Rotate | Re-extract -->
   <div class="sp-img-toolbar" id="sp_img_toolbar">
     <button id="sp_fit" title="Fit to window">⊡ Fit</button>
@@ -1577,9 +1580,6 @@ table.fl-tbl td:last-child{border-right:none}
     <div class="sp-toolbar-sep"></div>
     <button id="sp_rotate" title="Rotate 90°">↻ Rotate</button>
     <button class="sp-reextract-btn" id="sp_reextract">↺ Re-extract</button>
-  </div>
-  <div class="sp-img-wrap" id="sp_img_wrap">
-    <img id="sp_img" src="" alt="Source log" style="transform-origin:center;transition:transform .15s">
   </div>
   <!-- Editable fields section -->
   <div class="sp-edit-section" id="spEditSection" style="display:none">
@@ -1661,7 +1661,7 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.15";
+const APP_VERSION = "v7.17";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2020,22 +2020,43 @@ function contactTypeOptions(selected){
 function renderTempContacts(){
   const wrap=el("co_contacts_list"); if(!wrap) return;
   wrap.innerHTML="";
+  const inp=s=>'<input type="text" '+s+' style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-size:12px;padding:6px 8px;border-radius:2px;outline:none;width:100%;box-sizing:border-box">';
   tempContacts.forEach((c,i)=>{
-    const row=document.createElement("div");
-    row.style.cssText="display:grid;grid-template-columns:120px 1fr 1fr 1fr 28px;gap:6px;align-items:center;margin-bottom:6px";
-    row.innerHTML=
-      '<select style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:10px;padding:6px 8px;border-radius:2px;outline:none">'+contactTypeOptions(c.type)+'</select>'+
-      '<input type="text" value="'+(c.name||"")+'" placeholder="Name" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-size:12px;padding:6px 8px;border-radius:2px;outline:none;width:100%">'+
-      '<input type="text" value="'+(c.phone||"")+'" placeholder="Phone" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-size:12px;padding:6px 8px;border-radius:2px;outline:none;width:100%">'+
-      '<input type="text" value="'+(c.email||"")+'" placeholder="Email" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-size:12px;padding:6px 8px;border-radius:2px;outline:none;width:100%">'+
-      '<button style="background:none;border:1px solid var(--border2);color:var(--red);cursor:pointer;padding:4px 6px;border-radius:2px;font-size:12px" data-del-contact="'+i+'">✕</button>';
-    const [typeSel,nameInp,phoneInp,emailInp,delBtn]=row.children;
-    typeSel.addEventListener("change",()=>{tempContacts[i].type=typeSel.value;});
-    nameInp.addEventListener("input",()=>{tempContacts[i].name=nameInp.value;});
-    phoneInp.addEventListener("input",()=>{tempContacts[i].phone=phoneInp.value;});
-    emailInp.addEventListener("input",()=>{tempContacts[i].email=emailInp.value;});
-    delBtn.addEventListener("click",()=>{tempContacts.splice(i,1);renderTempContacts();});
-    wrap.appendChild(row);
+    const card=document.createElement("div");
+    card.style.cssText="border:1px solid var(--border2);border-radius:4px;padding:8px 10px;margin-bottom:8px;position:relative";
+    // Delete button — top right of card
+    const delBtn=document.createElement("button");
+    delBtn.textContent="✕";
+    delBtn.style.cssText="position:absolute;top:6px;right:6px;background:none;border:1px solid var(--border2);color:var(--red);cursor:pointer;padding:2px 6px;border-radius:2px;font-size:11px;line-height:1";
+    // Row 1: Type + Name
+    const row1=document.createElement("div");
+    row1.style.cssText="display:grid;grid-template-columns:130px 1fr;gap:6px;margin-bottom:6px;padding-right:32px";
+    const typeSel=document.createElement("select");
+    typeSel.style.cssText="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:10px;padding:6px 8px;border-radius:2px;outline:none;width:100%";
+    typeSel.innerHTML=contactTypeOptions(c.type);
+    const nameInp=document.createElement("input");
+    nameInp.type="text"; nameInp.value=c.name||""; nameInp.placeholder="Name";
+    nameInp.style.cssText="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-size:12px;padding:6px 8px;border-radius:2px;outline:none;width:100%;box-sizing:border-box";
+    row1.appendChild(typeSel); row1.appendChild(nameInp);
+    // Row 2: Phone + Email
+    const row2=document.createElement("div");
+    row2.style.cssText="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-right:32px";
+    const phoneInp=document.createElement("input");
+    phoneInp.type="text"; phoneInp.value=c.phone||""; phoneInp.placeholder="Phone";
+    phoneInp.style.cssText="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-size:12px;padding:6px 8px;border-radius:2px;outline:none;width:100%;box-sizing:border-box";
+    const emailInp=document.createElement("input");
+    emailInp.type="text"; emailInp.value=c.email||""; emailInp.placeholder="Email";
+    emailInp.style.cssText="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-size:12px;padding:6px 8px;border-radius:2px;outline:none;width:100%;box-sizing:border-box";
+    row2.appendChild(phoneInp); row2.appendChild(emailInp);
+    // Wire events — use data-index attribute to avoid closure-over-loop-index
+    card.dataset.contactIdx=i;
+    typeSel.addEventListener("change",()=>{const idx=+card.dataset.contactIdx;tempContacts[idx].type=typeSel.value;});
+    nameInp.addEventListener("input",()=>{const idx=+card.dataset.contactIdx;tempContacts[idx].name=nameInp.value;});
+    phoneInp.addEventListener("input",()=>{const idx=+card.dataset.contactIdx;tempContacts[idx].phone=phoneInp.value;});
+    emailInp.addEventListener("input",()=>{const idx=+card.dataset.contactIdx;tempContacts[idx].email=emailInp.value;});
+    delBtn.addEventListener("click",()=>{const idx=+card.dataset.contactIdx;tempContacts.splice(idx,1);renderTempContacts();});
+    card.appendChild(delBtn); card.appendChild(row1); card.appendChild(row2);
+    wrap.appendChild(card);
   });
 }
 
@@ -4015,6 +4036,11 @@ function spTogglePan(){ spPanMode=!spPanMode; spApplyTransform(); }
 
 function spRotateImg(){
   spRotation=(spRotation+90)%360;
+  // Persist rotation on the entry so it survives panel reloads
+  if(spEditingEntryId){
+    const entry=flEntries.find(e=>e.id===spEditingEntryId);
+    if(entry) entry._rotation=spRotation;
+  }
   spApplyTransform();
 }
 
@@ -4065,7 +4091,13 @@ async function spReextract(){
     // Upload corrected image to storage
     const compressed=await compressImage(rotatedBlob,800,0.7);
     const newUrl=await uploadImageToStorage(compressed,"reextract_"+Date.now()+".jpg");
-    if(newUrl) entry.imageUrl=newUrl;
+    if(newUrl){
+      entry.imageUrl=newUrl;
+      // Image is now baked at correct orientation — reset rotation state
+      entry._rotation=0;
+      spRotation=0;
+      spApplyTransform();
+    }
   } catch(err){ showToast("Re-extract error: "+err.message,"err"); dbg("Re-extract error: "+err.message,"err"); }
 }
 let _namePropData=null; // {field, oldVal, newVal, matches, currentEntryId}
@@ -4332,19 +4364,22 @@ function openSidePanel(entryIdOrFileIdx, isEntryId=false){
     const panelW=panel.offsetWidth||420;
     tabContent.style.maxWidth=(window.innerWidth-panelW-10)+"px";
   }
-  // Highlight active row
+  // Highlight active row — clear all first, then set one
   if(isEntryId){
     const rows=el("flTbody")?el("flTbody").querySelectorAll("tr[data-entry-id]"):[];
     rows.forEach(r=>{
+      r.classList.remove("sp-active-row","sp-dim-row");
       if(parseInt(r.dataset.entryId)===entryIdOrFileIdx){
-        r.classList.add("sp-active-row"); r.classList.remove("sp-dim-row");
+        r.classList.add("sp-active-row");
       }
     });
   }
 }
 
 function _loadSpEntry(entry){
-  spResetTransform();
+  spZoom=1; spPanX=0; spPanY=0; spPanMode=false;
+  spRotation=entry._rotation||0;
+  spApplyTransform();
   const imgEl=el("sp_img");
   if(entry.imageUrl){ imgEl.src=entry.imageUrl; }
   else { imgEl.src=""; imgEl.alt="No source image available"; }
@@ -4399,13 +4434,12 @@ function spNavigate(dir){
   spEditingEntryId=entry.id;
   _loadSpEntry(entry);
   _updateSpNav();
-  // Update row highlight
+  // Update row highlight — clear all first, then set one
   const rows=el("flTbody")?el("flTbody").querySelectorAll("tr[data-entry-id]"):[];
   rows.forEach(r=>{
+    r.classList.remove("sp-active-row","sp-dim-row");
     if(parseInt(r.dataset.entryId)===entry.id){
-      r.classList.add("sp-active-row"); r.classList.remove("sp-dim-row");
-    } else {
-      
+      r.classList.add("sp-active-row");
     }
   });
 }
