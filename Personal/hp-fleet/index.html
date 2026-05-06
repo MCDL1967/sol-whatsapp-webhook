@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.21 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.22 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.21</title>
+<title>HP Fleet v7.22</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -508,8 +508,9 @@ table.fl-tbl td:last-child{border-right:none}
 .sp-close:hover{color:var(--text)}
 .sp-meta{padding:10px 16px;border-bottom:1px solid var(--border);
   font-family:var(--mono);font-size:10px;color:var(--dim2);flex-shrink:0}
-.sp-img-wrap{flex:1;overflow:hidden;padding:8px;display:flex;
-  align-items:center;justify-content:center;position:relative}
+.sp-img-wrap{overflow:hidden;padding:8px;display:flex;
+  align-items:center;justify-content:center;position:relative;
+  min-height:150px;flex-shrink:0}
 .sp-img-wrap img{max-width:100%;max-height:100%;object-fit:contain;
   border:1px solid var(--border);border-radius:2px;display:block}
 .sp-img-wrap.panning{cursor:grab}
@@ -594,15 +595,15 @@ table.fl-tbl td:last-child{border-right:none}
 .debug-line.info{color:#41d1ff}
 
 /* SIDE PANEL EDIT FIELDS */
-.sp-edit-section{border-top:1px solid var(--border2);flex-shrink:0}
+.sp-edit-section{border-top:1px solid var(--border2);display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0}
 .sp-edit-hdr{display:flex;align-items:center;justify-content:space-between;
   padding:10px 16px;cursor:pointer;background:var(--s2)}
 .sp-edit-hdr:hover{background:var(--s3)}
 .sp-edit-title{font-family:var(--mono);font-size:10px;letter-spacing:1px;
   text-transform:uppercase;color:var(--cyan)}
-.sp-edit-body{padding:14px 16px;overflow-y:auto;max-height:340px;
-  transition:max-height .25s ease}
-.sp-edit-body.collapsed{max-height:0;overflow:hidden;padding:0 16px}
+.sp-edit-body{padding:14px 16px;overflow-y:auto;flex:1;min-height:0;
+  transition:none}
+.sp-edit-body.collapsed{display:none}
 .sp-frow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
 .sp-frow.fc3{grid-template-columns:1fr 1fr 1fr}
 .sp-frow.fc1{grid-template-columns:1fr}
@@ -640,26 +641,38 @@ table.fl-tbl td:last-child{border-right:none}
 .sp-nav{display:flex;align-items:center;gap:8px;padding:8px 16px;
   border-bottom:1px solid var(--border2);background:var(--s2);flex-shrink:0}
 .sp-nav-btn{background:var(--s3);border:1px solid var(--border2);color:var(--text);
-  padding:4px 10px;cursor:pointer;font-size:14px;border-radius:2px;transition:all .15s}
+  padding:4px 14px;cursor:pointer;font-size:20px;font-weight:700;border-radius:2px;
+  transition:all .15s;line-height:1}
 .sp-nav-btn:hover{border-color:var(--cyan);color:var(--cyan)}
-.sp-nav-pos{font-family:var(--mono);font-size:10px;color:var(--dim2);flex:1;text-align:center}
+.sp-nav-pos{font-family:var(--mono);font-size:12px;color:var(--text);flex:1;
+  text-align:center;letter-spacing:.5px;font-weight:600}
 
-/* SIDE PANEL RESIZE */
+/* SIDE PANEL HORIZONTAL RESIZE (image/data divider) */
+.sp-vresize{height:6px;cursor:row-resize;background:var(--border2);flex-shrink:0;
+  position:relative;transition:background .15s}
+.sp-vresize:hover,.sp-vresize.dragging{background:var(--cyan)}
+.sp-vresize::after{content:'';position:absolute;left:50%;top:50%;
+  transform:translate(-50%,-50%);width:24px;height:2px;
+  border-top:1px solid var(--dim);border-bottom:1px solid var(--dim)}
+
+/* SIDE PANEL LEFT RESIZE (width) */
 .sp-resize-handle{position:absolute;left:0;top:0;bottom:0;width:5px;cursor:col-resize;
   background:transparent;z-index:10;transition:background .15s}
 .sp-resize-handle:hover{background:var(--cyan)}
 
-/* IMAGE TOOLBAR (replaces floating zoom bar) */
-.sp-img-toolbar{display:flex;align-items:center;gap:4px;padding:6px 10px;
-  background:var(--s2);border-bottom:1px solid var(--border2);flex-shrink:0;flex-wrap:wrap}
-.sp-img-toolbar button{background:var(--s3);border:1px solid var(--border2);color:var(--dim2);
+/* IMAGE TOOLBAR */
+.sp-img-toolbar{display:flex;align-items:center;gap:4px;padding:5px 10px;
+  background:var(--s2);border-top:1px solid var(--border2);flex-shrink:0;flex-wrap:wrap}
+.sp-img-toolbar button{background:transparent;border:1px solid var(--border2);color:var(--dim2);
   font-family:var(--mono);font-size:10px;padding:4px 8px;cursor:pointer;border-radius:2px;
-  transition:all .15s;white-space:nowrap}
-.sp-img-toolbar button:hover{border-color:var(--cyan);color:var(--cyan)}
-.sp-img-toolbar button.active{border-color:var(--cyan);color:var(--cyan);background:rgba(65,209,255,.1)}
+  transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.sp-img-toolbar button svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8;flex-shrink:0}
+.sp-img-toolbar button:hover{border-color:var(--text);color:var(--text)}
+.sp-img-toolbar button.active{border-color:var(--text);color:var(--text);background:rgba(255,255,255,.06)}
 .sp-zoom-level{font-family:var(--mono);font-size:10px;color:var(--dim2);
   min-width:36px;text-align:center;user-select:none}
 .sp-toolbar-sep{width:1px;height:16px;background:var(--border2);margin:0 2px;flex-shrink:0}
+.sp-toolbar-right{margin-left:auto;display:flex;align-items:center;gap:4px}
 
 /* WHATSAPP CONFIRM DIALOG */
 .wa-confirm-box{max-width:420px;width:100%}
@@ -798,7 +811,7 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.21</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.22</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -807,7 +820,7 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.21</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.22</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1569,19 +1582,44 @@ table.fl-tbl td:last-child{border-right:none}
   <div class="sp-img-wrap" id="sp_img_wrap">
     <img id="sp_img" src="" alt="Source log" style="transform-origin:center;transition:transform .15s">
   </div>
-  <!-- Image toolbar: Fit | − | zoom% | + | Pan | sep | Rotate | Re-extract -->
+  <!-- Image toolbar: Fit | − | zoom% | + | Pan | Rotate | OCR | Save -->
   <div class="sp-img-toolbar" id="sp_img_toolbar">
-    <button id="sp_fit" title="Fit to window">⊡ Fit</button>
+    <button id="sp_fit" title="Fit to window">
+      <svg viewBox="0 0 24 24"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+      Fit
+    </button>
     <div class="sp-toolbar-sep"></div>
-    <button id="sp_zoom_out" title="Zoom out">−</button>
+    <button id="sp_zoom_out" title="Zoom out">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+    </button>
     <span class="sp-zoom-level" id="sp_zoom_level">100%</span>
-    <button id="sp_zoom_in" title="Zoom in">+</button>
+    <button id="sp_zoom_in" title="Zoom in">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+    </button>
     <div class="sp-toolbar-sep"></div>
-    <button id="sp_pan_toggle" title="Toggle pan mode">✋ Pan</button>
+    <button id="sp_pan_toggle" title="Toggle pan mode">
+      <svg viewBox="0 0 24 24"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M12 12v.01"/><path d="M5.64 5.64a9 9 0 0 0 0 12.72M18.36 18.36a9 9 0 0 0 0-12.72"/></svg>
+      Pan
+    </button>
     <div class="sp-toolbar-sep"></div>
-    <button id="sp_rotate" title="Rotate 90°">↻ Rotate</button>
-    <button class="sp-reextract-btn" id="sp_reextract">↺ Re-extract</button>
+    <button id="sp_rotate" title="Rotate 90°">
+      <svg viewBox="0 0 24 24"><polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      Rotate
+    </button>
+    <div class="sp-toolbar-sep"></div>
+    <button id="sp_reextract" title="OCR Re-extract">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/></svg>
+      OCR
+    </button>
+    <div class="sp-toolbar-right">
+      <button id="sp_save" title="Save entry" style="background:rgba(65,209,255,.12);border-color:var(--cyan);color:var(--cyan)">
+        <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
+        Save
+      </button>
+    </div>
   </div>
+  <!-- Vertical resize handle between image and data -->
+  <div class="sp-vresize" id="spVResize" title="Drag to resize"></div>
   <!-- Editable fields section -->
   <div class="sp-edit-section" id="spEditSection" style="display:none">
     <div class="sp-edit-hdr" id="spEditHdr">
@@ -1640,11 +1678,6 @@ table.fl-tbl td:last-child{border-right:none}
         <div class="sp-calc-item" style="margin-left:auto"><div class="sp-calc-l">Gap</div><div class="sp-calc-v" id="sp_pv_gap" style="font-size:11px">—</div></div>
       </div>
     </div>
-    <!-- Save/Cancel always visible outside collapsible body -->
-    <div class="sp-save-bar" style="padding:12px 16px;border-top:1px solid var(--border2);background:var(--s2);flex-shrink:0">
-      <button class="btn-primary" id="sp_save" style="flex:1">Save Entry</button>
-      <button class="btn-ghost" id="sp_cancel">Cancel</button>
-    </div>
   </div>
 </div>
 
@@ -1662,7 +1695,7 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.21";
+const APP_VERSION = "v7.22";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -3962,6 +3995,51 @@ function spRotateImg(){
 function spResetTransform(){ spZoom=1; spRotation=0; spPanX=0; spPanY=0; spPanMode=false; spApplyTransform(); }
 
 let spReextracting=false;
+let spDirty=false; // tracks unsaved changes in side panel
+
+// Mark panel dirty when any field changes
+function spMarkDirty(){ spDirty=true; }
+function spClearDirty(){ spDirty=false; }
+
+// Aircraft cascade — filters operators and multiplier to valid values for selected aircraft
+function spCascadeAircraftDropdowns(matricula){
+  const opSel=el("sp_operador");
+  const multInp=el("sp_mult");
+  if(!opSel) return;
+  const ac=AIRCRAFT.find(a=>a.matricula===matricula);
+  const currentOp=opSel.value;
+  opSel.innerHTML="";
+  if(ac&&ac.rates&&ac.rates.length){
+    ac.rates.forEach(r=>{
+      const opt=document.createElement("option");
+      opt.value=r.operador; opt.textContent=r.operador;
+      opSel.appendChild(opt);
+    });
+    // Restore previous operator if still valid
+    if(ac.rates.find(r=>r.operador===currentOp)) opSel.value=currentOp;
+    else opSel.value=ac.rates[0].operador;
+    // Auto-fill multiplier
+    const rate=ac.rates.find(r=>r.operador===opSel.value);
+    if(multInp&&rate&&!multInp.value) multInp.value=rate.multiplicador.toFixed(3);
+  } else {
+    // Fallback — all operators
+    ["FM","MAG"].forEach(op=>{
+      const opt=document.createElement("option");
+      opt.value=op; opt.textContent=op;
+      opSel.appendChild(opt);
+    });
+  }
+  spLiveCalc();
+}
+
+// Unsaved changes guard — call before navigating away from current entry
+async function spGuardDirty(proceedFn){
+  if(!spDirty){ proceedFn(); return; }
+  const confirmed=confirm("You have unsaved changes. Save before continuing?");
+  if(confirmed) await saveSpEntry();
+  spDirty=false;
+  proceedFn();
+}
 
 async function spReextract(){
   if(!spEditingEntryId) return;
@@ -4274,6 +4352,7 @@ function openSidePanel(entryIdOrFileIdx, isEntryId=false){
 function _loadSpEntry(entry){
   spZoom=1; spPanX=0; spPanY=0; spPanMode=false;
   spRotation=entry._rotation||0;
+  spClearDirty();
   spApplyTransform();
   const imgEl=el("sp_img");
   if(entry.imageUrl){ imgEl.src=entry.imageUrl; }
@@ -4281,6 +4360,12 @@ function _loadSpEntry(entry){
   el("sp_title").textContent="Log Entry #"+(flEntries.indexOf(entry)+1);
   el("sp_meta").textContent=(entry.fecha||"—")+" | "+(entry.bnum?"Log #"+entry.bnum+" | ":"")+(entry.piloto||"—")+" | "+(entry.aeronave||"—");
   populateSpEditFields(entry);
+  // Cascade aircraft dropdowns to show only valid operators/multipliers
+  if(entry.aeronave){
+    spCascadeAircraftDropdowns(entry.aeronave);
+    // Restore saved operator value after cascade
+    if(el("sp_operador")&&entry.operador) el("sp_operador").value=entry.operador;
+  }
   // Role-aware mode
   const role=effectiveRole();
   const isReviewer=role==="REVIEWER";
@@ -4302,9 +4387,7 @@ function _loadSpEntry(entry){
   if(isReviewer){
     if(editTitle) editTitle.textContent="👁 Review Entry";
     if(commentRow) commentRow.style.display="block";
-    if(saveBtn){ saveBtn.textContent="Save Comment"; saveBtn.className="btn-warn"; }
-    // Pre-fill comment
-    if(el("sp_comment")) el("sp_comment").value=entry.flagNote||"";
+    if(saveBtn){ saveBtn.textContent="Save Comment"; saveBtn.style.background="rgba(255,192,67,.12)"; saveBtn.style.borderColor="var(--yellow)"; saveBtn.style.color="var(--yellow)"; }
   } else if(isReadOnly){
     if(editTitle) editTitle.textContent="👁 View Entry";
     if(commentRow) commentRow.style.display="none";
@@ -4312,7 +4395,7 @@ function _loadSpEntry(entry){
   } else {
     if(editTitle) editTitle.textContent="✎ Entry Data";
     if(commentRow) commentRow.style.display="none";
-    if(saveBtn){ saveBtn.textContent="Save Entry"; saveBtn.className="btn-primary"; saveBtn.style.display=""; }
+    if(saveBtn){ saveBtn.innerHTML='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg> Save'; saveBtn.style.display=""; saveBtn.style.background="rgba(65,209,255,.12)"; saveBtn.style.borderColor="var(--cyan)"; saveBtn.style.color="var(--cyan)"; }
   }
 }
 
@@ -4322,6 +4405,9 @@ function _updateSpNav(){
 }
 
 function spNavigate(dir){
+  spGuardDirty(()=>_spNavigate(dir));
+}
+function _spNavigate(dir){
   const newIdx=spCurrentIndex+dir;
   if(newIdx<0||newIdx>=flEntries.length) return;
   spCurrentIndex=newIdx;
@@ -4458,6 +4544,7 @@ async function saveSpEntry(){
     await saveBatchToDB();
     renderFlTable();
     showToast("Entry updated");
+    spClearDirty();
     // Refresh meta only — do NOT call _loadSpEntry which resets transform
     if(el("sp_title")) el("sp_title").textContent="Log Entry #"+(flEntries.indexOf(e)+1);
     if(el("sp_meta")) el("sp_meta").textContent=(e.fecha||"—")+" | "+(e.bnum?"Log #"+e.bnum+" | ":"")+(e.piloto||"—")+" | "+(e.aeronave||"—");
@@ -5459,12 +5546,52 @@ function wireEvents(){
     body.classList.toggle("collapsed");
     btn.textContent=body.classList.contains("collapsed")?"▼":"▲";
   });
-  // Remove click on full header (override previous wiring)
   if(el("spEditHdr")) el("spEditHdr").onclick=null;
   if(el("sp_save")) el("sp_save").addEventListener("click",saveSpEntry);
-  if(el("sp_cancel")) el("sp_cancel").addEventListener("click",closeSidePanel);
+  // sp_cancel removed — close panel via X button
+
+  // Vertical resize handle — image/data divider
+  const vHandle=el("spVResize");
+  if(vHandle){
+    let vStartY, vStartH;
+    vHandle.addEventListener("mousedown",e=>{
+      vStartY=e.clientY;
+      vStartH=el("sp_img_wrap").offsetHeight;
+      vHandle.classList.add("dragging");
+      document.addEventListener("mousemove",onVResize);
+      document.addEventListener("mouseup",stopVResize);
+      e.preventDefault();
+    });
+    function onVResize(e){
+      const panel=el("sidePanel");
+      const minImgH=150;
+      // Min data height: enough to show all fields (~360px)
+      const minDataH=360;
+      const maxImgH=panel.offsetHeight-minDataH-vHandle.offsetHeight;
+      const newH=Math.max(minImgH,Math.min(maxImgH,vStartH+(e.clientY-vStartY)));
+      el("sp_img_wrap").style.height=newH+"px";
+    }
+    function stopVResize(){
+      vHandle.classList.remove("dragging");
+      document.removeEventListener("mousemove",onVResize);
+      document.removeEventListener("mouseup",stopVResize);
+    }
+  }
+
+  // Aircraft cascade in side panel — operator + multiplier follow aircraft selection
+  if(el("sp_aeronave")) el("sp_aeronave").addEventListener("change",function(){
+    spCascadeAircraftDropdowns(this.value);
+  });
+
   ["sp_motorOut","sp_motorIn","sp_vueloOut","sp_vueloIn","sp_mult","sp_operador"].forEach(id=>{
     if(el(id)) el(id).addEventListener("input",spLiveCalc);
+  });
+  // Dirty tracking — any field change marks panel dirty
+  ["sp_bnum","sp_fecha","sp_piloto","sp_instructor","sp_horoIn",
+   "sp_motorOut","sp_motorIn","sp_vueloOut","sp_vueloIn","sp_mult","sp_obs",
+   "sp_aeronave","sp_operador","sp_comment"].forEach(id=>{
+    if(el(id)) el(id).addEventListener("input",spMarkDirty);
+    if(el(id)) el(id).addEventListener("change",spMarkDirty);
   });
 
   // Aircraft modal (both buttons)
