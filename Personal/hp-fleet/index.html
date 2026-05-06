@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.18 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.19 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.18</title>
+<title>HP Fleet v7.19</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -86,7 +86,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 .cf-dot{width:5px;height:5px;border-radius:50%;background:var(--green)}
 
 /* APP SHELL */
-#appShell{display:none;min-height:100vh;flex-direction:column;transition:padding-right .3s cubic-bezier(.16,1,.3,1)}
+#appShell{display:none;min-height:100vh;flex-direction:column}
 .topbar{background:var(--s1);border-bottom:1px solid var(--border);padding:0 24px;
   display:flex;align-items:stretch;height:54px;position:sticky;top:0;z-index:50;flex-shrink:0}
 .tb-logo{font-family:var(--display);font-weight:800;font-size:16px;color:var(--cyan);
@@ -797,7 +797,7 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.18</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.19</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -806,7 +806,7 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.18</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.19</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -895,7 +895,7 @@ table.fl-tbl td:last-child{border-right:none}
           <select id="batchSelector" style="background:var(--s2);border:1px solid var(--border2);color:var(--dim2);font-family:var(--mono);font-size:10px;padding:6px 10px;border-radius:2px;max-width:300px">
             <option value="">— Select Billing Cycle —</option>
           </select>
-          <button class="btn-ghost" id="fl_newBatch">+ New Batch</button>
+          <button class="btn-primary" id="fl_newBatch">+ New Batch</button>
         </div>
       </div>
 
@@ -1217,6 +1217,22 @@ table.fl-tbl td:last-child{border-right:none}
       </div>
       <div class="settings-section">
         <div class="settings-card">
+          <div class="settings-card-title">🖥 Display</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
+            <div>
+              <div style="font-size:13px;color:var(--text)">Role Badge Bar</div>
+              <div style="font-size:11px;color:var(--dim2);font-family:var(--mono)">Show role and permission banner below navigation</div>
+            </div>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+              <label class="dbg-slider">
+                <input type="checkbox" id="roleBannerToggleCheck" checked>
+                <span class="dbg-slider-track"></span>
+              </label>
+              <span style="font-family:var(--mono);font-size:11px;color:var(--dim2)" id="roleBannerToggleLabel">On</span>
+            </label>
+          </div>
+        </div>
+        <div class="settings-card">
           <div class="settings-card-title">🛠 Developer</div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
             <div>
@@ -1402,7 +1418,7 @@ table.fl-tbl td:last-child{border-right:none}
 
 <!-- NEW BATCH MODAL -->
 <div class="mbd" id="newBatchMbd">
-  <div class="mbox" style="max-width:480px;width:100%">
+  <div class="mbox" style="max-width:580px;width:100%">
     <div class="mhdr"><div class="mhdr-t cy">New Billing Cycle</div><button class="m-x" id="nb_close">✕</button></div>
     <div class="mbody">
       <div class="frow fc2">
@@ -1429,12 +1445,53 @@ table.fl-tbl td:last-child{border-right:none}
           <input type="text" id="nb_log_to" placeholder="e.g. 00660">
         </div>
       </div>
-      <div id="nb_prev_label" style="background:var(--s3);border:1px solid var(--border);padding:10px 14px;font-family:var(--mono);font-size:10px;color:var(--dim2);margin-top:8px;display:none">
+      <div id="nb_prev_label" style="background:var(--s3);border:1px solid var(--border);padding:10px 14px;font-family:var(--mono);font-size:10px;color:var(--dim2);margin-top:8px;display:none"></div>
+      <!-- Drop zone -->
+      <div style="margin-top:16px;border-top:1px solid var(--border2);padding-top:16px">
+        <div class="upload-zone" id="nb_uploadZone" style="padding:20px;min-height:80px">
+          <div class="uz-icon" style="font-size:24px">📂</div>
+          <div class="uz-title" style="font-size:13px">Drop flight log files here</div>
+          <div class="uz-sub">or click to browse</div>
+          <div class="uz-types">
+            <span class="uz-type ok">PDF</span>
+            <span class="uz-type ok">JPG</span>
+            <span class="uz-type ok">PNG</span>
+          </div>
+        </div>
+        <input type="file" id="nb_fileInput" multiple accept=".pdf,.jpg,.jpeg,.png" style="display:none">
+        <div id="nb_fileQueue" style="margin-top:8px;display:flex;flex-direction:column;gap:4px"></div>
       </div>
     </div>
     <div class="mftr">
       <button class="btn-ghost" id="nb_cancel">Cancel</button>
-      <button class="btn-primary" id="nb_confirm">Start New Cycle</button>
+      <button class="btn-primary" id="nb_confirm" disabled>▶ Start &amp; Extract</button>
+    </div>
+  </div>
+</div>
+
+<!-- UPLOAD STATUS WINDOW -->
+<div class="mbd" id="uploadStatusMbd" style="display:none;align-items:flex-start;justify-content:flex-end;padding:20px">
+  <div style="background:var(--s1);border:1px solid var(--border2);border-top:2px solid var(--cyan);width:440px;border-radius:4px;display:flex;flex-direction:column;max-height:60vh">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border2);flex-shrink:0">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--cyan);letter-spacing:1px">⚙ EXTRACTION LOG</div>
+      <div style="display:flex;gap:8px">
+        <button id="uploadLog_save" style="background:none;border:1px solid var(--border2);color:var(--dim2);font-family:var(--mono);font-size:10px;padding:4px 10px;cursor:pointer;border-radius:2px">↓ Save Log</button>
+        <button id="uploadLog_close" style="background:none;border:1px solid var(--border2);color:var(--dim2);font-family:var(--mono);font-size:10px;padding:4px 10px;cursor:pointer;border-radius:2px">Close</button>
+      </div>
+    </div>
+    <div id="uploadLogBody" style="flex:1;overflow-y:auto;padding:10px 14px;font-family:var(--mono);font-size:10px;color:var(--dim2);line-height:1.8"></div>
+  </div>
+</div>
+
+<!-- EXTRACTION SUMMARY MODAL -->
+<div class="mbd" id="extractSummaryMbd">
+  <div class="mbox" style="max-width:420px;width:100%;border-top:2px solid var(--cyan)">
+    <div class="mhdr"><div class="mhdr-t ct">Extraction Complete</div></div>
+    <div class="mbody" style="padding:20px 24px">
+      <div id="extractSummaryRows" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+    <div class="mftr">
+      <button class="btn-primary" id="extractSummary_go">▶ Go to Review</button>
     </div>
   </div>
 </div>
@@ -1659,7 +1716,7 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.18";
+const APP_VERSION = "v7.19";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2241,6 +2298,7 @@ async function bootApp(){
   // Load API key from DB (centralized for all devices)
   await loadApiKeyFromDB();
   initDebugToggle();
+  initRoleBannerToggle();
   // Load billing cycle history
   await loadAllBatches();
   // Load batch from DB
@@ -2819,6 +2877,26 @@ function initDebugToggle(){
   });
 }
 
+// ── ROLE BANNER TOGGLE ──
+function initRoleBannerToggle(){
+  const check=el("roleBannerToggleCheck");
+  const label=el("roleBannerToggleLabel");
+  if(!check) return;
+  const saved=localStorage.getItem("hpfleet_rolebanner");
+  const on=saved===null?true:saved==="1"; // default on
+  check.checked=on;
+  if(label){ label.textContent=on?"On":"Off"; label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+  const banner=el("roleBanner");
+  if(banner) banner.style.display=on?"":"none";
+  check.addEventListener("change",function(){
+    const isOn=this.checked;
+    localStorage.setItem("hpfleet_rolebanner",isOn?"1":"0");
+    if(label){ label.textContent=isOn?"On":"Off"; label.style.color=isOn?"var(--cyan)":"var(--dim2)"; }
+    const b=el("roleBanner");
+    if(b) b.style.display=isOn?"":"none";
+  });
+}
+
 function renderAudit(){
   const wrap=el("auditList"); if(!wrap) return;
   if(!auditLog.length){wrap.innerHTML='<div class="audit-empty">'+t("noAudit")+"</div>";return;}
@@ -3018,10 +3096,12 @@ async function extractAll(){
       if(isPdf && typeof pdfjsLib!=="undefined"){
         // PDF: render each page → extract → store image
         dbg("Loading PDF: "+fq.name,"info");
+        uploadLog("Loading PDF: "+fq.name);
         const arrayBuf=await fq.file.arrayBuffer();
         const pdfDoc=await pdfjsLib.getDocument({data:arrayBuf}).promise;
         const numPages=pdfDoc.numPages;
         dbg("PDF loaded — "+numPages+" pages","ok");
+        uploadLog("PDF loaded — "+numPages+" pages");
         let pdfExtracted=[];
         for(let p=1;p<=numPages;p++){
           fq._label="[Page "+p+"/"+numPages+"] "+fq.name+" — Extracting…";
@@ -3038,9 +3118,11 @@ async function extractAll(){
             pageEntries.forEach(e=>{e._imageUrl=imageUrl;e._sourcePage=p;});
             pdfExtracted=[...pdfExtracted,...pageEntries];
             dbg("Page "+p+"/"+numPages+": "+pageEntries.length+" entries","ok");
+            uploadLog("Page "+p+"/"+numPages+": "+pageEntries.length+" entr"+(pageEntries.length===1?"y":"ies")+" extracted");
           } catch(pageErr){
             if(pageErr.name==="AbortError"){
               dbg("Extraction aborted at page "+p,"warn");
+              uploadLog("⚠ Extraction aborted at page "+p);
               break;
             } else if(pageErr.message.startsWith("NO_BITACORA")){
               // Still upload image and create stub entry
@@ -3058,16 +3140,20 @@ async function extractAll(){
                   status:"skipped"
                 });
                 dbg("Page "+p+": skipped — image stored as stub","info");
+                uploadLog("Page "+p+": skipped — no log data");
               } catch(imgErr){
                 dbg("Page "+p+": skipped — image upload failed","info");
+                uploadLog("Page "+p+": skipped — image upload failed");
               }
             } else {
               dbg("Page "+p+" error: "+pageErr.message,"err"); hasErrors=true;
+              uploadLog("✕ Page "+p+" error: "+pageErr.message);
             }
           }
         }
         allExtracted=[...allExtracted,...pdfExtracted];
         fq.status="done"; fq._entryCount=pdfExtracted.length;
+        uploadLog("✓ Done — "+pdfExtracted.length+" entries from "+numPages+" pages");
         addFlAudit("🤖",currentUser.name,"extracted PDF",pdfExtracted.length+" entries from "+numPages+" pages — "+fq.name);
       } else {
         // Image file: fix rotation, compress, extract, upload
@@ -3102,12 +3188,10 @@ async function extractAll(){
 
   isExtracting=false; extractionAbort=null;
   btn.disabled=false; btnTxt.textContent=t("extractBtn");
-  // Auto-collapse upload zone after extraction
-  const uploadSec=el("uploadSection");
-  if(uploadSec) uploadSec.classList.add("collapsed-section");
-  const bcSec=el("batchConstants");
-  if(bcSec) bcSec.classList.add("collapsed-section");
-  if(!allExtracted.length&&hasErrors){showResultBanner("err","✗ "+t("extractError"));return;}
+  if(!allExtracted.length&&hasErrors){
+    uploadLog("✕ Extraction failed — no entries extracted");
+    showResultBanner("err","✗ "+t("extractError"));return;
+  }
   flEntries=[...flEntries,...allExtracted.map(e=>({
     id:nextEntryId++,status:"pending",multOverride:null,...e,
     horoIn:parseFloat(e.horoIn)||0,
@@ -3117,6 +3201,8 @@ async function extractAll(){
   el("srcFile").textContent=batchSourceFile;
   el("srcTs").textContent=new Date().toLocaleString(lang==="es"?"es-PA":"en-US");
   const msg=hasErrors?"⚠ "+allExtracted.length+" "+t("extractPartial"):"✓ "+allExtracted.length+" "+t("extractSuccess")+" "+batchSourceFile;
+  uploadLog(msg);
+  uploadLog("Extraction complete — ready for review");
   showResultBanner(hasErrors?"warn":"ok",msg);
   el("srcBar").style.display="flex";
   el("reviewSection").style.display="block";
@@ -4576,11 +4662,8 @@ function closeSidePanel(){
   panel.classList.remove("open");
   el("spOverlay").classList.remove("open");
   document.body.style.overflow="";
-  // Clear padding only after slide-out transition completes — prevents stub
-  panel.addEventListener("transitionend",function onEnd(){
-    el("appShell").style.paddingRight="";
-    panel.removeEventListener("transitionend",onEnd);
-  });
+  // Clear padding after panel slide-out completes (300ms matches CSS transition)
+  setTimeout(()=>{ el("appShell").style.paddingRight=""; }, 320);
   const tabContent=document.querySelector(".tab-content");
   if(tabContent){ tabContent.classList.remove("sp-open-shift"); tabContent.style.maxWidth=""; }
   if(el("spTableToggle")) el("spTableToggle").style.color="var(--dim2)";
@@ -4645,17 +4728,116 @@ async function confirmNewBatch(){
   const periodTo=el("nb_period_to")?el("nb_period_to").value:"";
   const logFrom=el("nb_log_from")?el("nb_log_from").value.trim():"";
   const logTo=el("nb_log_to")?el("nb_log_to").value.trim():"";
+  if(!nbFiles.length){showToast("Please add at least one file","warn");return;}
   closeModal("newBatchMbd");
   await resetBatch();
-  // Store batch metadata for when batch is saved
   window._pendingBatchMeta={aircraft,operador,periodFrom,periodTo,logFrom,logTo};
-  // Pre-fill batch constants
   if(el("bc_aircraft")) el("bc_aircraft").value=aircraft;
   if(el("bc_operator")) el("bc_operator").value=operador;
   const rate=AIRCRAFT.find(a=>a.matricula===aircraft)?.rates?.find(r=>r.operador===operador);
   if(el("bc_mult")&&rate) el("bc_mult").value=rate.multiplicador.toFixed(3);
-  showToast("New billing cycle started: "+aircraft+" / "+operador);
   addAudit("🆕",currentUser.name,"new billing cycle",aircraft+" / "+operador+" / "+periodFrom+" → "+periodTo);
+  // Add files to main queue and trigger extraction
+  nbFiles.forEach(f=>fileQueue.push({file:f,name:sanitizeFilename(f.name),size:f.size,type:f.type,status:"waiting",progress:0,_preview:null}));
+  nbFiles=[];
+  renderQueue();
+  openUploadStatusWindow();
+  el("btnExtract").click();
+}
+
+// ── NB MODAL FILE QUEUE ──
+let nbFiles=[];
+function nbRenderQueue(){
+  const wrap=el("nb_fileQueue"); if(!wrap) return;
+  const confirmBtn=el("nb_confirm");
+  wrap.innerHTML=nbFiles.map((f,i)=>
+    '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--s2);border:1px solid var(--border2);padding:6px 10px;border-radius:2px;font-family:var(--mono);font-size:10px;color:var(--dim2)">'+
+    '<span>'+f.name+' <span style="color:var(--dim)">('+( f.size/1024).toFixed(1)+' KB)</span></span>'+
+    '<button data-nb-del="'+i+'" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0 4px">✕</button>'+
+    '</div>'
+  ).join("");
+  wrap.querySelectorAll("[data-nb-del]").forEach(btn=>{
+    btn.addEventListener("click",()=>{nbFiles.splice(+btn.dataset.nbDel,1);nbRenderQueue();});
+  });
+  if(confirmBtn) confirmBtn.disabled=nbFiles.length===0;
+}
+
+function initNbDropZone(){
+  const zone=el("nb_uploadZone");
+  const input=el("nb_fileInput");
+  if(!zone||!input) return;
+  zone.addEventListener("click",()=>input.click());
+  zone.addEventListener("dragover",e=>{e.preventDefault();zone.classList.add("dragover");});
+  zone.addEventListener("dragleave",()=>zone.classList.remove("dragover"));
+  zone.addEventListener("drop",e=>{
+    e.preventDefault(); zone.classList.remove("dragover");
+    const files=Array.from(e.dataTransfer.files).filter(f=>/\.(pdf|jpg|jpeg|png)$/i.test(f.name));
+    files.forEach(f=>nbFiles.push(f)); nbRenderQueue();
+  });
+  input.addEventListener("change",()=>{
+    Array.from(input.files).forEach(f=>nbFiles.push(f));
+    input.value=""; nbRenderQueue();
+  });
+}
+
+// ── UPLOAD STATUS WINDOW ──
+let uploadLogLines=[];
+function openUploadStatusWindow(){
+  uploadLogLines=[];
+  const body=el("uploadLogBody"); if(body) body.innerHTML="";
+  const mbd=el("uploadStatusMbd"); if(mbd) mbd.style.display="flex";
+}
+function uploadLog(msg){
+  const ts=new Date().toLocaleTimeString("en-US",{hour12:false});
+  const line="["+ts+"] "+msg;
+  uploadLogLines.push(line);
+  const body=el("uploadLogBody");
+  if(body){
+    const div=document.createElement("div");
+    div.textContent=line;
+    body.appendChild(div);
+    body.scrollTop=body.scrollHeight;
+  }
+}
+function closeUploadStatusWindow(){
+  const mbd=el("uploadStatusMbd"); if(mbd) mbd.style.display="none";
+  showExtractionSummary();
+}
+function saveUploadLog(){
+  const txt=uploadLogLines.join("\n");
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([txt],{type:"text/plain"}));
+  a.download="hp_fleet_extraction_"+Date.now()+".txt";
+  a.click();
+}
+
+// ── EXTRACTION SUMMARY MODAL ──
+function showExtractionSummary(){
+  const total=flEntries.length;
+  const read=flEntries.filter(e=>e.status!=="skipped"&&e.status!=="void"&&e.aeronave&&e.fecha).length;
+  const notRead=total-read;
+  const seqAlerts=flEntries.filter(e=>{
+    const idx=flEntries.indexOf(e);
+    return horoCheck(e,idx)&&!horoCheck(e,idx).ok;
+  }).length;
+  const threshAlerts=flEntries.filter(e=>e.status==="flagged").length;
+  const sourceFile=el("srcFile")?el("srcFile").textContent:"—";
+  const rows=[
+    {label:"File Source",val:sourceFile,color:"var(--text)"},
+    {label:"Total Records",val:total,color:"var(--cyan)"},
+    {label:"Read",val:read,color:"var(--green)"},
+    {label:"Not Read",val:notRead,color:notRead>0?"var(--yellow)":"var(--dim2)"},
+    {label:"Sequence Alerts",val:seqAlerts,color:seqAlerts>0?"var(--yellow)":"var(--dim2)"},
+    {label:"Threshold Alerts",val:threshAlerts,color:threshAlerts>0?"var(--red)":"var(--dim2)"},
+  ];
+  const wrap=el("extractSummaryRows");
+  if(wrap) wrap.innerHTML=rows.map(r=>
+    '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border2)">'+
+    '<span style="font-family:var(--mono);font-size:11px;color:var(--dim2);letter-spacing:.5px">'+r.label.toUpperCase()+'</span>'+
+    '<span style="font-family:var(--mono);font-size:13px;font-weight:700;color:'+r.color+'">'+r.val+'</span>'+
+    '</div>'
+  ).join("");
+  openModal("extractSummaryMbd");
 }
 
 // ── BILLING CYCLE HISTORY SELECTOR ──
@@ -5358,10 +5540,20 @@ function wireEvents(){
 
   // New Batch modal
   if(el("fl_newBatch")) el("fl_newBatch").addEventListener("click",openNewBatchModal);
-  if(el("nb_close")) el("nb_close").addEventListener("click",()=>closeModal("newBatchMbd"));
-  if(el("nb_cancel")) el("nb_cancel").addEventListener("click",()=>closeModal("newBatchMbd"));
+  if(el("nb_close")) el("nb_close").addEventListener("click",()=>{ closeModal("newBatchMbd"); nbFiles=[]; nbRenderQueue(); });
+  if(el("nb_cancel")) el("nb_cancel").addEventListener("click",()=>{ closeModal("newBatchMbd"); nbFiles=[]; nbRenderQueue(); });
   if(el("nb_confirm")) el("nb_confirm").addEventListener("click",confirmNewBatch);
-  if(el("newBatchMbd")) el("newBatchMbd").addEventListener("click",e=>{ if(e.target===el("newBatchMbd")) closeModal("newBatchMbd"); });
+  if(el("newBatchMbd")) el("newBatchMbd").addEventListener("click",e=>{ if(e.target===el("newBatchMbd")){ closeModal("newBatchMbd"); nbFiles=[]; nbRenderQueue(); }});
+  initNbDropZone();
+  // Upload status window
+  if(el("uploadLog_close")) el("uploadLog_close").addEventListener("click",closeUploadStatusWindow);
+  if(el("uploadLog_save")) el("uploadLog_save").addEventListener("click",saveUploadLog);
+  // Extraction summary modal — Go to Review applies Needs Review filter
+  if(el("extractSummary_go")) el("extractSummary_go").addEventListener("click",()=>{
+    closeModal("extractSummaryMbd");
+    if(el("filterOp")) el("filterOp").value="problems";
+    renderFlTable();
+  });
   // nb_aircraft cascade to nb_operator
   if(el("nb_aircraft")) el("nb_aircraft").addEventListener("change",function(){
     const ac=AIRCRAFT.find(a=>a.matricula===this.value);
@@ -5522,9 +5714,6 @@ function wireEvents(){
     else if(tr){
       const entryId=parseInt(tr.dataset.entryId);
       openSidePanel(entryId,true);
-      // Highlight active row
-      el("flTbody").querySelectorAll("tr").forEach(r=>r.style.outline="");
-      tr.style.outline="1px solid var(--cyan)";
     }
   });
   // Flight log table sort
