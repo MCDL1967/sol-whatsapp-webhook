@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.20 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.21 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.20</title>
+<title>HP Fleet v7.21</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -493,11 +493,12 @@ table.fl-tbl td:last-child{border-right:none}
   margin-top:12px;align-self:flex-end;padding-bottom:2px}
 
 /* SOURCE IMAGE SIDE PANEL */
-.side-panel{position:fixed;top:0;right:-420px;width:420px;height:100vh;
+.side-panel{position:fixed;top:0;right:0;width:420px;height:100vh;
   background:var(--s1);border-left:1px solid var(--border2);
-  z-index:100;transition:right .3s cubic-bezier(.16,1,.3,1);
-  display:flex;flex-direction:column;overflow:hidden}
-.side-panel.open{right:0}
+  z-index:100;transition:transform .3s cubic-bezier(.16,1,.3,1);
+  display:flex;flex-direction:column;overflow:hidden;
+  transform:translateX(100%)}
+.side-panel.open{transform:translateX(0)}
 .sp-header{padding:14px 16px;border-bottom:1px solid var(--border);
   display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .sp-title{font-family:var(--mono);font-size:11px;letter-spacing:1px;
@@ -797,7 +798,7 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.20</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.21</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -806,7 +807,7 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.20</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.21</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1661,7 +1662,7 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.20";
+const APP_VERSION = "v7.21";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -3960,17 +3961,30 @@ function spRotateImg(){
 
 function spResetTransform(){ spZoom=1; spRotation=0; spPanX=0; spPanY=0; spPanMode=false; spApplyTransform(); }
 
+let spReextracting=false;
+
 async function spReextract(){
   if(!spEditingEntryId) return;
+  if(spReextracting){showToast("Re-extraction already in progress","warn");return;}
+  if(isExtracting){showToast("Batch extraction in progress — please wait","warn");return;}
   const apiKey=getApiKey();
   if(!apiKey){showToast("API key not configured","err");return;}
   const entry=flEntries.find(e=>e.id===spEditingEntryId); if(!entry||!entry.imageUrl) return;
-  showToast("Re-extracting…","info");
+
+  // Guard + spinner
+  spReextracting=true;
+  const reBtn=el("sp_reextract");
+  if(reBtn){reBtn.disabled=true;reBtn.textContent="↺ Extracting…";}
+  const wrap=el("sp_img_wrap");
+  const spinner=document.createElement("div");
+  spinner.id="sp_spinner";
+  spinner.style.cssText="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:10;border-radius:2px";
+  spinner.innerHTML='<div style="width:36px;height:36px;border:3px solid var(--border2);border-top-color:var(--cyan);border-radius:50%;animation:spin 0.7s linear infinite"></div>';
+  if(wrap) wrap.appendChild(spinner);
+
   try {
-    // Fetch image from storage URL
     const resp=await fetch(entry.imageUrl);
     const blob=await resp.blob();
-    // Apply current rotation to canvas using actual image dimensions
     const img=new Image();
     await new Promise(r=>{img.onload=r;img.src=URL.createObjectURL(blob);});
     const natW=img.naturalWidth||img.width;
@@ -4002,17 +4016,32 @@ async function spReextract(){
     if(el("sp_obs")) el("sp_obs").value=r.obs||"";
     spLiveCalc();
     showToast("Re-extraction complete — review and save");
-    // Upload corrected image to storage
+    // Upload corrected image — update src BEFORE resetting rotation so no spin-back
     const compressed=await compressImage(rotatedBlob,800,0.7);
     const newUrl=await uploadImageToStorage(compressed,"reextract_"+Date.now()+".jpg");
     if(newUrl){
       entry.imageUrl=newUrl;
-      // Image is now baked at correct orientation — reset rotation state
       entry._rotation=0;
       spRotation=0;
-      spApplyTransform();
+      // Set new src first, reset transform only after image loads
+      const imgEl=el("sp_img");
+      if(imgEl){
+        imgEl.onload=()=>{ spApplyTransform(); imgEl.onload=null; };
+        imgEl.src=newUrl;
+      } else { spApplyTransform(); }
     }
-  } catch(err){ showToast("Re-extract error: "+err.message,"err"); dbg("Re-extract error: "+err.message,"err"); }
+    // Reset entry status to pending so row color updates
+    entry.status="pending";
+    renderFlTable();
+  } catch(err){
+    showToast("Re-extract error: "+err.message,"err");
+    dbg("Re-extract error: "+err.message,"err");
+  } finally {
+    spReextracting=false;
+    if(reBtn){reBtn.disabled=false;reBtn.textContent="↺ Re-extract";}
+    const sp=document.getElementById("sp_spinner");
+    if(sp) sp.remove();
+  }
 }
 let _namePropData=null; // {field, oldVal, newVal, matches, currentEntryId}
 
@@ -4429,7 +4458,9 @@ async function saveSpEntry(){
     await saveBatchToDB();
     renderFlTable();
     showToast("Entry updated");
-    _loadSpEntry(e);
+    // Refresh meta only — do NOT call _loadSpEntry which resets transform
+    if(el("sp_title")) el("sp_title").textContent="Log Entry #"+(flEntries.indexOf(e)+1);
+    if(el("sp_meta")) el("sp_meta").textContent=(e.fecha||"—")+" | "+(e.bnum?"Log #"+e.bnum+" | ":"")+(e.piloto||"—")+" | "+(e.aeronave||"—");
     // Check name propagation
     if(newPiloto!==oldPiloto){
       checkNamePropagation(e.id,"piloto",oldPiloto,newPiloto,async(updated)=>{
@@ -4446,7 +4477,8 @@ async function saveSpEntry(){
   await saveBatchToDB();
   renderFlTable();
   showToast(role==="REVIEWER"?"Comment saved":"Entry updated");
-  _loadSpEntry(e);
+  if(el("sp_title")) el("sp_title").textContent="Log Entry #"+(flEntries.indexOf(e)+1);
+  if(el("sp_meta")) el("sp_meta").textContent=(e.fecha||"—")+" | "+(e.bnum?"Log #"+e.bnum+" | ":"")+(e.piloto||"—")+" | "+(e.aeronave||"—");
 }
 
 function closeSidePanel(){
@@ -5481,6 +5513,13 @@ async function init(){
   applyI18n();
   wireEvents();
   dbg("HP Fleet "+APP_VERSION+" — initializing…","info");
+  // Sanitize stale panel width — clamp to 50% viewport on load
+  const _savedPW=localStorage.getItem("hpfleet_sp_width");
+  if(_savedPW){
+    const _maxPW=Math.floor(window.innerWidth*0.5);
+    const _clamped=Math.min(parseInt(_savedPW)||420,_maxPW);
+    if(_clamped!==parseInt(_savedPW)) localStorage.setItem("hpfleet_sp_width",_clamped+"px");
+  }
   await seedIfEmpty();
   await loadMasterData();
   if(el("viewAsRole")) el("viewAsRole").value="ADMIN";
