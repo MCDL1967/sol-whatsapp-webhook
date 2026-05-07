@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.22.4 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.22.5 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.22.4</title>
+<title>HP Fleet v7.22.5</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -764,8 +764,28 @@ table.fl-tbl td:last-child{border-right:none}
 .pi-signed{background:rgba(61,220,132,.1);border:1px solid var(--green);padding:10px 16px;font-family:var(--mono);font-size:11px;color:var(--green)}
 
 /* NON-BILLABLE */
+.log-seq-gap{border-left:3px solid var(--red)!important}
 .r-nonbillable td{color:var(--dim2)!important}
-.r-nonbillable{background:rgba(90,106,136,.05)!important}
+.r-nonbillable{background:rgba(255,107,107,.04)!important}
+
+/* NON-BILLABLE TOGGLE IN TOOLBAR */
+.sp-nonbill-btn{background:transparent;border:1px solid var(--red);color:var(--red);
+  font-family:var(--mono);font-size:10px;padding:4px 8px;cursor:pointer;border-radius:2px;
+  transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.sp-nonbill-btn.active{background:var(--red);color:#000;font-weight:700}
+.sp-nonbill-btn:hover{opacity:.85}
+
+/* FLOATING DETAIL DIALOG */
+.float-dialog{position:fixed;background:var(--s1);border:1px solid var(--border2);
+  border-radius:4px;z-index:200;min-width:320px;max-width:480px;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);display:none;flex-direction:column}
+.float-dialog.open{display:flex}
+.float-dialog-hdr{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;border-bottom:1px solid var(--border2);cursor:move;flex-shrink:0}
+.float-dialog-title{font-family:var(--mono);font-size:11px;letter-spacing:.5px;color:var(--text)}
+.float-dialog-close{background:none;border:none;color:var(--dim2);cursor:pointer;font-size:16px;padding:0 4px}
+.float-dialog-body{padding:12px 14px;overflow-y:auto;max-height:320px;
+  font-family:var(--mono);font-size:10px;color:var(--dim2);line-height:1.8}
 
 /* DEBUG TOGGLE SLIDER */
 .dbg-slider{position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0}
@@ -811,7 +831,7 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.22.4</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.22.5</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -820,7 +840,7 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.22.4</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.22.5</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -931,21 +951,34 @@ table.fl-tbl td:last-child{border-right:none}
         <div class="sb-item"><div class="sb-l">Records</div><div class="sb-v" id="srcTotalRecords">—</div></div>
         <div class="sb-item"><div class="sb-l">Read</div><div class="sb-v ok" id="srcRead">—</div></div>
         <div class="sb-item"><div class="sb-l">Not Read</div><div class="sb-v" id="srcNotRead">—</div></div>
-        <div class="sb-item"><div class="sb-l" id="sb_horo">Seq. Alerts</div><div class="sb-v" id="srcHoro">—</div></div>
+        <div class="sb-item"><div class="sb-l">Non-Billable</div><div class="sb-v" id="srcNonBill" style="cursor:pointer" title="Click for details">—</div></div>
+        <div class="sb-item"><div class="sb-l">Log Breaks</div><div class="sb-v" id="srcLogBreaks" style="cursor:pointer" title="Click for details">—</div></div>
+        <div class="sb-item"><div class="sb-l">Seq. Alerts</div><div class="sb-v" id="srcHoro" style="cursor:pointer" title="Click for details">—</div></div>
         <div class="sb-item"><div class="sb-l" id="sb_batch">Status</div><div class="sb-v" id="srcStatus">—</div></div>
         <div class="sb-item"><button class="sb-link" id="sb_dlcsv">↓ CSV</button></div>
       </div>
 
-      <!-- Horo alert — compact collapsible -->
-      <div class="alert al-horo" id="horoAlert" style="padding:0;overflow:hidden">
-        <div class="al-horo-hdr" id="horoAlertHdr">
-          <div class="al-title" id="al_horoTitle" style="margin:0;color:var(--yellow)">⚠ Sequence Breaks Detected</div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span id="horoGapCount" style="font-family:var(--mono);font-size:10px;color:var(--red)"></span>
-            <button id="horoToggle" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">▼</button>
-          </div>
+      <!-- Floating detail dialogs -->
+      <div class="float-dialog" id="dlgNonBill">
+        <div class="float-dialog-hdr" id="dlgNonBillHdr">
+          <div class="float-dialog-title" style="color:var(--dim2)">⊘ NON-BILLABLE ENTRIES</div>
+          <button class="float-dialog-close" id="dlgNonBillClose">✕</button>
         </div>
-        <div class="al-horo-body collapsed" id="horoAlertBody"></div>
+        <div class="float-dialog-body" id="dlgNonBillBody"></div>
+      </div>
+      <div class="float-dialog" id="dlgLogBreaks">
+        <div class="float-dialog-hdr" id="dlgLogBreaksHdr">
+          <div class="float-dialog-title" style="color:var(--red)">⬤ LOG # BREAKS</div>
+          <button class="float-dialog-close" id="dlgLogBreaksClose">✕</button>
+        </div>
+        <div class="float-dialog-body" id="dlgLogBreaksBody"></div>
+      </div>
+      <div class="float-dialog" id="dlgSeqAlerts">
+        <div class="float-dialog-hdr" id="dlgSeqAlertsHdr">
+          <div class="float-dialog-title" style="color:var(--yellow)">⚠ SEQUENCE ALERTS</div>
+          <button class="float-dialog-close" id="dlgSeqAlertsClose">✕</button>
+        </div>
+        <div class="float-dialog-body" id="dlgSeqAlertsBody"></div>
       </div>
 
       <!-- Review section -->
@@ -1604,13 +1637,14 @@ table.fl-tbl td:last-child{border-right:none}
     <div class="sp-toolbar-sep"></div>
     <button id="sp_rotate" title="Rotate 90°">
       <svg viewBox="0 0 24 24"><polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-      Rotate
     </button>
     <div class="sp-toolbar-sep"></div>
     <button id="sp_reextract" title="OCR Re-extract">
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/></svg>
       OCR
     </button>
+    <div class="sp-toolbar-sep"></div>
+    <button class="sp-nonbill-btn" id="sp_nonbill_toggle" title="Toggle Non-Billable">○ Non-Billable</button>
     <div class="sp-toolbar-right">
       <button id="sp_save" title="Save entry" style="background:rgba(65,209,255,.12);border-color:var(--cyan);color:var(--cyan)">
         <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
@@ -1695,7 +1729,7 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.22.4";
+const APP_VERSION = "v7.22.5";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -3082,17 +3116,97 @@ async function extractAll(){
   renderWfBar(); setupFlRoleUI(); renderFlTable();
 }
 
+// ── LOG # SEQUENCE CHECK ──
+function logCheck(){
+  const breaks=[];
+  // Group by aircraft, sort by bnum within each group
+  const byAc={};
+  flEntries.forEach((e,idx)=>{
+    if(!e.bnum||e.status==="skipped"||e.status==="void") return;
+    const ac=e.aeronave||"unknown";
+    if(!byAc[ac]) byAc[ac]=[];
+    byAc[ac].push({e,idx});
+  });
+  Object.keys(byAc).forEach(ac=>{
+    const group=byAc[ac].sort((a,b)=>parseInt(a.e.bnum)-parseInt(b.e.bnum));
+    for(let i=1;i<group.length;i++){
+      const prev=parseInt(group[i-1].e.bnum);
+      const curr=parseInt(group[i].e.bnum);
+      if(curr-prev>1){
+        breaks.push({idx:group[i].idx, entry:group[i].e, prev, curr,
+          msg:ac+" — Log gap: "+String(prev).padStart(5,"0")+" → "+String(curr).padStart(5,"0")+" (missing "+(curr-prev-1)+")"});
+      }
+    }
+  });
+  return breaks;
+}
+
+function horoCheck(entry,idx){
+  // Only check against previous SAME-aircraft non-skipped entry
+  const prev=flEntries.slice(0,idx).filter(e=>
+    e.aeronave===entry.aeronave&&
+    e.status!=="skipped"&&e.status!=="void"&&
+    e.motorOut&&e.motorIn // must have actual data
+  ).pop();
+  if(!prev) return{ok:true};
+  if(!entry.motorOut||!entry.motorIn) return{ok:true}; // no data to check against
+  const prevTm=calcEntry(prev).tm;
+  if(!prevTm) return{ok:true}; // prev had no motor time — skip
+  const expected=parseFloat(prev.horoIn||0)+prevTm;
+  const got=parseFloat(entry.horoIn||0);
+  if(!got) return{ok:true}; // no horoIn — skip
+  const diff=Math.abs(got-expected);
+  return{ok:diff<0.15,expected:expected.toFixed(2),got:got.toFixed(2),diff:diff.toFixed(2)};
+}
+
 function updateSrcBar(){
   const total=flEntries.length;
   const read=flEntries.filter(e=>e.status!=="skipped"&&e.status!=="void"&&e.aeronave&&e.fecha).length;
   const notRead=total-read;
-  const seqAlerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; }).length;
+  const nonBill=flEntries.filter(e=>e.status==="nonbillable").length;
+  const logBreaks=logCheck();
+  const seqAlerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; });
+
   if(el("srcFile")) el("srcFile").textContent=batchSourceFile||"—";
   if(el("srcTotalRecords")) el("srcTotalRecords").textContent=total||"—";
   if(el("srcRead")){ el("srcRead").textContent=read; el("srcRead").style.color=read>0?"var(--green)":"var(--dim2)"; }
   if(el("srcNotRead")){ el("srcNotRead").textContent=notRead||"—"; el("srcNotRead").style.color=notRead>0?"var(--yellow)":"var(--dim2)"; }
-  if(el("srcHoro")){ el("srcHoro").textContent=seqAlerts||"—"; el("srcHoro").style.color=seqAlerts>0?"var(--red)":"var(--dim2)"; }
+
+  // Non-Billable
+  if(el("srcNonBill")){
+    el("srcNonBill").textContent=nonBill||"—";
+    el("srcNonBill").style.color=nonBill>0?"var(--dim2)":"var(--dim2)";
+    el("srcNonBill").style.pointerEvents=nonBill>0?"auto":"none";
+  }
+  // Log Breaks
+  if(el("srcLogBreaks")){
+    el("srcLogBreaks").textContent=logBreaks.length||"—";
+    el("srcLogBreaks").style.color=logBreaks.length>0?"var(--red)":"var(--dim2)";
+    el("srcLogBreaks").style.pointerEvents=logBreaks.length>0?"auto":"none";
+    // Store for dialog
+    el("srcLogBreaks")._data=logBreaks;
+  }
+  // Seq Alerts
+  if(el("srcHoro")){
+    el("srcHoro").textContent=seqAlerts.length||"—";
+    el("srcHoro").style.color=seqAlerts.length>0?"var(--yellow)":"var(--dim2)";
+    el("srcHoro").style.pointerEvents=seqAlerts.length>0?"auto":"none";
+    el("srcHoro")._data=seqAlerts;
+  }
   if(el("srcStatus")) el("srcStatus").textContent=batchStatus||"—";
+
+  // Update log-seq-gap markers on table
+  if(el("flTbody")){
+    const breakIdxs=new Set(logBreaks.map(b=>b.idx));
+    el("flTbody").querySelectorAll("tr[data-entry-id]").forEach(row=>{
+      const entryIdx=flEntries.findIndex(e=>e.id===parseInt(row.dataset.entryId));
+      const bnumCell=row.querySelector("td:nth-child(2)");
+      if(bnumCell){
+        if(breakIdxs.has(entryIdx)) bnumCell.classList.add("log-seq-gap");
+        else bnumCell.classList.remove("log-seq-gap");
+      }
+    });
+  }
 }
 
 function translateFetchError(msg){
@@ -3216,37 +3330,7 @@ function fmtCurrency(n){
 }
 
 // ── FLIGHT LOG — HOROMETER ──
-function horoCheck(entry,idx){
-  // Only check against previous entry in this batch — not hardcoded seed values
-  const prev=flEntries.slice(0,idx).filter(e=>e.aeronave===entry.aeronave&&e.status!=="skipped"&&e.status!=="void").pop();
-  if(!prev) return{ok:true}; // no prior entry in batch — no gap flag
-  const expected=prev.horoIn+(calcEntry(prev).tm||0);
-  const diff=Math.abs((entry.horoIn||0)-expected);
-  return{ok:diff<0.15,expected:expected.toFixed(1),got:(entry.horoIn||0).toFixed(1),diff:diff.toFixed(2)};
-}
-
-function runHoroChecks(){
-  const gaps=[];
-  flEntries.forEach((e,i)=>{
-    const h=horoCheck(e,i);
-    if(!h.ok) gaps.push("Entry "+(i+1)+" ("+e.aeronave+" / "+e.fecha+"): expected "+h.expected+", got "+h.got+" — Δ"+h.diff);
-  });
-  const al=el("horoAlert");
-  const body=el("horoAlertBody");
-  const countEl=el("horoGapCount");
-  if(gaps.length){
-    al.classList.add("on");
-    if(body) body.innerHTML=gaps.map(g=>"<div>• "+g+"</div>").join("");
-    if(countEl) countEl.textContent=gaps.length+" break(s)";
-    el("srcHoro").textContent="⚠ "+gaps.length+" break(s)";
-    el("srcHoro").className="sb-v warn"; // yellow — informational
-  } else {
-    al.classList.remove("on");
-    if(countEl) countEl.textContent="";
-    el("srcHoro").textContent=t("contOk");
-    el("srcHoro").className="sb-v ok";
-  }
-}
+function runHoroChecks(){ updateSrcBar(); } // delegated to updateSrcBar
 
 // ── FLIGHT LOG — WORKFLOW BAR ──
 function renderWfBar(){
@@ -3995,7 +4079,18 @@ function spRotateImg(){
 function spResetTransform(){ spZoom=1; spRotation=0; spPanX=0; spPanY=0; spPanMode=false; spApplyTransform(); }
 
 let spReextracting=false;
-let spDirty=false; // tracks unsaved changes in side panel
+let spDirty=false;
+
+function spUpdateNonBillBtn(isNonBill){
+  const btn=el("sp_nonbill_toggle"); if(!btn) return;
+  if(isNonBill){
+    btn.textContent="● Non-Billable";
+    btn.classList.add("active");
+  } else {
+    btn.textContent="○ Non-Billable";
+    btn.classList.remove("active");
+  }
+} // tracks unsaved changes in side panel
 
 // Mark panel dirty when any field changes
 function spMarkDirty(){ spDirty=true; }
@@ -4359,6 +4454,7 @@ function _loadSpEntry(entry){
   spRotation=entry._rotation||0;
   spClearDirty();
   spApplyTransform();
+  spUpdateNonBillBtn(entry.status==="nonbillable");
   const imgEl=el("sp_img");
   if(entry.imageUrl){ imgEl.src=entry.imageUrl; }
   else { imgEl.src=""; imgEl.alt="No source image available"; }
@@ -5366,6 +5462,86 @@ function wireEvents(){
   if(el("sp_pan_toggle")) el("sp_pan_toggle").addEventListener("click",spTogglePan);
   if(el("sp_rotate")) el("sp_rotate").addEventListener("click",spRotateImg);
   if(el("sp_reextract")) el("sp_reextract").addEventListener("click",spReextract);
+
+  // Non-Billable toggle
+  if(el("sp_nonbill_toggle")) el("sp_nonbill_toggle").addEventListener("click",()=>{
+    if(!spEditingEntryId) return;
+    const entry=flEntries.find(e=>e.id===spEditingEntryId); if(!entry) return;
+    if(entry.status==="nonbillable"){
+      // Turn off — revert to pending
+      entry.status="pending";
+      entry.nonBillReason=null;
+      spUpdateNonBillBtn(false);
+    } else {
+      // Turn on — prompt for reason
+      const reasons=["Maintenance","Aborted Flight","Equipment Failure","Other"];
+      const reason=prompt("Non-Billable reason:\n"+reasons.map((r,i)=>(i+1)+". "+r).join("\n")+"\n\nType number or custom reason:");
+      if(!reason){return;}
+      const idx=parseInt(reason)-1;
+      entry.nonBillReason=(!isNaN(idx)&&idx>=0&&idx<reasons.length)?reasons[idx]:reason;
+      entry.status="nonbillable";
+      if(el("sp_obs")) el("sp_obs").value="⊘ "+entry.nonBillReason;
+      spUpdateNonBillBtn(true);
+    }
+    spMarkDirty();
+    renderFlTable();
+    updateSrcBar();
+  });
+
+  // Floating dialog wiring — srcBar clickable links
+  function openFloatDialog(dlgId,title,lines,color){
+    const dlg=el(dlgId); if(!dlg) return;
+    const body=dlg.querySelector(".float-dialog-body");
+    if(body) body.innerHTML=lines.length?lines.map(l=>"<div style='padding:2px 0;border-bottom:1px solid var(--border2)'>"+l+"</div>").join(""):"<div style='color:var(--dim)'>No items.</div>";
+    // Position near srcBar
+    const bar=el("srcBar");
+    const rect=bar?bar.getBoundingClientRect():{top:100,left:100};
+    dlg.style.top=(rect.bottom+8)+"px";
+    dlg.style.left="120px";
+    dlg.classList.add("open");
+  }
+  function makeDraggable(dlgId,hdrId){
+    const dlg=el(dlgId); const hdr=el(hdrId); if(!dlg||!hdr) return;
+    let ox,oy,sx,sy,dragging=false;
+    hdr.addEventListener("mousedown",e=>{
+      dragging=true; sx=e.clientX; sy=e.clientY;
+      ox=dlg.offsetLeft; oy=dlg.offsetTop; e.preventDefault();
+    });
+    document.addEventListener("mousemove",e=>{
+      if(!dragging) return;
+      dlg.style.left=(ox+(e.clientX-sx))+"px";
+      dlg.style.top=(oy+(e.clientY-sy))+"px";
+    });
+    document.addEventListener("mouseup",()=>{ dragging=false; });
+  }
+  makeDraggable("dlgNonBill","dlgNonBillHdr");
+  makeDraggable("dlgLogBreaks","dlgLogBreaksHdr");
+  makeDraggable("dlgSeqAlerts","dlgSeqAlertsHdr");
+
+  if(el("dlgNonBillClose")) el("dlgNonBillClose").addEventListener("click",()=>el("dlgNonBill").classList.remove("open"));
+  if(el("dlgLogBreaksClose")) el("dlgLogBreaksClose").addEventListener("click",()=>el("dlgLogBreaks").classList.remove("open"));
+  if(el("dlgSeqAlertsClose")) el("dlgSeqAlertsClose").addEventListener("click",()=>el("dlgSeqAlerts").classList.remove("open"));
+
+  if(el("srcNonBill")) el("srcNonBill").addEventListener("click",()=>{
+    const lines=flEntries.filter(e=>e.status==="nonbillable").map((e,i)=>{
+      const idx=flEntries.indexOf(e)+1;
+      return "Entry #"+idx+" | Log "+e.bnum+" | "+e.fecha+" — "+(e.nonBillReason||"—");
+    });
+    openFloatDialog("dlgNonBill","Non-Billable Entries",lines,"var(--dim2)");
+  });
+  if(el("srcLogBreaks")) el("srcLogBreaks").addEventListener("click",()=>{
+    const breaks=logCheck();
+    const lines=breaks.map(b=>"Entry #"+(b.idx+1)+" | "+b.msg);
+    openFloatDialog("dlgLogBreaks","Log # Breaks",lines,"var(--red)");
+  });
+  if(el("srcHoro")) el("srcHoro").addEventListener("click",()=>{
+    const alerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; }).map((e,i)=>{
+      const idx=flEntries.indexOf(e);
+      const h=horoCheck(e,idx);
+      return "Entry #"+(idx+1)+" | Log "+e.bnum+" | "+e.aeronave+" | Expected "+h.expected+" got "+h.got+" (Δ"+h.diff+")";
+    });
+    openFloatDialog("dlgSeqAlerts","Sequence Alerts",alerts,"var(--yellow)");
+  });
   // Pan/drag — active when spPanMode is true
   const spImgWrap=el("sp_img_wrap");
   if(spImgWrap){
