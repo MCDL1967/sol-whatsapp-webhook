@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.25.2 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.0 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.25.2</title>
+<title>HP Fleet v8.0</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -471,9 +471,87 @@ table.fl-tbl td:last-child{border-right:none}
 ::-webkit-scrollbar-track{background:var(--s1)}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 @media(max-width:768px){
-  .tab-content{padding:16px} .stats-row{grid-template-columns:1fr 1fr}
-  .co-grid{grid-template-columns:1fr} .fc2,.fc3{grid-template-columns:1fr}
+  /* M1 — Topbar: hide user info text, compress layout */
+  .topbar{padding:0 12px;height:48px}
+  .tb-logo{font-size:13px;padding-right:12px}
+  .tb-user-info{display:none}
+  .tb-right{gap:8px}
+  .btn-so{font-size:9px;padding:5px 8px}
+
+  /* M2 — Tab nav: smaller padding, scroll indicator fade */
+  .tab-nav{padding:0 8px;-webkit-overflow-scrolling:touch}
+  .tab-nav::after{content:'';position:sticky;right:0;width:24px;flex-shrink:0;
+    background:linear-gradient(to right,transparent,var(--s1));pointer-events:none}
+  .tab-btn{padding:0 10px;font-size:10px;letter-spacing:.5px;height:40px;gap:5px}
+  .tab-icon{font-size:12px}
+
+  /* M3 — Table: reduce min-width, smaller cells */
+  .fl-tbl{min-width:800px}
+  table.fl-tbl td{padding:6px 7px;font-size:10px}
+  table.fl-tbl thead th{padding:7px 7px;font-size:8px}
+  .fl-tbl-wrap.sticky-active{max-height:calc(100vh - 280px)!important}
+
+  /* M4 — Side panel: full width on mobile */
+  .side-panel{width:100%!important;min-width:unset!important}
+
+  /* M5 — srcBar: wrap items */
+  .src-bar{flex-wrap:wrap}
+  .sb-item{border-right:none;border-bottom:1px solid var(--border);width:50%;box-sizing:border-box}
+  .sb-item:last-child{border-bottom:none;margin-left:0;width:100%}
+
+  /* M6 — Page header */
+  .page-hdr{margin-bottom:14px;gap:8px}
+  .page-title{font-size:18px}
+
+  /* M7 — Review controls: wrap cleanly */
+  .toolbar{gap:6px}
+  .f-select{min-width:120px;font-size:10px}
+  .btn-ghost{font-size:10px;padding:7px 10px}
+  .btn-primary{font-size:11px;padding:8px 14px}
+
+  /* M8 — Modals: full width, single column */
+  .mbd{padding:10px}
+  .mbox{max-width:100%!important;max-height:95vh}
+  .fc2,.fc3{grid-template-columns:1fr}
+  .mbody{padding:14px}
+  .mhdr{padding:12px 14px}
+  .mftr{padding:10px 14px}
+
+  /* M9 — Sticky headers offset */
+  .fl-tbl-wrap.sticky-active{max-height:calc(100vh - 240px)!important}
+
+  /* M10 — Float dialogs: full width, no drag needed */
+  .float-dialog{min-width:unset!important;max-width:100%!important;
+    width:calc(100vw - 24px)!important;left:12px!important}
+
+  /* M11 — Touch targets: minimum 44px height on action buttons */
+  .btn-primary,.btn-ghost,.btn-success,.btn-warn,.btn-danger{min-height:44px}
+  .t3 button{padding:8px 10px;min-height:36px}
+
+  /* M12 — Settings */
+  .settings-section{max-width:100%}
+  .settings-card{padding:16px}
+
+  /* M13 — Role badge bar */
+  .rb-perms{gap:4px}
+  .perm-tag{font-size:8px;padding:2px 6px}
+
+  /* M14 — Batch selector */
+  #batchSelector{max-width:100%!important;width:100%}
+  .page-hdr .f-wrap{width:100%}
+  .page-hdr .f-wrap .f-select{width:100%;min-width:unset}
+
+  /* M15 — WF Bar steps */
+  .wf-bar{flex-wrap:wrap;padding:0 8px}
+  .wf-step{padding:8px 8px;font-size:9px}
+
+  /* General spacing */
+  .tab-content{padding:12px}
+  .stats-row{grid-template-columns:1fr 1fr}
+  .co-grid{grid-template-columns:1fr}
   .sum-grid{grid-template-columns:1fr 1fr}
+  .role-banner{margin:12px 12px 0}
+  .panel-content{border-left:none;border-right:none}
 }
 
 /* BATCH CONSTANTS */
@@ -839,7 +917,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.25.2</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.0</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -848,7 +926,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.25.2</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.0</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1800,7 +1878,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.25.2";
+const APP_VERSION = "v8.0";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
