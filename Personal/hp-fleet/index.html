@@ -1,10 +1,10 @@
-<!-- HP Fleet v8.1.5 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.1.6 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v8.1.5</title>
+<title>HP Fleet v8.1.6</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -919,7 +919,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.1.5</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.1.6</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -928,7 +928,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.1.5</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.1.6</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1800,6 +1800,9 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
   <div class="sp-meta" id="sp_meta">—</div>
   <div class="sp-img-wrap" id="sp_img_wrap">
     <img id="sp_img" src="" alt="Source log" style="transform-origin:center;transition:transform .15s">
+    <div id="sp_nonbill_watermark" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;pointer-events:none;z-index:5">
+      <span id="sp_nonbill_wm_text" style="font-size:60px;font-weight:700;color:rgba(255,107,107,0.35);transform:rotate(-45deg);white-space:nowrap;text-align:center;font-family:var(--mono);text-transform:uppercase;letter-spacing:4px;user-select:none">NON-BILLABLE</span>
+    </div>
   </div>
   <!-- Image toolbar: Fit | − | zoom% | + | Rotate | OCR | Save -->
   <div class="sp-img-toolbar" id="sp_img_toolbar">
@@ -1913,7 +1916,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.1.5";
+const APP_VERSION = "v8.1.6";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2319,7 +2322,7 @@ function addContact(){
 }
 // Flight log state
 let flEntries=[], flAuditLog=[], fileQueue=[], editingEntryId=null;
-let batchStatus="DRAFT", confirmCb=null, batchSourceFile="", nextEntryId=1;
+let batchStatus="DRAFT", confirmCb=null, batchSourceFile=[], nextEntryId=1;
 let currentBatchId=null;
 let isExtracting=false;
 let extractionAbort=null;
@@ -3316,10 +3319,10 @@ async function extractAll(){
     horoIn:parseFloat(e.horoIn)||0,
     imageUrl:e._imageUrl||null
   }))];
-  batchSourceFile=fileQueue.map(f=>f.name).join(", ");
+  batchSourceFile=fileQueue.map(f=>f.name);
   // Populate session bar
   updateSrcBar();
-  const msg=hasErrors?"⚠ "+allExtracted.length+" "+t("extractPartial"):"✓ "+allExtracted.length+" "+t("extractSuccess")+" "+batchSourceFile;
+  const msg=hasErrors?"⚠ "+allExtracted.length+" "+t("extractPartial"):"✓ "+allExtracted.length+" "+t("extractSuccess")+" "+batchSourceFile.join(", ");
   uploadLog(msg);
   uploadLog("Extraction complete — ready for review");
   showResultBanner(hasErrors?"warn":"ok",msg);
@@ -3405,8 +3408,8 @@ function updateSrcBar(){
   const seqAlerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; });
 
   if(el("srcFile")){
-    const files=(batchSourceFile||"—").split(/,\s*/);
-    el("srcFile").textContent=files.map((f,i)=>(i+1)+". "+f).join("\n");
+    const files=Array.isArray(batchSourceFile)?batchSourceFile:(batchSourceFile||"—").split(/,\s*/);
+    el("srcFile").textContent=files.length?files.map((f,i)=>(i+1)+". "+f).join("\n"):"—";
   }
   if(el("srcTotalRecords")) el("srcTotalRecords").textContent=total||"—";
   if(el("srcRead")){ el("srcRead").textContent=read; el("srcRead").style.color=read>0?"var(--green)":"var(--dim2)"; }
@@ -4206,7 +4209,7 @@ function exportFlCSV(){
     return [i+1,e.bnum||"",e.fecha,e.aeronave,e.operador,e.piloto,e.instructor||"",e.horoIn,
       e.motorOut,e.motorIn,tm.toFixed(2),e.vueloOut,e.vueloIn,tv.toFixed(2),
       DEFAULT_MULT[e.operador]||"",e.multOverride||"",tbp.toFixed(2),
-      e.obs||"",e.flagNote||"",e.status,batchStatus,currentUser.name,batchSourceFile,FL_LOAD_TS.toISOString()]
+      e.obs||"",e.flagNote||"",e.status,batchStatus,currentUser.name,batchSourceFile.join(", "),FL_LOAD_TS.toISOString()]
       .map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(",");
   });
   const ts=FL_LOAD_TS.toISOString().slice(0,16).replace(/[T:]/g,"-");
@@ -4226,7 +4229,7 @@ function exportFlXLSX(){
       e.motorOut,e.motorIn,parseFloat(tm.toFixed(2)),
       e.vueloOut,e.vueloIn,parseFloat(tv.toFixed(2)),
       DEFAULT_MULT[e.operador]||"",e.multOverride||"",parseFloat(tbp.toFixed(2)),
-      e.obs||"",e.flagNote||"",e.status,batchStatus,currentUser.name,batchSourceFile,FL_LOAD_TS.toISOString()];
+      e.obs||"",e.flagNote||"",e.status,batchStatus,currentUser.name,batchSourceFile.join(", "),FL_LOAD_TS.toISOString()];
   })];
   const ws=XLSX.utils.aoa_to_sheet(data);
   ws["!cols"]=[4,12,12,10,18,18,11,10,10,9,10,10,9,9,10,10,20,10,12,16,22,22].map(w=>({wch:w}));
@@ -4237,7 +4240,7 @@ function exportFlXLSX(){
   const sumData=[
     ["HP Fleet — Flight Log Summary",""],
     ["Generated",new Date().toLocaleString()],
-    ["Source File",batchSourceFile],["Batch Status",batchStatus],["Loaded By",currentUser.name],["",""],
+    ["Source File",batchSourceFile.join(", ")],["Batch Status",batchStatus],["Loaded By",currentUser.name],["",""],
     ["Operator","T.Motor (hrs)","Total TBH (hrs)"],
     ["FM",parseFloat(fmM.toFixed(2)),parseFloat(fmT.toFixed(2))],
     ["MAG",parseFloat(magM.toFixed(2)),parseFloat(magT.toFixed(2))],
@@ -4386,6 +4389,7 @@ function spUpdateNonBillBtn(isNonBill){
   } else {
     btn.textContent="○ Non-Billable";
     btn.classList.remove("active");
+    const wm=el("sp_nonbill_watermark"); if(wm) wm.style.display="none";
   }
 } // tracks unsaved changes in side panel
 
@@ -4575,7 +4579,7 @@ async function saveBatchToDB(){
     const meta=window._pendingBatchMeta||{};
     const logNums=flEntries.map(e=>e.bnum).filter(Boolean).sort();
     const batchData={
-      source_file:batchSourceFile,
+      source_file:JSON.stringify(Array.isArray(batchSourceFile)?batchSourceFile:[batchSourceFile]),
       status:batchStatus,
       submitted_by:currentUser.name,
       aircraft:meta.aircraft||"",
@@ -4762,6 +4766,14 @@ function _loadSpEntry(entry){
   spClearDirty();
   spApplyTransform();
   spUpdateNonBillBtn(entry.status==="nonbillable");
+  // Non-billable watermark
+  const wm=el("sp_nonbill_watermark"); const wmTxt=el("sp_nonbill_wm_text");
+  if(wm&&wmTxt){
+    if(entry.status==="nonbillable"){
+      wmTxt.textContent=(entry.nonBillReason||"Non-Billable").split(" — ")[0];
+      wm.style.display="flex";
+    } else { wm.style.display="none"; }
+  }
   const imgEl=el("sp_img");
   if(entry.imageUrl){ imgEl.src=entry.imageUrl; }
   else { imgEl.src=""; imgEl.alt="No source image available"; }
@@ -5052,7 +5064,7 @@ function closeSidePanel(){
 async function resetBatch(){
   // Archive current batch — DO NOT delete
   flEntries=[]; flAuditLog=[]; fileQueue=[]; batchStatus="DRAFT";
-  batchSourceFile=""; editingEntryId=null; nextEntryId=1;
+  batchSourceFile=[]; editingEntryId=null; nextEntryId=1;
   currentBatchId=null; // deselect, preserve in DB
   piAdditionalCharges=[]; piSignedBy=null; piSignedAt=null; piInvNum=null; piRulesSeeded=false;
   if(el("pi_signed_badge")){ el("pi_signed_badge").style.display="none"; el("pi_signed_badge").textContent=""; }
@@ -5299,11 +5311,11 @@ async function extractAllAppend(appendQueue){
   }));
   flEntries=[...flEntries,...newEntries];
 
-  // Update source file label — append new file names
-  const newNames=appendQueue.map(f=>f.name).join(", ");
-  batchSourceFile=batchSourceFile?batchSourceFile+", "+newNames:newNames;
+  // Update source file array — append new file names
+  const newNames=appendQueue.map(f=>f.name);
+  batchSourceFile=[...batchSourceFile,...newNames];
 
-  const msg=hasErrors?"⚠ "+newEntries.length+" entries appended (with errors)":"✓ "+newEntries.length+" entries appended — "+newNames;
+  const msg=hasErrors?"⚠ "+newEntries.length+" entries appended (with errors)":"✓ "+newEntries.length+" entries appended — "+newNames.join(", ");
   uploadLog(msg);
   uploadLog("Append complete — ready for review");
 
@@ -5377,7 +5389,8 @@ function saveUploadLog(){
   const txt=uploadLogLines.join("\n");
   const a=document.createElement("a");
   a.href=URL.createObjectURL(new Blob([txt],{type:"text/plain"}));
-  const baseName=(batchSourceFile||"extraction").split(",")[0].trim().replace(/\.[^.]+$/,"").replace(/[^a-zA-Z0-9_\-]/g,"_");
+  const srcName=Array.isArray(batchSourceFile)?batchSourceFile[0]:(batchSourceFile||"extraction");
+  const baseName=srcName.trim().replace(/\.[^.]+$/,"").replace(/[^a-zA-Z0-9_\-]/g,"_");
   a.download=baseName+"_log.txt";
   a.click();
 }
@@ -5516,7 +5529,8 @@ async function loadBatchFromDB(id){
     if(!batch){ dbg("No batch found in DB","info"); return false; }
     currentBatchId=batch.id;
     batchStatus=batch.status;
-    batchSourceFile=batch.source_file||"";
+    try{ batchSourceFile=JSON.parse(batch.source_file||"[]"); }
+    catch(e){ batchSourceFile=batch.source_file?[batch.source_file]:[]; }
     dbg("Batch loaded — id: "+currentBatchId+" status: "+batchStatus,"ok");
     const entries=await sbGet("entries","batch_id=eq."+currentBatchId+"&order=sort_order.asc");
     flEntries=(entries||[]).map((e,i)=>({
@@ -5618,8 +5632,8 @@ async function importFromXLSX(file){
       });
       dbg("Import complete — "+imported+" imported, "+skipped+" skipped","ok");
       if(!imported){showToast("No valid entries found in Excel","err");return;}
-      batchSourceFile=file.name;
-      if(el("srcFile")) el("srcFile").textContent=batchSourceFile;
+      batchSourceFile=[file.name];
+      if(el("srcFile")) el("srcFile").textContent="1. "+file.name;
       if(el("srcTs")) el("srcTs").textContent=new Date().toLocaleString(lang==="es"?"es-PA":"en-US");
       el("srcBar").style.display="flex";
       el("reviewSection").style.display="block";
@@ -6162,10 +6176,13 @@ function wireEvents(){
       e.preventDefault();
       spZoomIn();
     });
-    // Scroll wheel zoom when panel is open
+    // Scroll wheel zoom — throttled to prevent over-sensitivity on trackpad
+    let _wheelThrottle=null;
     spImgWrap.addEventListener("wheel",e=>{
       if(!el("sidePanel").classList.contains("open")) return;
       e.preventDefault();
+      if(_wheelThrottle) return;
+      _wheelThrottle=setTimeout(()=>{ _wheelThrottle=null; },150);
       if(e.deltaY<0) spZoomIn(); else spZoomOut();
     },{passive:false});
   }
