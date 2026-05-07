@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.22.6 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.22.7 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.22.6</title>
+<title>HP Fleet v7.22.7</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -765,7 +765,7 @@ table.fl-tbl td:last-child{border-right:none}
 
 /* NON-BILLABLE */
 .log-seq-gap{border-left:3px solid var(--red)!important}
-.r-nonbillable{background:rgba(255,107,107,0.07)!important}
+.r-nonbillable{background:rgba(255,107,107,0.12)!important}
 .r-nonbillable td{color:inherit!important}
 
 .sp-img-toolbar button.sp-nonbill-btn{background:transparent;border:1px solid var(--red)!important;color:var(--red)!important}
@@ -828,7 +828,7 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.22.6</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.22.7</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -837,7 +837,7 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.22.6</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.22.7</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1558,7 +1558,7 @@ table.fl-tbl td:last-child{border-right:none}
       </div>
       <div class="frow fc2">
         <div class="field"><label>Type</label><input type="text" id="ac_tipo" placeholder="Single Engine" title="Aircraft type e.g. Single Engine, Multi Engine"></div>
-        <div class="field"><label>Diff Threshold (hrs) <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green);vertical-align:middle;margin-left:4px" title="Green: gap below this value is acceptable"></span></label><input type="number" id="ac_diffThreshold" step="0.1" placeholder="0.2" title="Motor vs Flight time gap below this value is normal (green)"></div>
+        <div class="field"><label>Tach Tolerance (hrs)</label><input type="number" id="ac_horoTolerance" step="0.01" placeholder="0.01" title="Acceptable gap between prev Motor In and curr Motor Out — default 0.01"></div>
       </div>
       <div class="frow fc2">
         <div class="field"><label>Warn Threshold (hrs) <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--yellow);vertical-align:middle;margin-left:4px" title="Yellow: gap warrants attention"></span></label><input type="number" id="ac_diffWarn" step="0.1" placeholder="0.3" title="Motor vs Flight time gap above this value triggers a yellow warning"></div>
@@ -1661,7 +1661,7 @@ table.fl-tbl td:last-child{border-right:none}
   <!-- Editable fields section -->
   <div class="sp-edit-section" id="spEditSection" style="display:none">
     <div class="sp-edit-hdr" id="spEditHdr">
-      <span class="sp-edit-title" id="spEditTitle">✎ Entry Data</span>
+      <span class="sp-edit-title" id="spEditTitle">✎ Data Entry</span>
       <button id="spEditToggle" style="background:none;border:none;color:var(--dim2);cursor:pointer;font-size:14px">▲</button>
     </div>
     <div class="sp-edit-body" id="spEditBody">
@@ -1674,7 +1674,10 @@ table.fl-tbl td:last-child{border-right:none}
       <div class="sp-frow fc3">
         <div class="sp-field"><label>Operator</label><select id="sp_operador"><option>FM</option><option>MAG</option></select></div>
         <div class="sp-field"><label>Horo. Start</label><input type="number" id="sp_horoIn" step="0.1"></div>
-        <div class="sp-field"><label>Mult. Override</label><input type="number" id="sp_mult" step="0.001" placeholder="Default"></div>
+        <div class="sp-field"><label>Mult. Override</label>
+          <select id="sp_mult_sel" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 8px;border-radius:2px;outline:none;width:100%"></select>
+          <input type="number" id="sp_mult" step="0.001" placeholder="Custom value" style="display:none;margin-top:4px;width:100%;box-sizing:border-box">
+        </div>
       </div>
       <div class="sp-frow">
         <div class="sp-field"><label>Pilot</label><input type="text" id="sp_piloto"></div>
@@ -1733,7 +1736,7 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.22.6";
+const APP_VERSION = "v7.22.7";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -3141,21 +3144,27 @@ function logCheck(){
 }
 
 function horoCheck(entry,idx){
-  // Only check against previous SAME-aircraft non-skipped entry
+  // Sequence check: prev.motorIn should equal curr.motorOut within aircraft tolerance
+  if(!entry.motorOut||!entry.aeronave) return{ok:true};
   const prev=flEntries.slice(0,idx).filter(e=>
     e.aeronave===entry.aeronave&&
     e.status!=="skipped"&&e.status!=="void"&&
-    e.motorOut&&e.motorIn // must have actual data
+    e.motorIn&&e.motorIn!=="—"
   ).pop();
   if(!prev) return{ok:true};
-  if(!entry.motorOut||!entry.motorIn) return{ok:true}; // no data to check against
-  const prevTm=calcEntry(prev).tm;
-  if(!prevTm) return{ok:true}; // prev had no motor time — skip
-  const expected=parseFloat(prev.horoIn||0)+prevTm;
-  const got=parseFloat(entry.horoIn||0);
-  if(!got) return{ok:true}; // no horoIn — skip
-  const diff=Math.abs(got-expected);
-  return{ok:diff<0.15,expected:expected.toFixed(2),got:got.toFixed(2),diff:diff.toFixed(2)};
+  const ac=AIRCRAFT.find(a=>a.matricula===entry.aeronave);
+  const tolerance=ac?.horoTolerance??0.01;
+  const prevIn=parseFloat(prev.motorIn);
+  const currOut=parseFloat(entry.motorOut);
+  if(isNaN(prevIn)||isNaN(currOut)) return{ok:true};
+  const diff=Math.abs(currOut-prevIn);
+  return{
+    ok:diff<=tolerance,
+    prevIn:prevIn.toFixed(2),
+    currOut:currOut.toFixed(2),
+    diff:diff.toFixed(2),
+    tolerance:tolerance
+  };
 }
 
 function updateSrcBar(){
@@ -4098,6 +4107,7 @@ function spClearDirty(){ spDirty=false; }
 // Aircraft cascade — filters operators and multiplier to valid values for selected aircraft
 function spCascadeAircraftDropdowns(matricula){
   const opSel=el("sp_operador");
+  const multSel=el("sp_mult_sel");
   const multInp=el("sp_mult");
   if(!opSel) return;
   const ac=AIRCRAFT.find(a=>a.matricula===matricula);
@@ -4109,24 +4119,29 @@ function spCascadeAircraftDropdowns(matricula){
       opt.value=r.operador; opt.textContent=r.operador;
       opSel.appendChild(opt);
     });
-    // Restore previous operator if still valid
     if(ac.rates.find(r=>r.operador===currentOp)) opSel.value=currentOp;
     else opSel.value=ac.rates[0].operador;
-    // Update mult field to new default rate
-    // — preserve if user has typed a custom value different from any known default
-    const rate=ac.rates.find(r=>r.operador===opSel.value);
-    if(multInp&&rate){
-      const currentVal=parseFloat(multInp.value);
-      const isKnownDefault=ac.rates.some(r=>Math.abs(r.multiplicador-currentVal)<0.001);
-      // Update if blank, or if current value is just another default rate (not a custom override)
-      if(!multInp.value||isKnownDefault) multInp.value=rate.multiplicador.toFixed(3);
-    }
   } else {
     ["FM","MAG"].forEach(op=>{
       const opt=document.createElement("option");
       opt.value=op; opt.textContent=op;
       opSel.appendChild(opt);
     });
+  }
+  // Populate mult dropdown with all rates for this aircraft + Custom
+  if(multSel&&ac&&ac.rates){
+    multSel.innerHTML="";
+    ac.rates.forEach(r=>{
+      const opt=document.createElement("option");
+      opt.value=r.multiplicador;
+      opt.textContent=r.operador+" — "+r.multiplicador.toFixed(3);
+      multSel.appendChild(opt);
+    });
+    const customOpt=document.createElement("option");
+    customOpt.value="custom"; customOpt.textContent="Custom…";
+    multSel.appendChild(customOpt);
+    multSel.value=ac.rates.find(r=>r.operador===opSel.value)?.multiplicador||ac.rates[0].multiplicador;
+    if(multInp) multInp.style.display="none";
   }
   spLiveCalc();
 }
@@ -4520,7 +4535,7 @@ function _loadSpEntry(entry){
     if(commentRow) commentRow.style.display="none";
     if(saveBtn) saveBtn.style.display="none";
   } else {
-    if(editTitle) editTitle.textContent="✎ Entry Data";
+    if(editTitle) editTitle.textContent="✎ Data Entry";
     if(commentRow) commentRow.style.display="none";
     if(saveBtn){ saveBtn.innerHTML='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg> Save'; saveBtn.style.display=""; saveBtn.style.background="rgba(65,209,255,.12)"; saveBtn.style.borderColor="var(--cyan)"; saveBtn.style.color="var(--cyan)"; }
   }
@@ -4569,12 +4584,20 @@ function populateSpEditFields(e){
   if(el("sp_motorIn")) el("sp_motorIn").value=e.motorIn||"";
   if(el("sp_vueloOut")) el("sp_vueloOut").value=e.vueloOut||"";
   if(el("sp_vueloIn")) el("sp_vueloIn").value=e.vueloIn||"";
-  if(el("sp_mult")){
-    if(e.multOverride){
+  if(el("sp_mult_sel")&&el("sp_mult")){
+    const acRate=AIRCRAFT.find(a=>a.matricula===e.aeronave)?.rates?.find(r=>r.operador===(e.operador||"FM"));
+    const defaultRate=acRate?acRate.multiplicador:null;
+    if(e.multOverride&&(!defaultRate||Math.abs(e.multOverride-defaultRate)>0.001)){
+      // Custom override — show custom input
+      el("sp_mult_sel").value="custom";
+      el("sp_mult").style.display="";
       el("sp_mult").value=e.multOverride;
     } else {
-      const acRate=AIRCRAFT.find(a=>a.matricula===e.aeronave)?.rates?.find(r=>r.operador===(e.operador||"FM"));
-      el("sp_mult").value=acRate?acRate.multiplicador.toFixed(3):"";
+      // Use default rate from dropdown
+      const rateVal=e.multOverride||defaultRate;
+      if(rateVal) el("sp_mult_sel").value=rateVal;
+      el("sp_mult").style.display="none";
+      el("sp_mult").value="";
     }
   }
   if(el("sp_obs")) el("sp_obs").value=e.obs||"";
@@ -4652,10 +4675,17 @@ async function saveSpEntry(){
     addFlAudit("🚩",currentUser.name,"review comment on entry #"+(flEntries.indexOf(e)+1),comment);
   } else {
     // Full edit — check name propagation
-    const multRaw=parseFloat(el("sp_mult").value);
+    const multSel=el("sp_mult_sel");
+    const multInp=el("sp_mult");
+    let multRaw=null;
+    if(multSel&&multSel.value==="custom"&&multInp&&multInp.value.trim()){
+      multRaw=parseFloat(multInp.value);
+    } else if(multSel&&multSel.value!=="custom"){
+      multRaw=parseFloat(multSel.value);
+    }
     const defaultRate=getAircraftMult(el("sp_aeronave").value,el("sp_operador").value);
-    const isDefaultVal=!isNaN(multRaw)&&Math.abs(multRaw-defaultRate)<0.001;
-    const multOverrideVal=isNaN(multRaw)||!el("sp_mult").value.trim()||isDefaultVal?null:multRaw;
+    const isDefaultVal=multRaw!==null&&Math.abs(multRaw-defaultRate)<0.001;
+    const multOverrideVal=(multRaw===null||isNaN(multRaw)||isDefaultVal)?null:multRaw;
     const oldPiloto=e.piloto, oldInstructor=e.instructor;
     const newPiloto=el("sp_piloto").value.trim();
     const newInstructor=el("sp_instructor").value.trim();
@@ -5215,6 +5245,7 @@ function openCreateAircraft(){
   el("acModalTitle").textContent="New Aircraft";
   el("ac_matricula").value=""; el("ac_makeModel").value="";
   el("ac_tipo").value="Single Engine";
+  if(el("ac_horoTolerance")) el("ac_horoTolerance").value="0.01";
   el("ac_diffThreshold").value="0.2";
   if(el("ac_diffWarn")) el("ac_diffWarn").value="0.3";
   if(el("ac_diffAlert")) el("ac_diffAlert").value="0.4";
@@ -5233,6 +5264,7 @@ function openEditAircraft(id){
   el("ac_matricula").value=ac.matricula;
   el("ac_makeModel").value=ac.makeModel||"";
   el("ac_tipo").value=ac.tipo||"";
+  if(el("ac_horoTolerance")) el("ac_horoTolerance").value=ac.horoTolerance||0.01;
   el("ac_diffThreshold").value=ac.diffThreshold||0.2;
   if(el("ac_diffWarn")) el("ac_diffWarn").value=ac.diffWarn||0.3;
   if(el("ac_diffAlert")) el("ac_diffAlert").value=ac.diffAlert||0.4;
@@ -5261,6 +5293,7 @@ async function saveAircraft(){
   const data={
     matricula, makeModel:el("ac_makeModel").value.trim(),
     tipo:el("ac_tipo").value.trim(),
+    horoTolerance:parseFloat(el("ac_horoTolerance")?el("ac_horoTolerance").value:0.01)||0.01,
     // Use first rate's multiplier as the aircraft-level fallback
     multiplicador:tempRates[0]?parseFloat(tempRates[0].multiplicador)||1:1,
     diffThreshold:parseFloat(el("ac_diffThreshold").value)||0.2,
@@ -5546,10 +5579,10 @@ function wireEvents(){
     openFloatDialog("dlgLogBreaks","Log # Breaks",lines,"var(--red)");
   });
   if(el("srcHoro")) el("srcHoro").addEventListener("click",()=>{
-    const alerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; }).map((e,i)=>{
+    const alerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; }).map((e)=>{
       const idx=flEntries.indexOf(e);
       const h=horoCheck(e,idx);
-      return "Entry #"+(idx+1)+" | Log "+e.bnum+" | "+e.aeronave+" | Expected "+h.expected+" got "+h.got+" (Δ"+h.diff+")";
+      return "Entry #"+(idx+1)+" | Log "+(e.bnum||"—")+" | "+e.aeronave+" | Prev.In "+h.prevIn+" → Curr.Out "+h.currOut+" (Δ"+h.diff+", tol:"+h.tolerance+")";
     });
     openFloatDialog("dlgSeqAlerts","Sequence Alerts",alerts,"var(--yellow)");
   });
@@ -5815,9 +5848,19 @@ function wireEvents(){
     }
   }
 
-  // Aircraft cascade in side panel — operator + multiplier follow aircraft selection
+  // Aircraft cascade in side panel
   if(el("sp_aeronave")) el("sp_aeronave").addEventListener("change",function(){
     spCascadeAircraftDropdowns(this.value);
+  });
+  // Mult dropdown custom option toggle
+  if(el("sp_mult_sel")) el("sp_mult_sel").addEventListener("change",function(){
+    const multInp=el("sp_mult");
+    if(this.value==="custom"){
+      if(multInp){ multInp.style.display=""; multInp.focus(); }
+    } else {
+      if(multInp){ multInp.style.display="none"; multInp.value=""; }
+      spLiveCalc();
+    }
   });
 
   ["sp_motorOut","sp_motorIn","sp_vueloOut","sp_vueloIn","sp_mult","sp_operador"].forEach(id=>{
@@ -5825,7 +5868,7 @@ function wireEvents(){
   });
   // Dirty tracking — any field change marks panel dirty
   ["sp_bnum","sp_fecha","sp_piloto","sp_instructor","sp_horoIn",
-   "sp_motorOut","sp_motorIn","sp_vueloOut","sp_vueloIn","sp_mult","sp_obs",
+   "sp_motorOut","sp_motorIn","sp_vueloOut","sp_vueloIn","sp_mult","sp_mult_sel","sp_obs",
    "sp_aeronave","sp_operador","sp_comment"].forEach(id=>{
     if(el(id)) el(id).addEventListener("input",spMarkDirty);
     if(el(id)) el(id).addEventListener("change",spMarkDirty);
