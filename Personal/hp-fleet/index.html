@@ -1,10 +1,10 @@
-<!-- HP Fleet v8.1.4 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.1.5 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v8.1.4</title>
+<title>HP Fleet v8.1.5</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -593,8 +593,8 @@ table.fl-tbl td:last-child{border-right:none}
   min-height:150px;flex-shrink:0}
 .sp-img-wrap img{max-width:100%;max-height:100%;object-fit:contain;
   border:1px solid var(--border);border-radius:2px;display:block}
-.sp-img-wrap.panning{cursor:grab}
-.sp-img-wrap.panning:active{cursor:grabbing}
+.sp-img-wrap{cursor:grab}
+.sp-img-wrap:active{cursor:grabbing}
 .sp-overlay{position:fixed;inset:0;background:transparent;
   z-index:99;display:none;pointer-events:none}
 .sp-overlay.open{display:block}
@@ -738,7 +738,7 @@ table.fl-tbl td:last-child{border-right:none}
 /* SIDE PANEL LEFT RESIZE (width) */
 /* STICKY HEADERS */
 table.fl-tbl.sticky-headers thead th{position:sticky;top:0;z-index:5;background:var(--s2)}
-table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
+table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 0 0 var(--s2)}
 .fl-tbl-wrap.sticky-active{overflow-y:auto!important;max-height:calc(100vh - 320px)!important}
 /* DUPLICATE LOG MARKER */
 .log-dup-gap{border-left:3px solid var(--red)!important}
@@ -919,7 +919,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.1.4</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.1.5</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -928,7 +928,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.1.4</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.1.5</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1033,7 +1033,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
       <!-- Result banner -->
       <div id="resultBanner" style="display:none"></div>
 
-      <!-- Session bar — persistent after extraction -->\
+      <!-- Session bar — persistent after extraction -->
       <div class="src-bar" id="srcBar" style="display:none">
         <div class="sb-item" style="display:flex;flex-direction:column;gap:6px">
           <div><div class="sb-l" id="sb_file">Source File</div><div class="sb-v" id="srcFile" style="white-space:pre-line">—</div></div>
@@ -1622,7 +1622,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
 </div>
 
 <!-- UPLOAD STATUS WINDOW -->
-<div id="uploadStatusMbd" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:400;width:480px;max-width:calc(100vw - 40px);background:var(--s1);border:1px solid var(--border2);border-radius:4px;flex-direction:column;min-height:200px;max-height:60vh;box-shadow:0 8px 32px rgba(0,0,0,.5)">
+<div id="uploadStatusMbd" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:400;width:480px;max-width:calc(100vw - 40px);background:var(--s1);border:1px solid var(--border2);border-radius:4px;flex-direction:column;min-height:200px;max-height:80vh;box-shadow:0 8px 32px rgba(0,0,0,.5);resize:both;overflow:hidden">
   <div data-drag-hdr style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--cyan);border-radius:3px 3px 0 0;flex-shrink:0;cursor:move">
     <div style="font-family:var(--mono);font-size:11px;color:#000;letter-spacing:1px;font-weight:700">⚙ EXTRACTION LOG</div>
     <div style="display:flex;gap:8px">
@@ -1630,7 +1630,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
       <button id="uploadLog_close" style="background:rgba(0,0,0,.15);border:1px solid rgba(0,0,0,.2);color:#000;font-family:var(--mono);font-size:10px;padding:4px 10px;cursor:pointer;border-radius:2px">Close</button>
     </div>
   </div>
-  <div id="uploadLogBody" style="flex:1;overflow-y:auto;padding:10px 14px;font-family:var(--mono);font-size:10px;color:var(--dim2);line-height:1.8"></div>
+  <div id="uploadLogBody" style="flex:1;overflow-y:auto;padding:10px 14px;font-family:var(--mono);font-size:10px;color:var(--dim2);line-height:1.8;min-height:150px"></div>
 </div>
 
 <!-- EXTRACTION SUMMARY MODAL -->
@@ -1801,7 +1801,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
   <div class="sp-img-wrap" id="sp_img_wrap">
     <img id="sp_img" src="" alt="Source log" style="transform-origin:center;transition:transform .15s">
   </div>
-  <!-- Image toolbar: Fit | − | zoom% | + | Pan | Rotate | OCR | Save -->
+  <!-- Image toolbar: Fit | − | zoom% | + | Rotate | OCR | Save -->
   <div class="sp-img-toolbar" id="sp_img_toolbar">
     <button id="sp_fit" title="Fit to window">
       <svg viewBox="0 0 24 24"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
@@ -1814,11 +1814,6 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
     <span class="sp-zoom-level" id="sp_zoom_level">100%</span>
     <button id="sp_zoom_in" title="Zoom in">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-    </button>
-    <div class="sp-toolbar-sep"></div>
-    <button id="sp_pan_toggle" title="Toggle pan mode">
-      <svg viewBox="0 0 24 24"><path d="M4 4l7.07 17 2.51-7.39L21 11.07z"/></svg>
-      Pan
     </button>
     <div class="sp-toolbar-sep"></div>
     <button id="sp_rotate" title="Rotate 90°">
@@ -1918,7 +1913,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.1.4";
+const APP_VERSION = "v8.1.5";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -3409,7 +3404,10 @@ function updateSrcBar(){
   const dups=duplicateCheck();
   const seqAlerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; });
 
-  if(el("srcFile")) el("srcFile").textContent=(batchSourceFile||"—").replace(/,\s*/g,"\n");
+  if(el("srcFile")){
+    const files=(batchSourceFile||"—").split(/,\s*/);
+    el("srcFile").textContent=files.map((f,i)=>(i+1)+". "+f).join("\n");
+  }
   if(el("srcTotalRecords")) el("srcTotalRecords").textContent=total||"—";
   if(el("srcRead")){ el("srcRead").textContent=read; el("srcRead").style.color=read>0?"var(--green)":"var(--dim2)"; }
   if(el("srcNotRead")){ el("srcNotRead").textContent=notRead||"—"; el("srcNotRead").style.color=notRead>0?"var(--yellow)":"var(--dim2)"; el("srcNotRead").style.pointerEvents=notRead>0?"auto":"none"; }
@@ -4521,7 +4519,10 @@ async function spReextract(){
     dbg("Re-extract error: "+err.message,"err");
   } finally {
     spReextracting=false;
-    if(reBtn){reBtn.disabled=false;reBtn.textContent="↺ Re-extract";}
+    if(reBtn){
+      reBtn.disabled=false;
+      reBtn.innerHTML='<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/></svg> OCR';
+    }
     const sp=document.getElementById("sp_spinner");
     if(sp) sp.remove();
   }
@@ -5376,7 +5377,8 @@ function saveUploadLog(){
   const txt=uploadLogLines.join("\n");
   const a=document.createElement("a");
   a.href=URL.createObjectURL(new Blob([txt],{type:"text/plain"}));
-  a.download="hp_fleet_extraction_"+Date.now()+".txt";
+  const baseName=(batchSourceFile||"extraction").split(",")[0].trim().replace(/\.[^.]+$/,"").replace(/[^a-zA-Z0-9_\-]/g,"_");
+  a.download=baseName+"_log.txt";
   a.click();
 }
 
@@ -5983,7 +5985,7 @@ function wireEvents(){
   if(el("sp_zoom_in")) el("sp_zoom_in").addEventListener("click",spZoomIn);
   if(el("sp_zoom_out")) el("sp_zoom_out").addEventListener("click",spZoomOut);
   if(el("sp_fit")) el("sp_fit").addEventListener("click",spFitToWindow);
-  if(el("sp_pan_toggle")) el("sp_pan_toggle").addEventListener("click",spTogglePan);
+  // pan toggle removed — drag is always on
   if(el("sp_rotate")) el("sp_rotate").addEventListener("click",spRotateImg);
   if(el("sp_reextract")) el("sp_reextract").addEventListener("click",spReextract);
 
@@ -6128,30 +6130,37 @@ function wireEvents(){
     });
     openFloatDialog("dlgSeqAlerts","Sequence Alerts",lines,"var(--yellow)",alerts.map(e=>e.id));
   });
-  // Pan/drag — active when spPanMode is true
+  // Pan/drag — always on (left click + drag), double click = zoom in
   const spImgWrap=el("sp_img_wrap");
   if(spImgWrap){
-    let isDragging=false, dragStartX=0, dragStartY=0, panStartX=0, panStartY=0;
+    let isDragging=false, dragStartX=0, dragStartY=0, panStartX=0, panStartY=0, didDrag=false;
     spImgWrap.addEventListener("mousedown",e=>{
-      if(!spPanMode||e.button!==0) return;
-      isDragging=true; dragStartX=e.clientX; dragStartY=e.clientY;
+      if(e.button!==0) return;
+      isDragging=true; didDrag=false;
+      dragStartX=e.clientX; dragStartY=e.clientY;
       panStartX=spPanX; panStartY=spPanY;
       spImgWrap.style.cursor="grabbing";
-      e.preventDefault(); e.stopPropagation();
+      e.preventDefault();
     });
     spImgWrap.addEventListener("mousemove",e=>{
       if(!isDragging) return;
-      spPanX=panStartX+(e.clientX-dragStartX)/spZoom;
-      spPanY=panStartY+(e.clientY-dragStartY)/spZoom;
+      const dx=e.clientX-dragStartX; const dy=e.clientY-dragStartY;
+      if(Math.abs(dx)>3||Math.abs(dy)>3) didDrag=true;
+      spPanX=panStartX+dx/spZoom;
+      spPanY=panStartY+dy/spZoom;
       spApplyTransform();
     });
     spImgWrap.addEventListener("mouseleave",()=>{
       if(!isDragging) return;
-      isDragging=false;
+      isDragging=false; spImgWrap.style.cursor="";
     });
     spImgWrap.addEventListener("mouseup",()=>{
       if(!isDragging) return;
-      isDragging=false;
+      isDragging=false; spImgWrap.style.cursor="";
+    });
+    spImgWrap.addEventListener("dblclick",e=>{
+      e.preventDefault();
+      spZoomIn();
     });
     // Scroll wheel zoom when panel is open
     spImgWrap.addEventListener("wheel",e=>{
