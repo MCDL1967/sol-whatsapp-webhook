@@ -1,10 +1,10 @@
-<!-- HP Fleet v8.1.6 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.1.7 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v8.1.6</title>
+<title>HP Fleet v8.1.7</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -919,7 +919,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.1.6</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.1.7</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -928,7 +928,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.1.6</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.1.7</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1440,52 +1440,53 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 </div>
 
 <!-- FL ENTRY MODAL -->
-<div class="mbd" id="flMbd">
-  <div class="mbox fl-box">
-    <div class="mhdr"><div class="mhdr-t ct" id="flEditTitle">Edit Entry</div><button class="m-x" id="fl_close">✕</button></div>
-    <div class="mbody">
-      <div class="diff-alert" id="diffAlert">⚠ Motor/Vuelo gap: <span id="diffAlertMsg"></span></div>
-      <div class="fg-title"><div class="fg-dot" style="background:var(--dim2)"></div>General</div>
-      <div class="frow fc3">
-        <div class="field"><label>Date *</label><input type="text" id="f_fecha" placeholder="DD/MM/YYYY"><span class="ferr" id="fe_fecha"></span></div>
-        <div class="field"><label>Aircraft</label><select id="f_aeronave"><option>HP-1862FX</option><option>HP-1861</option></select></div>
-        <div class="field"><label>Operator</label><select id="f_operador"><option>FM</option><option>MAG</option></select></div>
-      </div>
-      <div class="frow fc2">
-        <div class="field"><label>Pilot *</label><input type="text" id="f_piloto" placeholder="Pilot name"><span class="ferr" id="fe_piloto"></span></div>
-        <div class="field"><label id="lbl_instructor">Instructor</label><input type="text" id="f_instructor" placeholder="Instructor name"></div>
-      </div>
-      <div class="frow fc2">
-        <div class="field"><label>Horo. Start *</label><input type="number" id="f_horoIn" step="0.1" placeholder="0.0"><span class="ferr" id="fe_horoIn"></span></div>
-        <div></div>
-      </div>
-      <div class="fg-title"><div class="fg-dot" style="background:var(--blue)"></div>Motor</div>
-      <div class="frow fc3">
-        <div class="field"><label>Motor Out *</label><input type="text" id="f_motorOut" placeholder="e.g. 4702.33"><span class="ferr" id="fe_motorOut"></span></div>
-        <div class="field"><label>Motor In *</label><input type="text" id="f_motorIn" placeholder="e.g. 4703.52"><span class="ferr" id="fe_motorIn"></span></div>
-        <div class="field"><label>T.Motor (calc.)</label><input type="text" id="f_tmotor" readonly></div>
-      </div>
-      <div class="fg-title"><div class="fg-dot" style="background:var(--cyan)"></div>Flight</div>
-      <div class="frow fc3">
-        <div class="field"><label>Flight Out *</label><input type="text" id="f_vueloOut" placeholder="e.g. 6538.9"><span class="ferr" id="fe_vueloOut"></span></div>
-        <div class="field"><label>Flight In *</label><input type="text" id="f_vueloIn" placeholder="e.g. 6540.3"><span class="ferr" id="fe_vueloIn"></span></div>
-        <div class="field"><label>T.Flight (calc.)</label><input type="text" id="f_tvuelo" readonly></div>
-      </div>
-      <div class="frow fc2">
-        <div class="field"><label>Multiplier Override</label><input type="number" id="f_mult" step="0.001" placeholder="Leave blank for default">
-          <span style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:3px">Override logged in audit trail</span>
-        </div>
-        <div class="field"><label>Notes</label><textarea id="f_obs" placeholder="Notes from logbook…"></textarea></div>
-      </div>
-      <div class="calc-prev">
-        <div><div class="cp-l">T.Motor</div><div class="cp-v cb" id="pv_tm">—</div></div>
-        <div><div class="cp-l">T.Flight</div><div class="cp-v cx" id="pv_tf">—</div></div>
-        <div><div class="cp-l">Multiplier</div><div class="cp-v" id="pv_mult">—</div></div>
-        <div><div class="cp-l">Total TBH</div><div class="cp-v bill" id="pv_tbp">—</div></div>
-      </div>
-    </div>
-    <div class="mftr"><button class="btn-ghost" id="fl_cancel">Cancel</button><button class="btn-primary" id="fl_save">Save Entry</button></div>
+<div class="float-dialog" id="flMbd" style="width:580px;max-width:calc(100vw - 32px);max-height:90vh;overflow-y:auto;z-index:300">
+  <div class="float-dialog-hdr">
+    <div class="float-dialog-title" id="flEditTitle">New Manual Log Entry</div>
+    <button class="float-dialog-close" id="fl_close">✕</button>
   </div>
+  <div class="mbody">
+    <div class="diff-alert" id="diffAlert">⚠ Motor/Vuelo gap: <span id="diffAlertMsg"></span></div>
+    <div class="fg-title"><div class="fg-dot" style="background:var(--dim2)"></div>General</div>
+    <div class="frow fc3">
+      <div class="field"><label>Date *</label><input type="text" id="f_fecha" placeholder="DD/MM/YYYY"><span class="ferr" id="fe_fecha"></span></div>
+      <div class="field"><label>Aircraft</label><select id="f_aeronave"><option>HP-1862FX</option><option>HP-1861</option></select></div>
+      <div class="field"><label>Operator</label><select id="f_operador"><option>FM</option><option>MAG</option></select></div>
+    </div>
+    <div class="frow fc2">
+      <div class="field"><label>Pilot *</label><input type="text" id="f_piloto" placeholder="Pilot name"><span class="ferr" id="fe_piloto"></span></div>
+      <div class="field"><label id="lbl_instructor">Instructor</label><input type="text" id="f_instructor" placeholder="Instructor name"></div>
+    </div>
+    <div class="frow fc2">
+      <div class="field"><label>Horo. Start *</label><input type="number" id="f_horoIn" step="0.1" placeholder="0.0"><span class="ferr" id="fe_horoIn"></span></div>
+      <div></div>
+    </div>
+    <div class="fg-title"><div class="fg-dot" style="background:var(--blue)"></div>Motor</div>
+    <div class="frow fc3">
+      <div class="field"><label>Motor Out</label><input type="text" id="f_motorOut" placeholder="e.g. 4702.33"></div>
+      <div class="field"><label>Motor In</label><input type="text" id="f_motorIn" placeholder="e.g. 4703.52"></div>
+      <div class="field"><label id="lbl_tmotor">T.Motor (calc.)</label><input type="text" id="f_tmotor" placeholder="Direct entry"></div>
+    </div>
+    <div class="fg-title"><div class="fg-dot" style="background:var(--cyan)"></div>Flight</div>
+    <div class="frow fc3">
+      <div class="field"><label>Flight Out</label><input type="text" id="f_vueloOut" placeholder="e.g. 6538.9"></div>
+      <div class="field"><label>Flight In</label><input type="text" id="f_vueloIn" placeholder="e.g. 6540.3"></div>
+      <div class="field"><label id="lbl_tvuelo">T.Flight (calc.)</label><input type="text" id="f_tvuelo" placeholder="Direct entry"></div>
+    </div>
+    <div class="frow fc2">
+      <div class="field"><label>Multiplier Override</label><input type="number" id="f_mult" step="0.001" placeholder="Leave blank for default">
+        <span style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:3px">Override logged in audit trail</span>
+      </div>
+      <div class="field"><label>Notes</label><textarea id="f_obs" placeholder="Notes from logbook…"></textarea></div>
+    </div>
+    <div class="calc-prev">
+      <div><div class="cp-l">T.Motor</div><div class="cp-v cb" id="pv_tm">—</div></div>
+      <div><div class="cp-l">T.Flight</div><div class="cp-v cx" id="pv_tf">—</div></div>
+      <div><div class="cp-l">Multiplier</div><div class="cp-v" id="pv_mult">—</div></div>
+      <div><div class="cp-l">Total TBH</div><div class="cp-v bill" id="pv_tbp">—</div></div>
+    </div>
+  </div>
+  <div class="mftr"><button class="btn-ghost" id="fl_cancel">Cancel</button><button class="btn-primary" id="fl_save">Save Entry</button></div>
 </div>
 
 <!-- CONFIRM MODAL -->
@@ -1916,7 +1917,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.1.6";
+const APP_VERSION = "v8.1.7";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -3559,8 +3560,8 @@ function getAircraftMult(aeronave, operador){
 
 function calcEntry(e){
   if(!e.aeronave||e.status==="skipped"||e.status==="void") return{tm:0,tv:0,mult:1,tbp:0};
-  const tm=Math.max(0,t2h(e.motorIn)-t2h(e.motorOut));
-  const tv=Math.max(0,t2h(e.vueloIn)-t2h(e.vueloOut));
+  const tm=e._directTm>0?e._directTm:Math.max(0,t2h(e.motorIn)-t2h(e.motorOut));
+  const tv=e._directTv>0?e._directTv:Math.max(0,t2h(e.vueloIn)-t2h(e.vueloOut));
   const mult=e.multOverride||getAircraftMult(e.aeronave,e.operador);
   return{tm,tv,mult,tbp:parseFloat((tm*mult).toFixed(3))};
 }
@@ -3843,19 +3844,50 @@ function openEditEntry(id){
   el("f_mult").value=e?.multOverride||"";
   el("f_obs").value=e?.obs||"";
   liveCalcEntry();
-  openModal("flMbd");
+  openModal("flMbd"); el("flMbd").style.display="flex";
 }
 
 function liveCalcEntry(){
+  const mOut=el("f_motorOut").value.trim(); const mIn=el("f_motorIn").value.trim();
+  const vOut=el("f_vueloOut").value.trim(); const vIn=el("f_vueloIn").value.trim();
+  const tmField=el("f_tmotor"); const tvField=el("f_tvuelo");
+  const tmLbl=el("lbl_tmotor"); const tvLbl=el("lbl_tvuelo");
+
+  // T.Motor: free-entry when Out+In both empty, calculated otherwise
+  const tmFree=!mOut&&!mIn;
+  if(tmFree){
+    tmField.removeAttribute("readonly"); tmField.style.background="";
+    if(tmLbl) tmLbl.textContent="T.Motor";
+  } else {
+    tmField.setAttribute("readonly",""); tmField.style.background="var(--s2)";
+    if(tmLbl) tmLbl.textContent="T.Motor (calc.)";
+  }
+  // T.Flight: free-entry when Out+In both empty, calculated otherwise
+  const tvFree=!vOut&&!vIn;
+  if(tvFree){
+    tvField.removeAttribute("readonly"); tvField.style.background="";
+    if(tvLbl) tvLbl.textContent="T.Flight";
+  } else {
+    tvField.setAttribute("readonly",""); tvField.style.background="var(--s2)";
+    if(tvLbl) tvLbl.textContent="T.Flight (calc.)";
+  }
+
   const fake={
     operador:el("f_operador").value,
-    motorOut:el("f_motorOut").value, motorIn:el("f_motorIn").value,
-    vueloOut:el("f_vueloOut").value, vueloIn:el("f_vueloIn").value,
+    motorOut:mOut, motorIn:mIn,
+    vueloOut:vOut, vueloIn:vIn,
     multOverride:parseFloat(el("f_mult").value)||null
   };
-  const{tm,tv,mult,tbp}=calcEntry(fake);
-  el("f_tmotor").value=tm>0?tm.toFixed(2):"";
-  el("f_tvuelo").value=tv>0?tv.toFixed(2):"";
+  const{tm:calcTm,tv:calcTv,mult}=calcEntry(fake);
+
+  // Use calculated value if available, else use direct entry
+  const tm=calcTm>0?calcTm:(tmFree?parseFloat(tmField.value)||0:0);
+  const tv=calcTv>0?calcTv:(tvFree?parseFloat(tvField.value)||0:0);
+
+  if(!tmFree) tmField.value=calcTm>0?calcTm.toFixed(2):"";
+  if(!tvFree) tvField.value=calcTv>0?calcTv.toFixed(2):"";
+
+  const tbp=tm>0?+(tm*mult).toFixed(2):0;
   el("pv_tm").textContent=tm>0?fmt(tm)+" hrs":"—";
   el("pv_tf").textContent=tv>0?fmt(tv)+" hrs":"—";
   el("pv_mult").textContent=mult+"×";
@@ -3875,17 +3907,28 @@ function validateEntryForm(){
   else if(!DATERE.test(fecha)){setFerr("fe_fecha","f_fecha",lang==="es"?"Formato: DD/MM/AAAA":"Format: DD/MM/YYYY");ok=false;}
   if(!piloto){setFerr("fe_piloto","f_piloto",t("required"));ok=false;}
   if(isNaN(horoIn)||horoIn<=0){setFerr("fe_horoIn","f_horoIn",lang==="es"?"Debe ser mayor a 0":"Must be > 0");ok=false;}
-  // Accept decimal (4702.33) or HH:MM — valid if t2h returns non-zero or value is "0"
-  if(!mOut){setFerr("fe_motorOut","f_motorOut",t("required"));ok=false;}
-  else if(isNaN(t2h(mOut))){setFerr("fe_motorOut","f_motorOut",lang==="es"?"Valor inválido":"Invalid value");ok=false;}
-  if(!mIn){setFerr("fe_motorIn","f_motorIn",t("required"));ok=false;}
-  else if(isNaN(t2h(mIn))){setFerr("fe_motorIn","f_motorIn",lang==="es"?"Valor inválido":"Invalid value");ok=false;}
-  else if(mOut&&t2h(mIn)<=t2h(mOut)){setFerr("fe_motorIn","f_motorIn",lang==="es"?"Motor In debe ser posterior":"Motor In must be after Motor Out");ok=false;}
-  if(!vOut){setFerr("fe_vueloOut","f_vueloOut",t("required"));ok=false;}
-  else if(isNaN(t2h(vOut))){setFerr("fe_vueloOut","f_vueloOut",lang==="es"?"Valor inválido":"Invalid value");ok=false;}
-  if(!vIn){setFerr("fe_vueloIn","f_vueloIn",t("required"));ok=false;}
-  else if(isNaN(t2h(vIn))){setFerr("fe_vueloIn","f_vueloIn",lang==="es"?"Valor inválido":"Invalid value");ok=false;}
-  else if(vOut&&t2h(vIn)<=t2h(vOut)){setFerr("fe_vueloIn","f_vueloIn",lang==="es"?"Vuelo In debe ser posterior":"Flight In must be after Flight Out");ok=false;}
+  // Motor: require Out+In OR direct T.Motor value
+  const tmDirect=parseFloat(el("f_tmotor").value)||0;
+  const tvDirect=parseFloat(el("f_tvuelo").value)||0;
+  if(mOut||mIn){
+    if(!mOut){setFerr("fe_motorOut","f_motorOut",t("required"));ok=false;}
+    else if(isNaN(t2h(mOut))){setFerr("fe_motorOut","f_motorOut",lang==="es"?"Valor inválido":"Invalid value");ok=false;}
+    if(!mIn){setFerr("fe_motorIn","f_motorIn",t("required"));ok=false;}
+    else if(isNaN(t2h(mIn))){setFerr("fe_motorIn","f_motorIn",lang==="es"?"Valor inválido":"Invalid value");ok=false;}
+    else if(mOut&&t2h(mIn)<=t2h(mOut)){setFerr("fe_motorIn","f_motorIn",lang==="es"?"Motor In debe ser posterior":"Motor In must be after Motor Out");ok=false;}
+  } else if(!tmDirect){
+    setFerr("fe_motorOut","f_motorOut",lang==="es"?"Ingrese Motor Out/In o T.Motor":"Enter Motor Out/In or T.Motor directly");ok=false;
+  }
+  // Flight: require Out+In OR direct T.Flight value
+  if(vOut||vIn){
+    if(!vOut){setFerr("fe_vueloOut","f_vueloOut",t("required"));ok=false;}
+    else if(isNaN(t2h(vOut))){setFerr("fe_vueloOut","f_vueloOut",lang==="es"?"Valor inválido":"Invalid value");ok=false;}
+    if(!vIn){setFerr("fe_vueloIn","f_vueloIn",t("required"));ok=false;}
+    else if(isNaN(t2h(vIn))){setFerr("fe_vueloIn","f_vueloIn",lang==="es"?"Valor inválido":"Invalid value");ok=false;}
+    else if(vOut&&t2h(vIn)<=t2h(vOut)){setFerr("fe_vueloIn","f_vueloIn",lang==="es"?"Vuelo In debe ser posterior":"Flight In must be after Flight Out");ok=false;}
+  } else if(!tvDirect){
+    setFerr("fe_vueloOut","f_vueloOut",lang==="es"?"Ingrese Flight Out/In o T.Flight":"Enter Flight Out/In or T.Flight directly");ok=false;
+  }
   return ok;
 }
 
@@ -3900,6 +3943,8 @@ function saveEntryForm(){
     horoIn:parseFloat(el("f_horoIn").value),
     motorOut:el("f_motorOut").value.trim(), motorIn:el("f_motorIn").value.trim(),
     vueloOut:el("f_vueloOut").value.trim(), vueloIn:el("f_vueloIn").value.trim(),
+    _directTm:(!el("f_motorOut").value.trim()&&!el("f_motorIn").value.trim())?parseFloat(el("f_tmotor").value)||null:null,
+    _directTv:(!el("f_vueloOut").value.trim()&&!el("f_vueloIn").value.trim())?parseFloat(el("f_tvuelo").value)||null:null,
     obs:el("f_obs").value.trim(), multOverride
   };
   checkDiff(data);
@@ -3918,7 +3963,7 @@ function saveEntryForm(){
     addFlAudit("➕",currentUser.name,"added entry",data.fecha+"|"+data.aeronave+"|"+data.piloto);
     showToast(lang==="es"?"Nueva entrada agregada.":"New entry added.");
   }
-  closeModal("flMbd"); renderFlTable();
+  closeModal("flMbd"); el("flMbd").style.display="none"; renderFlTable();
 }
 
 function clearEntryErrors(){
@@ -4616,6 +4661,7 @@ async function saveBatchToDB(){
         horo_in:e.horoIn||0,
         motor_out:String(e.motorOut||""), motor_in:String(e.motorIn||""),
         vuelo_out:String(e.vueloOut||""), vuelo_in:String(e.vueloIn||""),
+        direct_tm:e._directTm||null, direct_tv:e._directTv||null,
         mult_override:e.multOverride||null,
         obs:e.obs||"", flag_note:e.flagNote||"",
         status:e.status||"pending", sort_order:i,
@@ -5530,7 +5576,7 @@ async function loadBatchFromDB(id){
     currentBatchId=batch.id;
     batchStatus=batch.status;
     try{ batchSourceFile=JSON.parse(batch.source_file||"[]"); }
-    catch(e){ batchSourceFile=batch.source_file?[batch.source_file]:[]; }
+    catch(e){ batchSourceFile=batch.source_file?batch.source_file.split(/,\s*/).filter(Boolean):[]; }
     dbg("Batch loaded — id: "+currentBatchId+" status: "+batchStatus,"ok");
     const entries=await sbGet("entries","batch_id=eq."+currentBatchId+"&order=sort_order.asc");
     flEntries=(entries||[]).map((e,i)=>({
@@ -5539,6 +5585,7 @@ async function loadBatchFromDB(id){
       horoIn:e.horo_in||0,
       motorOut:e.motor_out, motorIn:e.motor_in,
       vueloOut:e.vuelo_out, vueloIn:e.vuelo_in,
+      _directTm:e.direct_tm||null, _directTv:e.direct_tv||null,
       multOverride:e.mult_override||null,
       obs:e.obs||"", flagNote:e.flag_note||"",
       status:e.status||"pending",
@@ -5946,10 +5993,22 @@ function wireEvents(){
   // btn_reqChanges removed — replaced by per-row flag system
 
   // FL entry modal
-  el("fl_close").addEventListener("click",()=>closeModal("flMbd"));
-  el("fl_cancel").addEventListener("click",()=>closeModal("flMbd"));
+  el("fl_close").addEventListener("click",()=>{ closeModal("flMbd"); el("flMbd").style.display="none"; });
+  el("fl_cancel").addEventListener("click",()=>{ closeModal("flMbd"); el("flMbd").style.display="none"; });
   el("fl_save").addEventListener("click",saveEntryForm);
-  el("flMbd").addEventListener("click",e=>{ if(e.target===el("flMbd")) closeModal("flMbd"); });
+  // flMbd is now floating — no overlay click to close
+  // Make flMbd draggable
+  (()=>{
+    const dlg=el("flMbd"); const hdr=dlg?dlg.querySelector(".float-dialog-hdr"):null;
+    if(!dlg||!hdr) return;
+    let ox=0,oy=0,startX=0,startY=0,dragging=false;
+    hdr.addEventListener("mousedown",e=>{dragging=true;startX=e.clientX;startY=e.clientY;
+      const r=dlg.getBoundingClientRect();ox=r.left;oy=r.top;e.preventDefault();});
+    document.addEventListener("mousemove",e=>{if(!dragging)return;
+      dlg.style.left=(ox+e.clientX-startX)+"px";dlg.style.top=(oy+e.clientY-startY)+"px";
+      dlg.style.transform="none";});
+    document.addEventListener("mouseup",()=>{dragging=false;});
+  })();
   // Auto-set default mult when aircraft changes in entry modal
   el("f_aeronave").addEventListener("change",function(){
     const ac=AIRCRAFT.find(a=>a.matricula===this.value);
@@ -5958,7 +6017,7 @@ function wireEvents(){
     }
     liveCalcEntry();
   });
-  ["f_operador","f_motorOut","f_motorIn","f_vueloOut","f_vueloIn","f_mult"].forEach(id=>{
+  ["f_operador","f_motorOut","f_motorIn","f_vueloOut","f_vueloIn","f_mult","f_tmotor","f_tvuelo"].forEach(id=>{
     el(id).addEventListener("input",liveCalcEntry);
     el(id).addEventListener("change",liveCalcEntry);
   });
