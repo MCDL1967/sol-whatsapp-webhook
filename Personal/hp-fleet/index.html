@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.25 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.25.1 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.25</title>
+<title>HP Fleet v7.25.1</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -837,7 +837,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.25</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.25.1</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -846,7 +846,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.25</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.25.1</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1798,7 +1798,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.25";
+const APP_VERSION = "v7.25.1";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2010,7 +2010,7 @@ const I18N = {
     sbFile:"Source File",sbHoro:"Horometer",sbCsv:"Audit CSV",sbTs:"Extracted At",sbBatch:"Batch Status",sbDlCsv:"↓ CSV",
     horoAlert:"⚠ Horometer Gap Detected",
     tbEntries:"Extracted Entries",
-    allOp:"All Operators",pendOnly:"Pending Only",apprOnly:"Approved Only",rejOnly:"Rejected Only",
+    allOp:"— Filters —",pendOnly:"Pending Only",apprOnly:"Approved Only",rejOnly:"Rejected Only",
     approveAll:"Approve All",resetAll:"Reset",newEntry:"+ New Entry",
     ptEntries:"Entries",ptAudit:"Audit Log",
     thDate:"Date",thAc:"Aircraft",thOp:"Operator",thPilot:"Pilot",
@@ -2086,7 +2086,7 @@ const I18N = {
     sbFile:"Archivo Fuente",sbHoro:"Horómetro",sbCsv:"CSV Auditoría",sbTs:"Extraído",sbBatch:"Estado del Lote",sbDlCsv:"↓ CSV",
     horoAlert:"⚠ Inconsistencia de Horómetro",
     tbEntries:"Entradas Extraídas",
-    allOp:"Todos los Operadores",pendOnly:"Solo Pendientes",apprOnly:"Solo Aprobados",rejOnly:"Solo Rechazados",
+    allOp:"— Filtros —",pendOnly:"Solo Pendientes",apprOnly:"Solo Aprobados",rejOnly:"Solo Rechazados",
     approveAll:"Aprobar Todo",resetAll:"Resetear",newEntry:"+ Nueva Entrada",
     ptEntries:"Entradas",ptAudit:"Log de Auditoría",
     thDate:"Fecha",thAc:"Aeronave",thOp:"Operador",thPilot:"Piloto",
