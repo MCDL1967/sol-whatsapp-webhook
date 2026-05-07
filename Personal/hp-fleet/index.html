@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.23 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.24 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.23</title>
+<title>HP Fleet v7.24</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -835,7 +835,7 @@ table.fl-tbl.sticky-headers thead th{position:sticky;top:0;z-index:5;background:
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.23</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.24</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -844,7 +844,7 @@ table.fl-tbl.sticky-headers thead th{position:sticky;top:0;z-index:5;background:
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.23</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.24</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1010,6 +1010,7 @@ table.fl-tbl.sticky-headers thead th{position:sticky;top:0;z-index:5;background:
               <option value="FM">FM</option>
               <option value="MAG">MAG</option>
               <option value="problems" id="fo_problems">Needs Review</option>
+              <option value="hide_nonbill">Hide Non-Billable</option>
             </select></div>
             <button class="btn-ghost" id="btn_approveAll">Approve All</button>
             <button class="btn-ghost" id="btn_resetAll">Reset</button>
@@ -1613,6 +1614,36 @@ table.fl-tbl.sticky-headers thead th{position:sticky;top:0;z-index:5;background:
   </div>
 </div>
 
+<!-- NON-BILLABLE REASON MODAL -->
+<div class="mbd" id="nonBillMbd">
+  <div class="mbox" style="max-width:420px;width:100%;border-top:2px solid var(--red)">
+    <div class="mhdr">
+      <div class="mhdr-t" style="color:var(--red)">⊘ Mark as Non-Billable</div>
+      <button class="m-x" id="nonBill_close">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="field" style="margin-bottom:12px">
+        <label>Reason</label>
+        <select id="nonBill_reason" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:12px;padding:8px 10px;border-radius:2px;outline:none;width:100%">
+          <option value="Maintenance">Maintenance</option>
+          <option value="Aborted Flight">Aborted Flight</option>
+          <option value="Equipment Failure">Equipment Failure</option>
+          <option value="Duplicate">Duplicate</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Comment <span style="color:var(--dim2);font-size:10px">(optional)</span></label>
+        <textarea id="nonBill_comment" rows="2" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--body);font-size:12px;padding:8px;width:100%;border-radius:2px;outline:none;resize:none;box-sizing:border-box" placeholder="Additional details…"></textarea>
+      </div>
+    </div>
+    <div class="mftr">
+      <button class="btn-ghost" id="nonBill_cancel">Cancel</button>
+      <button class="btn-danger" id="nonBill_confirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <!-- DELETE MODAL -->
 <div class="mbd" id="delMbd">
   <div class="mbox del-box">
@@ -1762,7 +1793,7 @@ table.fl-tbl.sticky-headers thead th{position:sticky;top:0;z-index:5;background:
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.23";
+const APP_VERSION = "v7.24";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -3480,6 +3511,7 @@ function getFilteredEntries(){
     e.status==="skipped"||e.status==="void"||e.status==="flagged"||
     !e.aeronave||!e.fecha||!e.piloto||!e.motorOut||!e.motorIn
   );
+  if(f==="hide_nonbill") return flEntries.filter(e=>e.status!=="nonbillable"&&e.status!=="void");
   return flEntries.filter(e=>e.status===f);
 }
 
@@ -3551,8 +3583,9 @@ function renderFlTable(){
 }
 
 function mkFlToggle(e,canEdit){
+  const isLocked=e.status==="nonbillable"||e.status==="void";
+  const dis=(canEdit&&!isLocked)?"":"disabled";
   const pc=e.status==="pending"?"tp":"", oc=e.status==="approved"?"tok":"", rc=e.status==="rejected"?"tr":"";
-  const dis=canEdit?"":"disabled";
   return '<div class="t3">'+
     '<button class="'+pc+'" data-st-entry="'+e.id+'" data-st="pending" '+dis+' title="'+t("pending")+'">?</button>'+
     '<button class="'+oc+'" data-st-entry="'+e.id+'" data-st="approved" '+dis+' title="'+t("approved2")+'">✓</button>'+
@@ -3562,8 +3595,11 @@ function mkFlToggle(e,canEdit){
 
 function setEntrySt(id,st){
   const e=flEntries.find(x=>x.id===id); if(!e) return;
-  const old=e.status; e.status=st;
+  const old=e.status;
+  const oldReason=e.nonBillReason;
+  e.status=st;
   addFlAudit("🔄",currentUser.name,"entry "+(flEntries.indexOf(e)+1)+" status",old+"→"+st);
+  recordStatusChange(id,old,oldReason);
   renderFlTable();
 }
 
@@ -4161,6 +4197,47 @@ function spRotateImg(){
 }
 
 function spResetTransform(){ spZoom=1; spRotation=0; spPanX=0; spPanY=0; spPanMode=false; spApplyTransform(); }
+
+// ── UNDO LAST STATUS CHANGE ──
+let _lastStatusChange=null; // {entryId, prevStatus, prevNonBillReason}
+let _undoTimer=null;
+
+function recordStatusChange(entryId, prevStatus, prevNonBillReason){
+  _lastStatusChange={entryId, prevStatus, prevNonBillReason};
+  showUndoBtn();
+}
+
+function showUndoBtn(){
+  let btn=el("undoBtn");
+  if(!btn){
+    btn=document.createElement("button");
+    btn.id="undoBtn";
+    btn.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 20px;border-radius:20px;cursor:pointer;z-index:300;box-shadow:0 4px 12px rgba(0,0,0,.4);transition:opacity .3s";
+    btn.textContent="↩ Undo";
+    btn.addEventListener("click",undoStatusChange);
+    document.body.appendChild(btn);
+  }
+  btn.style.opacity="1";
+  btn.style.display="block";
+  if(_undoTimer) clearTimeout(_undoTimer);
+  _undoTimer=setTimeout(()=>{
+    if(btn){ btn.style.opacity="0"; setTimeout(()=>{btn.style.display="none";},300); }
+  },5000);
+}
+
+function undoStatusChange(){
+  if(!_lastStatusChange) return;
+  const {entryId,prevStatus,prevNonBillReason}=_lastStatusChange;
+  const entry=flEntries.find(e=>e.id===entryId); if(!entry) return;
+  entry.status=prevStatus;
+  entry.nonBillReason=prevNonBillReason||null;
+  spUpdateNonBillBtn(entry.status==="nonbillable");
+  _lastStatusChange=null;
+  renderFlTable(); updateSrcBar();
+  const btn=el("undoBtn");
+  if(btn){btn.style.display="none";}
+  showToast("Undone","info");
+}
 
 let spReextracting=false;
 let spDirty=false;
@@ -5580,21 +5657,35 @@ function wireEvents(){
       entry.status="pending";
       entry.nonBillReason=null;
       spUpdateNonBillBtn(false);
+      spMarkDirty();
+      renderFlTable();
+      updateSrcBar();
     } else {
-      // Turn on — prompt for reason
-      const reasons=["Maintenance","Aborted Flight","Equipment Failure","Other"];
-      const reason=prompt("Non-Billable reason:\n"+reasons.map((r,i)=>(i+1)+". "+r).join("\n")+"\n\nType number or custom reason:");
-      if(!reason){return;}
-      const idx=parseInt(reason)-1;
-      entry.nonBillReason=(!isNaN(idx)&&idx>=0&&idx<reasons.length)?reasons[idx]:reason;
-      entry.status="nonbillable";
-      if(el("sp_obs")) el("sp_obs").value="⊘ "+entry.nonBillReason;
-      spUpdateNonBillBtn(true);
+      // Open styled modal
+      if(el("nonBill_reason")) el("nonBill_reason").value="Maintenance";
+      if(el("nonBill_comment")) el("nonBill_comment").value="";
+      openModal("nonBillMbd");
     }
+  });
+  if(el("nonBill_close")) el("nonBill_close").addEventListener("click",()=>closeModal("nonBillMbd"));
+  if(el("nonBill_cancel")) el("nonBill_cancel").addEventListener("click",()=>closeModal("nonBillMbd"));
+  if(el("nonBill_confirm")) el("nonBill_confirm").addEventListener("click",()=>{
+    const entry=flEntries.find(e=>e.id===spEditingEntryId); if(!entry) return;
+    const prevStatus=entry.status;
+    const prevNonBillReason=entry.nonBillReason;
+    const reason=el("nonBill_reason").value;
+    const comment=el("nonBill_comment").value.trim();
+    entry.nonBillReason=reason+(comment?" — "+comment:"");
+    entry.status="nonbillable";
+    if(el("sp_obs")) el("sp_obs").value="⊘ "+entry.nonBillReason;
+    spUpdateNonBillBtn(true);
     spMarkDirty();
+    recordStatusChange(entry.id,prevStatus,prevNonBillReason);
     renderFlTable();
     updateSrcBar();
+    closeModal("nonBillMbd");
   });
+  if(el("nonBillMbd")) el("nonBillMbd").addEventListener("click",e=>{if(e.target===el("nonBillMbd"))closeModal("nonBillMbd");});
 
   // Floating dialog wiring — srcBar clickable links
   function openFloatDialog(dlgId,title,lines,color,entryIds){
@@ -5868,6 +5959,7 @@ function wireEvents(){
     if(e.key==="ArrowLeft") spNavigate(-1);
     else if(e.key==="ArrowRight") spNavigate(1);
     else if(e.key==="Escape") closeSidePanel();
+    else if((e.ctrlKey||e.metaKey)&&e.key==="z"){ e.preventDefault(); undoStatusChange(); }
   });
 
   // Side panel collapse button
