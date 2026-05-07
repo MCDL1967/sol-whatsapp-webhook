@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.22.5 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.22.6 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.22.5</title>
+<title>HP Fleet v7.22.6</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -765,15 +765,12 @@ table.fl-tbl td:last-child{border-right:none}
 
 /* NON-BILLABLE */
 .log-seq-gap{border-left:3px solid var(--red)!important}
-.r-nonbillable td{color:var(--dim2)!important}
-.r-nonbillable{background:rgba(255,107,107,.04)!important}
+.r-nonbillable{background:rgba(255,107,107,0.07)!important}
+.r-nonbillable td{color:inherit!important}
 
-/* NON-BILLABLE TOGGLE IN TOOLBAR */
-.sp-nonbill-btn{background:transparent;border:1px solid var(--red);color:var(--red);
-  font-family:var(--mono);font-size:10px;padding:4px 8px;cursor:pointer;border-radius:2px;
-  transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
-.sp-nonbill-btn.active{background:var(--red);color:#000;font-weight:700}
-.sp-nonbill-btn:hover{opacity:.85}
+.sp-img-toolbar button.sp-nonbill-btn{background:transparent;border:1px solid var(--red)!important;color:var(--red)!important}
+.sp-img-toolbar button.sp-nonbill-btn.active{background:var(--red)!important;color:#000!important;font-weight:700}
+.sp-img-toolbar button.sp-nonbill-btn:hover{opacity:.85}
 
 /* FLOATING DETAIL DIALOG */
 .float-dialog{position:fixed;background:var(--s1);border:1px solid var(--border2);
@@ -831,7 +828,7 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.22.5</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.22.6</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -840,14 +837,14 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.22.5</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.22.6</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
         <button id="appES">ES</button>
       </div>
       <div class="view-as-wrap" id="viewAsWrap" style="display:none">
-        <span class="view-as-label">👁 View As</span>
+        <span class="view-as-label">View As</span>
         <select class="view-as-sel" id="viewAsRole">
           <option value="ADMIN">Admin</option>
           <option value="OPERATOR">Operator</option>
@@ -950,7 +947,7 @@ table.fl-tbl td:last-child{border-right:none}
         <div class="sb-item"><div class="sb-l" id="sb_file">Source File</div><div class="sb-v" id="srcFile">—</div></div>
         <div class="sb-item"><div class="sb-l">Records</div><div class="sb-v" id="srcTotalRecords">—</div></div>
         <div class="sb-item"><div class="sb-l">Read</div><div class="sb-v ok" id="srcRead">—</div></div>
-        <div class="sb-item"><div class="sb-l">Not Read</div><div class="sb-v" id="srcNotRead">—</div></div>
+        <div class="sb-item"><div class="sb-l">Not Read</div><div class="sb-v" id="srcNotRead" style="cursor:pointer" title="Click for details">—</div></div>
         <div class="sb-item"><div class="sb-l">Non-Billable</div><div class="sb-v" id="srcNonBill" style="cursor:pointer" title="Click for details">—</div></div>
         <div class="sb-item"><div class="sb-l">Log Breaks</div><div class="sb-v" id="srcLogBreaks" style="cursor:pointer" title="Click for details">—</div></div>
         <div class="sb-item"><div class="sb-l">Seq. Alerts</div><div class="sb-v" id="srcHoro" style="cursor:pointer" title="Click for details">—</div></div>
@@ -959,6 +956,13 @@ table.fl-tbl td:last-child{border-right:none}
       </div>
 
       <!-- Floating detail dialogs -->
+      <div class="float-dialog" id="dlgNotRead">
+        <div class="float-dialog-hdr" id="dlgNotReadHdr">
+          <div class="float-dialog-title" style="color:var(--yellow)">⊘ NOT READ ENTRIES</div>
+          <button class="float-dialog-close" id="dlgNotReadClose">✕</button>
+        </div>
+        <div class="float-dialog-body" id="dlgNotReadBody"></div>
+      </div>
       <div class="float-dialog" id="dlgNonBill">
         <div class="float-dialog-hdr" id="dlgNonBillHdr">
           <div class="float-dialog-title" style="color:var(--dim2)">⊘ NON-BILLABLE ENTRIES</div>
@@ -1729,7 +1733,7 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.22.5";
+const APP_VERSION = "v7.22.6";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2703,10 +2707,7 @@ function setFerr(errId,inputId,msg){
 function renderCompanies(){
   const active=COMPANIES.filter(c=>c.status==="active").length;
   el("coStats").innerHTML='<div class="scard sc-tot"><div class="sc-l">Total</div><div class="sc-v">'+COMPANIES.length+"</div>"+
-    '<div class="sc-s">'+active+" "+(lang==="es"?"activas":"active")+"</div></div>"+
-    COMPANIES.map(co=>'<div class="scard sc-co"><div class="sc-l">'+co.code+"</div>"+
-      '<div class="sc-v">'+co.code+"</div>"+
-      '<div class="sc-s">'+(lang==="es"?"Multiplicador":"Multiplier")+"</div></div>").join("");
+    '<div class="sc-s">'+active+" "+(lang==="es"?"activas":"active")+"</div></div>";
   el("coGrid").innerHTML="";
   COMPANIES.forEach(co=>{
     const color=coColor(co.code);
@@ -3119,25 +3120,23 @@ async function extractAll(){
 // ── LOG # SEQUENCE CHECK ──
 function logCheck(){
   const breaks=[];
-  // Group by aircraft, sort by bnum within each group
-  const byAc={};
-  flEntries.forEach((e,idx)=>{
-    if(!e.bnum||e.status==="skipped"||e.status==="void") return;
-    const ac=e.aeronave||"unknown";
-    if(!byAc[ac]) byAc[ac]=[];
-    byAc[ac].push({e,idx});
-  });
-  Object.keys(byAc).forEach(ac=>{
-    const group=byAc[ac].sort((a,b)=>parseInt(a.e.bnum)-parseInt(b.e.bnum));
-    for(let i=1;i<group.length;i++){
-      const prev=parseInt(group[i-1].e.bnum);
-      const curr=parseInt(group[i].e.bnum);
-      if(curr-prev>1){
-        breaks.push({idx:group[i].idx, entry:group[i].e, prev, curr,
-          msg:ac+" — Log gap: "+String(prev).padStart(5,"0")+" → "+String(curr).padStart(5,"0")+" (missing "+(curr-prev-1)+")"});
-      }
+  // Global sequence — Log # is shared across all aircraft in the batch
+  const entries=flEntries
+    .filter(e=>e.bnum&&e.status!=="skipped"&&e.status!=="void")
+    .sort((a,b)=>parseInt(a.bnum)-parseInt(b.bnum));
+  for(let i=1;i<entries.length;i++){
+    const prev=parseInt(entries[i-1].bnum);
+    const curr=parseInt(entries[i].bnum);
+    if(curr-prev>1){
+      const origIdx=flEntries.indexOf(entries[i]);
+      breaks.push({
+        idx:origIdx,
+        entry:entries[i],
+        prev, curr,
+        msg:"Log gap: "+String(prev).padStart(5,"0")+" → "+String(curr).padStart(5,"0")+" (missing "+(curr-prev-1)+")"
+      });
     }
-  });
+  }
   return breaks;
 }
 
@@ -3170,7 +3169,7 @@ function updateSrcBar(){
   if(el("srcFile")) el("srcFile").textContent=batchSourceFile||"—";
   if(el("srcTotalRecords")) el("srcTotalRecords").textContent=total||"—";
   if(el("srcRead")){ el("srcRead").textContent=read; el("srcRead").style.color=read>0?"var(--green)":"var(--dim2)"; }
-  if(el("srcNotRead")){ el("srcNotRead").textContent=notRead||"—"; el("srcNotRead").style.color=notRead>0?"var(--yellow)":"var(--dim2)"; }
+  if(el("srcNotRead")){ el("srcNotRead").textContent=notRead||"—"; el("srcNotRead").style.color=notRead>0?"var(--yellow)":"var(--dim2)"; el("srcNotRead").style.pointerEvents=notRead>0?"auto":"none"; }
 
   // Non-Billable
   if(el("srcNonBill")){
@@ -5514,14 +5513,26 @@ function wireEvents(){
     });
     document.addEventListener("mouseup",()=>{ dragging=false; });
   }
+  makeDraggable("dlgNotRead","dlgNotReadHdr");
   makeDraggable("dlgNonBill","dlgNonBillHdr");
   makeDraggable("dlgLogBreaks","dlgLogBreaksHdr");
   makeDraggable("dlgSeqAlerts","dlgSeqAlertsHdr");
 
+  if(el("dlgNotReadClose")) el("dlgNotReadClose").addEventListener("click",()=>el("dlgNotRead").classList.remove("open"));
   if(el("dlgNonBillClose")) el("dlgNonBillClose").addEventListener("click",()=>el("dlgNonBill").classList.remove("open"));
   if(el("dlgLogBreaksClose")) el("dlgLogBreaksClose").addEventListener("click",()=>el("dlgLogBreaks").classList.remove("open"));
   if(el("dlgSeqAlertsClose")) el("dlgSeqAlertsClose").addEventListener("click",()=>el("dlgSeqAlerts").classList.remove("open"));
 
+  if(el("srcNotRead")) el("srcNotRead").addEventListener("click",()=>{
+    const lines=flEntries
+      .filter(e=>e.status==="skipped"||e.status==="void"||!e.aeronave||!e.fecha)
+      .map((e,i)=>{
+        const idx=flEntries.indexOf(e)+1;
+        const reason=e.status==="skipped"?"Skipped":e.status==="void"?"Void":!e.aeronave?"No aircraft":!e.fecha?"No date":"Unknown";
+        return "Entry #"+idx+" | Log "+(e.bnum||"—")+" | "+reason;
+      });
+    openFloatDialog("dlgNotRead","Not Read Entries",lines,"var(--yellow)");
+  });
   if(el("srcNonBill")) el("srcNonBill").addEventListener("click",()=>{
     const lines=flEntries.filter(e=>e.status==="nonbillable").map((e,i)=>{
       const idx=flEntries.indexOf(e)+1;
@@ -5712,6 +5723,9 @@ function wireEvents(){
   document.addEventListener("keydown",e=>{
     const panel=el("sidePanel");
     if(!panel||!panel.classList.contains("open")) return;
+    // Don't intercept arrow keys when user is typing in a field
+    const tag=document.activeElement?.tagName;
+    if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT") return;
     if(e.key==="ArrowLeft") spNavigate(-1);
     else if(e.key==="ArrowRight") spNavigate(1);
     else if(e.key==="Escape") closeSidePanel();
