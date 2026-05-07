@@ -12,11 +12,48 @@ function getSelectableRestaurants(propertyMasterData) {
   );
 }
 
+function getRestaurantPresentation(language = "en") {
+  return {
+    en: {
+      numberEmojis: ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣"],
+      venueCopy: {
+        "La Brasserie": "All-day café serving breakfast, lunch, and dinner 🍽️",
+        "Larry's Sports Bar & Terrace": "Casual sports bar with large screens 🍻",
+        "Acua Pool Lounge & Bar": "Poolside lounge for cocktails and light bites 🏝️",
+        "Larry's Market": "Coffee shop / grab-and-go sandwiches and salads ☕",
+        "The Garden Lobby Bar": "Relaxed lobby cocktail lounge 🍸",
+        "Fenicia": "Lebanese / Mediterranean restaurant with lounge and terrace 🥙"
+      }
+    },
+    es: {
+      numberEmojis: ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣"],
+      venueCopy: {
+        "La Brasserie": "Café-restaurante todo el día (desayuno, almuerzo y cena) 🍽️",
+        "Larry's Sports Bar & Terrace": "Bar deportivo con pantallas y comida casual 🏈",
+        "Acua Pool Lounge & Bar": "Lounge junto a la piscina, cocteles y bocados ligeros 🏝️",
+        "Larry's Market": "Coffee shop y opción grab-and-go (sándwiches, ensaladas, café) ☕",
+        "The Garden Lobby Bar": "Bar de lobby relajado para bebidas y socializar 🍸",
+        "Fenicia": "Restaurante de cocina libanesa / mediterránea con terraza 🌿"
+      }
+    }
+  }[language] || {
+    numberEmojis: ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣"],
+    venueCopy: {}
+  };
+}
+
 function buildRestaurantList(propertyMasterData, language = "en") {
   const venues = getSelectableRestaurants(propertyMasterData);
+  const presentation = getRestaurantPresentation(language);
 
   return venues
-    .map((v, i) => `${i + 1}. ${v.canonical_name}`)
+    .map((v, i) => {
+      const numberLabel = presentation.numberEmojis[i] || `${i + 1}.`;
+      const description = presentation.venueCopy[v.canonical_name] || "";
+      return description
+        ? `${numberLabel} ${v.canonical_name} — ${description}`
+        : `${numberLabel} ${v.canonical_name}`;
+    })
     .join("\n");
 }
 
@@ -50,8 +87,8 @@ function buildResponse({ result, session, propertyData }) {
     session.fast_path_context = "restaurants_menu";
 
     return language === "es"
-      ? "Claro — puedo ayudarte con restaurantes. ¿Ya sabes dónde quieres ir? Puedes decir el nombre del restaurante o escribir LISTA para ver todas las opciones."
-      : "Sure — I can help with dining. Do you already know where you'd like to go? You can say the restaurant name or type LIST to see all options.";
+      ? responseTemplates.restaurant_intro_es
+      : responseTemplates.restaurant_intro_en;
   }
 
   if (result.type === "restaurant_list") {
