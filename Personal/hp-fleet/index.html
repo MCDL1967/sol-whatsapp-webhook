@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.24 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.24.2 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.24</title>
+<title>HP Fleet v7.24.2</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -658,8 +658,9 @@ table.fl-tbl td:last-child{border-right:none}
 /* SIDE PANEL LEFT RESIZE (width) */
 /* STICKY HEADERS */
 table.fl-tbl.sticky-headers thead th{position:sticky;top:0;z-index:5;background:var(--s2)}
+.fl-tbl-wrap.sticky-active{overflow-y:auto;max-height:calc(100vh - 320px)}
 /* DUPLICATE LOG MARKER */
-.log-dup-gap{border-left:3px solid orange!important}
+.log-dup-gap{border-left:3px solid var(--red)!important}
 /* VOID ROW */
 .r-void{background:rgba(120,120,140,.08)!important;opacity:.5}
 /* LEFT RESIZE HANDLE */
@@ -835,7 +836,7 @@ table.fl-tbl.sticky-headers thead th{position:sticky;top:0;z-index:5;background:
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.24</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.24.2</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -844,7 +845,7 @@ table.fl-tbl.sticky-headers thead th{position:sticky;top:0;z-index:5;background:
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.24</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.24.2</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1614,32 +1615,30 @@ table.fl-tbl.sticky-headers thead th{position:sticky;top:0;z-index:5;background:
   </div>
 </div>
 
-<!-- NON-BILLABLE REASON MODAL -->
-<div class="mbd" id="nonBillMbd">
-  <div class="mbox" style="max-width:420px;width:100%;border-top:2px solid var(--red)">
-    <div class="mhdr">
-      <div class="mhdr-t" style="color:var(--red)">⊘ Mark as Non-Billable</div>
-      <button class="m-x" id="nonBill_close">✕</button>
+<!-- NON-BILLABLE FLOATING DIALOG -->
+<div class="float-dialog" id="nonBillMbd" style="min-width:340px;max-width:400px">
+  <div class="float-dialog-hdr" id="nonBillMbdHdr">
+    <div class="float-dialog-title" style="color:var(--red)">⊘ Mark as Non-Billable</div>
+    <button class="float-dialog-close" id="nonBill_close">✕</button>
+  </div>
+  <div class="float-dialog-body" style="max-height:none;overflow:visible;padding:14px">
+    <div class="field" style="margin-bottom:10px">
+      <label style="font-family:var(--mono);font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Reason</label>
+      <select id="nonBill_reason" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 8px;border-radius:2px;outline:none;width:100%">
+        <option value="Maintenance">Maintenance</option>
+        <option value="Aborted Flight">Aborted Flight</option>
+        <option value="Equipment Failure">Equipment Failure</option>
+        <option value="Duplicate">Duplicate</option>
+        <option value="Other">Other</option>
+      </select>
     </div>
-    <div class="mbody">
-      <div class="field" style="margin-bottom:12px">
-        <label>Reason</label>
-        <select id="nonBill_reason" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:12px;padding:8px 10px;border-radius:2px;outline:none;width:100%">
-          <option value="Maintenance">Maintenance</option>
-          <option value="Aborted Flight">Aborted Flight</option>
-          <option value="Equipment Failure">Equipment Failure</option>
-          <option value="Duplicate">Duplicate</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Comment <span style="color:var(--dim2);font-size:10px">(optional)</span></label>
-        <textarea id="nonBill_comment" rows="2" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--body);font-size:12px;padding:8px;width:100%;border-radius:2px;outline:none;resize:none;box-sizing:border-box" placeholder="Additional details…"></textarea>
-      </div>
+    <div class="field" style="margin-bottom:12px">
+      <label style="font-family:var(--mono);font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Comment <span style="color:var(--dim2)">(optional)</span></label>
+      <textarea id="nonBill_comment" rows="2" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--body);font-size:11px;padding:8px;width:100%;border-radius:2px;outline:none;resize:none;box-sizing:border-box" placeholder="Additional details…"></textarea>
     </div>
-    <div class="mftr">
-      <button class="btn-ghost" id="nonBill_cancel">Cancel</button>
-      <button class="btn-danger" id="nonBill_confirm">Confirm</button>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-ghost" id="nonBill_cancel" style="font-size:11px;padding:6px 14px">Cancel</button>
+      <button class="btn-danger" id="nonBill_confirm" style="font-size:11px;padding:6px 14px">Confirm</button>
     </div>
   </div>
 </div>
@@ -1793,7 +1792,7 @@ table.fl-tbl.sticky-headers thead th{position:sticky;top:0;z-index:5;background:
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.24";
+const APP_VERSION = "v7.24.2";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2968,7 +2967,9 @@ function initStickyHeadersToggle(){
 }
 function _applyStickyHeaders(on){
   const tbl=document.querySelector("table.fl-tbl");
+  const wrap=document.querySelector(".fl-tbl-wrap");
   if(tbl) tbl.classList.toggle("sticky-headers",on);
+  if(wrap) wrap.classList.toggle("sticky-active",on);
 }
 function initRoleBannerToggle(){
   const check=el("roleBannerToggleCheck");
@@ -3281,7 +3282,7 @@ function updateSrcBar(){
   // Non-Billable
   if(el("srcNonBill")){
     el("srcNonBill").textContent=nonBill||"—";
-    el("srcNonBill").style.color=nonBill>0?"var(--dim2)":"var(--dim2)";
+    el("srcNonBill").style.color=nonBill>0?"var(--red)":"var(--dim2)";
     el("srcNonBill").style.pointerEvents=nonBill>0?"auto":"none";
   }
   // Duplicates
@@ -3604,8 +3605,9 @@ function setEntrySt(id,st){
 }
 
 function setAllFlStatus(st){
-  flEntries.forEach(e=>e.status=st);
-  addFlAudit("🔄",currentUser.name,"all entries→"+st,flEntries.length+" entries");
+  const targets=getFilteredEntries().filter(e=>e.status!=="nonbillable"&&e.status!=="void");
+  targets.forEach(e=>e.status=st);
+  addFlAudit("🔄",currentUser.name,"all visible entries→"+st,targets.length+" entries");
   renderFlTable();
 }
 
@@ -5653,7 +5655,6 @@ function wireEvents(){
     if(!spEditingEntryId) return;
     const entry=flEntries.find(e=>e.id===spEditingEntryId); if(!entry) return;
     if(entry.status==="nonbillable"){
-      // Turn off — revert to pending
       entry.status="pending";
       entry.nonBillReason=null;
       spUpdateNonBillBtn(false);
@@ -5661,14 +5662,22 @@ function wireEvents(){
       renderFlTable();
       updateSrcBar();
     } else {
-      // Open styled modal
       if(el("nonBill_reason")) el("nonBill_reason").value="Maintenance";
       if(el("nonBill_comment")) el("nonBill_comment").value="";
-      openModal("nonBillMbd");
+      // Position near the toolbar
+      const toolbar=el("sp_img_toolbar");
+      const rect=toolbar?toolbar.getBoundingClientRect():{bottom:300,left:920};
+      const dlg=el("nonBillMbd");
+      if(dlg){
+        dlg.style.top=(rect.bottom+8)+"px";
+        dlg.style.left=rect.left+"px";
+        dlg.classList.add("open");
+      }
     }
   });
-  if(el("nonBill_close")) el("nonBill_close").addEventListener("click",()=>closeModal("nonBillMbd"));
-  if(el("nonBill_cancel")) el("nonBill_cancel").addEventListener("click",()=>closeModal("nonBillMbd"));
+  makeDraggable("nonBillMbd","nonBillMbdHdr");
+  if(el("nonBill_close")) el("nonBill_close").addEventListener("click",()=>el("nonBillMbd").classList.remove("open"));
+  if(el("nonBill_cancel")) el("nonBill_cancel").addEventListener("click",()=>el("nonBillMbd").classList.remove("open"));
   if(el("nonBill_confirm")) el("nonBill_confirm").addEventListener("click",()=>{
     const entry=flEntries.find(e=>e.id===spEditingEntryId); if(!entry) return;
     const prevStatus=entry.status;
@@ -5683,9 +5692,8 @@ function wireEvents(){
     recordStatusChange(entry.id,prevStatus,prevNonBillReason);
     renderFlTable();
     updateSrcBar();
-    closeModal("nonBillMbd");
+    el("nonBillMbd").classList.remove("open");
   });
-  if(el("nonBillMbd")) el("nonBillMbd").addEventListener("click",e=>{if(e.target===el("nonBillMbd"))closeModal("nonBillMbd");});
 
   // Floating dialog wiring — srcBar clickable links
   function openFloatDialog(dlgId,title,lines,color,entryIds){
