@@ -1,15 +1,15 @@
 {
   "file": "response_templates.json",
   "version": "v14.0.1",
-  "date": "2026-04-30",
+  "date": "2026-05-06",
   "role": "Response templates for SOL V14 Fast Path trial",
   "status": "trial_dynamic_templates",
   "restaurant_intro_en": "Sure — I can help with dining. Do you already know where you'd like to go? You can say the restaurant name or type LIST to see all options.",
   "restaurant_intro_es": "Claro — puedo ayudarte con restaurantes. ¿Ya sabes dónde quieres ir? Puedes decir el nombre del restaurante o escribir LISTA para ver todas las opciones.",
-  "restaurant_list_en": "Here are the on-property dining venues I have available:\n\n{{list}}\n\nWhich would you like to reserve, or reply with a number to choose one?",
-  "restaurant_list_es": "Aquí tienes la lista completa de restaurantes y bares disponibles en la propiedad:\n\n{{list}}\n\n¿En cuál te gustaría hacer una reservación? Responde con el número o el nombre.",
+  "restaurant_list_en": "Here are the on-property dining venues I have available:\n\n{{list}}\n\nWhich would you like to reserve? You can reply with the restaurant name or a number to choose one.",
+  "restaurant_list_es": "Aquí tienes la lista completa de restaurantes y bares disponibles en la propiedad:\n\n{{list}}\n\n¿En cuál te gustaría hacer una reservación? Puedes responder con el nombre del lugar o con el número.",
   "restaurant_selection_confirm_en": "Great — you selected {{restaurant_name}}. I can help you continue with a restaurant reservation there.",
   "restaurant_selection_confirm_es": "Perfecto — seleccionaste {{restaurant_name}}. Puedo ayudarte a continuar con una reservación en ese restaurante.",
-  "restaurant_selection_invalid_en": "I couldn’t match that restaurant selection. Please reply with a valid number from the list or type LIST to see the options again.",
-  "restaurant_selection_invalid_es": "No pude identificar esa selección de restaurante. Responde con un número válido de la lista o escribe LISTA para ver las opciones otra vez."
+  "restaurant_selection_invalid_en": "I couldn’t match that restaurant selection. Please reply with a valid restaurant name or number from the list, or type LIST to see the options again.",
+  "restaurant_selection_invalid_es": "No pude identificar esa selección de restaurante. Responde con un nombre válido o con un número de la lista, o escribe LISTA para ver las opciones otra vez."
 }
