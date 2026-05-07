@@ -1,10 +1,10 @@
-<!-- HP Fleet v7.22.7 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v7.23 — built 2026-05-05 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v7.22.7</title>
+<title>HP Fleet v7.23</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -656,6 +656,13 @@ table.fl-tbl td:last-child{border-right:none}
   border-top:1px solid var(--dim);border-bottom:1px solid var(--dim)}
 
 /* SIDE PANEL LEFT RESIZE (width) */
+/* STICKY HEADERS */
+table.fl-tbl.sticky-headers thead th{position:sticky;top:0;z-index:5;background:var(--s2)}
+/* DUPLICATE LOG MARKER */
+.log-dup-gap{border-left:3px solid orange!important}
+/* VOID ROW */
+.r-void{background:rgba(120,120,140,.08)!important;opacity:.5}
+/* LEFT RESIZE HANDLE */
 .sp-resize-handle{position:absolute;left:0;top:0;bottom:0;width:5px;cursor:col-resize;
   background:transparent;z-index:10;transition:background .15s}
 .sp-resize-handle:hover{background:var(--cyan)}
@@ -765,7 +772,7 @@ table.fl-tbl td:last-child{border-right:none}
 
 /* NON-BILLABLE */
 .log-seq-gap{border-left:3px solid var(--red)!important}
-.r-nonbillable{background:rgba(255,107,107,0.12)!important}
+.r-nonbillable{background:rgba(255,107,107,0.24)!important}
 .r-nonbillable td{color:inherit!important}
 
 .sp-img-toolbar button.sp-nonbill-btn{background:transparent;border:1px solid var(--red)!important;color:var(--red)!important}
@@ -828,7 +835,7 @@ table.fl-tbl td:last-child{border-right:none}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.22.7</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v7.23</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -837,7 +844,7 @@ table.fl-tbl td:last-child{border-right:none}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.22.7</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v7.23</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -949,6 +956,7 @@ table.fl-tbl td:last-child{border-right:none}
         <div class="sb-item"><div class="sb-l">Read</div><div class="sb-v ok" id="srcRead">—</div></div>
         <div class="sb-item"><div class="sb-l">Not Read</div><div class="sb-v" id="srcNotRead" style="cursor:pointer" title="Click for details">—</div></div>
         <div class="sb-item"><div class="sb-l">Non-Billable</div><div class="sb-v" id="srcNonBill" style="cursor:pointer" title="Click for details">—</div></div>
+        <div class="sb-item"><div class="sb-l">Duplicates</div><div class="sb-v" id="srcDups" style="cursor:pointer" title="Click for details">—</div></div>
         <div class="sb-item"><div class="sb-l">Log Breaks</div><div class="sb-v" id="srcLogBreaks" style="cursor:pointer" title="Click for details">—</div></div>
         <div class="sb-item"><div class="sb-l">Seq. Alerts</div><div class="sb-v" id="srcHoro" style="cursor:pointer" title="Click for details">—</div></div>
         <div class="sb-item"><div class="sb-l" id="sb_batch">Status</div><div class="sb-v" id="srcStatus">—</div></div>
@@ -962,6 +970,13 @@ table.fl-tbl td:last-child{border-right:none}
           <button class="float-dialog-close" id="dlgNotReadClose">✕</button>
         </div>
         <div class="float-dialog-body" id="dlgNotReadBody"></div>
+      </div>
+      <div class="float-dialog" id="dlgDups">
+        <div class="float-dialog-hdr" id="dlgDupsHdr">
+          <div class="float-dialog-title" style="color:orange">◈ DUPLICATE LOG ENTRIES</div>
+          <button class="float-dialog-close" id="dlgDupsClose">✕</button>
+        </div>
+        <div class="float-dialog-body" id="dlgDupsBody"></div>
       </div>
       <div class="float-dialog" id="dlgNonBill">
         <div class="float-dialog-hdr" id="dlgNonBillHdr">
@@ -1227,9 +1242,20 @@ table.fl-tbl td:last-child{border-right:none}
               <span style="font-family:var(--mono);font-size:11px;color:var(--dim2)" id="roleBannerToggleLabel">On</span>
             </label>
           </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border2);margin-top:8px">
+            <div>
+              <div style="font-size:13px;color:var(--text)">Fix Column Headers</div>
+              <div style="font-size:11px;color:var(--dim2);font-family:var(--mono)">Keep Flight Log column headers visible while scrolling</div>
+            </div>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+              <label class="dbg-slider">
+                <input type="checkbox" id="stickyHeadersToggleCheck" checked>
+                <span class="dbg-slider-track"></span>
+              </label>
+              <span style="font-family:var(--mono);font-size:11px;color:var(--dim2)" id="stickyHeadersToggleLabel">On</span>
+            </label>
+          </div>
         </div>
-        <div class="settings-card">
-          <div class="settings-card-title">🛠 Developer</div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
             <div>
               <div style="font-size:13px;color:var(--text)">Debug Console</div>
@@ -1736,7 +1762,7 @@ table.fl-tbl td:last-child{border-right:none}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v7.22.7";
+const APP_VERSION = "v7.23";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2317,6 +2343,7 @@ async function bootApp(){
   await loadApiKeyFromDB();
   initDebugToggle();
   initRoleBannerToggle();
+  initStickyHeadersToggle();
   // Load billing cycle history
   await loadAllBatches();
   // Load batch from DB
@@ -2891,7 +2918,27 @@ function initDebugToggle(){
   });
 }
 
-// ── ROLE BANNER TOGGLE ──
+// ── STICKY HEADERS TOGGLE ──
+function initStickyHeadersToggle(){
+  const check=el("stickyHeadersToggleCheck");
+  const label=el("stickyHeadersToggleLabel");
+  if(!check) return;
+  const saved=localStorage.getItem("hpfleet_stickyheaders");
+  const on=saved===null?true:saved==="1";
+  check.checked=on;
+  if(label){ label.textContent=on?"On":"Off"; label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+  _applyStickyHeaders(on);
+  check.addEventListener("change",function(){
+    const isOn=this.checked;
+    localStorage.setItem("hpfleet_stickyheaders",isOn?"1":"0");
+    if(label){ label.textContent=isOn?"On":"Off"; label.style.color=isOn?"var(--cyan)":"var(--dim2)"; }
+    _applyStickyHeaders(isOn);
+  });
+}
+function _applyStickyHeaders(on){
+  const tbl=document.querySelector("table.fl-tbl");
+  if(tbl) tbl.classList.toggle("sticky-headers",on);
+}
 function initRoleBannerToggle(){
   const check=el("roleBannerToggleCheck");
   const label=el("roleBannerToggleLabel");
@@ -3144,8 +3191,9 @@ function logCheck(){
 }
 
 function horoCheck(entry,idx){
-  // Sequence check: prev.motorIn should equal curr.motorOut within aircraft tolerance
+  // Skip void/skipped entries entirely — they don't count in the sequence
   if(!entry.motorOut||!entry.aeronave) return{ok:true};
+  if(entry.status==="void"||entry.status==="skipped") return{ok:true};
   const prev=flEntries.slice(0,idx).filter(e=>
     e.aeronave===entry.aeronave&&
     e.status!=="skipped"&&e.status!=="void"&&
@@ -3167,12 +3215,31 @@ function horoCheck(entry,idx){
   };
 }
 
+// ── DUPLICATE LOG # CHECK ──
+function duplicateCheck(){
+  const seen={};
+  const dups=[];
+  flEntries.forEach((e,idx)=>{
+    if(!e.bnum||e.status==="skipped"||e.status==="void") return;
+    if(seen[e.bnum]===undefined){ seen[e.bnum]=idx; }
+    else {
+      // Flag both the first and current occurrence
+      if(!dups.find(d=>d.idx===seen[e.bnum])){
+        dups.push({idx:seen[e.bnum],entry:flEntries[seen[e.bnum]],bnum:e.bnum});
+      }
+      dups.push({idx,entry:e,bnum:e.bnum});
+    }
+  });
+  return dups;
+}
+
 function updateSrcBar(){
   const total=flEntries.length;
   const read=flEntries.filter(e=>e.status!=="skipped"&&e.status!=="void"&&e.aeronave&&e.fecha).length;
   const notRead=total-read;
   const nonBill=flEntries.filter(e=>e.status==="nonbillable").length;
   const logBreaks=logCheck();
+  const dups=duplicateCheck();
   const seqAlerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; });
 
   if(el("srcFile")) el("srcFile").textContent=batchSourceFile||"—";
@@ -3186,12 +3253,17 @@ function updateSrcBar(){
     el("srcNonBill").style.color=nonBill>0?"var(--dim2)":"var(--dim2)";
     el("srcNonBill").style.pointerEvents=nonBill>0?"auto":"none";
   }
+  // Duplicates
+  if(el("srcDups")){
+    el("srcDups").textContent=dups.length||"—";
+    el("srcDups").style.color=dups.length>0?"orange":"var(--dim2)";
+    el("srcDups").style.pointerEvents=dups.length>0?"auto":"none";
+  }
   // Log Breaks
   if(el("srcLogBreaks")){
     el("srcLogBreaks").textContent=logBreaks.length||"—";
     el("srcLogBreaks").style.color=logBreaks.length>0?"var(--red)":"var(--dim2)";
     el("srcLogBreaks").style.pointerEvents=logBreaks.length>0?"auto":"none";
-    // Store for dialog
     el("srcLogBreaks")._data=logBreaks;
   }
   // Seq Alerts
@@ -3203,15 +3275,16 @@ function updateSrcBar(){
   }
   if(el("srcStatus")) el("srcStatus").textContent=batchStatus||"—";
 
-  // Update log-seq-gap markers on table
+  // Update row markers on table
   if(el("flTbody")){
     const breakIdxs=new Set(logBreaks.map(b=>b.idx));
+    const dupIdxs=new Set(dups.map(d=>d.idx));
     el("flTbody").querySelectorAll("tr[data-entry-id]").forEach(row=>{
       const entryIdx=flEntries.findIndex(e=>e.id===parseInt(row.dataset.entryId));
       const bnumCell=row.querySelector("td:nth-child(2)");
       if(bnumCell){
-        if(breakIdxs.has(entryIdx)) bnumCell.classList.add("log-seq-gap");
-        else bnumCell.classList.remove("log-seq-gap");
+        bnumCell.classList.toggle("log-seq-gap",breakIdxs.has(entryIdx)&&!dupIdxs.has(entryIdx));
+        bnumCell.classList.toggle("log-dup-gap",dupIdxs.has(entryIdx));
       }
     });
   }
@@ -3440,7 +3513,7 @@ function renderFlTable(){
     const hasDiffGap=e.obs&&e.obs.includes("Dif Motor/Vuelo");
     const isOverride=e.multOverride&&e.multOverride!==getAircraftMult(e.aeronave,e.operador);
     const tr=document.createElement("tr");
-    tr.className=e.status==="approved"?"r-ok":e.status==="rejected"?"r-rej":e.status==="flagged"?"r-flagged":e.status==="skipped"?"r-skipped":e.status==="nonbillable"?"r-nonbillable":"";
+    tr.className=e.status==="approved"?"r-ok":e.status==="rejected"?"r-rej":e.status==="flagged"?"r-flagged":e.status==="skipped"?"r-skipped":e.status==="nonbillable"?"r-nonbillable":e.status==="void"?"r-void":"";
     tr.style.cursor="pointer";
     tr.dataset.entryId=e.id;
     // Notes — show flag note or obs, plus red triangle if diff gap
@@ -3472,6 +3545,9 @@ function renderFlTable(){
   });
   if(el("ptab_count")) el("ptab_count").textContent=flEntries.length;
   updateFlSummary(); runHoroChecks();
+  // Re-apply sticky headers preference after re-render
+  const _sh=localStorage.getItem("hpfleet_stickyheaders");
+  _applyStickyHeaders(_sh===null?true:_sh==="1");
 }
 
 function mkFlToggle(e,canEdit){
@@ -5521,11 +5597,33 @@ function wireEvents(){
   });
 
   // Floating dialog wiring — srcBar clickable links
-  function openFloatDialog(dlgId,title,lines,color){
+  function openFloatDialog(dlgId,title,lines,color,entryIds){
     const dlg=el(dlgId); if(!dlg) return;
     const body=dlg.querySelector(".float-dialog-body");
-    if(body) body.innerHTML=lines.length?lines.map(l=>"<div style='padding:2px 0;border-bottom:1px solid var(--border2)'>"+l+"</div>").join(""):"<div style='color:var(--dim)'>No items.</div>";
-    // Position near srcBar
+    if(body){
+      if(!lines.length){
+        body.innerHTML="<div style='color:var(--dim)'>No items.</div>";
+      } else {
+        body.innerHTML=lines.map((l,i)=>{
+          const eid=entryIds?entryIds[i]:null;
+          if(eid!=null){
+            return '<div style="padding:3px 0;border-bottom:1px solid var(--border2)">'+
+              '<a href="#" data-open-entry="'+eid+'" style="color:var(--cyan);text-decoration:none;font-weight:600;margin-right:6px">→</a>'+
+              '<span>'+l+'</span></div>';
+          }
+          return '<div style="padding:3px 0;border-bottom:1px solid var(--border2)">'+l+"</div>";
+        }).join("");
+        // Wire entry links
+        body.querySelectorAll("[data-open-entry]").forEach(a=>{
+          a.addEventListener("click",ev=>{
+            ev.preventDefault();
+            const eid=parseInt(a.dataset.openEntry);
+            dlg.classList.remove("open");
+            openSidePanel(eid,true);
+          });
+        });
+      }
+    }
     const bar=el("srcBar");
     const rect=bar?bar.getBoundingClientRect():{top:100,left:100};
     dlg.style.top=(rect.bottom+8)+"px";
@@ -5546,45 +5644,53 @@ function wireEvents(){
     });
     document.addEventListener("mouseup",()=>{ dragging=false; });
   }
+  makeDraggable("dlgDups","dlgDupsHdr");
   makeDraggable("dlgNotRead","dlgNotReadHdr");
   makeDraggable("dlgNonBill","dlgNonBillHdr");
   makeDraggable("dlgLogBreaks","dlgLogBreaksHdr");
   makeDraggable("dlgSeqAlerts","dlgSeqAlertsHdr");
 
+  if(el("dlgDupsClose")) el("dlgDupsClose").addEventListener("click",()=>el("dlgDups").classList.remove("open"));
   if(el("dlgNotReadClose")) el("dlgNotReadClose").addEventListener("click",()=>el("dlgNotRead").classList.remove("open"));
   if(el("dlgNonBillClose")) el("dlgNonBillClose").addEventListener("click",()=>el("dlgNonBill").classList.remove("open"));
   if(el("dlgLogBreaksClose")) el("dlgLogBreaksClose").addEventListener("click",()=>el("dlgLogBreaks").classList.remove("open"));
   if(el("dlgSeqAlertsClose")) el("dlgSeqAlertsClose").addEventListener("click",()=>el("dlgSeqAlerts").classList.remove("open"));
 
   if(el("srcNotRead")) el("srcNotRead").addEventListener("click",()=>{
-    const lines=flEntries
-      .filter(e=>e.status==="skipped"||e.status==="void"||!e.aeronave||!e.fecha)
-      .map((e,i)=>{
-        const idx=flEntries.indexOf(e)+1;
-        const reason=e.status==="skipped"?"Skipped":e.status==="void"?"Void":!e.aeronave?"No aircraft":!e.fecha?"No date":"Unknown";
-        return "Entry #"+idx+" | Log "+(e.bnum||"—")+" | "+reason;
-      });
-    openFloatDialog("dlgNotRead","Not Read Entries",lines,"var(--yellow)");
+    const entries=flEntries.filter(e=>e.status==="skipped"||e.status==="void"||!e.aeronave||!e.fecha);
+    const lines=entries.map(e=>{
+      const idx=flEntries.indexOf(e)+1;
+      const reason=e.status==="skipped"?"Skipped":e.status==="void"?"Void":!e.aeronave?"No aircraft":!e.fecha?"No date":"Unknown";
+      return "Entry #"+idx+" | Log "+(e.bnum||"—")+" | "+reason;
+    });
+    openFloatDialog("dlgNotRead","Not Read Entries",lines,"var(--yellow)",entries.map(e=>e.id));
   });
   if(el("srcNonBill")) el("srcNonBill").addEventListener("click",()=>{
-    const lines=flEntries.filter(e=>e.status==="nonbillable").map((e,i)=>{
+    const entries=flEntries.filter(e=>e.status==="nonbillable");
+    const lines=entries.map(e=>{
       const idx=flEntries.indexOf(e)+1;
-      return "Entry #"+idx+" | Log "+e.bnum+" | "+e.fecha+" — "+(e.nonBillReason||"—");
+      return "Entry #"+idx+" | Log "+(e.bnum||"—")+" | "+(e.fecha||"—")+" — "+(e.nonBillReason||"—");
     });
-    openFloatDialog("dlgNonBill","Non-Billable Entries",lines,"var(--dim2)");
+    openFloatDialog("dlgNonBill","Non-Billable Entries",lines,"var(--dim2)",entries.map(e=>e.id));
+  });
+  if(el("srcDups")) el("srcDups").addEventListener("click",()=>{
+    const dups=duplicateCheck();
+    const lines=dups.map(d=>"Entry #"+(d.idx+1)+" | Log "+d.bnum+" | "+(d.entry.fecha||"—")+" | "+d.entry.aeronave);
+    openFloatDialog("dlgDups","Duplicate Log Entries",lines,"orange",dups.map(d=>d.entry.id));
   });
   if(el("srcLogBreaks")) el("srcLogBreaks").addEventListener("click",()=>{
     const breaks=logCheck();
     const lines=breaks.map(b=>"Entry #"+(b.idx+1)+" | "+b.msg);
-    openFloatDialog("dlgLogBreaks","Log # Breaks",lines,"var(--red)");
+    openFloatDialog("dlgLogBreaks","Log # Breaks",lines,"var(--red)",breaks.map(b=>b.entry.id));
   });
   if(el("srcHoro")) el("srcHoro").addEventListener("click",()=>{
-    const alerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; }).map((e)=>{
+    const alerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; });
+    const lines=alerts.map(e=>{
       const idx=flEntries.indexOf(e);
       const h=horoCheck(e,idx);
-      return "Entry #"+(idx+1)+" | Log "+(e.bnum||"—")+" | "+e.aeronave+" | Prev.In "+h.prevIn+" → Curr.Out "+h.currOut+" (Δ"+h.diff+", tol:"+h.tolerance+")";
+      return "Entry #"+(idx+1)+" | Log "+(e.bnum||"—")+" | "+e.aeronave+" | Prev.In "+h.prevIn+" → Curr.Out "+h.currOut+" (Δ"+h.diff+")";
     });
-    openFloatDialog("dlgSeqAlerts","Sequence Alerts",alerts,"var(--yellow)");
+    openFloatDialog("dlgSeqAlerts","Sequence Alerts",lines,"var(--yellow)",alerts.map(e=>e.id));
   });
   // Pan/drag — active when spPanMode is true
   const spImgWrap=el("sp_img_wrap");
