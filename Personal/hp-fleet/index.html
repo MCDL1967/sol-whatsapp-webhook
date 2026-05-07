@@ -1,10 +1,10 @@
-<!-- HP Fleet v8.1.2 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.1.3 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v8.1.2</title>
+<title>HP Fleet v8.1.3</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -919,7 +919,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.1.2</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.1.3</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -928,7 +928,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.1.2</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.1.3</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1585,38 +1585,44 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
 </div>
 
 <!-- ADD MORE FILES DIALOG -->
-<div class="float-dialog" id="addFilesMbd" style="display:none;z-index:300;width:480px;max-width:calc(100vw - 32px)">
-  <div class="float-dialog-hdr" style="cursor:move">
-    <div class="float-dialog-title">📂 ADD MORE FILES</div>
+<div class="float-dialog" id="addFilesMbd" style="display:none;z-index:300;width:560px;max-width:calc(100vw - 32px)">
+  <div class="float-dialog-hdr">
+    <div class="float-dialog-title">📂 ADD MORE FILES TO BATCH</div>
     <button id="af_close" class="float-dialog-close">✕</button>
   </div>
-  <div style="padding:16px">
-    <div style="font-family:var(--mono);font-size:9px;color:var(--dim2);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Optional Context (helps OCR accuracy)</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-      <div class="field"><label>Aircraft</label><select id="af_aircraft" style="width:100%;background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 10px;border-radius:2px"></select></div>
-      <div class="field"><label>Operator</label><select id="af_operator" style="width:100%;background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 10px;border-radius:2px"></select></div>
-    </div>
-    <div class="upload-zone" id="af_uploadZone" style="padding:20px;min-height:80px">
-      <div class="uz-icon" style="font-size:24px">📂</div>
-      <div class="uz-title" style="font-size:13px">Drop flight log files here</div>
-      <div class="uz-sub">or click to browse</div>
-      <div class="uz-types">
-        <span class="uz-type ok">PDF</span>
-        <span class="uz-type ok">JPG</span>
-        <span class="uz-type ok">PNG</span>
+  <div class="mbody">
+    <div style="font-family:var(--mono);font-size:9px;color:var(--dim2);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">Optional Context — helps OCR accuracy</div>
+    <div class="frow fc2" style="margin-bottom:14px">
+      <div class="field"><label>Aircraft</label>
+        <select id="af_aircraft" class="f-select" style="width:100%;min-width:unset"></select>
+      </div>
+      <div class="field"><label>Operator</label>
+        <select id="af_operator" class="f-select" style="width:100%;min-width:unset"></select>
       </div>
     </div>
-    <input type="file" id="af_fileInput" multiple accept=".pdf,.jpg,.jpeg,.png" style="display:none">
-    <div id="af_fileQueue" style="margin-top:8px;display:flex;flex-direction:column;gap:4px"></div>
+    <div style="border-top:1px solid var(--border2);padding-top:14px">
+      <div class="upload-zone" id="af_uploadZone" style="padding:20px;min-height:80px">
+        <div class="uz-icon" style="font-size:24px">📂</div>
+        <div class="uz-title" style="font-size:13px">Drop flight log files here</div>
+        <div class="uz-sub">or click to browse</div>
+        <div class="uz-types">
+          <span class="uz-type ok">PDF</span>
+          <span class="uz-type ok">JPG</span>
+          <span class="uz-type ok">PNG</span>
+        </div>
+      </div>
+      <input type="file" id="af_fileInput" multiple accept=".pdf,.jpg,.jpeg,.png" style="display:none">
+      <div id="af_fileQueue" style="margin-top:8px;display:flex;flex-direction:column;gap:4px"></div>
+    </div>
   </div>
-  <div style="padding:12px 16px;border-top:1px solid var(--border2);display:flex;justify-content:flex-end;gap:10px">
+  <div class="mftr">
     <button class="btn-ghost" id="af_cancel">Cancel</button>
     <button class="btn-primary" id="af_confirm" disabled>▶ Upload Logs</button>
   </div>
 </div>
 
 <!-- UPLOAD STATUS WINDOW -->
-<div id="uploadStatusMbd" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:400;width:480px;max-width:calc(100vw - 40px);background:var(--s1);border:1px solid var(--border2);border-radius:4px;flex-direction:column;max-height:60vh;box-shadow:0 8px 32px rgba(0,0,0,.5)">
+<div id="uploadStatusMbd" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:400;width:480px;max-width:calc(100vw - 40px);background:var(--s1);border:1px solid var(--border2);border-radius:4px;flex-direction:column;min-height:200px;max-height:60vh;box-shadow:0 8px 32px rgba(0,0,0,.5)"">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--cyan);border-radius:3px 3px 0 0;flex-shrink:0">
     <div style="font-family:var(--mono);font-size:11px;color:#000;letter-spacing:1px;font-weight:700">⚙ EXTRACTION LOG</div>
     <div style="display:flex;gap:8px">
@@ -1912,7 +1918,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.1.2";
+const APP_VERSION = "v8.1.3";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -5113,11 +5119,14 @@ let afFiles=[];
 function openAddFilesDialog(){
   afFiles=[];
   afRenderQueue();
-  // Populate dropdowns from AIRCRAFT/COMPANIES
   const acSel=el("af_aircraft"); const opSel=el("af_operator");
-  if(acSel){ acSel.innerHTML='<option value="">— Any —</option>'+AIRCRAFT.map(a=>'<option value="'+a.reg+'">'+a.reg+'</option>').join(""); }
-  if(opSel){ opSel.innerHTML='<option value="">— Any —</option>'+COMPANIES.map(c=>'<option value="'+c.code+'">'+c.code+'</option>').join(""); }
-  const dlg=el("addFilesMbd"); if(dlg) dlg.style.display="block";
+  if(acSel){
+    acSel.innerHTML='<option value="">Auto-detect</option>'+AIRCRAFT.map(a=>'<option value="'+a.matricula+'">'+a.matricula+'</option>').join("");
+  }
+  if(opSel){
+    opSel.innerHTML='<option value="">Auto-detect</option>'+COMPANIES.map(c=>'<option value="'+c.code+'">'+c.code+'</option>').join("");
+  }
+  const dlg=el("addFilesMbd"); if(dlg) dlg.style.display="flex";
 }
 
 function closeAddFilesDialog(){
@@ -6218,6 +6227,16 @@ function wireEvents(){
   if(el("af_close")) el("af_close").addEventListener("click",closeAddFilesDialog);
   if(el("af_cancel")) el("af_cancel").addEventListener("click",closeAddFilesDialog);
   if(el("af_confirm")) el("af_confirm").addEventListener("click",confirmAddFiles);
+  if(el("af_aircraft")) el("af_aircraft").addEventListener("change",function(){
+    const ac=AIRCRAFT.find(a=>a.matricula===this.value);
+    const opSel=el("af_operator"); if(!opSel) return;
+    opSel.innerHTML='<option value="">Auto-detect</option>';
+    if(ac&&ac.rates) ac.rates.forEach(r=>{
+      const opt=document.createElement("option");
+      opt.value=r.operador; opt.textContent=r.operador;
+      opSel.appendChild(opt);
+    });
+  });
   initAfDropZone();
   // Make addFilesMbd draggable
   (()=>{
