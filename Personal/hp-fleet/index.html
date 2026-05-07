@@ -1,10 +1,10 @@
-<!-- HP Fleet v8.1.3 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.1.4 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v8.1.3</title>
+<title>HP Fleet v8.1.4</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -306,7 +306,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 .ppanel{display:none}
 .ppanel.active{display:block}
 .fl-tbl-wrap{overflow-x:auto;border:none;margin-bottom:0}
-table.fl-tbl{width:100%;border-collapse:collapse}
+table.fl-tbl{width:100%;border-collapse:separate;border-spacing:0}
 table.fl-tbl thead tr{background:var(--s2)}
 table.fl-tbl thead tr:nth-child(1) th{border-top:2px solid var(--border2)}
 table.fl-tbl thead tr:nth-child(2) th{border-bottom:2px solid var(--border2)}
@@ -919,7 +919,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.1.3</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.1.4</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -928,7 +928,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.1.3</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.1.4</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1102,7 +1102,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
             </select></div>
             <button class="btn-ghost" id="btn_approveAll">Approve All</button>
             <button class="btn-ghost" id="btn_resetAll">Reset</button>
-            <button class="btn-ghost" id="btn_newEntry">+ New Entry</button>
+            <button class="btn-ghost" id="btn_newEntry">+ New Manual Log Entry</button>
           </div>
         </div>
         <div class="panel-tabs" style="display:flex;align-items:center">
@@ -1622,8 +1622,8 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
 </div>
 
 <!-- UPLOAD STATUS WINDOW -->
-<div id="uploadStatusMbd" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:400;width:480px;max-width:calc(100vw - 40px);background:var(--s1);border:1px solid var(--border2);border-radius:4px;flex-direction:column;min-height:200px;max-height:60vh;box-shadow:0 8px 32px rgba(0,0,0,.5)"">
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--cyan);border-radius:3px 3px 0 0;flex-shrink:0">
+<div id="uploadStatusMbd" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:400;width:480px;max-width:calc(100vw - 40px);background:var(--s1);border:1px solid var(--border2);border-radius:4px;flex-direction:column;min-height:200px;max-height:60vh;box-shadow:0 8px 32px rgba(0,0,0,.5)">
+  <div data-drag-hdr style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--cyan);border-radius:3px 3px 0 0;flex-shrink:0;cursor:move">
     <div style="font-family:var(--mono);font-size:11px;color:#000;letter-spacing:1px;font-weight:700">⚙ EXTRACTION LOG</div>
     <div style="display:flex;gap:8px">
       <button id="uploadLog_save" style="background:rgba(0,0,0,.15);border:1px solid rgba(0,0,0,.2);color:#000;font-family:var(--mono);font-size:10px;padding:4px 10px;cursor:pointer;border-radius:2px">↓ Save Log</button>
@@ -1918,7 +1918,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px}
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.1.3";
+const APP_VERSION = "v8.1.4";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2131,7 +2131,7 @@ const I18N = {
     horoAlert:"⚠ Horometer Gap Detected",
     tbEntries:"Extracted Entries",
     allOp:"— Filters —",pendOnly:"Pending Only",apprOnly:"Approved Only",rejOnly:"Rejected Only",
-    approveAll:"Approve All",resetAll:"Reset",newEntry:"+ New Entry",
+    approveAll:"Approve All",resetAll:"Reset",newEntry:"+ New Manual Log Entry",
     ptEntries:"Entries",ptAudit:"Audit Log",
     thDate:"Date",thAc:"Aircraft",thOp:"Operator",thPilot:"Pilot",
     thMotor:"Motor",thFlight:"Flight",thBilling:"Billing",
@@ -2207,7 +2207,7 @@ const I18N = {
     horoAlert:"⚠ Inconsistencia de Horómetro",
     tbEntries:"Entradas Extraídas",
     allOp:"— Filtros —",pendOnly:"Solo Pendientes",apprOnly:"Solo Aprobados",rejOnly:"Solo Rechazados",
-    approveAll:"Aprobar Todo",resetAll:"Resetear",newEntry:"+ Nueva Entrada",
+    approveAll:"Aprobar Todo",resetAll:"Resetear",newEntry:"+ Nueva Entrada Manual",
     ptEntries:"Entradas",ptAudit:"Log de Auditoría",
     thDate:"Fecha",thAc:"Aeronave",thOp:"Operador",thPilot:"Piloto",
     thMotor:"Motor",thFlight:"Vuelo",thBilling:"Facturación",
@@ -3148,7 +3148,9 @@ function addFilesToQueue(files){
     if(!allowed.includes(f.type)&&!f.name.match(/\.(pdf|jpg|jpeg|png)$/i)){
       showToast(f.name+": unsupported format","err"); return;
     }
-    if(fileQueue.find(q=>q.name===sanitizeFilename(f.name)&&q.size===f.size)) return;
+    if(fileQueue.find(q=>q.name===sanitizeFilename(f.name)&&q.size===f.size)){
+      if(!confirm("\""+f.name+"\" has already been loaded.\nIf you continue, you may duplicate records.\n\nContinue anyway?")) return;
+    }
     fileQueue.push({file:f,name:sanitizeFilename(f.name),size:f.size,type:f.type,status:"waiting",progress:0,_preview:null});
   });
 }
@@ -5159,10 +5161,21 @@ function initAfDropZone(){
   zone.addEventListener("drop",e=>{
     e.preventDefault(); zone.classList.remove("dragover");
     const files=Array.from(e.dataTransfer.files).filter(f=>/\.(pdf|jpg|jpeg|png)$/i.test(f.name));
-    files.forEach(f=>afFiles.push(f)); afRenderQueue();
+    files.forEach(f=>{
+      if(afFiles.find(q=>q.name===f.name&&q.size===f.size)){
+        if(!confirm("\""+f.name+"\" has already been added.\nIf you continue, you may duplicate records.\n\nContinue anyway?")) return;
+      }
+      afFiles.push(f);
+    });
+    afRenderQueue();
   });
   input.addEventListener("change",()=>{
-    Array.from(input.files).forEach(f=>afFiles.push(f));
+    Array.from(input.files).forEach(f=>{
+      if(afFiles.find(q=>q.name===f.name&&q.size===f.size)){
+        if(!confirm("\""+f.name+"\" has already been added.\nIf you continue, you may duplicate records.\n\nContinue anyway?")) return;
+      }
+      afFiles.push(f);
+    });
     input.value=""; afRenderQueue();
   });
 }
@@ -5173,24 +5186,25 @@ async function confirmAddFiles(){
   if(!apiKey){showToast(t("noApiKey"),"err");return;}
   const aircraft=el("af_aircraft")?el("af_aircraft").value:"";
   const operador=el("af_operator")?el("af_operator").value:"";
-  closeAddFilesDialog();
-  // Save current batch state first
-  await saveBatchToDB();
-  // Add files to queue
-  afFiles.forEach(f=>fileQueue.push({file:f,name:sanitizeFilename(f.name),size:f.size,type:f.type,status:"waiting",progress:0,_preview:null,_afContext:{aircraft,operador}}));
+  // Build isolated queue — bypasses fileQueue duplicate check entirely
+  const afQueue=afFiles.map(f=>({
+    file:f, name:sanitizeFilename(f.name), size:f.size, type:f.type,
+    status:"waiting", progress:0, _preview:null,
+    _afContext:{aircraft, operador}
+  }));
   afFiles=[];
-  // Open extraction log and run in append mode
-  openUploadStatusWindow();
-  await extractAllAppend();
+  closeAddFilesDialog();
+  await saveBatchToDB();
+  openUploadStatusWindow(true);
+  await extractAllAppend(afQueue);
 }
 
-async function extractAllAppend(){
-  // Same as extractAll but appends to flEntries instead of replacing
+async function extractAllAppend(appendQueue){
+  // Append mode — uses isolated queue, does NOT touch fileQueue, does NOT reset flEntries
   if(isExtracting){ showToast("Extraction already running","warn"); return; }
   const apiKey=getApiKey();
   if(!apiKey) return;
-  const appendQueue=fileQueue.filter(f=>f.status==="waiting");
-  if(!appendQueue.length) return;
+  if(!appendQueue||!appendQueue.length){ uploadLog("No files to process."); return; }
   isExtracting=true;
   extractionAbort=new AbortController();
   let allExtracted=[]; let hasErrors=false;
@@ -5334,7 +5348,9 @@ function initNbDropZone(){
 
 // ── UPLOAD STATUS WINDOW ──
 let uploadLogLines=[];
-function openUploadStatusWindow(){
+let _isAppendMode=false;
+function openUploadStatusWindow(appendMode){
+  _isAppendMode=!!appendMode;
   uploadLogLines=[];
   const body=el("uploadLogBody"); if(body) body.innerHTML="";
   const mbd=el("uploadStatusMbd"); if(mbd) mbd.style.display="flex";
@@ -5353,7 +5369,8 @@ function uploadLog(msg){
 }
 function closeUploadStatusWindow(){
   const mbd=el("uploadStatusMbd"); if(mbd) mbd.style.display="none";
-  showExtractionSummary();
+  if(!_isAppendMode) showExtractionSummary();
+  _isAppendMode=false;
 }
 function saveUploadLog(){
   const txt=uploadLogLines.join("\n");
@@ -6252,6 +6269,19 @@ function wireEvents(){
   // Upload status window
   if(el("uploadLog_close")) el("uploadLog_close").addEventListener("click",closeUploadStatusWindow);
   if(el("uploadLog_save")) el("uploadLog_save").addEventListener("click",saveUploadLog);
+  // Make Extraction Log draggable
+  (()=>{
+    const dlg=el("uploadStatusMbd");
+    const hdr=dlg?dlg.querySelector("[data-drag-hdr]"):null;
+    if(!dlg||!hdr) return;
+    let ox=0,oy=0,startX=0,startY=0,dragging=false;
+    hdr.addEventListener("mousedown",e=>{dragging=true;startX=e.clientX;startY=e.clientY;
+      const r=dlg.getBoundingClientRect();ox=r.left;oy=r.top;e.preventDefault();});
+    document.addEventListener("mousemove",e=>{if(!dragging)return;
+      dlg.style.left=(ox+e.clientX-startX)+"px";dlg.style.top=(oy+e.clientY-startY)+"px";
+      dlg.style.transform="none";});
+    document.addEventListener("mouseup",()=>{dragging=false;});
+  })();
   // Extraction summary modal — Go to Review applies Needs Review filter
   if(el("extractSummary_go")) el("extractSummary_go").addEventListener("click",()=>{
     closeModal("extractSummaryMbd");
