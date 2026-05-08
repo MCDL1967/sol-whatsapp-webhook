@@ -1327,6 +1327,19 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
           <div class="settings-card-title">🛠 Developer Options</div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
             <div>
+              <div style="font-size:13px;color:var(--text)" id="st_viewAsLabel">Show View As Selector</div>
+              <div style="font-size:11px;color:var(--dim2);font-family:var(--mono)" id="st_viewAsHint">Show role simulator in toolbar (Admin only)</div>
+            </div>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+              <label class="dbg-slider">
+                <input type="checkbox" id="viewAsToggleCheck">
+                <span class="dbg-slider-track"></span>
+              </label>
+              <span style="font-family:var(--mono);font-size:11px;color:var(--dim2)" id="viewAsToggleLabel">On</span>
+            </label>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+            <div>
               <div style="font-size:13px;color:var(--text)" id="st_adminCcLabel">Copy Admin on all Status Changes</div>
               <div style="font-size:11px;color:var(--dim2);font-family:var(--mono)" id="st_adminCcHint">Admin receives email copy of all workflow notifications</div>
             </div>
@@ -1993,7 +2006,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.3.1";
+const APP_VERSION = "v8.3.2";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2220,6 +2233,7 @@ const I18N = {
     rfrColEntry:"Entry",rfrColLog:"Log #",rfrColComment:"Reviewer Comment",rfrNoFlags:"No entries with reviewer comments found.",
     rfrWaMsg:"HP Fleet — Batch returned for review by",rfrWaFlagged:"flagged entries",rfrWaLogs:"Entries:",rfrWaLogin:"Log in to correct: https://sol-whatsapp-webhook.onrender.com",
     stAdminCcLabel:"Copy Admin on all Status Changes",stAdminCcHint:"Admin receives email copy of all workflow notifications",
+    stViewAsLabel:"Show View As Selector",stViewAsHint:"Show role simulator in toolbar (Admin only)",
     pending:"Pending",rejected:"Rejected",horoOk:"✓ ok",horoGap:"⚠ gap",
     editEntry:"Edit Entry",newEntryTitle:"New Entry",
     noApiKey:"API key not configured. Go to Settings tab.",
@@ -2300,6 +2314,7 @@ const I18N = {
     rfrColEntry:"Entrada",rfrColLog:"Log #",rfrColComment:"Comentario del Revisor",rfrNoFlags:"No hay entradas con comentarios del revisor.",
     rfrWaMsg:"HP Fleet — Lote devuelto para corrección por",rfrWaFlagged:"entradas marcadas",rfrWaLogs:"Entradas:",rfrWaLogin:"Inicia sesión para corregir: https://sol-whatsapp-webhook.onrender.com",
     stAdminCcLabel:"Copiar Admin en todos los cambios de estado",stAdminCcHint:"El admin recibe copia por email de todas las notificaciones",
+    stViewAsLabel:"Mostrar selector Ver Como",stViewAsHint:"Muestra el simulador de rol en la barra (solo Admin)",
     pending:"Pendiente",rejected:"Rechazado",horoOk:"✓ ok",horoGap:"⚠ gap",
     editEntry:"Editar Entrada",newEntryTitle:"Nueva Entrada",
     noApiKey:"API key no configurada. Ve a Configuración.",
@@ -2503,6 +2518,7 @@ function applyI18n(){
     btn_submit:"btnSubmit",btn_approve:"btnApprove",btn_reqChanges:"btnReqChanges",btn_returnForReview:"btnReturnForReview",
     fo_reviewerComments:"rfrColComment",
     st_adminCcLabel:"stAdminCcLabel",st_adminCcHint:"stAdminCcHint",
+    st_viewAsLabel:"stViewAsLabel",st_viewAsHint:"stViewAsHint",
     st_title:"stTitle",st_apiTitle:"stApiTitle",st_apiLabel:"stApiLabel",st_apiHint:"stApiHint",
     btn_saveApiKey:"saveKey",btn_clearApiKey:"clearKey",
     cs_billing:"csBilling",st_fleetTitle:"stFleetTitle",
@@ -2570,7 +2586,9 @@ async function bootApp(){
   el("tbAvatar").textContent=initials(currentUser.name);
   el("tbAvatar").style.color=r.color;
   const vaw=el("viewAsWrap");
-  if(vaw) vaw.style.display=currentUser.role==="ADMIN"?"flex":"none";
+  const viewAsSaved=localStorage.getItem("hpfleet_viewas_visible");
+  const viewAsOn=viewAsSaved===null?true:viewAsSaved==="1";
+  if(vaw) vaw.style.display=(currentUser.role==="ADMIN"&&viewAsOn)?"flex":"none";
   if(el("viewAsRole")) el("viewAsRole").value="ADMIN";
   viewRole=null;
   applyI18n();
@@ -2585,6 +2603,7 @@ async function bootApp(){
   await loadAdminCcFromDB();
   initDebugToggle();
   initAdminCcToggle();
+  initViewAsToggle();
   initRoleBannerToggle();
   initStickyHeadersToggle();
   // Load billing cycle history
@@ -3210,6 +3229,26 @@ function initAdminCcToggle(){
   });
 }
 
+function initViewAsToggle(){
+  const check=el("viewAsToggleCheck");
+  const label=el("viewAsToggleLabel");
+  if(!check) return;
+  const saved=localStorage.getItem("hpfleet_viewas_visible");
+  const on=saved===null?true:saved==="1";
+  check.checked=on;
+  if(label){ label.textContent=on?(lang==="es"?"Activo":"On"):(lang==="es"?"Inactivo":"Off"); label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+  const vaw=el("viewAsWrap");
+  if(vaw&&currentUser&&currentUser.role==="ADMIN") vaw.style.display=on?"flex":"none";
+  check.addEventListener("change",function(){
+    const on=this.checked;
+    localStorage.setItem("hpfleet_viewas_visible",on?"1":"0");
+    if(label){ label.textContent=on?(lang==="es"?"Activo":"On"):(lang==="es"?"Inactivo":"Off"); label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+    const vaw=el("viewAsWrap");
+    if(vaw&&currentUser&&currentUser.role==="ADMIN") vaw.style.display=on?"flex":"none";
+    if(!on){ viewRole=null; renderWfBar(); setupFlRoleUI(); renderFlTable(); renderTabs(); updateActionBar(); }
+  });
+}
+
 // ── STICKY HEADERS TOGGLE ──
 function initStickyHeadersToggle(){
   const check=el("stickyHeadersToggleCheck");
@@ -3772,11 +3811,12 @@ function setupFlRoleUI(){
   if(el("btn_approve")) el("btn_approve").style.display=canApprove?"flex":"none";
   if(el("btn_reqChanges")) el("btn_reqChanges").style.display="none";
   // REVIEW mode — hide upload area, batch constants, new batch, add more files
-  if(el("fl_newBatch")) el("fl_newBatch").style.display=isReview?"none":"";
-  if(el("btn_addMoreFiles")) el("btn_addMoreFiles").style.display=isReview?"none":"";
+  const isReviewer=role==="REVIEWER";
+  if(el("fl_newBatch")) el("fl_newBatch").style.display=isReviewer?"none":"";
+  if(el("btn_addMoreFiles")) el("btn_addMoreFiles").style.display=isReviewer?"none":"";
   // OCR and non-billable toggle hidden in REVIEW mode (side panel)
-  if(el("sp_reextract")) el("sp_reextract").style.display=isReview?"none":"";
-  if(el("sp_nonbill_toggle")) el("sp_nonbill_toggle").style.display=isReview?"none":"";
+  if(el("sp_reextract")) el("sp_reextract").style.display=isReviewer?"none":"";
+  if(el("sp_nonbill_toggle")) el("sp_nonbill_toggle").style.display=isReviewer?"none":"";
   // Return for Review button — only in REVIEW mode
   if(el("btn_returnForReview")) el("btn_returnForReview").style.display=isReview?"flex":"none";
   const canReopen=role==="ADMIN"&&batchStatus!=="DRAFT"&&batchStatus!=="CLOSED";
@@ -6349,7 +6389,7 @@ function wireEvents(){
   // View As toggle (Admin only)
   if(el("viewAsRole")) el("viewAsRole").addEventListener("change",function(){
     viewRole=this.value==="ADMIN"?null:this.value;
-    setupFlRoleUI(); renderFlTable(); renderTabs();
+    renderWfBar(); setupFlRoleUI(); renderFlTable(); renderTabs(); updateActionBar();
     showToast("View As: "+(viewRole||"Admin"));
   });
 
@@ -6435,9 +6475,11 @@ function wireEvents(){
       }
     }
     const bar=el("srcBar");
-    const rect=bar?bar.getBoundingClientRect():{top:100,left:100};
-    dlg.style.top=(rect.bottom+8)+"px";
-    dlg.style.left="120px";
+    const hdr=dlg.querySelector(".float-dialog-hdr");
+    if(hdr) hdr.style.background=color||"var(--cyan)";
+    dlg.style.border="1.5px solid "+(color||"var(--border2)");
+    dlg.style.top="";
+    dlg.style.left="";
     dlg.classList.add("open");
   }
   function makeDraggable(dlgId,hdrId){
