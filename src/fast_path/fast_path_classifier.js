@@ -1,9 +1,9 @@
 /*
 File: fast_path_classifier.js
-Version: v14.0.0
-Date: 2026-04-30
+Version: v14.0.1
+Date: 2026-05-07
 Role: Fast Path classifier using menu_dictionary and context
-Status: upgraded for menu-driven system
+Status: upgraded for restaurant continuation layer
 */
 
 function normalize(text = "") {
@@ -39,6 +39,16 @@ function classifyFastPath({ input = "", session = {}, menuDictionary = {} }) {
     if (lookup[text]) {
       return {
         type: "restaurant_selection",
+        key: lookup[text]
+      };
+    }
+  }
+
+  if (context === "restaurant_followup_menu" && menus.restaurant_followup_menu) {
+    const lookup = menus.restaurant_followup_menu.lookup || {};
+    if (lookup[text]) {
+      return {
+        type: "restaurant_followup_selection",
         key: lookup[text]
       };
     }
