@@ -2006,7 +2006,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.3.2";
+const APP_VERSION = "v8.3.3";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2626,7 +2626,7 @@ const TAB_CONFIG=[
   {id:"companies", icon:"🏢",labelKey:"tabCompanies", roles:["ADMIN"]},
   {id:"aircraft",  icon:"✈️",labelKey:"tabAircraft",  roles:["ADMIN","OPERATOR"]},
   {id:"flightlog", icon:"📋",labelKey:"tabFlightLog", roles:["ADMIN","OPERATOR","REVIEWER","READONLY"]},
-  {id:"preinvoice",icon:"💳",labelKey:"tabBilling",   roles:["ADMIN","REVIEWER"]},
+  {id:"preinvoice",icon:"💳",labelKey:"tabBilling",   roles:["ADMIN","REVIEWER","OPERATOR"]},
   {id:"settings",  icon:"⚙️",labelKey:"tabSettings",  roles:["ADMIN"]},
 ];
 
@@ -6477,6 +6477,8 @@ function wireEvents(){
     const bar=el("srcBar");
     const hdr=dlg.querySelector(".float-dialog-hdr");
     if(hdr) hdr.style.background=color||"var(--cyan)";
+    const titleEl=dlg.querySelector(".float-dialog-title");
+    if(titleEl) titleEl.style.color="#000";
     dlg.style.border="1.5px solid "+(color||"var(--border2)");
     dlg.style.top="";
     dlg.style.left="";
@@ -6523,7 +6525,7 @@ function wireEvents(){
       const idx=flEntries.indexOf(e)+1;
       return "Entry #"+idx+" | Log "+(e.bnum||"—")+" | "+(e.fecha||"—")+" | "+(e.nonBillReason||"No reason given");
     });
-    openFloatDialog("dlgNonBill","Non-Billable Entries",lines,"var(--dim2)",entries.map(e=>e.id));
+    openFloatDialog("dlgNonBill","Non-Billable Entries",lines,"var(--red)",entries.map(e=>e.id));
   });
   if(el("srcDups")) el("srcDups").addEventListener("click",()=>{
     const dups=duplicateCheck();
