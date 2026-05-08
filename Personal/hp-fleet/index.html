@@ -2043,7 +2043,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.3.9";
+const APP_VERSION = "v8.3.10";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -4528,7 +4528,7 @@ async function reopenBatch(){
   addAudit("↩",currentUser.name,"batch reopened",currentBatchId+" from "+prevStatus+" — "+reason);
   closeModal("reopenMbd");
   if(el("reopen_reason")) el("reopen_reason").value="";
-  renderWfBar(); setupFlRoleUI();
+  renderWfBar(); setupFlRoleUI(); renderFlTable();
   showToast("Batch reopened — status set to DRAFT","warn");
 }
 
