@@ -2043,7 +2043,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.3.10";
+const APP_VERSION = "v8.4.0";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2463,6 +2463,43 @@ function addContact(){
 let flEntries=[], flAuditLog=[], fileQueue=[], editingEntryId=null;
 let batchStatus="DRAFT", confirmCb=null, batchSourceFile=[], nextEntryId=1;
 let currentBatchId=null;
+let reviewCycle=1;
+
+// ── REVIEW THREAD HELPERS ──
+function addThreadComment(entry, role, text){
+  if(!entry.reviewThread) entry.reviewThread=[];
+  entry.reviewThread.push({
+    cycle:reviewCycle,
+    role,
+    author:currentUser.name,
+    text:text.trim(),
+    ts:new Date().toISOString()
+  });
+}
+
+function getCurrentCycleComments(entry){
+  if(!entry.reviewThread||!entry.reviewThread.length) return [];
+  return entry.reviewThread.filter(c=>c.cycle===reviewCycle);
+}
+
+function getThreadForEntry(entry){
+  return entry.reviewThread||[];
+}
+
+function migrateFlagnoteToThread(entry){
+  // Migrate legacy flagNote to review_thread as cycle 1 REVIEWER comment
+  if(entry.flagNote&&entry.flagNote.trim()!==""&&
+    (!entry.reviewThread||!entry.reviewThread.length)){
+    entry.reviewThread=[{
+      cycle:1,
+      role:"REVIEWER",
+      author:"Reviewer",
+      text:entry.flagNote.trim(),
+      ts:new Date().toISOString()
+    }];
+    dbg("Migrated flagNote to reviewThread for entry "+(entry.id),"info");
+  }
+}
 let isExtracting=false;
 let extractionAbort=null;
 let viewRole=null;
@@ -4604,8 +4641,9 @@ async function doReturnForReview(){
   // Auto-set all reviewed entries to flagged status
   flagged.forEach(e=>{ if(e.status!=="nonbillable"&&e.status!=="void") e.status="flagged"; });
   closeRfr();
-  // Revert batch to DRAFT
+  // Revert batch to DRAFT, increment cycle
   batchStatus="DRAFT";
+  reviewCycle++;
   if(el("resultBanner")) el("resultBanner").style.display="none";
   await saveBatchToDB();
   addFlAudit("↩",currentUser.name,lang==="es"?"devolvió lote para corrección":"returned batch for review",
@@ -5073,6 +5111,7 @@ async function saveBatchToDB(){
       // Update existing batch
       await sbPatch("batches","id=eq."+currentBatchId,{
         status:batchStatus,
+        cycle:reviewCycle,
         submitted_by:currentUser.name,
         submitted_at:batchStatus==="SUBMITTED"?new Date().toISOString():undefined,
         approved_by:batchStatus==="APPROVED"?currentUser.name:undefined,
@@ -5094,6 +5133,7 @@ async function saveBatchToDB(){
         direct_tm:e._directTm||null, direct_tv:e._directTv||null,
         mult_override:e.multOverride||null,
         obs:e.obs||"", flag_note:e.flagNote||"",
+        review_thread:JSON.stringify(e.reviewThread||[]),
         status:e.status||"pending", sort_order:i,
         image_url:e.imageUrl||null,
         non_bill_reason:e.nonBillReason||null
@@ -6009,21 +6049,30 @@ async function loadBatchFromDB(id){
     batchStatus=batch.status;
     try{ batchSourceFile=JSON.parse(batch.source_file||"[]"); }
     catch(e){ batchSourceFile=batch.source_file?batch.source_file.split(/,\s*/).filter(Boolean):[]; }
-    dbg("Batch loaded — id: "+currentBatchId+" status: "+batchStatus,"ok");
+    reviewCycle=batch.cycle||1;
+    dbg("Batch loaded — id: "+currentBatchId+" status: "+batchStatus+" cycle: "+reviewCycle,"ok");
     const entries=await sbGet("entries","batch_id=eq."+currentBatchId+"&order=sort_order.asc");
-    flEntries=(entries||[]).map((e,i)=>({
-      id:i+1, bnum:e.bnum||"", fecha:e.fecha, aeronave:e.aeronave, operador:e.operador,
-      piloto:e.piloto, instructor:e.instructor||"",
-      horoIn:e.horo_in||0,
-      motorOut:e.motor_out, motorIn:e.motor_in,
-      vueloOut:e.vuelo_out, vueloIn:e.vuelo_in,
-      _directTm:e.direct_tm||null, _directTv:e.direct_tv||null,
-      multOverride:e.mult_override||null,
-      obs:e.obs||"", flagNote:e.flag_note||"",
-      status:e.status||"pending",
-      imageUrl:e.image_url||null,
-      nonBillReason:e.non_bill_reason||null
-    }));
+    flEntries=(entries||[]).map((e,i)=>{
+      let reviewThread=[];
+      try{ reviewThread=JSON.parse(e.review_thread||"[]"); }
+      catch(err){ reviewThread=[]; }
+      const entry={
+        id:i+1, bnum:e.bnum||"", fecha:e.fecha, aeronave:e.aeronave, operador:e.operador,
+        piloto:e.piloto, instructor:e.instructor||"",
+        horoIn:e.horo_in||0,
+        motorOut:e.motor_out, motorIn:e.motor_in,
+        vueloOut:e.vuelo_out, vueloIn:e.vuelo_in,
+        _directTm:e.direct_tm||null, _directTv:e.direct_tv||null,
+        multOverride:e.mult_override||null,
+        obs:e.obs||"", flagNote:e.flag_note||"",
+        reviewThread,
+        status:e.status||"pending",
+        imageUrl:e.image_url||null,
+        nonBillReason:e.non_bill_reason||null
+      };
+      migrateFlagnoteToThread(entry);
+      return entry;
+    });
     nextEntryId=flEntries.length+1;
     const audit=await sbGet("audit_log","batch_id=eq."+currentBatchId+"&order=ts.desc");
     flAuditLog=(audit||[]).map(a=>({...a,ts:new Date(a.ts)}));
