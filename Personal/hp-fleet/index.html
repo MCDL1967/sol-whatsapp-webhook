@@ -2014,8 +2014,31 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
         <div class="sp-field"><label>Notes</label><input type="text" id="sp_obs"></div>
       </div>
       <div class="sp-frow fc1" id="spCommentRow" style="display:none">
-        <div class="sp-field"><label id="spCommentLabel">Review Comment</label>
-          <textarea id="sp_comment" rows="3" style="background:var(--s3);border:1px solid rgba(255,192,67,.4);color:var(--yellow);font-family:var(--body);font-size:12px;padding:8px;width:100%;border-radius:2px;outline:none;resize:vertical" placeholder="Enter review comment…"></textarea>
+        <div class="sp-field" style="padding:0">
+          <!-- REVIEW THREAD PANEL -->
+          <div id="spReviewThread" style="border:1px solid rgba(255,196,59,0.3);border-radius:3px;overflow:hidden;font-family:var(--mono)">
+            <div style="background:rgba(255,196,59,0.12);padding:6px 10px;border-bottom:1px solid rgba(255,196,59,0.2);display:flex;align-items:center;gap:6px">
+              <span style="font-size:9px;font-weight:700;color:var(--yellow);letter-spacing:1px" id="spThreadTitle">REVIEW THREAD</span>
+              <span style="font-size:9px;color:var(--dim2)" id="spThreadMeta"></span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid rgba(255,255,255,0.06)">
+              <div style="padding:5px 8px;font-size:9px;font-weight:700;color:var(--yellow);border-right:1px solid rgba(255,255,255,0.06);letter-spacing:1px" id="spColReviewer">REVIEWER</div>
+              <div style="padding:5px 8px;font-size:9px;font-weight:700;color:var(--cyan);letter-spacing:1px" id="spColOperator">OPERATOR</div>
+            </div>
+            <div id="spThreadBody" style="max-height:180px;overflow-y:auto"></div>
+            <div id="spThreadInput" style="display:none;padding:8px;border-top:1px solid rgba(255,255,255,0.06)">
+              <textarea id="spThreadTextarea" rows="2" style="width:100%;background:var(--s3);border:1px solid rgba(255,196,59,0.4);color:var(--yellow);font-family:var(--mono);font-size:10px;padding:5px;border-radius:2px;outline:none;resize:none;box-sizing:border-box" placeholder="Add comment…"></textarea>
+              <div style="display:flex;justify-content:flex-end;margin-top:4px;gap:6px">
+                <button class="btn-ghost" style="font-size:9px;padding:3px 8px" onclick="closeSpThreadInput()">Cancel</button>
+                <button id="spThreadSaveBtn" style="font-size:9px;padding:3px 10px;font-weight:700;border:none;border-radius:2px;cursor:pointer" onclick="saveSpThreadComment()">Save</button>
+              </div>
+            </div>
+            <div id="spThreadFooter" style="padding:6px 8px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.06)">
+              <button id="spAddCommentBtn" style="display:none;background:none;border:1px solid var(--yellow);color:var(--yellow);font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:2px;cursor:pointer;letter-spacing:1px" onclick="openSpThreadInput('REVIEWER')">+ ADD COMMENT</button>
+              <span></span>
+              <button id="spSaveResponseBtn" style="display:none;background:var(--cyan);border:none;color:#000;font-family:var(--mono);font-size:9px;font-weight:700;padding:3px 8px;border-radius:2px;cursor:pointer;letter-spacing:1px" onclick="openSpThreadInput('OPERATOR')">SAVE RESPONSE</button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="sp-calc">
@@ -2043,7 +2066,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.4.0";
+const APP_VERSION = "v8.4.1";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2484,6 +2507,94 @@ function getCurrentCycleComments(entry){
 
 function getThreadForEntry(entry){
   return entry.reviewThread||[];
+}
+
+function renderSpThread(entry){
+  const thread=getThreadForEntry(entry);
+  const body=el("spThreadBody"); if(!body) return;
+  body.innerHTML="";
+  const role=effectiveRole();
+  const isReviewer=role==="REVIEWER"||role==="ADMIN";
+  const isOperator=role==="OPERATOR"||role==="ADMIN";
+
+  // Group by cycle
+  const cycles=[...new Set(thread.map(c=>c.cycle))].sort((a,b)=>a-b);
+  const circled=["①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩"];
+
+  if(cycles.length===0){
+    body.innerHTML="<div style='padding:10px 8px;font-size:10px;color:var(--dim2);text-align:center'>"+
+      (lang==="es"?"Sin comentarios aún":"No comments yet")+"</div>";
+  } else {
+    cycles.forEach(cyc=>{
+      const reviewerComments=thread.filter(c=>c.cycle===cyc&&c.role==="REVIEWER");
+      const operatorComments=thread.filter(c=>c.cycle===cyc&&c.role==="OPERATOR");
+      const maxRows=Math.max(reviewerComments.length,operatorComments.length,1);
+      const num=circled[cyc-1]||("#"+cyc);
+      for(let i=0;i<maxRows;i++){
+        const rc=reviewerComments[i];
+        const oc=operatorComments[i];
+        const row=document.createElement("div");
+        row.style.cssText="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid rgba(255,255,255,0.04)";
+        row.innerHTML=
+          "<div style='padding:6px 8px;border-right:1px solid rgba(255,255,255,0.06)'>"+(rc?
+            "<div style='font-size:8px;color:rgba(255,196,59,0.5);margin-bottom:2px'>"+num+" "+rc.author+"</div>"+
+            "<div style='font-size:10px;color:var(--yellow)'>"+rc.text+"</div>":
+            "<div style='font-size:10px;color:var(--dim2)'>—</div>")+
+          "</div>"+
+          "<div style='padding:6px 8px'>"+(oc?
+            "<div style='font-size:8px;color:rgba(34,211,238,0.5);margin-bottom:2px'>"+num+" "+oc.author+"</div>"+
+            "<div style='font-size:10px;color:var(--cyan)'>"+oc.text+"</div>":
+            "<div style='font-size:10px;color:var(--dim2)'>—</div>")+
+          "</div>";
+        body.appendChild(row);
+      }
+    });
+  }
+
+  // Show meta
+  if(el("spThreadMeta")) el("spThreadMeta").textContent="· "+thread.length+" "+(lang==="es"?"comentarios":"comments");
+
+  // Show/hide action buttons based on role and batch state
+  const canReviewerComment=(isReviewer)&&batchStatus==="SUBMITTED";
+  const canOperatorRespond=(isOperator)&&batchStatus==="DRAFT";
+  if(el("spAddCommentBtn")) el("spAddCommentBtn").style.display=canReviewerComment?"":"none";
+  if(el("spSaveResponseBtn")) el("spSaveResponseBtn").style.display=canOperatorRespond?"":"none";
+}
+
+function openSpThreadInput(role){
+  const ta=el("spThreadTextarea"); if(!ta) return;
+  ta.value="";
+  // Style based on role
+  if(role==="REVIEWER"){
+    ta.style.borderColor="rgba(255,196,59,0.4)";
+    ta.style.color="var(--yellow)";
+    ta.placeholder=lang==="es"?"Agregar comentario…":"Add comment…";
+    if(el("spThreadSaveBtn")){ el("spThreadSaveBtn").style.background="var(--yellow)"; el("spThreadSaveBtn").style.color="#000"; }
+  } else {
+    ta.style.borderColor="rgba(34,211,238,0.4)";
+    ta.style.color="var(--cyan)";
+    ta.placeholder=lang==="es"?"Agregar respuesta…":"Add response…";
+    if(el("spThreadSaveBtn")){ el("spThreadSaveBtn").style.background="var(--cyan)"; el("spThreadSaveBtn").style.color="#000"; }
+  }
+  el("spThreadInput").dataset.role=role;
+  el("spThreadInput").style.display="";
+  ta.focus();
+}
+
+function closeSpThreadInput(){
+  if(el("spThreadInput")) el("spThreadInput").style.display="none";
+  if(el("spThreadTextarea")) el("spThreadTextarea").value="";
+}
+
+function saveSpThreadComment(){
+  const ta=el("spThreadTextarea"); if(!ta) return;
+  const text=ta.value.trim(); if(!text) return;
+  const role=el("spThreadInput").dataset.role||effectiveRole();
+  const entry=flEntries.find(e=>e.id===spEditingEntryId); if(!entry) return;
+  addThreadComment(entry,role,text);
+  closeSpThreadInput();
+  renderSpThread(entry);
+  addFlAudit("💬",currentUser.name,"thread comment added","Entry "+(flEntries.indexOf(entry)+1)+" cycle "+reviewCycle);
 }
 
 function migrateFlagnoteToThread(entry){
@@ -5283,6 +5394,7 @@ function _loadSpEntry(entry){
   spApplyTransform();
   // Clear/load reviewer comment field
   if(el("sp_comment")) el("sp_comment").value=entry.flagNote||"";
+  renderSpThread(entry);
   spUpdateNonBillBtn(entry.status==="nonbillable");
   // Non-billable watermark
   const wm=el("sp_nonbill_watermark"); const wmTxt=el("sp_nonbill_wm_text");
@@ -5355,11 +5467,13 @@ function _loadSpEntry(entry){
     if(saveBtn){ saveBtn.textContent="Save Comment"; saveBtn.style.background="rgba(255,192,67,.12)"; saveBtn.style.borderColor="var(--yellow)"; saveBtn.style.color="var(--yellow)"; }
   } else if(isReadOnly){
     if(editTitle) editTitle.textContent="👁 View Entry";
-    if(commentRow) commentRow.style.display="none";
+    // Show thread panel if entry has history, hide otherwise
+    if(commentRow) commentRow.style.display=(entry.reviewThread&&entry.reviewThread.length)?"block":"none";
     if(saveBtn) saveBtn.style.display="none";
   } else {
     if(editTitle) editTitle.textContent="✎ Data Entry";
-    if(commentRow) commentRow.style.display="none";
+    // Show thread panel if entry has history (operator needs to see + respond)
+    if(commentRow) commentRow.style.display=(entry.reviewThread&&entry.reviewThread.length)?"block":"none";
     if(saveBtn){ saveBtn.innerHTML='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg> Save'; saveBtn.style.display=""; saveBtn.style.background="rgba(65,209,255,.12)"; saveBtn.style.borderColor="var(--cyan)"; saveBtn.style.color="var(--cyan)"; }
   }
 }
@@ -5490,11 +5604,15 @@ async function saveSpEntry(){
     showToast("Batch reopened to DRAFT","warn");
   }
   if(role==="REVIEWER"){
-    // Save review comment only
-    const comment=el("sp_comment")?el("sp_comment").value.trim():"";
-    if(!comment){showToast("Please enter a review comment","err");return;}
-    e.flagNote=comment;
+    // Save review comment to thread
+    const ta=el("spThreadTextarea");
+    const comment=ta&&ta.value.trim()?ta.value.trim():"";
+    if(!comment){showToast(lang==="es"?"Ingrese un comentario":"Please enter a review comment","err");return;}
+    addThreadComment(e,"REVIEWER",comment);
+    e.flagNote=comment; // keep flagNote in sync for backwards compat
     e.status="flagged";
+    closeSpThreadInput();
+    renderSpThread(e);
     addFlAudit("🚩",currentUser.name,"review comment on entry #"+(flEntries.indexOf(e)+1),comment);
   } else {
     // Full edit — check name propagation
@@ -7061,7 +7179,7 @@ function wireEvents(){
   // Dirty tracking — any field change marks panel dirty
   ["sp_bnum","sp_fecha","sp_piloto","sp_instructor","sp_horoIn",
    "sp_motorOut","sp_motorIn","sp_vueloOut","sp_vueloIn","sp_mult","sp_mult_sel","sp_obs",
-   "sp_aeronave","sp_operador","sp_comment"].forEach(id=>{
+   "sp_aeronave","sp_operador"].forEach(id=>{
     if(el(id)) el(id).addEventListener("input",spMarkDirty);
     if(el(id)) el(id).addEventListener("change",spMarkDirty);
   });
