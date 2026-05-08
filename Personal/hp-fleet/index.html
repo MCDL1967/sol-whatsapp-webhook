@@ -1,10 +1,10 @@
-<!-- HP Fleet v8.2.1 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.2.2 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v8.2.1</title>
+<title>HP Fleet v8.2.2</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -919,7 +919,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.2.1</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.2.2</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -928,7 +928,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.2.1</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.2.2</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1490,6 +1490,14 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
       <div><div class="cp-l">Multiplier</div><div class="cp-v" id="pv_mult">—</div></div>
       <div><div class="cp-l">Total TBH</div><div class="cp-v bill" id="pv_tbp">—</div></div>
     </div>
+    <!-- Soft warning banner — shown when critical fields missing -->
+    <div id="fl_soft_warn" style="display:none;background:rgba(255,195,67,.1);border:1px solid rgba(255,195,67,.4);border-left:3px solid var(--yellow);padding:10px 14px;margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--yellow);line-height:1.6">
+      <div id="fl_soft_warn_msg"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn-primary" id="fl_soft_proceed" style="font-size:11px;padding:6px 14px">Save Anyway</button>
+        <button class="btn-ghost" id="fl_soft_cancel" style="font-size:11px;padding:6px 14px">Go Back</button>
+      </div>
+    </div>
   </div>
   <div class="mftr"><button class="btn-ghost" id="fl_cancel">Cancel</button><button class="btn-primary" id="fl_save">Save Entry</button></div>
 </div>
@@ -1922,7 +1930,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.2.1";
+const APP_VERSION = "v8.2.2";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -3945,15 +3953,25 @@ function validateEntryForm(){
     setFerr("fe_vueloOut","f_vueloOut",lang==="es"?"Ingrese Flight Out/In o T.Flight":"Enter Flight Out/In or T.Flight directly");ok=false;
   }
   if(!ok) return false;
-  // Soft warning — missing non-critical fields
+  // Soft warning — show inline banner if critical fields missing
   if(softWarnings.length){
-    return confirm("You are missing critical fields: "+softWarnings.join(", ")+".\n\nProceed anyway?");
+    const warn=el("fl_soft_warn"); const msg=el("fl_soft_warn_msg");
+    if(warn&&msg){
+      msg.textContent="⚠ Missing: "+softWarnings.join(", ")+". Save anyway?";
+      warn.style.display="block";
+    }
+    return false; // block save — user must click "Save Anyway"
   }
   return true;
 }
 
 function saveEntryForm(){
+  if(el("fl_soft_warn")) el("fl_soft_warn").style.display="none";
   if(!validateEntryForm()) return;
+  proceedSaveEntry();
+}
+
+function proceedSaveEntry(){
   const multRaw=parseFloat(el("f_mult").value);
   const multOverride=isNaN(multRaw)||!el("f_mult").value.trim()?null:multRaw;
   const data={
@@ -6016,7 +6034,14 @@ function wireEvents(){
   // FL entry modal
   el("fl_close").addEventListener("click",()=>{ closeModal("flMbd"); el("flMbd").style.display="none"; });
   el("fl_cancel").addEventListener("click",()=>{ closeModal("flMbd"); el("flMbd").style.display="none"; });
-  el("fl_save").addEventListener("click",saveEntryForm);
+  el("fl_save").addEventListener("click",()=>{ if(el("fl_soft_warn")) el("fl_soft_warn").style.display="none"; saveEntryForm(); });
+  if(el("fl_soft_proceed")) el("fl_soft_proceed").addEventListener("click",()=>{
+    el("fl_soft_warn").style.display="none";
+    proceedSaveEntry();
+  });
+  if(el("fl_soft_cancel")) el("fl_soft_cancel").addEventListener("click",()=>{
+    el("fl_soft_warn").style.display="none";
+  });
   // flMbd is now floating — no overlay click to close
   // Make flMbd draggable
   (()=>{
