@@ -1,10 +1,10 @@
-<!-- HP Fleet v8.1.8 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.2 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v8.1.8</title>
+<title>HP Fleet v8.2</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -919,7 +919,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.1.8</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.2</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -928,7 +928,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.1.8</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.2</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1917,7 +1917,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.1.8";
+const APP_VERSION = "v8.2";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -3841,7 +3841,13 @@ function openEditEntry(id){
   el("f_motorIn").value=e?.motorIn||"";
   el("f_vueloOut").value=e?.vueloOut||"";
   el("f_vueloIn").value=e?.vueloIn||"";
-  el("f_mult").value=e?.multOverride||"";
+  // For new entry: auto-populate mult from aircraft+operator; for edit: use saved override
+  if(e){
+    el("f_mult").value=e.multOverride||"";
+  } else {
+    const defMult=getAircraftMult(el("f_aeronave").value,el("f_operador").value);
+    el("f_mult").value=defMult&&defMult!==1?defMult:"";
+  }
   el("f_obs").value=e?.obs||"";
   liveCalcEntry();
   openModal("flMbd"); el("flMbd").style.display="flex";
@@ -3899,16 +3905,18 @@ const TIMERE=/^([01]?\d|2[0-3]):[0-5]\d$/;
 const DATERE=/^\d{2}\/\d{2}\/\d{4}$/;
 
 function validateEntryForm(){
-  clearEntryErrors(); let ok=true;
+  clearEntryErrors(); let ok=true; let softWarnings=[];
   const fecha=el("f_fecha").value.trim(), piloto=el("f_piloto").value.trim();
   const horoIn=parseFloat(el("f_horoIn").value);
   const mOut=el("f_motorOut").value.trim(), mIn=el("f_motorIn").value.trim();
   const vOut=el("f_vueloOut").value.trim(), vIn=el("f_vueloIn").value.trim();
+  // Hard: date required and format
   if(!fecha){setFerr("fe_fecha","f_fecha",t("required"));ok=false;}
   else if(!DATERE.test(fecha)){setFerr("fe_fecha","f_fecha",lang==="es"?"Formato: DD/MM/AAAA":"Format: DD/MM/YYYY");ok=false;}
-  if(!piloto){setFerr("fe_piloto","f_piloto",t("required"));ok=false;}
-  if(isNaN(horoIn)||horoIn<=0){setFerr("fe_horoIn","f_horoIn",lang==="es"?"Debe ser mayor a 0":"Must be > 0");ok=false;}
-  // Motor: require Out+In OR direct T.Motor value
+  // Soft: pilot and horo start
+  if(!piloto) softWarnings.push("Pilot name");
+  if(isNaN(horoIn)||horoIn<=0) softWarnings.push("Horo. Start");
+  // Hard: motor values
   const tmDirect=parseFloat(el("f_tmotor").value)||0;
   const tvDirect=parseFloat(el("f_tvuelo").value)||0;
   if(mOut||mIn){
@@ -3920,7 +3928,7 @@ function validateEntryForm(){
   } else if(!tmDirect){
     setFerr("fe_motorOut","f_motorOut",lang==="es"?"Ingrese Motor Out/In o T.Motor":"Enter Motor Out/In or T.Motor directly");ok=false;
   }
-  // Flight: require Out+In OR direct T.Flight value
+  // Hard: flight values
   if(vOut||vIn){
     if(!vOut){setFerr("fe_vueloOut","f_vueloOut",t("required"));ok=false;}
     else if(isNaN(t2h(vOut))){setFerr("fe_vueloOut","f_vueloOut",lang==="es"?"Valor inválido":"Invalid value");ok=false;}
@@ -3930,7 +3938,12 @@ function validateEntryForm(){
   } else if(!tvDirect){
     setFerr("fe_vueloOut","f_vueloOut",lang==="es"?"Ingrese Flight Out/In o T.Flight":"Enter Flight Out/In or T.Flight directly");ok=false;
   }
-  return ok;
+  if(!ok) return false;
+  // Soft warning — missing non-critical fields
+  if(softWarnings.length){
+    return confirm("You are missing critical fields: "+softWarnings.join(", ")+".\n\nProceed anyway?");
+  }
+  return true;
 }
 
 function saveEntryForm(){
@@ -6010,15 +6023,21 @@ function wireEvents(){
       dlg.style.transform="none";});
     document.addEventListener("mouseup",()=>{dragging=false;});
   })();
-  // Auto-set default mult when aircraft changes in entry modal
+  // Auto-set default mult when aircraft/operator changes in entry modal
+  function updateEntryMult(){
+    const aeronave=el("f_aeronave").value;
+    const operador=el("f_operador").value;
+    const mult=getAircraftMult(aeronave,operador);
+    if(mult&&mult!==1) el("f_mult").value=mult;
+    liveCalcEntry();
+  }
   el("f_aeronave").addEventListener("change",function(){
     const ac=AIRCRAFT.find(a=>a.matricula===this.value);
-    if(ac&&!el("f_mult").value){
-      el("f_operador").value=ac.operador;
-    }
-    liveCalcEntry();
+    if(ac) el("f_operador").value=ac.operador;
+    updateEntryMult();
   });
-  ["f_operador","f_motorOut","f_motorIn","f_vueloOut","f_vueloIn","f_mult","f_tmotor","f_tvuelo"].forEach(id=>{
+  el("f_operador").addEventListener("change",updateEntryMult);
+  ["f_motorOut","f_motorIn","f_vueloOut","f_vueloIn","f_mult","f_tmotor","f_tvuelo"].forEach(id=>{
     el(id).addEventListener("input",liveCalcEntry);
     el(id).addEventListener("change",liveCalcEntry);
   });
@@ -6431,6 +6450,16 @@ function wireEvents(){
     else if(e.key==="ArrowRight") spNavigate(1);
     else if(e.key==="Escape") closeSidePanel();
     else if((e.ctrlKey||e.metaKey)&&e.key==="z"){ e.preventDefault(); undoStatusChange(); }
+  });
+
+  // Global Ctrl+Z / Cmd+Z — works from anywhere, not just side panel
+  document.addEventListener("keydown",e=>{
+    if((e.ctrlKey||e.metaKey)&&e.key==="z"){
+      const tag=document.activeElement?.tagName;
+      if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT") return; // let browser handle native undo in fields
+      e.preventDefault();
+      undoStatusChange();
+    }
   });
 
   // Side panel collapse button
