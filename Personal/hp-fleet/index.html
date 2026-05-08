@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.3.5 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.3.8 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1754,6 +1754,25 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 </div>
 
 <!-- WHATSAPP CONFIRM MODAL -->
+<!-- REOPEN BATCH MODAL -->
+<div class="mbd" id="reopenMbd">
+  <div class="mbox" style="max-width:480px;width:90vw">
+    <div class="mhdr" style="border-top:3px solid var(--yellow)">
+      <div class="mhdr-t" style="color:var(--yellow)">↩ <span id="reopen_title">Reopen Batch</span></div>
+      <button class="m-x" id="reopen_close">✕</button>
+    </div>
+    <div style="padding:16px">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--dim2);margin-bottom:12px" id="reopen_subtitle">Batch will be reset to DRAFT. Provide a reason to continue.</div>
+      <label style="font-family:var(--mono);font-size:11px;color:var(--dim2);display:block;margin-bottom:6px" id="reopen_reason_label">Reason (required)</label>
+      <textarea id="reopen_reason" rows="3" style="width:100%;background:var(--s3);border:1px solid var(--border2);color:var(--text);font-family:var(--body);font-size:12px;padding:8px;border-radius:2px;outline:none;resize:vertical;box-sizing:border-box" placeholder="Enter reason for reopening…"></textarea>
+    </div>
+    <div class="mftr">
+      <button class="btn-ghost" id="reopen_cancel">Cancel</button>
+      <button class="btn-warn" id="reopen_confirm">Reopen Batch</button>
+    </div>
+  </div>
+</div>
+
 <div class="mbd" id="waMbd">
   <div class="mbox wa-confirm-box">
     <div class="mhdr"><div class="mhdr-t" style="color:var(--green)">💬 Send WhatsApp</div><button class="m-x" id="wa_close">✕</button></div>
@@ -2023,7 +2042,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.3.6";
+const APP_VERSION = "v8.3.8";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2247,6 +2266,7 @@ const I18N = {
     btnCsv:"↓ CSV",btnXlsx:"↓ XLSX",btnDraft:"Save Draft",
     btnSubmit:"Submit for Review",btnApprove:"Approve for Invoicing",btnReqChanges:"Request Changes",btnReturnForReview:"Return for Review",
     rfrTitle:"Return for Review",rfrBatchNote:"Batch note for operator (optional):",rfrBatchNotePh:"Add a general note for the operator…",rfrContinue:"Continue",rfrCancel:"Cancel",rfrAdminNotice:"Admin notified of all workflow details for support",
+    reopenTitle:"Reopen Batch",reopenSubtitle:"Batch will be reset to DRAFT. Provide a reason to continue.",reopenReasonLabel:"Reason (required)",reopenConfirm:"Reopen Batch",
     rfrColEntry:"Entry",rfrColLog:"Log #",rfrColComment:"Reviewer Comment",rfrNoFlags:"No entries with reviewer comments found.",
     rfrWaMsg:"HP Fleet — Batch returned for review by",rfrWaFlagged:"flagged entries",rfrWaLogs:"Entries:",rfrWaLogin:"Log in to correct: https://sol-whatsapp-webhook.onrender.com",
     stAdminCcLabel:"Copy Admin on all Status Changes",stAdminCcHint:"Admin receives email copy of all workflow notifications",
@@ -2328,6 +2348,7 @@ const I18N = {
     btnCsv:"↓ CSV",btnXlsx:"↓ XLSX",btnDraft:"Guardar Borrador",
     btnSubmit:"Enviar para Revisión",btnApprove:"Aprobar para Facturación",btnReqChanges:"Solicitar Cambios",btnReturnForReview:"Devolver para Corrección",
     rfrTitle:"Devolver para Corrección",rfrBatchNote:"Nota general para el operador (opcional):",rfrBatchNotePh:"Agregar nota general para el operador…",rfrContinue:"Continuar",rfrCancel:"Cancelar",rfrAdminNotice:"El administrador ha sido notificado para seguimiento",
+    reopenTitle:"Reabrir Lote",reopenSubtitle:"El lote volverá a estado BORRADOR. Ingrese un motivo para continuar.",reopenReasonLabel:"Motivo (requerido)",reopenConfirm:"Reabrir Lote",
     rfrColEntry:"Entrada",rfrColLog:"Log #",rfrColComment:"Comentario del Revisor",rfrNoFlags:"No hay entradas con comentarios del revisor.",
     rfrWaMsg:"HP Fleet — Lote devuelto para corrección por",rfrWaFlagged:"entradas marcadas",rfrWaLogs:"Entradas:",rfrWaLogin:"Inicia sesión para corregir: https://sol-whatsapp-webhook.onrender.com",
     stAdminCcLabel:"Copiar Admin en todos los cambios de estado",stAdminCcHint:"El admin recibe copia por email de todas las notificaciones",
@@ -4257,15 +4278,33 @@ function clearEntryErrors(){
 
 // ── FLIGHT LOG — WORKFLOW ACTIONS ──
 function handleSubmit(){
+  const reviewed=flEntries.filter(e=>e.status==="flagged"&&e.flagNote&&e.flagNote.trim()!=="");
   const pending=flEntries.filter(e=>e.status==="pending");
   const approved=flEntries.filter(e=>e.status==="approved");
   if(!approved.length){
     showResultBanner("err","⚠ Please approve at least one entry before submitting for review.");
     return;
   }
-  if(pending.length){
+  if(reviewed.length){
+    // Contextual message for reviewed entries
+    el("excWarn").textContent=reviewed.length+" "+(lang==="es"
+      ?`registro(s) marcados para revisión serán devueltos al Revisor.`
+      :`record(s) marked for review will be returned to the Reviewer.`);
+    el("excDetail").innerHTML=reviewed.map(e=>"• Entry "+(flEntries.indexOf(e)+1)+": "+e.fecha+" | "+e.aeronave+" | "+e.piloto+(e.flagNote?" — "+e.flagNote:"")).join("<br>");
+    if(el("exc_proceed")) el("exc_proceed").textContent=lang==="es"?"Reenviar":"Resend";
+    if(el("exc_back")) el("exc_back").textContent=lang==="es"?"Cancelar":"Cancel";
+    confirmCb=()=>{
+      // Auto-approve all reviewed entries then submit
+      reviewed.forEach(e=>e.status="approved");
+      closeModal("excMbd");
+      doSubmit();
+    };
+    openModal("excMbd");
+  } else if(pending.length){
     el("excWarn").textContent=pending.length+" "+(lang==="es"?"entradas pendientes. ¿Continuar?":"entries still pending. Proceed anyway?");
     el("excDetail").innerHTML=pending.map(e=>"• Entry "+(flEntries.indexOf(e)+1)+": "+e.fecha+" | "+e.aeronave+" | "+e.piloto).join("<br>");
+    if(el("exc_proceed")) el("exc_proceed").textContent=lang==="es"?"Continuar":"Proceed Anyway";
+    if(el("exc_back")) el("exc_back").textContent=lang==="es"?"Volver":"Back to Review";
     confirmCb=()=>{closeModal("excMbd");doSubmit();};
     openModal("excMbd");
   } else {
@@ -6535,7 +6574,6 @@ function wireEvents(){
           a.addEventListener("click",ev=>{
             ev.preventDefault();
             const eid=parseInt(a.dataset.openEntry);
-            dlg.classList.remove("open");
             openSidePanel(eid,true);
           });
         });
@@ -6680,6 +6718,11 @@ function wireEvents(){
 
   if(el("btn_reopen")) el("btn_reopen").addEventListener("click",()=>{
     if(el("reopen_reason")) el("reopen_reason").value="";
+    if(el("reopen_title")) el("reopen_title").textContent=t("reopenTitle");
+    if(el("reopen_subtitle")) el("reopen_subtitle").textContent=t("reopenSubtitle");
+    if(el("reopen_reason_label")) el("reopen_reason_label").textContent=t("reopenReasonLabel");
+    if(el("reopen_confirm")) el("reopen_confirm").textContent=t("reopenConfirm");
+    if(el("reopen_cancel")) el("reopen_cancel").textContent=t("rfrCancel");
     openModal("reopenMbd");
   });
   if(el("reopen_close")) el("reopen_close").addEventListener("click",()=>closeModal("reopenMbd"));
