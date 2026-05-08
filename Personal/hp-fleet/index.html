@@ -1,10 +1,10 @@
-<!-- HP Fleet v8.3.1 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.3.5 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v8.3</title>
+<title>HP Fleet</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -106,6 +106,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 .btn-so:hover{border-color:var(--red);color:var(--red)}
 .tab-nav{background:var(--s1);border-bottom:1px solid var(--border);
   padding:0 24px;display:flex;align-items:stretch;gap:0;overflow-x:auto;flex-shrink:0}
+.tab-nav.sticky-tabs{position:sticky;top:54px;z-index:49}
 .tab-btn{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;
   padding:0 18px;height:44px;background:transparent;border:none;
   border-bottom:2px solid transparent;color:var(--dim2);cursor:pointer;
@@ -1172,7 +1173,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
           <button class="btn-ghost" id="btn_saveDraft">Save Draft</button>
           <button class="btn-primary" id="btn_submit">Submit for Review</button>
           <button class="btn-success" id="btn_approve" style="display:none">Approve for Invoicing</button>
-          <button class="btn-warning" id="btn_returnForReview" style="display:none;background:var(--yellow);color:#000;font-weight:700;border:none">Return for Review</button>
+          <button class="btn-warn" id="btn_returnForReview" style="display:none">Return for Review</button>
           <button class="btn-warn" id="btn_reqChanges" style="display:none">Request Changes</button>
           <div class="action-note" id="actionNote"></div>
         </div>
@@ -1305,6 +1306,19 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
                 <span class="dbg-slider-track"></span>
               </label>
               <span style="font-family:var(--mono);font-size:11px;color:var(--dim2)" id="roleBannerToggleLabel">On</span>
+            </label>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border2);margin-top:8px">
+            <div>
+              <div style="font-size:13px;color:var(--text)" id="st_stickyTabsLabel">Fix Tabs to Title Bar</div>
+              <div style="font-size:11px;color:var(--dim2);font-family:var(--mono)" id="st_stickyTabsHint">Keep navigation tabs visible while scrolling</div>
+            </div>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+              <label class="dbg-slider">
+                <input type="checkbox" id="stickyTabsToggleCheck" checked>
+                <span class="dbg-slider-track"></span>
+              </label>
+              <span style="font-family:var(--mono);font-size:11px;color:var(--dim2)" id="stickyTabsToggleLabel">On</span>
             </label>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border2);margin-top:8px">
@@ -1747,9 +1761,12 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
       <div id="wa_msg_preview"></div>
       <div class="wa-recipient" id="wa_recipient"></div>
     </div>
-    <div class="mftr">
-      <button class="btn-ghost" id="wa_skip">Skip</button>
-      <button class="btn-success" id="wa_send">Send</button>
+    <div class="mftr" style="flex-direction:column;gap:8px">
+      <div id="wa_adminNotice" style="display:none;font-family:var(--mono);font-size:10px;color:var(--dim2);padding:4px 0">📋 <span id="wa_adminNoticeText">Admin notified of all workflow details for support</span></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn-ghost" id="wa_skip">Skip</button>
+        <button class="btn-success" id="wa_send">Send</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2006,7 +2023,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.3.4";
+const APP_VERSION = "v8.3.5";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2606,6 +2623,7 @@ async function bootApp(){
   initViewAsToggle();
   initRoleBannerToggle();
   initStickyHeadersToggle();
+  initStickyTabsToggle();
   // Load billing cycle history
   await loadAllBatches();
   // Load batch from DB
@@ -2626,7 +2644,7 @@ const TAB_CONFIG=[
   {id:"companies", icon:"🏢",labelKey:"tabCompanies", roles:["ADMIN"]},
   {id:"aircraft",  icon:"✈️",labelKey:"tabAircraft",  roles:["ADMIN","OPERATOR"]},
   {id:"flightlog", icon:"📋",labelKey:"tabFlightLog", roles:["ADMIN","OPERATOR","REVIEWER","READONLY"]},
-  {id:"preinvoice",icon:"💳",labelKey:"tabBilling",   roles:["ADMIN","REVIEWER","OPERATOR"]},
+  {id:"preinvoice",icon:"💳",labelKey:"tabBilling",   roles:["ADMIN","REVIEWER","OPERATOR","READONLY"]},
   {id:"settings",  icon:"⚙️",labelKey:"tabSettings",  roles:["ADMIN","OPERATOR","REVIEWER","READONLY"]},
 ];
 
@@ -3278,6 +3296,28 @@ function _applyStickyHeaders(on){
   const wrap=document.querySelector(".fl-tbl-wrap");
   if(tbl) tbl.classList.toggle("sticky-headers",on);
   if(wrap) wrap.classList.toggle("sticky-active",on);
+}
+
+function initStickyTabsToggle(){
+  const check=el("stickyTabsToggleCheck");
+  const label=el("stickyTabsToggleLabel");
+  if(!check) return;
+  const saved=localStorage.getItem("hpfleet_stickytabs");
+  const on=saved===null?true:saved==="1";
+  check.checked=on;
+  if(label){ label.textContent=on?"On":"Off"; label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+  _applyStickyTabs(on);
+  check.addEventListener("change",function(){
+    const isOn=this.checked;
+    localStorage.setItem("hpfleet_stickytabs",isOn?"1":"0");
+    if(label){ label.textContent=isOn?"On":"Off"; label.style.color=isOn?"var(--cyan)":"var(--dim2)"; }
+    _applyStickyTabs(isOn);
+  });
+}
+
+function _applyStickyTabs(on){
+  const nav=el("tabNav");
+  if(nav) nav.classList.toggle("sticky-tabs",on);
 }
 function initRoleBannerToggle(){
   const check=el("roleBannerToggleCheck");
@@ -4653,6 +4693,9 @@ function notifyWhatsApp(toRole, message, ccAdmin=false){
   // Show confirmation dialog
   if(el("wa_msg_preview")) el("wa_msg_preview").textContent=message.split("\n")[0];
   if(el("wa_recipient")) el("wa_recipient").textContent=recipient.name+" · "+recipient.phone;
+  const showCc=_adminCcEnabled&&ccAdmin;
+  if(el("wa_adminNotice")) el("wa_adminNotice").style.display=showCc?"":"none";
+  if(el("wa_adminNoticeText")) el("wa_adminNoticeText").textContent=t("rfrAdminNotice");
   openModal("waMbd");
 }
 
@@ -6959,6 +7002,7 @@ async function init(){
   applyI18n();
   wireEvents();
   dbg("HP Fleet "+APP_VERSION+" — initializing…","info");
+  document.title="HP Fleet "+APP_VERSION;
   if(el("versionBadge")) el("versionBadge").textContent=APP_VERSION;
   if(el("versionBadgeNav")) el("versionBadgeNav").textContent=APP_VERSION;
   // Sanitize stale panel width — clamp to 50% viewport on load
