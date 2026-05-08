@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.2.4 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.3.1 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1048,6 +1048,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
         <div class="sb-item"><div class="sb-l">Duplicates</div><div class="sb-v" id="srcDups" style="cursor:pointer" title="Click for details">—</div></div>
         <div class="sb-item"><div class="sb-l">Log Breaks</div><div class="sb-v" id="srcLogBreaks" style="cursor:pointer" title="Click for details">—</div></div>
         <div class="sb-item"><div class="sb-l">Seq. Alerts</div><div class="sb-v" id="srcHoro" style="cursor:pointer" title="Click for details">—</div></div>
+        <div class="sb-item"><div class="sb-l" id="sb_sentBack">Sent Back</div><div class="sb-v" id="srcSentBack" style="cursor:pointer" title="Click for details">—</div></div>
         <div class="sb-item"><div class="sb-l" id="sb_batch">Status</div><div class="sb-v" id="srcStatus">—</div></div>
         <div class="sb-item"><button class="sb-link" id="sb_dlcsv">↓ CSV</button></div>
       </div>
@@ -1087,6 +1088,14 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
           <button class="float-dialog-close" id="dlgSeqAlertsClose">✕</button>
         </div>
         <div class="float-dialog-body" id="dlgSeqAlertsBody"></div>
+      </div>
+
+      <div class="float-dialog" id="dlgSentBack">
+        <div class="float-dialog-hdr" id="dlgSentBackHdr">
+          <div class="float-dialog-title" style="color:var(--yellow)" id="dlgSentBackTitle">↩ SENT BACK FOR REVIEW</div>
+          <button class="float-dialog-close" id="dlgSentBackClose">✕</button>
+        </div>
+        <div class="float-dialog-body" id="dlgSentBackBody"></div>
       </div>
 
       <!-- Review section -->
@@ -1984,7 +1993,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.3";
+const APP_VERSION = "v8.3.1";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2604,7 +2613,7 @@ const TAB_CONFIG=[
 
 function renderTabs(){
   const nav=el("tabNav"); nav.innerHTML="";
-  TAB_CONFIG.filter(tab=>tab.roles.includes(currentUser.role)).forEach(tab=>{
+  TAB_CONFIG.filter(tab=>tab.roles.includes(effectiveRole())).forEach(tab=>{
     const btn=document.createElement("button");
     btn.className="tab-btn"+(activeTab===tab.id?" active":"");
     btn.innerHTML='<span class="tab-icon">'+tab.icon+"</span>"+t(tab.labelKey);
@@ -3528,6 +3537,7 @@ function updateSrcBar(){
   const logBreaks=logCheck();
   const dups=duplicateCheck();
   const seqAlerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; });
+  const sentBack=flEntries.filter(e=>e.flagNote&&e.flagNote.trim()!=="");
 
   if(el("srcFile")){
     const files=Array.isArray(batchSourceFile)?batchSourceFile:(batchSourceFile||"—").split(/,\s*/);
@@ -3563,6 +3573,15 @@ function updateSrcBar(){
     el("srcHoro").style.pointerEvents=seqAlerts.length>0?"auto":"none";
     el("srcHoro")._data=seqAlerts;
   }
+  // Sent Back
+  if(el("srcSentBack")){
+    el("srcSentBack").textContent=sentBack.length||"—";
+    el("srcSentBack").style.color=sentBack.length>0?"var(--yellow)":"var(--dim2)";
+    el("srcSentBack").style.pointerEvents=sentBack.length>0?"auto":"none";
+    el("srcSentBack")._data=sentBack;
+  }
+  if(el("sb_sentBack")) el("sb_sentBack").textContent=lang==="es"?"Devuelto":"Sent Back";
+  if(el("dlgSentBackTitle")) el("dlgSentBackTitle").textContent=lang==="es"?"↩ DEVUELTO PARA CORRECCIÓN":"↩ SENT BACK FOR REVIEW";
   if(el("srcStatus")) el("srcStatus").textContent=batchStatus||"—";
 
   // Update row markers on table
@@ -3904,7 +3923,7 @@ function updateActionBar(){
   const pending=flEntries.filter(e=>e.status==="pending").length;
   const approved=flEntries.filter(e=>e.status==="approved").length;
   const rejected=flEntries.filter(e=>e.status==="rejected").length;
-  const canSubmit=(currentUser.role==="ADMIN"||currentUser.role==="OPERATOR")&&batchStatus==="DRAFT";
+  const canSubmit=(effectiveRole()==="ADMIN"||effectiveRole()==="OPERATOR")&&batchStatus==="DRAFT";
   if(canSubmit&&el("btn_submit")){
     el("btn_submit").disabled=approved===0;
     el("actionNote").textContent=pending+" "+t("pending").toLowerCase()+" · "+approved+" "+t("approved2").toLowerCase()+" · "+rejected+" "+t("rejected").toLowerCase();
@@ -3940,7 +3959,7 @@ function switchFlPanel(id){
 
 // ── FLIGHT LOG — EDIT ENTRY MODAL ──
 function openEditEntry(id){
-  const canEdit=(currentUser.role==="ADMIN"||currentUser.role==="OPERATOR")&&batchStatus==="DRAFT";
+  const canEdit=(effectiveRole()==="ADMIN"||effectiveRole()==="OPERATOR")&&batchStatus==="DRAFT";
   if(!canEdit){showToast(t("cantEdit"),"err");return;}
   editingEntryId=id;
   clearEntryErrors();
@@ -6483,6 +6502,17 @@ function wireEvents(){
     });
     openFloatDialog("dlgSeqAlerts","Sequence Alerts",lines,"var(--yellow)",alerts.map(e=>e.id));
   });
+  if(el("dlgSentBackClose")) el("dlgSentBackClose").addEventListener("click",()=>el("dlgSentBack").classList.remove("open"));
+  if(el("srcSentBack")) el("srcSentBack").addEventListener("click",()=>{
+    const flagged=flEntries.filter(e=>e.flagNote&&e.flagNote.trim()!=="");
+    const lines=flagged.map(e=>{
+      const idx=flEntries.indexOf(e);
+      return "Entry #"+(idx+1)+" | Log "+(e.bnum||"—")+" | "+e.aeronave+" | "+(e.flagNote||"");
+    });
+    const title=lang==="es"?"Devuelto para Corrección":"Sent Back for Review";
+    openFloatDialog("dlgSentBack",title,lines,"var(--yellow)",flagged.map(e=>e.id));
+  });
+  if(el("dlgSentBackHdr")) makeDraggable(el("dlgSentBack"),el("dlgSentBackHdr"));
   // Pan/drag — always on (left click + drag), double click = zoom in
   const spImgWrap=el("sp_img_wrap");
   if(spImgWrap){
