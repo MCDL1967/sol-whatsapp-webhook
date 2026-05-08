@@ -1,7 +1,7 @@
 {
   "file": "menu_dictionary.json",
-  "version": "v14.0.0",
-  "date": "2026-04-30",
+  "version": "v14.0.1",
+  "date": "2026-05-07",
   "role": "Menu dictionary and lookup map for SOL V14 Fast Path trial",
   "status": "trial_demo_data_from_kb",
   "design_rule": "Menus use display_order arrays for presentation and lookup dictionaries for deterministic selection.",
@@ -85,6 +85,7 @@
         "restaurante": "restaurants",
         "restaurantes": "restaurants",
         "comida": "restaurants",
+
         "2": "shows_events",
         "show": "shows_events",
         "shows": "shows_events",
@@ -94,6 +95,7 @@
         "evento": "shows_events",
         "eventos": "shows_events",
         "entretenimiento": "shows_events",
+
         "3": "spa_fitness_pool",
         "spa": "spa_fitness_pool",
         "gym": "spa_fitness_pool",
@@ -101,6 +103,7 @@
         "pool": "spa_fitness_pool",
         "gimnasio": "spa_fitness_pool",
         "piscina": "spa_fitness_pool",
+
         "4": "transportation_parking",
         "transport": "transportation_parking",
         "transportation": "transportation_parking",
@@ -108,6 +111,7 @@
         "airport ride": "transportation_parking",
         "transporte": "transportation_parking",
         "estacionamiento": "transportation_parking",
+
         "5": "loyalty_rewards",
         "loyalty": "loyalty_rewards",
         "rewards": "loyalty_rewards",
@@ -117,6 +121,7 @@
         "lealtad": "loyalty_rewards",
         "puntos": "loyalty_rewards",
         "recompensas": "loyalty_rewards",
+
         "6": "casino_gaming",
         "casino": "casino_gaming",
         "gaming": "casino_gaming",
@@ -125,6 +130,7 @@
         "poker": "casino_gaming",
         "juegos": "casino_gaming",
         "apuestas": "casino_gaming",
+
         "7": "promotions_tournaments",
         "promotion": "promotions_tournaments",
         "promotions": "promotions_tournaments",
@@ -133,6 +139,7 @@
         "promocion": "promotions_tournaments",
         "promociones": "promotions_tournaments",
         "torneos": "promotions_tournaments",
+
         "8": "guest_help",
         "help": "guest_help",
         "complaint": "guest_help",
@@ -146,6 +153,7 @@
         "objetos perdidos": "guest_help"
       }
     },
+
     "restaurants_menu": {
       "context": "restaurants_menu",
       "display_order": [
@@ -212,41 +220,114 @@
         "1": "la_brasserie",
         "la brasserie": "la_brasserie",
         "brasserie": "la_brasserie",
+
         "2": "larrys_sports_bar_terrace",
         "larry's sports bar": "larrys_sports_bar_terrace",
         "larrys sports bar": "larrys_sports_bar_terrace",
         "sports bar": "larrys_sports_bar_terrace",
         "sports bar and terrace": "larrys_sports_bar_terrace",
+
         "3": "acua_pool_lounge_bar",
         "acua": "acua_pool_lounge_bar",
         "pool lounge": "acua_pool_lounge_bar",
         "pool bar": "acua_pool_lounge_bar",
+
         "4": "larrys_market",
         "larry's market": "larrys_market",
         "larrys market": "larrys_market",
         "market": "larrys_market",
         "coffee shop": "larrys_market",
+
         "5": "garden_lobby_bar",
         "the garden lobby bar": "garden_lobby_bar",
         "garden lobby bar": "garden_lobby_bar",
         "lobby bar": "garden_lobby_bar",
         "garden bar": "garden_lobby_bar",
+
         "6": "fenicia",
         "fenicia": "fenicia",
         "fenicia restaurant": "fenicia",
         "mediterranean restaurant": "fenicia",
         "lebanese restaurant": "fenicia",
-        "mediterranean": "fenicia",
-        "lebanese": "fenicia",
+
         "7": "room_service",
         "room service": "room_service",
-        "in-room dining": "room_service",
-        "servicio a la habitacion": "room_service",
-        "servicio a la habitación": "room_service"
+        "in-room dining": "room_service"
       },
       "list_triggers": {
-        "en": ["list", "show list", "full list", "restaurants", "dining", "food", "show restaurants"],
-        "es": ["lista", "ver lista", "lista completa", "restaurantes", "comida", "muéstrame restaurantes", "muestrame restaurantes"]
+        "en": ["list", "show me", "all restaurants", "all dining", "options"],
+        "es": ["lista", "muéstrame", "mostrar", "todos", "opciones"]
+      }
+    },
+
+    "restaurant_followup_menu": {
+      "context": "restaurant_followup_menu",
+      "display_order": [
+        "venue_info",
+        "new_reservation",
+        "existing_change_vip_group"
+      ],
+      "options": {
+        "venue_info": {
+          "number": 1,
+          "label_en": "Venue information",
+          "label_es": "Información del lugar"
+        },
+        "new_reservation": {
+          "number": 2,
+          "label_en": "New reservation request",
+          "label_es": "Nueva solicitud de reservación"
+        },
+        "existing_change_vip_group": {
+          "number": 3,
+          "label_en": "Existing reservation, VIP, group, or special request",
+          "label_es": "Reservación existente, VIP, grupo o solicitud especial"
+        }
+      },
+      "lookup": {
+        "1": "venue_info",
+        "venue info": "venue_info",
+        "info": "venue_info",
+        "details": "venue_info",
+        "hours": "venue_info",
+        "location": "venue_info",
+        "room service": "venue_info",
+        "informacion": "venue_info",
+        "información": "venue_info",
+        "detalles": "venue_info",
+        "horas": "venue_info",
+        "horario": "venue_info",
+        "ubicacion": "venue_info",
+        "ubicación": "venue_info",
+
+        "2": "new_reservation",
+        "reservation": "new_reservation",
+        "book": "new_reservation",
+        "reserve": "new_reservation",
+        "new reservation": "new_reservation",
+        "reservacion": "new_reservation",
+        "reservación": "new_reservation",
+        "reservar": "new_reservation",
+        "nueva reservacion": "new_reservation",
+        "nueva reservación": "new_reservation",
+
+        "3": "existing_change_vip_group",
+        "change reservation": "existing_change_vip_group",
+        "cancel reservation": "existing_change_vip_group",
+        "existing reservation": "existing_change_vip_group",
+        "vip": "existing_change_vip_group",
+        "group": "existing_change_vip_group",
+        "private dining": "existing_change_vip_group",
+        "special request": "existing_change_vip_group",
+        "cambiar reservacion": "existing_change_vip_group",
+        "cambiar reservación": "existing_change_vip_group",
+        "cancelar reservacion": "existing_change_vip_group",
+        "cancelar reservación": "existing_change_vip_group",
+        "reservacion existente": "existing_change_vip_group",
+        "reservación existente": "existing_change_vip_group",
+        "grupo": "existing_change_vip_group",
+        "privado": "existing_change_vip_group",
+        "solicitud especial": "existing_change_vip_group"
       }
     }
   }
