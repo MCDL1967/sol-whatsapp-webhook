@@ -2023,7 +2023,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.3.5";
+const APP_VERSION = "v8.3.6";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2236,7 +2236,7 @@ const I18N = {
     horoAlert:"⚠ Horometer Gap Detected",
     tbEntries:"Extracted Entries",
     allOp:"— Filters —",pendOnly:"Pending Only",apprOnly:"Approved Only",rejOnly:"Rejected Only",
-    approveAll:"Approve All",resetAll:"Reset",newEntry:"+ New Manual Log Entry",
+    approveAll:"Approve All",approveReviewed:"Approve Reviewed",resetAll:"Reset",newEntry:"+ New Manual Log Entry",
     ptEntries:"Entries",ptAudit:"Audit Log",
     thDate:"Date",thAc:"Aircraft",thOp:"Operator",thPilot:"Pilot",
     thMotor:"Motor",thFlight:"Flight",thBilling:"Billing",
@@ -2317,7 +2317,7 @@ const I18N = {
     horoAlert:"⚠ Inconsistencia de Horómetro",
     tbEntries:"Entradas Extraídas",
     allOp:"— Filtros —",pendOnly:"Solo Pendientes",apprOnly:"Solo Aprobados",rejOnly:"Solo Rechazados",
-    approveAll:"Aprobar Todo",resetAll:"Resetear",newEntry:"+ Nueva Entrada Manual",
+    approveAll:"Aprobar Todo",approveReviewed:"Aprobar Revisadas",resetAll:"Resetear",newEntry:"+ Nueva Entrada Manual",
     ptEntries:"Entradas",ptAudit:"Log de Auditoría",
     thDate:"Fecha",thAc:"Aeronave",thOp:"Operador",thPilot:"Piloto",
     thMotor:"Motor",thFlight:"Vuelo",thBilling:"Facturación",
@@ -3923,12 +3923,13 @@ function renderFlTable(){
     const isOverride=e.multOverride&&e.multOverride!==getAircraftMult(e.aeronave,e.operador);
     const tr=document.createElement("tr");
     tr.className=e.status==="approved"?"r-ok":e.status==="rejected"?"r-rej":e.status==="flagged"?"r-flagged":e.status==="skipped"?"r-skipped":e.status==="nonbillable"?"r-nonbillable":e.status==="void"?"r-void":"";
-    if(batchStatus==="DRAFT"&&e.flagNote&&e.flagNote.trim()!=="") tr.classList.add("r-reviewed");
+    if(batchStatus==="DRAFT"&&e.flagNote&&e.flagNote.trim()!==""&&e.status==="flagged") tr.classList.add("r-reviewed");
     tr.style.cursor="pointer";
     tr.dataset.entryId=e.id;
     // Notes — show flag note or obs, plus red triangle if diff gap
     const diffTriangle=hasDiffGap?'<span style="color:var(--red);margin-left:4px" title="Motor/Vuelo diff exceeds threshold">▲</span>':"";
-    const notesDisplay=e.flagNote
+    const reviewedMarker=e.flagNote&&e.flagNote.trim()!==""?'<span style="color:var(--yellow);margin-left:4px;font-size:10px" title="'+e.flagNote+'">△</span>':"";
+    const notesDisplay=e.flagNote&&e.status==="flagged"
       ?'<span style="color:var(--yellow);font-size:10px" title="'+e.flagNote+'">⚠ '+e.flagNote+"</span>"
       :(e.obs||"—");
     const motorOutCell='<td class="cb'+((!h.ok)?' horo-seq-gap':'')+'">'+(e.motorOut||"—")+"</td>";
@@ -3949,7 +3950,7 @@ function renderFlTable(){
       '<td class="cd" style="'+(isOverride?"color:var(--yellow)":"")+'">'+mult+(isOverride?" ⚠":"")+"</td>"+
       '<td class="cg">'+fmt(tbp)+"</td>"+
       '<td class="cd">'+(e.horoIn?.toFixed(1)||"—")+"</td>"+
-      '<td class="cd" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+notesDisplay+diffTriangle+"</td>"+
+      '<td class="cd" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+notesDisplay+diffTriangle+reviewedMarker+"</td>"+
       "<td>"+mkFlToggle(e,canEdit)+"</td>";
     tbody.appendChild(tr);
   });
@@ -3958,6 +3959,7 @@ function renderFlTable(){
   // Re-apply sticky headers preference after re-render
   const _sh=localStorage.getItem("hpfleet_stickyheaders");
   _applyStickyHeaders(_sh===null?true:_sh==="1");
+  updateApproveAllBtn();
 }
 
 function mkFlToggle(e,canEdit){
@@ -3986,6 +3988,20 @@ function setAllFlStatus(st){
   targets.forEach(e=>e.status=st);
   addFlAudit("🔄",currentUser.name,"all visible entries→"+st,targets.length+" entries");
   renderFlTable();
+}
+
+function approveReviewedEntries(){
+  const targets=flEntries.filter(e=>e.flagNote&&e.flagNote.trim()!==""&&e.status==="flagged");
+  targets.forEach(e=>e.status="approved");
+  addFlAudit("✅",currentUser.name,"approve reviewed entries",targets.length+" entries approved");
+  renderFlTable(); updateApproveAllBtn();
+}
+
+function updateApproveAllBtn(){
+  const btn=el("btn_approveAll"); if(!btn) return;
+  const hasReviewed=flEntries.some(e=>e.flagNote&&e.flagNote.trim()!==""&&e.status==="flagged");
+  btn.textContent=hasReviewed?t("approveReviewed"):t("approveAll");
+  btn.onclick=hasReviewed?approveReviewedEntries:()=>setAllFlStatus("approved");
 }
 
 // ── FLIGHT LOG — SUMMARY ──
@@ -4544,7 +4560,9 @@ function closeRfr(){
 async function doReturnForReview(){
   const batchNote=el("rfr_batchNote")?el("rfr_batchNote").value.trim():"";
   const flagged=flEntries.filter(e=>e.flagNote&&e.flagNote.trim()!=="");
-  const logNums=flagged.map(e=>e.logNum||("#"+( flEntries.indexOf(e)+1))).join(", ");
+  const logNums=flagged.map(e=>e.logNum||(  "#"+(flEntries.indexOf(e)+1))).join(", ");
+  // Auto-set all reviewed entries to flagged status
+  flagged.forEach(e=>{ if(e.status!=="nonbillable"&&e.status!=="void") e.status="flagged"; });
   closeRfr();
   // Revert batch to DRAFT
   batchStatus="DRAFT";
@@ -6350,7 +6368,6 @@ function wireEvents(){
   el("delMbd").addEventListener("click",e=>{ if(e.target===el("delMbd")) closeModal("delMbd"); });
 
   // Flight Log tab
-  el("fl_newBatch").addEventListener("click",resetBatch);
   el("apiWarnLink").addEventListener("click",()=>switchTab("settings"));
   el("sb_dlcsv").addEventListener("click",exportFlCSV);
   el("btn_approveAll").addEventListener("click",()=>setAllFlStatus("approved"));
