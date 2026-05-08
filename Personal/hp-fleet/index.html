@@ -1,10 +1,10 @@
-<!-- HP Fleet v8.1.7 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.1.8 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v8.1.7</title>
+<title>HP Fleet v8.1.8</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -919,7 +919,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.1.7</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.1.8</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -928,7 +928,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.1.7</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.1.8</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1917,7 +1917,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.1.7";
+const APP_VERSION = "v8.1.8";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -3873,6 +3873,7 @@ function liveCalcEntry(){
   }
 
   const fake={
+    aeronave:el("f_aeronave").value,
     operador:el("f_operador").value,
     motorOut:mOut, motorIn:mIn,
     vueloOut:vOut, vueloIn:vIn,
@@ -5801,7 +5802,7 @@ function openCreateAircraft(){
   el("ac_matricula").value=""; el("ac_makeModel").value="";
   el("ac_tipo").value="Single Engine";
   if(el("ac_horoTolerance")) el("ac_horoTolerance").value="0.01";
-  el("ac_diffThreshold").value="0.2";
+  if(el("ac_diffThreshold")) el("ac_diffThreshold").value="0.2";
   if(el("ac_diffWarn")) el("ac_diffWarn").value="0.3";
   if(el("ac_diffAlert")) el("ac_diffAlert").value="0.4";
   el("ac_motorId").value=""; el("ac_consumoGalHr").value="";
@@ -5820,7 +5821,7 @@ function openEditAircraft(id){
   el("ac_makeModel").value=ac.makeModel||"";
   el("ac_tipo").value=ac.tipo||"";
   if(el("ac_horoTolerance")) el("ac_horoTolerance").value=ac.horoTolerance||0.01;
-  el("ac_diffThreshold").value=ac.diffThreshold||0.2;
+  if(el("ac_diffThreshold")) el("ac_diffThreshold").value=ac.diffThreshold||0.2;
   if(el("ac_diffWarn")) el("ac_diffWarn").value=ac.diffWarn||0.3;
   if(el("ac_diffAlert")) el("ac_diffAlert").value=ac.diffAlert||0.4;
   el("ac_motorId").value=ac.motorId||"";
@@ -5851,7 +5852,7 @@ async function saveAircraft(){
     horoTolerance:parseFloat(el("ac_horoTolerance")?el("ac_horoTolerance").value:0.01)||0.01,
     // Use first rate's multiplier as the aircraft-level fallback
     multiplicador:tempRates[0]?parseFloat(tempRates[0].multiplicador)||1:1,
-    diffThreshold:parseFloat(el("ac_diffThreshold").value)||0.2,
+    diffThreshold:parseFloat(el("ac_diffThreshold")?el("ac_diffThreshold").value:0.2)||0.2,
     diffWarn:parseFloat(el("ac_diffWarn")?el("ac_diffWarn").value:0.3)||0.3,
     diffAlert:parseFloat(el("ac_diffAlert")?el("ac_diffAlert").value:0.4)||0.4,
     motorId:el("ac_motorId").value.trim(),
