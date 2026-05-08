@@ -1,10 +1,10 @@
-<!-- HP Fleet v8.2.2 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.2.3 — built 2026-05-07 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HP Fleet v8.2.2</title>
+<title>HP Fleet v8.2.3</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -919,7 +919,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
       <button class="btn-login" id="loginBtn"><span id="loginBtnTxt">Sign In</span></button>
     </div>
     <div class="lc-foot">
-      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.2.2</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="cf-dot"></div>HP Fleet <span id="versionBadge">v8.2.3</span></div>
       <span>© 2025 ICTLabs</span>
     </div>
   </div>
@@ -928,7 +928,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <!-- APP SHELL -->
 <div id="appShell" style="display:none;flex-direction:column;min-height:100vh">
   <div class="topbar">
-    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.2.2</span></div>
+    <div class="tb-logo"><div class="tb-dot"></div>HP<span style="color:var(--cyan)">·</span>FLEET <span id="versionBadgeNav" style="font-size:10px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px">v8.2.3</span></div>
     <div class="tb-right">
       <div class="lang-tog">
         <button id="appEN" class="active">EN</button>
@@ -1930,7 +1930,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.2.2";
+const APP_VERSION = "v8.2.3";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -3950,7 +3950,7 @@ function validateEntryForm(){
     else if(isNaN(t2h(vIn))){setFerr("fe_vueloIn","f_vueloIn",lang==="es"?"Valor inválido":"Invalid value");ok=false;}
     else if(vOut&&t2h(vIn)<=t2h(vOut)){setFerr("fe_vueloIn","f_vueloIn",lang==="es"?"Vuelo In debe ser posterior":"Flight In must be after Flight Out");ok=false;}
   } else if(!tvDirect){
-    setFerr("fe_vueloOut","f_vueloOut",lang==="es"?"Ingrese Flight Out/In o T.Flight":"Enter Flight Out/In or T.Flight directly");ok=false;
+    softWarnings.push("T.Flight");
   }
   if(!ok) return false;
   // Soft warning — show inline banner if critical fields missing
