@@ -1273,7 +1273,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
       <div class="page-hdr">
         <div class="page-title"><span>·</span> <span id="st_title">Settings</span></div>
       </div>
-      <div class="settings-section">
+      <div class="settings-section" id="stSection_api">
         <div class="settings-card">
           <div class="settings-card-title">⚙ <span id="st_apiTitle">Anthropic API Key</span>
             <span class="api-status api-missing" id="apiStatusBadge">Not configured</span>
@@ -1322,7 +1322,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
           </div>
         </div>
       </div>
-      <div class="settings-section">
+      <div class="settings-section" id="stSection_dev">
         <div class="settings-card">
           <div class="settings-card-title">🛠 Developer Options</div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
@@ -1366,7 +1366,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
           </div>
         </div>
       </div>
-      <div class="settings-section">
+      <div class="settings-section" id="stSection_db">
         <div class="settings-card">
           <div class="settings-card-title">🗄 Database Maintenance</div>
           <div style="font-family:var(--mono);font-size:10px;color:var(--dim2);margin-bottom:16px">Admin only. These actions are permanent and cannot be undone.</div>
@@ -2006,7 +2006,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.3.3";
+const APP_VERSION = "v8.3.4";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2627,7 +2627,7 @@ const TAB_CONFIG=[
   {id:"aircraft",  icon:"✈️",labelKey:"tabAircraft",  roles:["ADMIN","OPERATOR"]},
   {id:"flightlog", icon:"📋",labelKey:"tabFlightLog", roles:["ADMIN","OPERATOR","REVIEWER","READONLY"]},
   {id:"preinvoice",icon:"💳",labelKey:"tabBilling",   roles:["ADMIN","REVIEWER","OPERATOR"]},
-  {id:"settings",  icon:"⚙️",labelKey:"tabSettings",  roles:["ADMIN"]},
+  {id:"settings",  icon:"⚙️",labelKey:"tabSettings",  roles:["ADMIN","OPERATOR","REVIEWER","READONLY"]},
 ];
 
 function renderTabs(){
@@ -3249,6 +3249,13 @@ function initViewAsToggle(){
   });
 }
 
+function setupSettingsUI(){
+  const isAdmin=effectiveRole()==="ADMIN";
+  if(el("stSection_api")) el("stSection_api").style.display=isAdmin?"":"none";
+  if(el("stSection_dev")) el("stSection_dev").style.display=isAdmin?"":"none";
+  if(el("stSection_db")) el("stSection_db").style.display=isAdmin?"":"none";
+}
+
 // ── STICKY HEADERS TOGGLE ──
 function initStickyHeadersToggle(){
   const check=el("stickyHeadersToggleCheck");
@@ -3811,7 +3818,7 @@ function setupFlRoleUI(){
   if(el("btn_approve")) el("btn_approve").style.display=canApprove?"flex":"none";
   if(el("btn_reqChanges")) el("btn_reqChanges").style.display="none";
   // REVIEW mode — hide upload area, batch constants, new batch, add more files
-  const isReviewer=role==="REVIEWER";
+  const isReviewer=role==="REVIEWER"||role==="READONLY";
   if(el("fl_newBatch")) el("fl_newBatch").style.display=isReviewer?"none":"";
   if(el("btn_addMoreFiles")) el("btn_addMoreFiles").style.display=isReviewer?"none":"";
   // OCR and non-billable toggle hidden in REVIEW mode (side panel)
@@ -4485,7 +4492,7 @@ function openRfr(){
   // Show dialog
   const dlg=el("rfrDialog"); if(dlg){ dlg.style.display="flex"; }
   el("rfrMbd").style.display="flex";
-  makeDraggable(el("rfrDialog"),el("rfrDialogHdr"));
+  makeDraggable("rfrDialog","rfrDialogHdr");
 }
 
 function closeRfr(){
@@ -5944,7 +5951,7 @@ async function switchToBatch(batchId){
 // ── RENDER ALL ──
 function renderAll(){
   renderUsers(); renderCompanies(); renderAudit();
-  renderWfBar(); setupFlRoleUI();
+  renderWfBar(); setupFlRoleUI(); setupSettingsUI();
   if(flEntries.length) renderFlTable();
   renderFlAudit();
   updateApiStatus();
@@ -6389,7 +6396,7 @@ function wireEvents(){
   // View As toggle (Admin only)
   if(el("viewAsRole")) el("viewAsRole").addEventListener("change",function(){
     viewRole=this.value==="ADMIN"?null:this.value;
-    renderWfBar(); setupFlRoleUI(); renderFlTable(); renderTabs(); updateActionBar();
+    renderWfBar(); setupFlRoleUI(); setupSettingsUI(); renderFlTable(); renderTabs(); updateActionBar();
     showToast("View As: "+(viewRole||"Admin"));
   });
 
@@ -6556,7 +6563,7 @@ function wireEvents(){
     const title=lang==="es"?"Devuelto para Corrección":"Sent Back for Review";
     openFloatDialog("dlgSentBack",title,lines,"var(--yellow)",flagged.map(e=>e.id));
   });
-  if(el("dlgSentBackHdr")) makeDraggable(el("dlgSentBack"),el("dlgSentBackHdr"));
+  if(el("dlgSentBackHdr")) makeDraggable("dlgSentBack","dlgSentBackHdr");
   // Pan/drag — always on (left click + drag), double click = zoom in
   const spImgWrap=el("sp_img_wrap");
   if(spImgWrap){
