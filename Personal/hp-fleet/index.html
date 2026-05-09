@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.4.6 — built 2026-05-09 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.0 — built 2026-05-09 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1322,6 +1322,8 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
             <div class="pi-total-label">TOTAL AMOUNT DUE</div>
             <div class="pi-total-amt" id="pi_total_amt">$0.00</div>
           </div>
+          <!-- Discount / Net Total block -->
+          <div id="pi_discount_block" style="padding:0 0 8px"></div>
           <!-- Sign-off -->
           <div class="pi-signoff">
             <button class="btn-primary" id="pi_signoff_btn">✓ Approve &amp; Sign Off</button>
@@ -1541,13 +1543,21 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
         <div class="field"><label>Short Code *</label><input type="text" id="co_code" placeholder="FM"><span class="ferr" id="coe_code"></span></div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>Short Code *</label><input type="text" id="co_code" placeholder="FM" maxlength="6"><span class="ferr" id="coe_code"></span></div>
         <div class="field"><label>Status</label><select id="co_status"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+        <div class="field"><label>Notes</label><textarea id="co_notes" placeholder="Contact info, notes…"></textarea></div>
       </div>
-      <div class="field"><label>Notes</label><textarea id="co_notes" placeholder="Contact info, notes…"></textarea></div>
       <div class="frow fc2">
         <div class="field"><label>Address</label><input type="text" id="co_address" placeholder="Hangar 15B, Albrook"></div>
         <div class="field"><label>Phone</label><input type="text" id="co_phone" placeholder="+507 XXX-XXXX"></div>
+      </div>
+      <div style="background:var(--s2);border:1px solid var(--border);border-left:2px solid var(--cyan);padding:9px 11px;margin-bottom:11px">
+        <div style="font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--cyan);margin-bottom:4px">Invoice Header</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--dim2);margin-bottom:7px" id="co_inv_hint">Controls what appears in the Bill To block</div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap">
+          <label class="chk-item" id="co_inv_addr_lbl"><input type="checkbox" id="co_inv_addr"> <span data-i18n="invShowAddress">Show Address</span></label>
+          <label class="chk-item" id="co_inv_phone_lbl"><input type="checkbox" id="co_inv_phone"> <span data-i18n="invShowPhone">Show Phone</span></label>
+          <label class="chk-item" id="co_inv_notes_lbl"><input type="checkbox" id="co_inv_notes"> <span data-i18n="invShowNotes">Show Notes</span></label>
+        </div>
       </div>
       <div class="section-divider">Contacts <span style="color:var(--dim);font-size:9px">(max 5)</span></div>
       <div id="co_contacts_list" style="margin-bottom:8px"></div>
@@ -2133,7 +2143,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.4.6";
+const APP_VERSION = "v8.5.0";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2397,6 +2407,9 @@ const I18N = {
     delUserWarn:"Permanently delete",delUserWarn2:"? This cannot be undone.",
     delCoWarn:"Permanently delete company",delCoWarn2:"? Billing rules will also be removed.",
     noRules:"No billing rules defined.",
+    invShowAddress:"Show Address",invShowPhone:"Show Phone",invShowNotes:"Show Notes",
+    invOnInvoice:"Invoice",invHeader:"Invoice Header",invHeaderHint:"Controls what appears in the Bill To block",
+    discApplyAs:"Apply as",discOfSubtotal:"of Subtotal",discOfTotal:"of Total",
     roleDescAdmin:"Administrator — full access including users and companies.",
     roleDescOperator:"Operator — loads files, reviews entries for assigned companies, submits.",
     roleDescReviewer:"Reviewer — views submitted batches for assigned companies, approves.",
@@ -2479,6 +2492,9 @@ const I18N = {
     delUserWarn:"¿Eliminar permanentemente a",delUserWarn2:"? Esta acción no se puede deshacer.",
     delCoWarn:"¿Eliminar permanentemente la compañía",delCoWarn2:"? Las reglas de facturación también serán eliminadas.",
     noRules:"Sin reglas de facturación.",
+    invShowAddress:"Mostrar Dirección",invShowPhone:"Mostrar Teléfono",invShowNotes:"Mostrar Notas",
+    invOnInvoice:"Factura",invHeader:"Encabezado de Factura",invHeaderHint:"Controla lo que aparece en el bloque Facturar A",
+    discApplyAs:"Aplicar como",discOfSubtotal:"del Subtotal",discOfTotal:"del Total",
     roleDescAdmin:"Administrador — acceso total incluyendo usuarios y compañías.",
     roleDescOperator:"Operador — carga archivos, revisa entradas de sus compañías, envía.",
     roleDescReviewer:"Revisor — ve lotes enviados de sus compañías, aprueba.",
@@ -2512,16 +2528,26 @@ function renderTempContacts(){
     const delBtn=document.createElement("button");
     delBtn.textContent="✕";
     delBtn.style.cssText="position:absolute;top:6px;right:6px;background:none;border:1px solid var(--border2);color:var(--red);cursor:pointer;padding:2px 6px;border-radius:2px;font-size:11px;line-height:1";
-    // Row 1: Type + Name
+    // Row 1: Type + Name + Invoice checkbox
     const row1=document.createElement("div");
-    row1.style.cssText="display:grid;grid-template-columns:130px 1fr;gap:6px;margin-bottom:6px;padding-right:32px";
+    row1.style.cssText="display:grid;grid-template-columns:130px 1fr auto;gap:6px;margin-bottom:6px;padding-right:32px";
     const typeSel=document.createElement("select");
     typeSel.style.cssText="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:10px;padding:6px 8px;border-radius:2px;outline:none;width:100%";
     typeSel.innerHTML=contactTypeOptions(c.type);
     const nameInp=document.createElement("input");
     nameInp.type="text"; nameInp.value=c.name||""; nameInp.placeholder="Name";
     nameInp.style.cssText="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-size:12px;padding:6px 8px;border-radius:2px;outline:none;width:100%;box-sizing:border-box";
-    row1.appendChild(typeSel); row1.appendChild(nameInp);
+    // Invoice toggle
+    const invLbl=document.createElement("label");
+    invLbl.className="chk-item"+(c.inv_show!==false?" checked":"");
+    invLbl.title=t("invOnInvoice");
+    invLbl.style.cssText="padding:4px 7px;font-size:9px;white-space:nowrap;cursor:pointer";
+    const invCb=document.createElement("input");
+    invCb.type="checkbox"; invCb.checked=c.inv_show!==false;
+    invCb.style.cssText="accent-color:var(--cyan);width:11px;height:11px;cursor:pointer";
+    invLbl.appendChild(invCb);
+    invLbl.appendChild(document.createTextNode(" "+t("invOnInvoice")));
+    row1.appendChild(typeSel); row1.appendChild(nameInp); row1.appendChild(invLbl);
     // Row 2: Phone + Email
     const row2=document.createElement("div");
     row2.style.cssText="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-right:32px";
@@ -2536,6 +2562,7 @@ function renderTempContacts(){
     card.dataset.contactIdx=i;
     typeSel.addEventListener("change",()=>{const idx=+card.dataset.contactIdx;tempContacts[idx].type=typeSel.value;});
     nameInp.addEventListener("input",()=>{const idx=+card.dataset.contactIdx;tempContacts[idx].name=nameInp.value;});
+    invCb.addEventListener("change",()=>{const idx=+card.dataset.contactIdx;tempContacts[idx].inv_show=invCb.checked;invLbl.classList.toggle("checked",invCb.checked);});
     phoneInp.addEventListener("input",()=>{const idx=+card.dataset.contactIdx;tempContacts[idx].phone=phoneInp.value;});
     emailInp.addEventListener("input",()=>{const idx=+card.dataset.contactIdx;tempContacts[idx].email=emailInp.value;});
     delBtn.addEventListener("click",()=>{const idx=+card.dataset.contactIdx;tempContacts.splice(idx,1);renderTempContacts();});
@@ -3349,6 +3376,13 @@ function openDeleteCompany(id){
   openModal("delMbd");
 }
 
+function _syncInvChkStyles(){
+  ["co_inv_addr","co_inv_phone","co_inv_notes"].forEach(id=>{
+    const cb=el(id); const lbl=el(id+"_lbl");
+    if(cb&&lbl) lbl.classList.toggle("checked",cb.checked);
+  });
+}
+
 function openCreateCompany(){
   editingCoId=null; tempRules=[]; clearCoErrors();
   el("coModalTitle").textContent=lang==="es"?"Nueva Compañía":"New Company";
@@ -3356,6 +3390,10 @@ function openCreateCompany(){
   el("co_status").value="active"; el("co_notes").value="";
   if(el("co_address")) el("co_address").value="";
   if(el("co_phone")) el("co_phone").value="";
+  if(el("co_inv_addr")) el("co_inv_addr").checked=true;
+  if(el("co_inv_phone")) el("co_inv_phone").checked=true;
+  if(el("co_inv_notes")) el("co_inv_notes").checked=false;
+  _syncInvChkStyles();
   tempContacts=[]; renderTempContacts();
   renderTempRules(); openModal("coMbd");
 }
@@ -3368,6 +3406,10 @@ function openEditCompany(id){
   el("co_status").value=co.status; el("co_notes").value=co.notes||"";
   if(el("co_address")) el("co_address").value=co.address||"";
   if(el("co_phone")) el("co_phone").value=co.phone||"";
+  if(el("co_inv_addr")) el("co_inv_addr").checked=co.inv_show_address!==false;
+  if(el("co_inv_phone")) el("co_inv_phone").checked=co.inv_show_phone!==false;
+  if(el("co_inv_notes")) el("co_inv_notes").checked=co.inv_show_notes===true;
+  _syncInvChkStyles();
   tempContacts=JSON.parse(JSON.stringify(co.contacts||[]));
   renderTempContacts(); renderTempRules(); openModal("coMbd");
 }
@@ -3381,16 +3423,41 @@ function renderTempRules(){
     row.style.cssText="display:grid;grid-template-columns:1fr auto auto auto auto;gap:8px;margin-bottom:8px;align-items:center";
     row.innerHTML='<input style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 8px;border-radius:2px;outline:none;width:100%" value="'+r.name+'" placeholder="Rule name">'+
       '<input type="number" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 8px;border-radius:2px;outline:none;width:80px" value="'+r.amount+'" step="0.01">'+
-      '<select style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:10px;padding:6px 8px;border-radius:2px;outline:none">'+
-      '<option value="per Flight Hour"'+(r.unit==="per Flight Hour"||r.unit==="/ TBH"?" selected":"")+'>/ TBH</option>'+
-      '<option value="per Flight"'+(r.unit==="per Flight"||r.unit==="/ Flight"?" selected":"")+'>/ Flight</option>'+
-      '<option value="flat"'+(r.unit==="flat"?" selected":"")+'>Flat</option>'+
+      '<select style="background:var(--s2);border:1px solid var(--border2);color:'+(r.type==="discount"?"var(--violet)":"var(--text)")+';font-family:var(--mono);font-size:10px;padding:6px 8px;border-radius:2px;outline:none">'+
+      '<option value="per Flight Hour"'+((!r.type||r.type==="charge")&&(r.unit==="per Flight Hour"||r.unit==="/ TBH")?" selected":"")+'>/ TBH</option>'+
+      '<option value="per Flight"'+((!r.type||r.type==="charge")&&(r.unit==="per Flight"||r.unit==="/ Flight")?" selected":"")+'>/ Flight</option>'+
+      '<option value="flat"'+((!r.type||r.type==="charge")&&r.unit==="flat"?" selected":"")+'>Flat</option>'+
+      '<option value="discount"'+(r.type==="discount"?" selected":"")+'>Discount</option>'+
       "</select>"+
       '<button style="font-family:var(--mono);font-size:9px;padding:5px 8px;background:transparent;border:1px solid '+(r.active?"rgba(61,220,132,.4)":"var(--border2)")+';color:'+(r.active?"var(--green)":"var(--dim)")+';cursor:pointer;border-radius:2px">'+(r.active?"ON":"OFF")+"</button>"+
       '<button style="font-family:var(--mono);font-size:9px;padding:5px 8px;background:transparent;border:1px solid var(--border2);color:var(--red);cursor:pointer;border-radius:2px">✕</button>';
+    // Discount sub-row
+    if(r.type==="discount"){
+      const sub=document.createElement("div");
+      sub.style.cssText="display:grid;grid-template-columns:auto 80px 120px 1fr;gap:6px;align-items:center;margin-top:2px;margin-bottom:4px;background:rgba(178,141,255,.05);border:1px solid rgba(178,141,255,.2);border-left:2px solid var(--violet);border-top:none;padding:5px 8px;border-radius:0 0 2px 2px";
+      const modeOpts=['<option value="pct"'+(r.discountMode==="pct"?" selected":"")+'>%</option>','<option value="fixed"'+(r.discountMode==="fixed"?" selected":"")+'> $ Fixed</option>'].join("");
+      const baseOpts=['<option value="subtotal"'+((!r.discountBase||r.discountBase==="subtotal")?" selected":"")+'>'+t("discOfSubtotal")+'</option>','<option value="total"'+(r.discountBase==="total"?" selected":"")+'>'+t("discOfTotal")+'</option>'].join("");
+      sub.innerHTML='<span style="font-family:var(--mono);font-size:9px;color:var(--violet);white-space:nowrap">'+t("discApplyAs")+'</span>'+
+        '<select style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:10px;padding:5px 6px;border-radius:2px;outline:none;width:100%">'+modeOpts+'</select>'+
+        '<select style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:10px;padding:5px 6px;border-radius:2px;outline:none;width:100%">'+baseOpts+'</select>'+
+        '<span style="font-family:var(--mono);font-size:9px;color:var(--dim2);text-align:right">→ nets below Total</span>';
+      sub.querySelectorAll("select")[0].addEventListener("change",function(){tempRules[i].discountMode=this.value;});
+      sub.querySelectorAll("select")[1].addEventListener("change",function(){tempRules[i].discountBase=this.value;});
+      row.appendChild(sub);
+    }
     row.querySelector("input:first-child").addEventListener("input",function(){tempRules[i].name=this.value;});
     row.querySelectorAll("input")[1].addEventListener("input",function(){tempRules[i].amount=parseFloat(this.value)||0;});
-    row.querySelector("select").addEventListener("change",function(){tempRules[i].unit=this.value;});
+    row.querySelector("select").addEventListener("change",function(){
+      if(this.value==="discount"){
+        tempRules[i].type="discount";
+        tempRules[i].discountMode=tempRules[i].discountMode||"pct";
+        tempRules[i].discountBase=tempRules[i].discountBase||"subtotal";
+      } else {
+        tempRules[i].type="charge";
+        tempRules[i].unit=this.value;
+      }
+      renderTempRules();
+    });
     row.querySelectorAll("button")[0].addEventListener("click",()=>{tempRules[i].active=!tempRules[i].active;renderTempRules();});
     row.querySelectorAll("button")[1].addEventListener("click",()=>{tempRules.splice(i,1);renderTempRules();});
     wrap.appendChild(row);
@@ -3398,7 +3465,7 @@ function renderTempRules(){
 }
 
 function addBillingRuleRow(){
-  tempRules.push({id:"br"+nextRuleId++,name:"",amount:0,unit:"per Flight Hour",active:true});
+  tempRules.push({id:"br"+nextRuleId++,name:"",amount:0,unit:"per Flight Hour",type:"charge",active:true});
   renderTempRules();
 }
 
@@ -3408,15 +3475,18 @@ function saveCompany(){
   const status=el("co_status").value, notes=el("co_notes").value.trim();
   const address=el("co_address")?el("co_address").value.trim():"";
   const phone=el("co_phone")?el("co_phone").value.trim():"";
+  const inv_show_address=el("co_inv_addr")?el("co_inv_addr").checked:true;
+  const inv_show_phone=el("co_inv_phone")?el("co_inv_phone").checked:true;
+  const inv_show_notes=el("co_inv_notes")?el("co_inv_notes").checked:false;
   let ok=true;
   if(!name){setFerr("coe_name","co_name",t("required"));ok=false;}
   if(!code){setFerr("coe_code","co_code",t("required"));ok=false;}
   else if(COMPANIES.find(c=>c.code===code&&c.id!==editingCoId)){setFerr("coe_code","co_code",t("codeExists"));ok=false;}
   if(!ok) return;
-  const data={name,code,status,notes,address,phone,contacts:tempContacts,billingRules:tempRules};
+  const data={name,code,status,notes,address,phone,inv_show_address,inv_show_phone,inv_show_notes,contacts:tempContacts,billingRules:tempRules};
   if(editingCoId){
     const co=COMPANIES.find(x=>x.id===editingCoId); Object.assign(co,data);
-    sbPatch("companies","id=eq."+co.id,{name,code,status,notes,address,phone,
+    sbPatch("companies","id=eq."+co.id,{name,code,status,notes,address,phone,inv_show_address,inv_show_phone,inv_show_notes,
       contacts:JSON.stringify(tempContacts),billing_rules:JSON.stringify(tempRules)})
       .then(()=>dbg("Company updated in DB: "+name,"ok"))
       .catch(e=>dbg("Company update error: "+e.message,"err"));
@@ -3424,7 +3494,7 @@ function saveCompany(){
   } else {
     const newCo={id:"c"+nextCoId++,...data};
     COMPANIES.push(newCo);
-    sbPost("companies",{id:newCo.id,name,code,status,notes,address,phone,
+    sbPost("companies",{id:newCo.id,name,code,status,notes,address,phone,inv_show_address,inv_show_phone,inv_show_notes,
       contacts:JSON.stringify(tempContacts),billing_rules:JSON.stringify(tempRules)})
       .then(()=>dbg("Company created in DB: "+name,"ok"))
       .catch(e=>dbg("Company create error: "+e.message,"err"));
@@ -4076,7 +4146,10 @@ function renderWfBar(){
   bar.innerHTML=html;
   // Wire CTA button
   const ctaBtn=el("wf_goto_pi");
-  if(ctaBtn) ctaBtn.addEventListener("click",()=>switchTab("preinvoice"));
+  if(ctaBtn) ctaBtn.addEventListener("click",()=>{
+    if(currentBatchId&&batchStatus==="APPROVED") renderPreInvoice();
+    switchTab("preinvoice");
+  });
   if(el("srcStatus")){
     const labels={DRAFT:t("wfReview"),SUBMITTED:t("wfSubmit"),APPROVED:t("wfApproved"),CHANGES:lang==="es"?"Cambios Solicitados":"Changes Requested"};
     el("srcStatus").textContent=labels[batchStatus]||batchStatus;
@@ -4616,7 +4689,7 @@ function renderPreInvoice(){
     if(!piRulesSeeded && company?.billingRules?.length){
       const totalTbh=approved.reduce((s,e)=>s+calcEntry(e).tbp,0);
       const totalEntries=approved.length;
-      company.billingRules.filter(r=>r.active).forEach(r=>{
+      company.billingRules.filter(r=>r.active&&r.type!=="discount").forEach(r=>{
         let amt=0, formula="";
         if(r.unit==="per Flight Hour"||r.unit==="/ TBH"){
           amt=parseFloat((r.amount*totalTbh).toFixed(2));
@@ -4630,6 +4703,10 @@ function renderPreInvoice(){
         }
         piAdditionalCharges.push({desc:r.name,amount:amt,_auto:true,_formula:formula});
       });
+      // Seed discount rules — amount computed later in renderPiCharges against live subtotal/total
+      company.billingRules.filter(r=>r.active&&r.type==="discount").forEach(r=>{
+        piAdditionalCharges.push({desc:r.name,amount:r.amount,_discount:true,_discountMode:r.discountMode||"pct",_discountBase:r.discountBase||"subtotal"});
+      });
       piRulesSeeded=true;
     }
     if(el("pi_owner_name")) el("pi_owner_name").textContent=aircraft?.owner||"—";
@@ -4640,11 +4717,13 @@ function renderPreInvoice(){
     if(el("pi_bill_name")) el("pi_bill_name").textContent=company?.name||"—";
     if(el("pi_bill_detail")){
       const parts=[];
-      if(company?.address) parts.push(company.address);
-      if(company?.phone) parts.push(company.phone);
-      // New contacts array
+      if(company?.inv_show_address!==false && company?.address) parts.push(company.address);
+      if(company?.inv_show_phone!==false && company?.phone) parts.push(company.phone);
+      if(company?.inv_show_notes===true && company?.notes) parts.push(company.notes);
+      // Contacts flagged for invoice
       if(company?.contacts&&company.contacts.length){
         company.contacts.forEach(c=>{
+          if(c.inv_show===false) return;
           let line=c.type+": "+c.name;
           if(c.phone) line+=" · "+c.phone;
           if(c.email) line+=" · "+c.email;
@@ -4719,44 +4798,69 @@ function renderPiCharges(subtotal){
   const wrap=el("pi_charges_list"); if(!wrap) return;
   wrap.innerHTML="";
   let chargesTotal=0;
+  const charges=piAdditionalCharges.filter(c=>!c._discount);
+  const discounts=piAdditionalCharges.filter(c=>c._discount);
   // Render as a table matching pi-tbl 6-column structure: #, Log#, Date, Pilot, TBH, Amount
   const tbl=document.createElement("table");
   tbl.className="pi-tbl"; tbl.style.marginBottom="0";
   const tbody=document.createElement("tbody");
-  piAdditionalCharges.forEach((c,i)=>{
+  charges.forEach((c,i)=>{
+    const origIdx=piAdditionalCharges.indexOf(c);
     chargesTotal+=c.amount;
     const tr=document.createElement("tr");
     if(c._auto){
-      // Auto charge: desc plain text (col 1-4), editable amount input (col 5), green amount+✕ (col 6)
       tr.innerHTML=
         '<td colspan="4" style="font-family:var(--mono);font-size:11px;color:var(--text);vertical-align:middle">'+
           c.desc+
           (c._formula?'<div style="font-size:10px;color:var(--dim2);margin-top:2px">'+c._formula+'</div>':'')+
         '</td>'+
         '<td style="vertical-align:middle;text-align:right">'+
-          '<input type="number" value="'+c.amount+'" step="0.01" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:4px 6px;font-size:11px;border-radius:2px;width:80px;text-align:right;font-family:var(--mono);box-sizing:border-box" data-ci="'+i+'" data-cf="amt">'+
+          '<input type="number" value="'+c.amount+'" step="0.01" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:4px 6px;font-size:11px;border-radius:2px;width:80px;text-align:right;font-family:var(--mono);box-sizing:border-box" data-ci="'+origIdx+'" data-cf="amt">'+
         '</td>'+
         '<td class="pi-amt" style="text-align:right;vertical-align:middle">'+fmtCurrency(c.amount)+
-          ' <button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0 0 0 6px;vertical-align:middle" data-del-charge="'+i+'">✕</button>'+
+          ' <button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0 0 0 6px;vertical-align:middle" data-del-charge="'+origIdx+'">✕</button>'+
         '</td>';
     } else {
-      // Manual charge: desc input (col 1-4), editable amount input (col 5), green amount+✕ (col 6)
       tr.innerHTML=
         '<td colspan="4" style="vertical-align:middle">'+
           '<span class="pi-desc-print" style="font-family:var(--mono);font-size:11px;color:var(--text)">'+c.desc+'</span>'+
-          '<input type="text" value="'+c.desc+'" placeholder="Description" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:4px 8px;font-size:11px;border-radius:2px;width:100%;font-family:var(--mono);box-sizing:border-box" data-ci="'+i+'" data-cf="desc">'+
+          '<input type="text" value="'+c.desc+'" placeholder="Description" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:4px 8px;font-size:11px;border-radius:2px;width:100%;font-family:var(--mono);box-sizing:border-box" data-ci="'+origIdx+'" data-cf="desc">'+
         '</td>'+
         '<td style="vertical-align:middle;text-align:right">'+
-          '<input type="number" value="'+c.amount+'" step="0.01" placeholder="0.00" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:4px 6px;font-size:11px;border-radius:2px;width:80px;text-align:right;font-family:var(--mono);box-sizing:border-box" data-ci="'+i+'" data-cf="amt">'+
+          '<input type="number" value="'+c.amount+'" step="0.01" placeholder="0.00" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:4px 6px;font-size:11px;border-radius:2px;width:80px;text-align:right;font-family:var(--mono);box-sizing:border-box" data-ci="'+origIdx+'" data-cf="amt">'+
         '</td>'+
         '<td class="pi-amt" style="text-align:right;vertical-align:middle">'+fmtCurrency(c.amount)+
-          ' <button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0 0 0 6px;vertical-align:middle" data-del-charge="'+i+'">✕</button>'+
+          ' <button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0 0 0 6px;vertical-align:middle" data-del-charge="'+origIdx+'">✕</button>'+
         '</td>';
     }
     tbody.appendChild(tr);
   });
   tbl.appendChild(tbody);
   wrap.appendChild(tbl);
+  const grandTotal=subtotal+chargesTotal;
+  if(el("pi_total_amt")) el("pi_total_amt").textContent=fmtCurrency(grandTotal);
+  // Render discount block below Total if any discounts exist
+  const discWrap=el("pi_discount_block");
+  if(discWrap){
+    discWrap.innerHTML="";
+    if(discounts.length){
+      discounts.forEach(d=>{
+        const base=d._discountBase==="total"?grandTotal:subtotal;
+        const discAmt=d._discountMode==="pct"?parseFloat((base*(d.amount/100)).toFixed(2)):d.amount;
+        const netTotal=grandTotal-discAmt;
+        const row=document.createElement("div");
+        row.style.cssText="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px dashed var(--border2);font-family:var(--mono);font-size:11px";
+        row.innerHTML='<span style="color:var(--dim2)">'+d.desc+' <span style="color:var(--dim);font-size:9px">('+
+          (d._discountMode==="pct"?d.amount+"% of "+(d._discountBase==="total"?"Total":"Subtotal"):"$"+d.amount.toFixed(2)+" off")+
+          ')</span></span><span style="color:var(--red)">− '+fmtCurrency(discAmt)+'</span>';
+        discWrap.appendChild(row);
+        const netRow=document.createElement("div");
+        netRow.style.cssText="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:2px solid var(--cyan);margin-top:4px;font-family:var(--mono)";
+        netRow.innerHTML='<span style="font-size:11px;letter-spacing:1px;color:var(--cyan)">NET TOTAL</span><span style="font-size:16px;font-weight:700;color:var(--cyan)">'+fmtCurrency(netTotal)+'</span>';
+        discWrap.appendChild(netRow);
+      });
+    }
+  }
   wrap.querySelectorAll("input").forEach(inp=>{
     inp.addEventListener("change",()=>{
       const i=parseInt(inp.dataset.ci);
@@ -4768,7 +4872,6 @@ function renderPiCharges(subtotal){
   wrap.querySelectorAll("[data-del-charge]").forEach(btn=>{
     btn.addEventListener("click",()=>{piAdditionalCharges.splice(parseInt(btn.dataset.delCharge),1);renderPiCharges(subtotal);});
   });
-  if(el("pi_total_amt")) el("pi_total_amt").textContent=fmtCurrency(subtotal+chargesTotal);
 }
 
 async function reopenBatch(){
@@ -5447,6 +5550,9 @@ async function loadMasterData(){
       ...c,
       address:c.address||"",
       phone:c.phone||"",
+      inv_show_address:c.inv_show_address!==false,
+      inv_show_phone:c.inv_show_phone!==false,
+      inv_show_notes:c.inv_show_notes===true,
       adminContact:c.admin_contact||c.adminContact||"",
       acctContact:c.acct_contact||c.acctContact||"",
       contacts:typeof c.contacts==="string"?JSON.parse(c.contacts):c.contacts||[],
@@ -6700,6 +6806,9 @@ function wireEvents(){
   el("co_close").addEventListener("click",()=>closeModal("coMbd"));
   el("co_cancel").addEventListener("click",()=>closeModal("coMbd"));
   el("co_save").addEventListener("click",saveCompany);
+  ["co_inv_addr","co_inv_phone","co_inv_notes"].forEach(id=>{
+    if(el(id)) el(id).addEventListener("change",_syncInvChkStyles);
+  });
   el("co_addRule").addEventListener("click",addBillingRuleRow);
   el("coMbd").addEventListener("click",e=>{ if(e.target===el("coMbd")) closeModal("coMbd"); });
 
