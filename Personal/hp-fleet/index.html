@@ -697,7 +697,7 @@ table.fl-tbl td:last-child{border-right:none}
 .sp-field input:focus,.sp-field select:focus{border-color:var(--cyan)}
 .sp-field input[readonly]{color:var(--dim2);cursor:default}
 .sp-calc{display:flex;gap:10px;background:var(--s3);border:1px solid var(--border);
-  padding:10px 12px;margin-bottom:12px;flex-wrap:wrap}
+  padding:10px 12px;flex-wrap:wrap;position:sticky;bottom:0;z-index:10;margin-top:auto}
 .sp-calc-item{display:flex;flex-direction:column;align-items:center;gap:2px}
 .sp-calc-l{font-family:var(--mono);font-size:8px;color:var(--dim);text-transform:uppercase}
 .sp-calc-v{font-family:var(--mono);font-size:13px;font-weight:700}
@@ -1340,6 +1340,11 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
       <div class="settings-section" id="stSection_dev">
         <div class="settings-card">
           <div class="settings-card-title">🛠 Developer Options</div>
+          <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+            <div style="font-size:13px;color:var(--text);margin-bottom:4px" id="st_resetTestLabel">Reset Batch Entry Data</div>
+            <div style="font-size:11px;color:var(--dim2);font-family:var(--mono);margin-bottom:10px" id="st_resetTestHint">Clears flag_note, review_thread and resets status to pending for all entries in current batch</div>
+            <button class="btn-danger" id="btn_resetTestData" style="font-size:11px;padding:6px 14px">🗑 Reset Entry Data</button>
+          </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
             <div>
               <div style="font-size:13px;color:var(--text)" id="st_viewAsLabel">Show View As Selector</div>
@@ -2034,9 +2039,9 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
               </div>
             </div>
             <div id="spThreadFooter" style="padding:6px 8px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.06)">
-              <button id="spAddCommentBtn" style="display:none;background:none;border:1px solid var(--yellow);color:var(--yellow);font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:2px;cursor:pointer;letter-spacing:1px" onclick="openSpThreadInput('REVIEWER')">+ ADD COMMENT</button>
+              <button id="spAddCommentBtn" style="display:none;background:none;border:1px solid var(--yellow);color:var(--yellow);font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:2px;cursor:pointer;letter-spacing:1px" onclick="openSpThreadInput('REVIEWER')">+ COMMENT</button>
               <span></span>
-              <button id="spSaveResponseBtn" style="display:none;background:var(--cyan);border:none;color:#000;font-family:var(--mono);font-size:9px;font-weight:700;padding:3px 8px;border-radius:2px;cursor:pointer;letter-spacing:1px" onclick="openSpThreadInput('OPERATOR')">SAVE RESPONSE</button>
+              <button id="spSaveResponseBtn" style="display:none;background:var(--cyan);border:none;color:#000;font-family:var(--mono);font-size:9px;font-weight:700;padding:3px 8px;border-radius:2px;cursor:pointer;letter-spacing:1px" onclick="openSpThreadInput('OPERATOR')">REPLY</button>
             </div>
           </div>
         </div>
@@ -2066,7 +2071,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.4.1";
+const APP_VERSION = "v8.4.2";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2552,7 +2557,7 @@ function renderSpThread(entry){
   }
 
   // Show meta
-  if(el("spThreadMeta")) el("spThreadMeta").textContent="· "+thread.length+" "+(lang==="es"?"comentarios":"comments");
+  if(el("spThreadMeta")) el("spThreadMeta").textContent="- "+thread.length+" "+(lang==="es"?"comentarios":"comments");
 
   // Show/hide action buttons based on role and batch state
   const canReviewerComment=(isReviewer)&&batchStatus==="SUBMITTED";
@@ -2592,8 +2597,14 @@ function saveSpThreadComment(){
   const role=el("spThreadInput").dataset.role||effectiveRole();
   const entry=flEntries.find(e=>e.id===spEditingEntryId); if(!entry) return;
   addThreadComment(entry,role,text);
+  // Sync flagNote for backwards compat — drives Notes column marker, RFR dialog, filter, WA message
+  if(role==="REVIEWER"){
+    entry.flagNote=text;
+    entry.status="flagged";
+  }
   closeSpThreadInput();
   renderSpThread(entry);
+  renderFlTable();
   addFlAudit("💬",currentUser.name,"thread comment added","Entry "+(flEntries.indexOf(entry)+1)+" cycle "+reviewCycle);
 }
 
@@ -2608,6 +2619,7 @@ function migrateFlagnoteToThread(entry){
       text:entry.flagNote.trim(),
       ts:new Date().toISOString()
     }];
+    entry.flagNote=""; // clear after migration — thread is source of truth
     dbg("Migrated flagNote to reviewThread for entry "+(entry.id),"info");
   }
 }
@@ -3982,12 +3994,13 @@ function runHoroChecks(){ updateSrcBar(); } // delegated to updateSrcBar
 function renderWfBar(){
   const hasEntries=flEntries.length>0;
   const st=batchStatus;
+  const inCycle=reviewCycle>1; // batch has been through at least one review cycle
   const steps=[
-    {key:"wfUpload",  state: "done"},
-    {key:"wfExtract", state: hasEntries?"done":"pending"},
-    {key:"wfReview",  state: hasEntries&&(st==="DRAFT"||st==="CHANGES")?"active":hasEntries&&(st==="SUBMITTED"||st==="APPROVED")?"done":"pending"},
-    {key:"wfSubmit",  state: st==="SUBMITTED"?"active":st==="APPROVED"?"done":"pending"},
-    {key:"wfApproved",state: st==="APPROVED"?"active":"pending"}
+    {key:"wfUpload",  state:"done"},
+    {key:"wfExtract", state:hasEntries?"done":"pending"},
+    {key:"wfReview",  state:hasEntries&&(st==="SUBMITTED"||st==="APPROVED"||(st==="DRAFT"&&inCycle))?"done":hasEntries&&st==="DRAFT"&&!inCycle?"active":"pending"},
+    {key:"wfSubmit",  state:st==="APPROVED"?"done":(st==="SUBMITTED"||(st==="DRAFT"&&inCycle))?"active":"pending"},
+    {key:"wfApproved",state:st==="APPROVED"?"active":"pending"}
   ];
   const bar=el("wfBar"); if(!bar) return;
   let html=steps.map((s,i)=>{
@@ -4927,6 +4940,27 @@ function skipWhatsApp(){ closeModal("waMbd"); _waPendingUrl=null; _waCcMessage=n
 // ── SIDE PANEL IMAGE ZOOM & ROTATE ──
 let spZoom=1, spRotation=0, spPanX=0, spPanY=0, spPanMode=false;
 
+async function resetTestData(){
+  if(!currentBatchId){showToast(lang==="es"?"No hay lote activo":"No active batch","err");return;}
+  flEntries.forEach(e=>{
+    e.flagNote="";
+    e.reviewThread=[];
+    e.status="pending";
+  });
+  await saveBatchToDB();
+  renderFlTable(); updateSrcBar(); renderWfBar();
+  addFlAudit("🗑",currentUser.name,"reset test data","All entry flag_note, review_thread cleared, status → pending");
+  showToast(lang==="es"?"Datos de prueba reiniciados":"Test data reset","warn");
+}
+
+function _scaleNonBillWatermark(){
+  const wrap=el("sp_img_wrap");
+  const txt=el("sp_nonbill_wm_text");
+  if(!wrap||!txt) return;
+  const h=wrap.offsetHeight||300;
+  txt.style.fontSize=Math.max(18,Math.floor(h*0.12))+"px";
+}
+
 function spApplyTransform(){
   const img=el("sp_img"); if(!img) return;
   img.style.transform=`rotate(${spRotation}deg) scale(${spZoom}) translate(${spPanX}px,${spPanY}px)`;
@@ -5018,8 +5052,16 @@ function spUpdateNonBillBtn(isNonBill){
 } // tracks unsaved changes in side panel
 
 // Mark panel dirty when any field changes
-function spMarkDirty(){ spDirty=true; }
-function spClearDirty(){ spDirty=false; }
+function spMarkDirty(){
+  spDirty=true;
+  const saveBtn=el("sp_save");
+  if(saveBtn){ saveBtn.disabled=false; saveBtn.style.cursor="pointer"; saveBtn.style.opacity="1"; saveBtn.style.background="rgba(65,209,255,.12)"; saveBtn.style.borderColor="var(--cyan)"; saveBtn.style.color="var(--cyan)"; }
+}
+function spClearDirty(){
+  spDirty=false;
+  const saveBtn=el("sp_save");
+  if(saveBtn){ saveBtn.disabled=true; saveBtn.style.cursor="not-allowed"; saveBtn.style.opacity="0.4"; saveBtn.style.background="rgba(65,209,255,.04)"; saveBtn.style.borderColor="var(--dim2)"; saveBtn.style.color="var(--dim2)"; }
+}
 
 // Aircraft cascade — filters operators and multiplier to valid values for selected aircraft
 function spCascadeAircraftDropdowns(matricula){
@@ -5439,6 +5481,7 @@ function _loadSpEntry(entry){
     // Image area gets the remainder, minimum 150px
     const availH=panel.offsetHeight-fixedH-dataH;
     imgWrap.style.height=Math.max(150,availH)+"px";
+    _scaleNonBillWatermark();
     // Restore flex on edit section
     editSec.style.flex="1";
     editSec.style.height="";
@@ -5464,7 +5507,7 @@ function _loadSpEntry(entry){
   if(isReviewer){
     if(editTitle) editTitle.textContent="👁 Review Entry";
     if(commentRow) commentRow.style.display="block";
-    if(saveBtn){ saveBtn.textContent="Save Comment"; saveBtn.style.background="rgba(255,192,67,.12)"; saveBtn.style.borderColor="var(--yellow)"; saveBtn.style.color="var(--yellow)"; }
+    if(saveBtn) saveBtn.style.display="none";
   } else if(isReadOnly){
     if(editTitle) editTitle.textContent="👁 View Entry";
     // Show thread panel if entry has history, hide otherwise
@@ -5474,7 +5517,7 @@ function _loadSpEntry(entry){
     if(editTitle) editTitle.textContent="✎ Data Entry";
     // Show thread panel if entry has history (operator needs to see + respond)
     if(commentRow) commentRow.style.display=(entry.reviewThread&&entry.reviewThread.length)?"block":"none";
-    if(saveBtn){ saveBtn.innerHTML='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg> Save'; saveBtn.style.display=""; saveBtn.style.background="rgba(65,209,255,.12)"; saveBtn.style.borderColor="var(--cyan)"; saveBtn.style.color="var(--cyan)"; }
+    if(saveBtn){ saveBtn.innerHTML='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg> Save'; saveBtn.style.display=""; saveBtn.style.background="rgba(65,209,255,.04)"; saveBtn.style.borderColor="var(--dim2)"; saveBtn.style.color="var(--dim2)"; saveBtn.disabled=true; saveBtn.style.cursor="not-allowed"; saveBtn.style.opacity="0.4"; }
   }
 }
 
@@ -6884,6 +6927,9 @@ function wireEvents(){
     showToast("Billing signed off");
   });
 
+  if(el("btn_resetTestData")) el("btn_resetTestData").addEventListener("click",()=>{
+    if(confirm(lang==="es"?"Resetear datos de revision del lote actual? No se puede deshacer.":"Reset all review data for current batch? This cannot be undone.")) resetTestData();
+  });
   if(el("btn_reopen")) el("btn_reopen").addEventListener("click",()=>{
     if(el("reopen_reason")) el("reopen_reason").value="";
     if(el("reopen_title")) el("reopen_title").textContent=t("reopenTitle");
@@ -7150,6 +7196,7 @@ function wireEvents(){
       const maxImgH=panel.offsetHeight-minDataH-vHandle.offsetHeight;
       const newH=Math.max(minImgH,Math.min(maxImgH,vStartH+(e.clientY-vStartY)));
       el("sp_img_wrap").style.height=newH+"px";
+      _scaleNonBillWatermark();
     }
     function stopVResize(){
       vHandle.classList.remove("dragging");
