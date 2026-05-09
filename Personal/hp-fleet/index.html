@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.4.4 — built 2026-05-08 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.4.5 — built 2026-05-08 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -889,7 +889,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
   @page{margin:1cm;marks:none}
   body{background:#fff!important;color:#111!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   /* Hide all chrome */
-  .topbar,.tab-nav,#roleBanner,.debug-panel,.sp-overlay,
+  .topbar,.tab-nav,#roleBanner,.debug-panel,.sp-overlay,#sidePanel,
   #panel-users,#panel-companies,#panel-flightlog,#panel-aircraft,#panel-settings,
   #piComingSoon,.page-hdr,#pi_signoff_btn,#pi_add_charge2,#pi_export_pdf,
   [data-del-charge]{display:none!important}
@@ -918,9 +918,12 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
   /* Charges */
   .pi-charges-title{color:#888!important}
   .pi-charges input{display:none!important}
+  .pi-charges .pi-desc-print{display:inline!important}
   /* Keep charges amount visible after hiding inputs */
   .pi-tbl .pi-amt{color:#1a9955!important}
-  /* Total block */
+  /* Summary block stays together */
+  .pi-summary-block{page-break-inside:avoid!important;break-inside:avoid!important}
+  .pi-charges,.pi-total,.pi-signoff{page-break-inside:avoid;break-inside:avoid}
   .pi-total{background:#f5f5f5!important;border-color:#0099bb!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .pi-total-label{color:#333!important}
   .pi-total-amt{color:#1a9955!important}
@@ -930,6 +933,11 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
   .pi-charges,.pi-total,.pi-signoff{page-break-inside:avoid;break-inside:avoid}
   .pi-total{page-break-before:avoid;break-before:avoid}
 }
+.pi-charges input[type=number]::-webkit-inner-spin-button,
+.pi-charges input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.pi-charges input[type=number]{-moz-appearance:textfield}
+.pi-summary-block{page-break-inside:avoid;break-inside:avoid}
+.pi-charges .pi-desc-print{display:none}
 </style>
 </head>
 <body>
@@ -1288,6 +1296,11 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
             </tr></thead>
             <tbody id="pi_line_items"></tbody>
           </table>
+          <!-- Summary block: last row injected here by JS + subtotal + charges + total + stamp -->
+          <div class="pi-summary-block">
+          <table class="pi-tbl" id="pi_last_row_tbl" style="margin-bottom:0;border-top:1px solid var(--border)">
+            <tbody id="pi_last_row"></tbody>
+          </table>
           <!-- Subtotal -->
           <table class="pi-tbl" style="margin-bottom:0;border-top:2px solid var(--border2)">
             <tbody>
@@ -1312,8 +1325,9 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
           <!-- Sign-off -->
           <div class="pi-signoff">
             <button class="btn-primary" id="pi_signoff_btn">✓ Approve &amp; Sign Off</button>
-            <div class="pi-signed" id="pi_signed_badge" style="display:none" id="pi_signed_badge"></div>
+            <div class="pi-signed" id="pi_signed_badge" style="display:none"></div>
           </div>
+          </div><!-- /pi-summary-block -->
         </div>
       </div>
     </div>
@@ -2119,7 +2133,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.4.4";
+const APP_VERSION = "v8.4.5";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -4552,7 +4566,7 @@ function handleApprove(){
 let piAdditionalCharges=[];
 let piSignedBy=null, piSignedAt=null, piInvNum=null;
 let piRulesSeeded=false;
-let piSortCol="fecha", piSortDir="asc";
+let piSortCol="bnum", piSortDir="asc";
 
 function generateInvNum(){
   const now=new Date();
@@ -4668,15 +4682,22 @@ function renderPreInvoice(){
     if(el("pi_th_fecha")) el("pi_th_fecha").style.color=piSortCol==="fecha"?"var(--cyan)":"";
     let totalTbp=0, totalAmt=0;
     const tbody=el("pi_line_items");
+    const lastRowTbl=el("pi_last_row");
     if(tbody){
       tbody.innerHTML="";
+      if(lastRowTbl) lastRowTbl.innerHTML="";
       sortedApproved.forEach((e,i)=>{
         const{tm,tbp}=calcEntry(e);
         const amt=tarifaHr>0?parseFloat((tbp*tarifaHr).toFixed(2)):0;
         totalTbp+=tbp; totalAmt+=amt;
         const tr=document.createElement("tr");
         tr.innerHTML="<td>"+(i+1)+"</td><td>"+(e.bnum||"—")+"</td><td>"+(e.fecha||"—")+"</td><td>"+(e.piloto||"—")+"</td><td>"+fmt(tbp)+" hrs</td><td class='pi-amt"+(amt===0?" pi-zero":"")+"'>"+fmtCurrency(amt)+"</td>";
-        tbody.appendChild(tr);
+        // Last row goes into the summary block, rest into main tbody
+        if(i===sortedApproved.length-1 && lastRowTbl){
+          lastRowTbl.appendChild(tr);
+        } else {
+          tbody.appendChild(tr);
+        }
       });
     }
     if(el("pi_sub_hrs")) el("pi_sub_hrs").textContent=fmt(totalTbp)+" hrs";
@@ -4722,6 +4743,7 @@ function renderPiCharges(subtotal){
       // Manual charge: desc input (col 1-4), editable amount input (col 5), green amount+✕ (col 6)
       tr.innerHTML=
         '<td colspan="4" style="vertical-align:middle">'+
+          '<span class="pi-desc-print" style="font-family:var(--mono);font-size:11px;color:var(--text)">'+c.desc+'</span>'+
           '<input type="text" value="'+c.desc+'" placeholder="Description" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:4px 8px;font-size:11px;border-radius:2px;width:100%;font-family:var(--mono);box-sizing:border-box" data-ci="'+i+'" data-cf="desc">'+
         '</td>'+
         '<td style="vertical-align:middle;text-align:right">'+
@@ -6281,6 +6303,13 @@ async function loadBatchFromDB(id){
     try{ batchSourceFile=JSON.parse(batch.source_file||"[]"); }
     catch(e){ batchSourceFile=batch.source_file?batch.source_file.split(/,\s*/).filter(Boolean):[]; }
     reviewCycle=batch.cycle||1;
+    // Restore billing sign-off state
+    if(batch.approved_by){
+      piSignedBy=batch.approved_by;
+      piSignedAt=batch.approved_at?new Date(batch.approved_at).toLocaleString("es-PA"):null;
+    } else {
+      piSignedBy=null; piSignedAt=null;
+    }
     dbg("Batch loaded — id: "+currentBatchId+" status: "+batchStatus+" cycle: "+reviewCycle,"ok");
     const entries=await sbGet("entries","batch_id=eq."+currentBatchId+"&order=sort_order.asc");
     flEntries=(entries||[]).map((e,i)=>{
