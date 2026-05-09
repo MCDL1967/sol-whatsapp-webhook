@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.0 — built 2026-05-09 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.2 — built 2026-05-09 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1353,7 +1353,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
             <button class="btn-ghost" id="btn_clearApiKey">Clear</button>
           </div>
           <div class="settings-hint" id="st_apiHint">
-            Used for flight log PDF extraction. Stored in localStorage on this device — Admin sets once, persists until cleared or key expires. Get your key at console.anthropic.com
+            Used for flight log PDF extraction. Stored in the database — Admin sets once, available on all devices. Get your key at console.anthropic.com
           </div>
         </div>
       </div>
@@ -2143,7 +2143,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.5.0";
+const APP_VERSION = "v8.5.2";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2391,7 +2391,7 @@ const I18N = {
     csvDl:"↓ CSV downloaded.",xlsxDl:"↓ XLSX exported.",noAudit:"No activity yet.",
     wfUpload:"Upload",wfExtract:"Extract",wfReview:"Review",wfSubmit:"Submitted",wfApproved:"Approved",
     stTitle:"Settings",stApiTitle:"Anthropic API Key",stApiLabel:"API Key",
-    stApiHint:"Stored in localStorage on this device. Admin sets once, persists until cleared or expired. Get key at console.anthropic.com",
+    stApiHint:"Stored in the database — set once by Admin, available on all devices. Get your key at console.anthropic.com",
     saveKey:"Save Key",clearKey:"Clear",keySaved:"API key saved.",keyCleared:"API key cleared.",
     apiOk:"Configured",apiMissing:"Not configured",
     filesLoaded:"Files loaded — click Upload to begin",
@@ -2476,7 +2476,7 @@ const I18N = {
     csvDl:"↓ CSV descargado.",xlsxDl:"↓ XLSX exportado.",noAudit:"Sin actividad.",
     wfUpload:"Carga",wfExtract:"Extracción",wfReview:"Revisión",wfSubmit:"Enviado",wfApproved:"Aprobado",
     stTitle:"Configuración",stApiTitle:"API Key de Anthropic",stApiLabel:"API Key",
-    stApiHint:"Guardada en localStorage de este dispositivo. El Admin la configura una vez, persiste hasta que se borre o expire. Obtén tu key en console.anthropic.com",
+    stApiHint:"Almacenada en la base de datos — el Admin la configura una vez, disponible en todos los dispositivos. Obtén tu key en console.anthropic.com",
     saveKey:"Guardar Key",clearKey:"Limpiar",keySaved:"API key guardada.",keyCleared:"API key borrada.",
     apiOk:"Configurada",apiMissing:"No configurada",
     filesLoaded:"Archivos cargados — haz clic en Cargar para comenzar",
@@ -2734,7 +2734,7 @@ function _updateSpBottom(){
 function dbg(msg, type="info"){
   const panel=el("debugPanel"); if(!panel) return;
   // Only show panel if debug is enabled in settings
-  if(localStorage.getItem("hpfleet_debug")==="1"){
+  if(pref("debug")==="1"){
     panel.classList.add("on");
     _updateSpBottom();
   }
@@ -2874,8 +2874,7 @@ async function bootApp(){
   el("tbAvatar").textContent=initials(currentUser.name);
   el("tbAvatar").style.color=r.color;
   const vaw=el("viewAsWrap");
-  const viewAsSaved=localStorage.getItem("hpfleet_viewas_visible");
-  const viewAsOn=viewAsSaved===null?true:viewAsSaved==="1";
+  const viewAsOn=pref("viewas_visible")!=="0";
   if(vaw) vaw.style.display=(currentUser.role==="ADMIN"&&viewAsOn)?"flex":"none";
   if(el("viewAsRole")) el("viewAsRole").value="ADMIN";
   viewRole=null;
@@ -2889,6 +2888,7 @@ async function bootApp(){
   // Load API key from DB (centralized for all devices)
   await loadApiKeyFromDB();
   await loadAdminCcFromDB();
+  await loadUserPrefs();
   initDebugToggle();
   initAdminCcToggle();
   initViewAsToggle();
@@ -2965,7 +2965,67 @@ function renderRoleBanner(){
     "</div></div>";
 }
 
-// ── SETTINGS / API KEY ──
+// ── USER PREFS (DB-backed, per-user) ──
+// Replaces all hpfleet_* localStorage usage except hpfleet_remember_email (pre-login)
+const PREF_DEFAULTS={
+  debug:"0", viewas_visible:"1", stickyheaders:"1",
+  stickytabs:"1", rolebanner:"1", sp_width:"420px"
+};
+const PREF_LS_MAP={ // migration: old localStorage key → new pref key
+  hpfleet_debug:"debug", hpfleet_viewas_visible:"viewas_visible",
+  hpfleet_stickyheaders:"stickyheaders", hpfleet_stickytabs:"stickytabs",
+  hpfleet_rolebanner:"rolebanner", hpfleet_sp_width:"sp_width"
+};
+let _prefs={};
+
+async function loadUserPrefs(){
+  if(!currentUser) return;
+  try{
+    const rows=await sbGet("user_prefs","user_id=eq."+currentUser.id);
+    const dbMap={};
+    if(rows) rows.forEach(r=>{ dbMap[r.key]=r.value; });
+    // Migrate any existing localStorage values to DB (one-time, self-healing)
+    for(const [lsKey,prefKey] of Object.entries(PREF_LS_MAP)){
+      if(dbMap[prefKey]===undefined){
+        const lsVal=localStorage.getItem(lsKey);
+        const val=lsVal!==null?lsVal:PREF_DEFAULTS[prefKey];
+        await _upsertPref(prefKey,val);
+        dbMap[prefKey]=val;
+      }
+      localStorage.removeItem(lsKey);
+    }
+    _prefs=dbMap;
+    dbg("User prefs loaded ("+Object.keys(_prefs).length+" keys)","ok");
+  } catch(err){
+    dbg("User prefs load failed, using defaults: "+err.message,"warn");
+    // Fall back to localStorage values during this session only
+    for(const [lsKey,prefKey] of Object.entries(PREF_LS_MAP)){
+      const lsVal=localStorage.getItem(lsKey);
+      _prefs[prefKey]=lsVal!==null?lsVal:PREF_DEFAULTS[prefKey];
+    }
+  }
+}
+
+function pref(key){ return _prefs[key]!==undefined?_prefs[key]:PREF_DEFAULTS[key]; }
+
+async function setPref(key,val){
+  _prefs[key]=val;
+  await _upsertPref(key,val);
+}
+
+async function _upsertPref(key,val){
+  if(!currentUser) return;
+  try{
+    const existing=await sbGet("user_prefs","user_id=eq."+currentUser.id+"&key=eq."+key);
+    if(existing&&existing.length){
+      await sbPatch("user_prefs","user_id=eq."+currentUser.id+"&key=eq."+key,{value:val});
+    } else {
+      await sbPost("user_prefs",{user_id:currentUser.id,key,value:val});
+    }
+  } catch(err){ dbg("setPref error ("+key+"): "+err.message,"warn"); }
+}
+
+
 let _cachedApiKey="";
 
 async function loadApiKeyFromDB(){
@@ -2973,21 +3033,18 @@ async function loadApiKeyFromDB(){
     const rows=await sbGet("settings","key=eq.anthropic_api_key");
     if(rows&&rows.length&&rows[0].value){
       _cachedApiKey=rows[0].value;
-      localStorage.setItem("hpfleet_apikey",_cachedApiKey);
       dbg("API key loaded from DB","ok");
     } else {
-      // Fall back to localStorage
-      _cachedApiKey=localStorage.getItem("hpfleet_apikey")||"";
-      if(_cachedApiKey) dbg("API key loaded from localStorage","info");
+      _cachedApiKey="";
     }
   } catch(err){
-    _cachedApiKey=localStorage.getItem("hpfleet_apikey")||"";
-    dbg("API key DB load failed, using localStorage: "+err.message,"warn");
+    _cachedApiKey="";
+    dbg("API key DB load failed: "+err.message,"warn");
   }
   updateApiStatus();
 }
 
-function getApiKey(){ return _cachedApiKey||localStorage.getItem("hpfleet_apikey")||""; }
+function getApiKey(){ return _cachedApiKey||""; }
 
 async function loadAdminCcFromDB(){
   try{
@@ -3047,8 +3104,6 @@ async function saveApiKey(){
   const val=el("apiKeyInput").value.trim();
   if(!val||val.startsWith("•")){ showToast("Enter a valid API key","err"); return; }
   _cachedApiKey=val;
-  localStorage.setItem("hpfleet_apikey",val);
-  // Save to DB settings table
   try {
     await sbDelete("settings","key=eq.anthropic_api_key");
     await sbPost("settings",{key:"anthropic_api_key",value:val});
@@ -3061,7 +3116,6 @@ async function saveApiKey(){
 
 async function clearApiKey(){
   _cachedApiKey="";
-  localStorage.removeItem("hpfleet_apikey");
   try {
     await sbDelete("settings","key=eq.anthropic_api_key");
     dbg("API key cleared from DB","ok");
@@ -3534,13 +3588,13 @@ function initDebugToggle(){
   const check=el("debugToggleCheck");
   const label=el("debugToggleLabel");
   if(!check) return;
-  const saved=localStorage.getItem("hpfleet_debug")==="1";
+  const saved=pref("debug")==="1";
   check.checked=saved;
   if(label){ label.textContent=saved?"On":"Off"; label.style.color=saved?"var(--cyan)":"var(--dim2)"; }
   if(saved) el("debugPanel").classList.add("on");
-  check.addEventListener("change",function(){
+  check.addEventListener("change",async function(){
     const on=this.checked;
-    localStorage.setItem("hpfleet_debug",on?"1":"0");
+    await setPref("debug",on?"1":"0");
     if(label){ label.textContent=on?"On":"Off"; label.style.color=on?"var(--cyan)":"var(--dim2)"; }
     if(on){ el("debugPanel").classList.add("on"); _updateSpBottom(); }
     else{ el("debugPanel").classList.remove("on"); _updateSpBottom(); }
@@ -3565,15 +3619,14 @@ function initViewAsToggle(){
   const check=el("viewAsToggleCheck");
   const label=el("viewAsToggleLabel");
   if(!check) return;
-  const saved=localStorage.getItem("hpfleet_viewas_visible");
-  const on=saved===null?true:saved==="1";
+  const on=pref("viewas_visible")!=="0";
   check.checked=on;
   if(label){ label.textContent=on?(lang==="es"?"Activo":"On"):(lang==="es"?"Inactivo":"Off"); label.style.color=on?"var(--cyan)":"var(--dim2)"; }
   const vaw=el("viewAsWrap");
   if(vaw&&currentUser&&currentUser.role==="ADMIN") vaw.style.display=on?"flex":"none";
-  check.addEventListener("change",function(){
+  check.addEventListener("change",async function(){
     const on=this.checked;
-    localStorage.setItem("hpfleet_viewas_visible",on?"1":"0");
+    await setPref("viewas_visible",on?"1":"0");
     if(label){ label.textContent=on?(lang==="es"?"Activo":"On"):(lang==="es"?"Inactivo":"Off"); label.style.color=on?"var(--cyan)":"var(--dim2)"; }
     const vaw=el("viewAsWrap");
     if(vaw&&currentUser&&currentUser.role==="ADMIN") vaw.style.display=on?"flex":"none";
@@ -3593,14 +3646,13 @@ function initStickyHeadersToggle(){
   const check=el("stickyHeadersToggleCheck");
   const label=el("stickyHeadersToggleLabel");
   if(!check) return;
-  const saved=localStorage.getItem("hpfleet_stickyheaders");
-  const on=saved===null?true:saved==="1";
+  const on=pref("stickyheaders")!=="0";
   check.checked=on;
   if(label){ label.textContent=on?"On":"Off"; label.style.color=on?"var(--cyan)":"var(--dim2)"; }
   _applyStickyHeaders(on);
-  check.addEventListener("change",function(){
+  check.addEventListener("change",async function(){
     const isOn=this.checked;
-    localStorage.setItem("hpfleet_stickyheaders",isOn?"1":"0");
+    await setPref("stickyheaders",isOn?"1":"0");
     if(label){ label.textContent=isOn?"On":"Off"; label.style.color=isOn?"var(--cyan)":"var(--dim2)"; }
     _applyStickyHeaders(isOn);
   });
@@ -3616,14 +3668,13 @@ function initStickyTabsToggle(){
   const check=el("stickyTabsToggleCheck");
   const label=el("stickyTabsToggleLabel");
   if(!check) return;
-  const saved=localStorage.getItem("hpfleet_stickytabs");
-  const on=saved===null?true:saved==="1";
+  const on=pref("stickytabs")!=="0";
   check.checked=on;
   if(label){ label.textContent=on?"On":"Off"; label.style.color=on?"var(--cyan)":"var(--dim2)"; }
   _applyStickyTabs(on);
-  check.addEventListener("change",function(){
+  check.addEventListener("change",async function(){
     const isOn=this.checked;
-    localStorage.setItem("hpfleet_stickytabs",isOn?"1":"0");
+    await setPref("stickytabs",isOn?"1":"0");
     if(label){ label.textContent=isOn?"On":"Off"; label.style.color=isOn?"var(--cyan)":"var(--dim2)"; }
     _applyStickyTabs(isOn);
   });
@@ -3637,15 +3688,14 @@ function initRoleBannerToggle(){
   const check=el("roleBannerToggleCheck");
   const label=el("roleBannerToggleLabel");
   if(!check) return;
-  const saved=localStorage.getItem("hpfleet_rolebanner");
-  const on=saved===null?true:saved==="1"; // default on
+  const on=pref("rolebanner")!=="0";
   check.checked=on;
   if(label){ label.textContent=on?"On":"Off"; label.style.color=on?"var(--cyan)":"var(--dim2)"; }
   const banner=el("roleBanner");
   if(banner) banner.style.display=on?"":"none";
-  check.addEventListener("change",function(){
+  check.addEventListener("change",async function(){
     const isOn=this.checked;
-    localStorage.setItem("hpfleet_rolebanner",isOn?"1":"0");
+    await setPref("rolebanner",isOn?"1":"0");
     if(label){ label.textContent=isOn?"On":"Off"; label.style.color=isOn?"var(--cyan)":"var(--dim2)"; }
     const b=el("roleBanner");
     if(b) b.style.display=isOn?"":"none";
@@ -4275,8 +4325,7 @@ function renderFlTable(){
   if(el("ptab_count")) el("ptab_count").textContent=flEntries.length;
   updateFlSummary(); runHoroChecks();
   // Re-apply sticky headers preference after re-render
-  const _sh=localStorage.getItem("hpfleet_stickyheaders");
-  _applyStickyHeaders(_sh===null?true:_sh==="1");
+  _applyStickyHeaders(pref("stickyheaders")!=="0");
   updateApproveAllBtn();
 }
 
@@ -5606,7 +5655,7 @@ function openSidePanel(entryIdOrFileIdx, isEntryId=false){
   if(el("spToggleLabel")) el("spToggleLabel").textContent="Panel Open";
   if(el("spTableToggle")) el("spTableToggle").style.color="var(--cyan)";
   // Push page content left by padding appShell — panel is fixed, this yields the space
-  const savedW=localStorage.getItem("hpfleet_sp_width");
+  const savedW=pref("sp_width");
   const maxW=Math.floor(window.innerWidth*0.5);
   if(savedW){
     const clamped=Math.min(parseInt(savedW),maxW);
@@ -6225,7 +6274,7 @@ function initNbDropZone(){
   const zone=el("nb_uploadZone");
   const input=el("nb_fileInput");
   if(!zone||!input) return;
-  zone.addEventListener("click",()=>input.click());
+  zone.addEventListener("click",e=>{e.stopPropagation();input.click();});
   zone.addEventListener("dragover",e=>{e.preventDefault();zone.classList.add("dragover");});
   zone.addEventListener("dragleave",()=>zone.classList.remove("dragover"));
   zone.addEventListener("drop",e=>{
@@ -7384,7 +7433,7 @@ function wireEvents(){
     }
     function stopResize(){
       const w=Math.min(parseInt(panel.style.width)||420,Math.floor(window.innerWidth*0.5));
-      localStorage.setItem("hpfleet_sp_width",w+"px");
+      setPref("sp_width",w+"px");
       document.removeEventListener("mousemove",onResize);
       document.removeEventListener("mouseup",stopResize);
     }
@@ -7505,13 +7554,7 @@ async function init(){
   document.title="HP Fleet "+APP_VERSION;
   if(el("versionBadge")) el("versionBadge").textContent=APP_VERSION;
   if(el("versionBadgeNav")) el("versionBadgeNav").textContent=APP_VERSION;
-  // Sanitize stale panel width — clamp to 50% viewport on load
-  const _savedPW=localStorage.getItem("hpfleet_sp_width");
-  if(_savedPW){
-    const _maxPW=Math.floor(window.innerWidth*0.5);
-    const _clamped=Math.min(parseInt(_savedPW)||420,_maxPW);
-    if(_clamped!==parseInt(_savedPW)) localStorage.setItem("hpfleet_sp_width",_clamped+"px");
-  }
+  // Sanitize stale panel width — handled after login via pref() / loadUserPrefs()
   await seedIfEmpty();
   await loadMasterData();
   if(el("viewAsRole")) el("viewAsRole").value="ADMIN";
