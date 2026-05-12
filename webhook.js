@@ -1,11 +1,19 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v14.0.3
-Date: 2026-04-30
+Version: v14.0.4
+Date: 2026-05-11
 Role: WhatsApp ↔ Voiceflow middleware webhook with V14 Fast Path trial
 Status: trial hybrid diagnostic candidate
 Base: webhook.v13.1.31.js
+
+This version adds (v14.0.4):
+- preserves selected restaurant during reservation continuation when the guest is already inside restaurant follow-up context
+- adds restaurant-context handoff guidance so downstream AI / Voiceflow does not re-ask which restaurant unless the guest explicitly changes venue
+- protects restaurant follow-up turns such as `reservation`, `reserve`, `book`, `reserva`, and `reservar` from generic reservation override
+- remains compatible with future branch-by-branch menu-tree population by keeping the new parsing/menu logic in menu-driven Fast Path files rather than baking restaurant-only branching into the webhook
+- does not add full reservation closure in middleware
+- does not change language-gate behavior or mixed-language reply policy
 
 This version adds (v14.0.3):
 - preserves all v14.0.2 diagnostics
@@ -1169,13 +1177,39 @@ function extractReservationVenue(text = "", session = null) {
 function extractReservationDetailContext(text = "", session = null) {
   const requestedClockTime = parseRequestedClockTime(text);
   const partySize = extractReservationPartySize(text);
-  const venue = extractReservationVenue(text, session);
+
+  let venue = extractReservationVenue(text, session);
+
+  if (
+    !venue &&
+    session?.fast_path_context === "restaurant_followup_menu" &&
+    session?.selected_restaurant
+  ) {
+    venue = extractKnownReservationVenue(session.selected_restaurant);
+  }
 
   return {
     service_time: requestedClockTime?.hhmm_24 || null,
     party_size: partySize || null,
     venue_or_department: venue || null
   };
+}
+
+function buildRestaurantReservationHandoffPrefix(session = null, userText = "", detectedIntent = null) {
+  if (!session?.selected_restaurant) return "";
+  if (session?.fast_path_context !== "restaurant_followup_menu") return "";
+
+  const normalizedText = normalizeText(userText);
+
+  const hasReservationIntent =
+    detectedIntent === "reservation" ||
+    shouldActivateReservation(userText, session) ||
+    session?.active_request?.type === "reservation" ||
+    ["reservation", "reserve", "book", "reserva", "reservacion", "reservación", "reservar"].includes(normalizedText);
+
+  if (!hasReservationIntent) return "";
+
+  return `[[RESTAURANT CONTEXT: Selected venue is ${session.selected_restaurant}. Do NOT ask which restaurant unless the guest explicitly changes venue. Carry this venue forward for reservation handling.]] `;
 }
 
 function hasReservationDetailContextPatch(patch = {}) {
@@ -2377,7 +2411,13 @@ app.post("/webhook", async (req, res) => {
     const menuCommand = detectMenuCommand(userText);
     const exitCommand = detectExitCommand(userText);
     const greetingReentry = isGreetingReentry(userText);
-    const detectedIntent = detectIntent(userText, session.active_request?.type || null);
+    let detectedIntent = detectIntent(userText, session.active_request?.type || null);
+    if (  
+        session.fast_path_context === "restaurant_followup_menu" &&
+        ["reservation", "reserve", "book", "reserva", "reservacion", "reservación", "reservar"].includes(normalizeText(userText))
+    ) {
+        detectedIntent = null;
+    }      
 
     await runLogsHook(
       "captureInboundMessage",
@@ -2897,6 +2937,17 @@ app.post("/webhook", async (req, res) => {
     } else if (exitCommand) {
       forwardedText = "goodbye";
     }
+    
+    const restaurantReservationHandoffPrefix = buildRestaurantReservationHandoffPrefix(
+      sessions[userID],
+      userText,
+      detectedIntent
+    );
+    
+    if (restaurantReservationHandoffPrefix) {
+      forwardedText = `${restaurantReservationHandoffPrefix}${forwardedText}`;
+    }
+    let forwardedText = userText;
 
     const lockedResponseLanguage = exitCommand
       ? null
