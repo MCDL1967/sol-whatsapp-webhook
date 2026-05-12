@@ -1,10 +1,10 @@
 {
   "file": "response_templates.json",
-  "version": "v14.0.2",
+  "version": "v14.0.4",
   "date": "2026-05-11",
   "role": "Response templates for SOL V14 Fast Path trial",
   "status": "trial_dynamic_templates",
-  "design_note": "Templates are additive and menu-tree friendly. Branch-specific wording can continue to expand from the KB without changing shared middleware logic.",
+  "design_note": "Templates are additive and menu-tree friendly. Branch-specific wording can continue to expand from the KB without changing shared middleware logic. Loyalty wording must remain limited to KB-safe general guidance and escalation boundaries.",
   
   "restaurant_intro_en": "Sure — I can help with dining. Do you already know where you'd like to go? You can say the restaurant name or type LIST to see all options.",
   "restaurant_intro_es": "Claro — puedo ayudarte con restaurantes. ¿Ya sabes dónde quieres ir? Puedes decir el nombre del restaurante o escribir LISTA para ver todas las opciones.",
@@ -27,9 +27,18 @@
   "restaurant_escalation_existing_change_vip_group_en": "For existing reservation changes or cancellations, VIP services, private dining, large groups, or other special arrangements, staff support is required. I can route this to Guest Services or Reservations.",
   "restaurant_escalation_existing_change_vip_group_es": "Para cambios o cancelaciones de reservaciones existentes, servicios VIP, dining privado, grupos grandes u otros arreglos especiales, se requiere apoyo del personal. Puedo dirigir esto a Guest Services o Reservations.",
 
-  "loyalty_intro_en": "Sure — I can help with loyalty, rewards, and points. Reply with a number:\n\n1. Program and enrollment\n2. Points, rewards, and tiers\n3. Account-specific help",
-  "loyalty_intro_es": "Claro — puedo ayudarte con lealtad, recompensas y puntos. Responde con un número:\n\n1. Programa e inscripción\n2. Puntos, recompensas y niveles\n3. Ayuda con la cuenta",
-  
+  "loyalty_intro_en": "Sure — I can help with loyalty and points. Reply with a number:\n1. Program information\n2. Points and rewards information\n3. Account-specific issue",
+  "loyalty_intro_es": "Claro — puedo ayudarte con lealtad y puntos. Responde con un número:\n1. Información del programa\n2. Información sobre puntos y recompensas\n3. Asunto específico de la cuenta",
+
+  "loyalty_program_info_en": "I can help with general information about the loyalty program. For official current program details, I can share the general information available here or direct you to staff if needed.",
+  "loyalty_program_info_es": "Puedo ayudarte con información general sobre el programa de lealtad. Para detalles oficiales y actuales del programa, puedo compartir la información general disponible aquí o dirigirte al personal si es necesario.",
+
+  "loyalty_rewards_points_info_en": "I can help with general information about points and rewards. For account-specific balances, missing points, tier status, or account-specific rewards, staff assistance is required.",
+  "loyalty_rewards_points_info_es": "Puedo ayudarte con información general sobre puntos y recompensas. Para saldos específicos, puntos faltantes, estado de nivel o recompensas específicas de la cuenta, se requiere ayuda del personal.",
+
+  "loyalty_account_issue_en": "For account-specific issues such as point balances, missing points, tier status, or account-specific rewards, staff handling is required.",
+  "loyalty_account_issue_es": "Para asuntos específicos de la cuenta, como saldo de puntos, puntos faltantes, estado de nivel o recompensas específicas de la cuenta, se requiere atención del personal.",
+
   "shows_intro_en": "Sure — I can help with shows and live entertainment.",
   "shows_intro_es": "Claro — puedo ayudarte con shows y entretenimiento en vivo.",
   
