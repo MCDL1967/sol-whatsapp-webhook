@@ -2947,7 +2947,6 @@ app.post("/webhook", async (req, res) => {
     if (restaurantReservationHandoffPrefix) {
       forwardedText = `${restaurantReservationHandoffPrefix}${forwardedText}`;
     }
-    let forwardedText = userText;
 
     const lockedResponseLanguage = exitCommand
       ? null
