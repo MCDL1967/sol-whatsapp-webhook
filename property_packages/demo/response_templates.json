@@ -1,27 +1,44 @@
 {
   "file": "response_templates.json",
   "version": "v14.0.2",
-  "date": "2026-05-07",
+  "date": "2026-05-11",
   "role": "Response templates for SOL V14 Fast Path trial",
   "status": "trial_dynamic_templates",
+  "design_note": "Templates are additive and menu-tree friendly. Branch-specific wording can continue to expand from the KB without changing shared middleware logic.",
+  
   "restaurant_intro_en": "Sure — I can help with dining. Do you already know where you'd like to go? You can say the restaurant name or type LIST to see all options.",
   "restaurant_intro_es": "Claro — puedo ayudarte con restaurantes. ¿Ya sabes dónde quieres ir? Puedes decir el nombre del restaurante o escribir LISTA para ver todas las opciones.",
-
+  
   "restaurant_list_en": "Here are the on-property dining venues I have available:\n\n{{list}}\n\nWhich would you like to reserve? You can reply with the restaurant name or a number to choose one.",
   "restaurant_list_es": "Aquí tienes la lista completa de restaurantes y bares disponibles en la propiedad:\n\n{{list}}\n\n¿En cuál te gustaría hacer una reservación? Puedes responder con el nombre del lugar o con el número.",
-
+  
   "restaurant_selection_confirm_en": "Great — you selected {{restaurant_name}}.\n\nReply with a number:\n1. Venue information\n2. New reservation request\n3. Existing reservation, VIP, group, or special request",
   "restaurant_selection_confirm_es": "Perfecto — seleccionaste {{restaurant_name}}.\n\nResponde con un número:\n1. Información del lugar\n2. Nueva solicitud de reservación\n3. Reservación existente, VIP, grupo o solicitud especial",
-
+  
   "restaurant_selection_invalid_en": "I couldn’t match that restaurant selection. Please reply with a valid restaurant name or number from the list, or type LIST to see the options again.",
   "restaurant_selection_invalid_es": "No pude identificar esa selección de restaurante. Responde con un nombre válido o con un número de la lista, o escribe LISTA para ver las opciones otra vez.",
-
-  "restaurant_venue_info_en": "{{restaurant_name}} is a {{type}}. {{short_description}}. {{reservation_note_sentence}} {{hours_sentence}}",
-  "restaurant_venue_info_es": "{{restaurant_name}} es un {{type}}. {{short_description}}. {{reservation_note_sentence}} {{hours_sentence}}",
-
-  "restaurant_new_reservation_prompt_en": "For a new reservation at {{restaurant_name}}, please send these details in one message:\n- date\n- time\n- number of guests\n- special requests if any\n\nDinner reservations are recommended, and walk-ins depend on availability. Groups larger than 8 should reserve in advance.",
-  "restaurant_new_reservation_prompt_es": "Para una nueva reservación en {{restaurant_name}}, envíame estos datos en un solo mensaje:\n- fecha\n- hora\n- número de personas\n- solicitudes especiales si aplica\n\nLas reservaciones para la cena son recomendadas y los walk-ins dependen de disponibilidad. Los grupos mayores de 8 personas deben reservar con anticipación.",
-
+  
+  "restaurant_venue_info_en": "{{restaurant_name}} is {{short_description}}. Exact outlet hours are not currently configured in runtime data. For live confirmation or today's hours, Guest Services can help.",
+  "restaurant_venue_info_es": "{{restaurant_name}} es {{short_description}}. Los horarios exactos no están configurados actualmente en el runtime. Para confirmación en tiempo real o el horario de hoy, Guest Services puede ayudarte.",
+  
+  "restaurant_new_reservation_prompt_en": "For a new reservation at {{restaurant_name}}, please send these details in one message:\n- date\n- time\n- number of guests\n- special requests if any",
+  "restaurant_new_reservation_prompt_es": "Para una nueva reservación en {{restaurant_name}}, envíame estos datos en un solo mensaje:\n- fecha\n- hora\n- número de personas\n- solicitudes especiales si aplica",
+  
   "restaurant_escalation_existing_change_vip_group_en": "For existing reservation changes or cancellations, VIP services, private dining, large groups, or other special arrangements, staff support is required. I can route this to Guest Services or Reservations.",
-  "restaurant_escalation_existing_change_vip_group_es": "Para cambios o cancelaciones de reservaciones existentes, servicios VIP, dining privado, grupos grandes u otros arreglos especiales, se requiere apoyo del personal. Puedo dirigir esto a Guest Services o Reservations."
+  "restaurant_escalation_existing_change_vip_group_es": "Para cambios o cancelaciones de reservaciones existentes, servicios VIP, dining privado, grupos grandes u otros arreglos especiales, se requiere apoyo del personal. Puedo dirigir esto a Guest Services o Reservations.",
+
+  "loyalty_intro_en": "Sure — I can help with loyalty, rewards, and points. Reply with a number:\n\n1. Program and enrollment\n2. Points, rewards, and tiers\n3. Account-specific help",
+  "loyalty_intro_es": "Claro — puedo ayudarte con lealtad, recompensas y puntos. Responde con un número:\n\n1. Programa e inscripción\n2. Puntos, recompensas y niveles\n3. Ayuda con la cuenta",
+  
+  "shows_intro_en": "Sure — I can help with shows and live entertainment.",
+  "shows_intro_es": "Claro — puedo ayudarte con shows y entretenimiento en vivo.",
+  
+  "gaming_intro_en": "Sure — I can help with gaming information.",
+  "gaming_intro_es": "Claro — puedo ayudarte con información de juegos.",
+  
+  "general_info_intro_en": "Sure — I can help with general property information.",
+  "general_info_intro_es": "Claro — puedo ayudarte con información general de la propiedad.",
+  
+  "complaints_intro_en": "I can help route complaints, disputes, and urgent guest-support issues.",
+  "complaints_intro_es": "Puedo ayudarte a dirigir quejas, disputas y asuntos urgentes de apoyo al huésped."
 }
