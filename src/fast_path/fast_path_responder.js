@@ -1,15 +1,18 @@
 /*
 File: fast_path_responder.js
-Version: v14.0.1
+Version: v14.0.3
 Date: 2026-05-11
 Role: Fast Path responder using property data
-Status: upgraded for restaurant continuation layer without narrowing future menu-tree population
+Status: upgraded for restaurant continuation layer and loyalty branch population
 
 This version changes:
 - preserves dynamic restaurant list rendering from property data
 - preserves selected restaurant in session for downstream continuity
-- adds restaurant follow-up submenu handling
+- preserves restaurant follow-up submenu handling
+- aligns top-level entry to the approved 6-branch menu tree
+- adds loyalty branch handling at the approved next useful tree level
 - keeps response logic branch-local and additive so future KB population can continue branch by branch
+- loyalty responses remain limited to KB-safe general guidance and escalation boundaries
 */
 
 function getSelectableRestaurants(propertyMasterData) {
@@ -93,6 +96,14 @@ function buildResponse({ result, session, propertyData }) {
       : responseTemplates.restaurant_intro_en;
   }
 
+  if (result.type === "menu_selection" && result.key === "loyalty_rewards") {
+    session.fast_path_context = "loyalty_rewards_menu";
+
+    return language === "es"
+      ? responseTemplates.loyalty_intro_es
+      : responseTemplates.loyalty_intro_en;
+  }
+
   if (result.type === "restaurant_list") {
     const list = buildRestaurantList(propertyMasterData, language);
     const template = language === "es"
@@ -162,6 +173,26 @@ function buildResponse({ result, session, propertyData }) {
       return language === "es"
         ? responseTemplates.restaurant_escalation_existing_change_vip_group_es
         : responseTemplates.restaurant_escalation_existing_change_vip_group_en;
+    }
+  }
+
+  if (result.type === "loyalty_selection") {
+    if (result.key === "program_info") {
+      return language === "es"
+        ? responseTemplates.loyalty_program_info_es
+        : responseTemplates.loyalty_program_info_en;
+    }
+
+    if (result.key === "rewards_points_info") {
+      return language === "es"
+        ? responseTemplates.loyalty_rewards_points_info_es
+        : responseTemplates.loyalty_rewards_points_info_en;
+    }
+
+    if (result.key === "account_specific_issue") {
+      return language === "es"
+        ? responseTemplates.loyalty_account_issue_es
+        : responseTemplates.loyalty_account_issue_en;
     }
   }
 
