@@ -1,6 +1,6 @@
 {
   "file": "menu_dictionary.json",
-  "version": "v14.0.3",
+  "version": "v14.0.5",
   "date": "2026-05-11",
   "role": "Menu dictionary and lookup map for SOL V14 Fast Path trial",
   "status": "trial_demo_data_from_kb",
@@ -10,69 +10,53 @@
       "context": "main_menu",
       "display_order": [
         "restaurants",
-        "shows_events",
-        "spa_fitness_pool",
-        "transportation_parking",
         "loyalty_rewards",
+        "shows_events",
         "casino_gaming",
-        "promotions_tournaments",
-        "guest_help"
+        "general_information",
+        "complaints"
       ],
       "options": {
         "restaurants": {
           "number": 1,
-          "label_en": "Restaurants, bars, and dining reservations",
-          "label_es": "Restaurantes, bares y reservaciones",
+          "label_en": "Restaurant reservations",
+          "label_es": "Reservaciones de restaurantes",
           "next_context": "restaurants_menu",
           "target_file": "dining_bars_guest_guide.txt"
         },
-        "shows_events": {
-          "number": 2,
-          "label_en": "Shows, events, and entertainment",
-          "label_es": "Shows, eventos y entretenimiento",
-          "next_context": "shows_events_menu",
-          "target_file": "shows_events_guest_guide.txt"
-        },
-        "spa_fitness_pool": {
-          "number": 3,
-          "label_en": "Spa, fitness, and pool",
-          "label_es": "Spa, gimnasio y piscina",
-          "next_context": "spa_fitness_pool_menu",
-          "target_file": "spa_fitness_pool_guest_guide.txt"
-        },
-        "transportation_parking": {
-          "number": 4,
-          "label_en": "Transportation and parking",
-          "label_es": "Transporte y estacionamiento",
-          "next_context": "transportation_parking_menu",
-          "target_file": "transportation_parking_guest_guide.txt"
-        },
         "loyalty_rewards": {
-          "number": 5,
-          "label_en": "Loyalty, rewards, points, and comps",
-          "label_es": "Lealtad, recompensas, puntos y cortesías",
+          "number": 2,
+          "label_en": "Loyalty and points",
+          "label_es": "Lealtad y puntos",
           "next_context": "loyalty_rewards_menu",
           "target_file": "loyalty_rewards_guest_guide.txt"
         },
+        "shows_events": {
+          "number": 3,
+          "label_en": "Shows & live entertainment",
+          "label_es": "Shows y entretenimiento en vivo",
+          "next_context": "shows_events_menu",
+          "target_file": "shows_events_guest_guide.txt"
+        },
         "casino_gaming": {
-          "number": 6,
-          "label_en": "Casino games, sportsbook, and poker",
-          "label_es": "Juegos de casino, apuestas deportivas y póker",
+          "number": 4,
+          "label_en": "Gaming information",
+          "label_es": "Información de juegos",
           "next_context": "casino_gaming_menu",
           "target_file": "gaming_guest_guide.txt"
         },
-        "promotions_tournaments": {
-          "number": 7,
-          "label_en": "Promotions and tournaments",
-          "label_es": "Promociones y torneos",
-          "next_context": "promotions_tournaments_menu",
-          "target_file": "promotions_tournaments_guest_guide.txt"
+        "general_information": {
+          "number": 5,
+          "label_en": "General information",
+          "label_es": "Información general",
+          "next_context": "general_information_menu",
+          "target_file": "property_hotel_guest_guide.txt"
         },
-        "guest_help": {
-          "number": 8,
-          "label_en": "Guest help, complaints, safety, or lost and found",
-          "label_es": "Ayuda al huésped, quejas, seguridad u objetos perdidos",
-          "next_context": "guest_help_menu",
+        "complaints": {
+          "number": 6,
+          "label_en": "Complaints",
+          "label_es": "Quejas",
+          "next_context": "complaints_menu",
           "target_file": "complaints_disputes_guest_help_guide.txt"
         }
       },
@@ -81,76 +65,47 @@
         "restaurant": "restaurants",
         "restaurants": "restaurants",
         "dining": "restaurants",
-        "food": "restaurants",
         "restaurante": "restaurants",
         "restaurantes": "restaurants",
-        "comida": "restaurants",
 
-        "2": "shows_events",
-        "show": "shows_events",
-        "shows": "shows_events",
-        "event": "shows_events",
-        "events": "shows_events",
-        "entertainment": "shows_events",
-        "evento": "shows_events",
-        "eventos": "shows_events",
-        "entretenimiento": "shows_events",
-
-        "3": "spa_fitness_pool",
-        "spa": "spa_fitness_pool",
-        "gym": "spa_fitness_pool",
-        "fitness": "spa_fitness_pool",
-        "pool": "spa_fitness_pool",
-        "gimnasio": "spa_fitness_pool",
-        "piscina": "spa_fitness_pool",
-
-        "4": "transportation_parking",
-        "transport": "transportation_parking",
-        "transportation": "transportation_parking",
-        "parking": "transportation_parking",
-        "airport ride": "transportation_parking",
-        "transporte": "transportation_parking",
-        "estacionamiento": "transportation_parking",
-
-        "5": "loyalty_rewards",
+        "2": "loyalty_rewards",
         "loyalty": "loyalty_rewards",
-        "rewards": "loyalty_rewards",
         "points": "loyalty_rewards",
-        "comps": "loyalty_rewards",
+        "rewards": "loyalty_rewards",
+        "loyalty and points": "loyalty_rewards",
+        "players club": "loyalty_rewards",
+        "player's club": "loyalty_rewards",
         "club card": "loyalty_rewards",
         "lealtad": "loyalty_rewards",
         "puntos": "loyalty_rewards",
         "recompensas": "loyalty_rewards",
 
-        "6": "casino_gaming",
-        "casino": "casino_gaming",
+        "3": "shows_events",
+        "show": "shows_events",
+        "shows": "shows_events",
+        "entertainment": "shows_events",
+        "evento": "shows_events",
+        "eventos": "shows_events",
+        "entretenimiento": "shows_events",
+
+        "4": "casino_gaming",
         "gaming": "casino_gaming",
+        "casino": "casino_gaming",
         "games": "casino_gaming",
-        "sportsbook": "casino_gaming",
-        "poker": "casino_gaming",
         "juegos": "casino_gaming",
-        "apuestas": "casino_gaming",
 
-        "7": "promotions_tournaments",
-        "promotion": "promotions_tournaments",
-        "promotions": "promotions_tournaments",
-        "tournament": "promotions_tournaments",
-        "tournaments": "promotions_tournaments",
-        "promocion": "promotions_tournaments",
-        "promociones": "promotions_tournaments",
-        "torneos": "promotions_tournaments",
+        "5": "general_information",
+        "general information": "general_information",
+        "hotel": "general_information",
+        "property": "general_information",
+        "informacion general": "general_information",
+        "información general": "general_information",
 
-        "8": "guest_help",
-        "help": "guest_help",
-        "complaint": "guest_help",
-        "complaints": "guest_help",
-        "security": "guest_help",
-        "lost and found": "guest_help",
-        "ayuda": "guest_help",
-        "queja": "guest_help",
-        "quejas": "guest_help",
-        "seguridad": "guest_help",
-        "objetos perdidos": "guest_help"
+        "6": "complaints",
+        "complaint": "complaints",
+        "complaints": "complaints",
+        "queja": "complaints",
+        "quejas": "complaints"
       }
     },
 
@@ -337,6 +292,71 @@
         "grupo": "existing_change_vip_group",
         "privado": "existing_change_vip_group",
         "solicitud especial": "existing_change_vip_group"
+      },
+      "choice_aliases": {
+        "1": ["1", "#1", "one", "uno", "option 1", "opcion 1", "opción 1"],
+        "2": ["2", "#2", "two", "dos", "option 2", "opcion 2", "opción 2"],
+        "3": ["3", "#3", "three", "tres", "option 3", "opcion 3", "opción 3"]
+      }
+    },
+
+    "loyalty_rewards_menu": {
+      "context": "loyalty_rewards_menu",
+      "display_order": [
+        "program_info",
+        "rewards_points_info",
+        "account_specific_issue"
+      ],
+      "options": {
+        "program_info": {
+          "number": 1,
+          "label_en": "Program information",
+          "label_es": "Información del programa"
+        },
+        "rewards_points_info": {
+          "number": 2,
+          "label_en": "Points and rewards information",
+          "label_es": "Información sobre puntos y recompensas"
+        },
+        "account_specific_issue": {
+          "number": 3,
+          "label_en": "Account-specific issue",
+          "label_es": "Asunto específico de la cuenta"
+        }
+      },
+      "lookup": {
+        "1": "program_info",
+        "program information": "program_info",
+        "program info": "program_info",
+        "program": "program_info",
+        "loyalty program": "program_info",
+        "players club": "program_info",
+        "player's club": "program_info",
+        "club card": "program_info",
+        "informacion del programa": "program_info",
+        "información del programa": "program_info",
+        "programa": "program_info",
+
+        "2": "rewards_points_info",
+        "points": "rewards_points_info",
+        "rewards": "rewards_points_info",
+        "points and rewards": "rewards_points_info",
+        "puntos": "rewards_points_info",
+        "recompensas": "rewards_points_info",
+
+        "3": "account_specific_issue",
+        "account": "account_specific_issue",
+        "account issue": "account_specific_issue",
+        "missing points": "account_specific_issue",
+        "point balance": "account_specific_issue",
+        "tier status": "account_specific_issue",
+        "account-specific issue": "account_specific_issue",
+        "cuenta": "account_specific_issue",
+        "problema con la cuenta": "account_specific_issue",
+        "puntos faltantes": "account_specific_issue",
+        "saldo de puntos": "account_specific_issue",
+        "estatus de nivel": "account_specific_issue",
+        "estado de nivel": "account_specific_issue"
       },
       "choice_aliases": {
         "1": ["1", "#1", "one", "uno", "option 1", "opcion 1", "opción 1"],
