@@ -1,10 +1,10 @@
 {
   "file": "menu_dictionary.json",
-  "version": "v14.0.1",
-  "date": "2026-05-07",
+  "version": "v14.0.3",
+  "date": "2026-05-11",
   "role": "Menu dictionary and lookup map for SOL V14 Fast Path trial",
   "status": "trial_demo_data_from_kb",
-  "design_rule": "Menus use display_order arrays for presentation and lookup dictionaries for deterministic selection.",
+  "design_rule": "Menus use display_order arrays for presentation and lookup dictionaries for deterministic selection. Choice aliases remain menu-driven so the same parsing pattern can later be reused across other populated branches.",
   "menus": {
     "main_menu": {
       "context": "main_menu",
@@ -256,7 +256,16 @@
       },
       "list_triggers": {
         "en": ["list", "show me", "all restaurants", "all dining", "options"],
-        "es": ["lista", "muéstrame", "mostrar", "todos", "opciones"]
+        "es": ["lista", "muéstrame", "mostrar", "todos", "opciones", "dame la lista"]
+      },
+      "choice_aliases": {
+        "1": ["1", "#1", "one", "uno", "option 1", "opcion 1", "opción 1"],
+        "2": ["2", "#2", "two", "dos", "option 2", "opcion 2", "opción 2"],
+        "3": ["3", "#3", "three", "tres", "option 3", "opcion 3", "opción 3"],
+        "4": ["4", "#4", "four", "cuatro", "option 4", "opcion 4", "opción 4"],
+        "5": ["5", "#5", "five", "cinco", "option 5", "opcion 5", "opción 5"],
+        "6": ["6", "#6", "six", "seis", "option 6", "opcion 6", "opción 6"],
+        "7": ["7", "#7", "seven", "siete", "option 7", "opcion 7", "opción 7"]
       }
     },
 
@@ -291,7 +300,6 @@
         "details": "venue_info",
         "hours": "venue_info",
         "location": "venue_info",
-        "room service": "venue_info",
         "informacion": "venue_info",
         "información": "venue_info",
         "detalles": "venue_info",
@@ -305,6 +313,7 @@
         "book": "new_reservation",
         "reserve": "new_reservation",
         "new reservation": "new_reservation",
+        "reserva": "new_reservation",
         "reservacion": "new_reservation",
         "reservación": "new_reservation",
         "reservar": "new_reservation",
@@ -328,6 +337,11 @@
         "grupo": "existing_change_vip_group",
         "privado": "existing_change_vip_group",
         "solicitud especial": "existing_change_vip_group"
+      },
+      "choice_aliases": {
+        "1": ["1", "#1", "one", "uno", "option 1", "opcion 1", "opción 1"],
+        "2": ["2", "#2", "two", "dos", "option 2", "opcion 2", "opción 2"],
+        "3": ["3", "#3", "three", "tres", "option 3", "opcion 3", "opción 3"]
       }
     }
   }
