@@ -1,16 +1,17 @@
 /*
 File: fast_path_classifier.js
-Version: v14.0.1
+Version: v14.0.3
 Date: 2026-05-11
 Role: Fast Path classifier using menu_dictionary and context
-Status: upgraded for restaurant continuation fixes with menu-driven choice aliases
+Status: upgraded for restaurant continuation fixes and loyalty branch population
 
 This version changes:
-- preserves current main-menu and restaurant-list deterministic handling
-- adds menu-driven normalized choice parsing through `choice_aliases`
+- preserves current main-menu and restaurant deterministic handling
+- preserves menu-driven normalized choice parsing through `choice_aliases`
+- aligns top-level entry to the approved 6-branch menu tree
+- adds loyalty branch classification at the approved next useful tree level
 - keeps parsing reusable for future branch-by-branch menu-tree population
-- supports mixed deterministic selection input such as `2, ...`, `#2`, `two`, `dos`, `option 2`, `opción 2`
-- adds restaurant follow-up submenu classification without changing broader architecture
+- does not invent new loyalty sub-branches
 */
 
 function normalize(text = "") {
@@ -153,6 +154,27 @@ function classifyFastPath({ input = "", session = {}, menuDictionary = {} }) {
     if (leadingChoice?.choice && lookup[leadingChoice.choice]) {
       return {
         type: "restaurant_followup_selection",
+        key: lookup[leadingChoice.choice],
+        trailing_text: leadingChoice.remainder || null
+      };
+    }
+  }
+
+  if (context === "loyalty_rewards_menu" && menus.loyalty_rewards_menu) {
+    const lookup = menus.loyalty_rewards_menu.lookup || {};
+    if (lookup[text]) {
+      return {
+        type: "loyalty_selection",
+        key: lookup[text]
+      };
+    }
+
+    const choiceAliases = menus.loyalty_rewards_menu.choice_aliases || {};
+    const leadingChoice = extractLeadingChoice(text, choiceAliases);
+
+    if (leadingChoice?.choice && lookup[leadingChoice.choice]) {
+      return {
+        type: "loyalty_selection",
         key: lookup[leadingChoice.choice],
         trailing_text: leadingChoice.remainder || null
       };
