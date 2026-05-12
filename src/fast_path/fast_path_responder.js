@@ -1,14 +1,20 @@
 /*
 File: fast_path_responder.js
 Version: v14.0.1
-Date: 2026-05-07
+Date: 2026-05-11
 Role: Fast Path responder using property data
-Status: upgraded for restaurant continuation layer
+Status: upgraded for restaurant continuation layer without narrowing future menu-tree population
+
+This version changes:
+- preserves dynamic restaurant list rendering from property data
+- preserves selected restaurant in session for downstream continuity
+- adds restaurant follow-up submenu handling
+- keeps response logic branch-local and additive so future KB population can continue branch by branch
 */
 
 function getSelectableRestaurants(propertyMasterData) {
   return (propertyMasterData?.dining?.venues || []).filter(
-    v => v.canonical_name !== "Room Service"
+    (v) => v.canonical_name !== "Room Service"
   );
 }
 
@@ -62,7 +68,7 @@ function resolveRestaurantByKey(propertyMasterData, restaurantKey) {
   const normalizedKey = String(restaurantKey || "").trim().toLowerCase();
 
   return (
-    venues.find(v => String(v.menu_key || "").toLowerCase() === normalizedKey) ||
+    venues.find((v) => String(v.menu_key || "").toLowerCase() === normalizedKey) ||
     null
   );
 }
@@ -71,68 +77,6 @@ function fillTemplate(template, replacements) {
   return Object.entries(replacements).reduce((output, [key, value]) => {
     return output.replace(new RegExp(`{{${key}}}`, "g"), value ?? "");
   }, template);
-}
-
-function getVenueType(venue, language = "en") {
-  if (language === "es") {
-    const map = {
-      "all-day café and restaurant": "café-restaurante de servicio todo el día",
-      "sports bar / casual dining venue": "bar deportivo / lugar de comida casual",
-      "poolside lounge and bar": "lounge y bar junto a la piscina",
-      "coffee shop / grab-and-go venue": "coffee shop / opción grab-and-go",
-      "lobby cocktail lounge": "bar tipo lounge en el lobby",
-      "Lebanese and Mediterranean restaurant": "restaurante libanés y mediterráneo",
-      "in-room dining service": "servicio de alimentos a la habitación"
-    };
-    return map[venue?.type] || "lugar de alimentos y bebidas";
-  }
-
-  return venue?.type || "dining venue";
-}
-
-function getReservationNoteSentence(venue, propertyMasterData, language = "en") {
-  const groupThreshold =
-    propertyMasterData?.dining?.reservation_facts?.advance_reservations_recommended_for_groups_over || 8;
-
-  if (language === "es") {
-    if (venue?.canonical_name === "Room Service") {
-      return "Room Service se maneja como una solicitud de servicio y no como una reservación de mesa.";
-    }
-
-    if (venue?.reservation_led) {
-      return `Las reservaciones para la cena son recomendadas. Los grupos mayores de ${groupThreshold} personas deben reservar con anticipación.`;
-    }
-
-    return "Los walk-ins pueden ser posibles según disponibilidad.";
-  }
-
-  if (venue?.canonical_name === "Room Service") {
-    return "Room Service is handled as a service request rather than a table reservation.";
-  }
-
-  if (venue?.reservation_led) {
-    return `Dinner reservations are recommended. Groups larger than ${groupThreshold} should reserve in advance.`;
-  }
-
-  return "Walk-ins may be possible based on availability.";
-}
-
-function getHoursSentence(venue, propertyMasterData, language = "en") {
-  const teamName =
-    propertyMasterData?.property?.team_name_1 || "Guest Services";
-
-  const roomService24 =
-    propertyMasterData?.dining?.hours_boundary?.room_service_available_24_hours;
-
-  if (venue?.canonical_name === "Room Service" && roomService24) {
-    return language === "es"
-      ? "El servicio a la habitación está disponible 24 horas."
-      : "Room service is available 24 hours.";
-  }
-
-  return language === "es"
-    ? `Los horarios exactos de este lugar no están configurados actualmente en el runtime. Para confirmación en tiempo real o el horario de hoy, ${teamName} puede ayudarte.`
-    : `Exact outlet hours for this venue are not currently configured in runtime data. For live confirmation or today's hours, ${teamName} can help.`;
 }
 
 function buildResponse({ result, session, propertyData }) {
@@ -151,7 +95,6 @@ function buildResponse({ result, session, propertyData }) {
 
   if (result.type === "restaurant_list") {
     const list = buildRestaurantList(propertyMasterData, language);
-
     const template = language === "es"
       ? responseTemplates.restaurant_list_es
       : responseTemplates.restaurant_list_en;
@@ -200,21 +143,10 @@ function buildResponse({ result, session, propertyData }) {
 
       return fillTemplate(template, {
         restaurant_name: selectedVenue.canonical_name,
-        type: getVenueType(selectedVenue, language),
         short_description:
           language === "es"
             ? selectedVenue.short_description_es
-            : selectedVenue.short_description_en,
-        reservation_note_sentence: getReservationNoteSentence(
-          selectedVenue,
-          propertyMasterData,
-          language
-        ),
-        hours_sentence: getHoursSentence(
-          selectedVenue,
-          propertyMasterData,
-          language
-        )
+            : selectedVenue.short_description_en
       });
     }
 
