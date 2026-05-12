@@ -1195,19 +1195,29 @@ function extractReservationDetailContext(text = "", session = null) {
   };
 }
 
+function hasStructuredReservationDetails(text = "", session = null) {
+  const reservationDetails = extractReservationDetailContext(text, session);
+  const reservationDateContext = resolveReservationDateContext(text);
+
+  return !!(
+    reservationDetails?.service_time ||
+    reservationDetails?.party_size ||
+    reservationDateContext?.resolved_date ||
+    reservationDateContext?.resolution_status === "conflict"
+  );
+}
+
 function buildRestaurantReservationHandoffPrefix(session = null, userText = "", detectedIntent = null) {
   if (!session?.selected_restaurant) return "";
   if (session?.fast_path_context !== "restaurant_followup_menu") return "";
 
-  const normalizedText = normalizeText(userText);
+  const isStructuredContinuation = hasStructuredReservationDetails(userText, session);
+  const isReservationAlreadyActive = session?.active_request?.type === "reservation";
+  const isExplicitReservationIntent = detectedIntent === "reservation";
 
-  const hasReservationIntent =
-    detectedIntent === "reservation" ||
-    shouldActivateReservation(userText, session) ||
-    session?.active_request?.type === "reservation" ||
-    ["reservation", "reserve", "book", "reserva", "reservacion", "reservación", "reservar"].includes(normalizedText);
-
-  if (!hasReservationIntent) return "";
+  if (!isStructuredContinuation && !isReservationAlreadyActive && !isExplicitReservationIntent) {
+    return "";
+  }
 
   return `[[RESTAURANT CONTEXT: Selected venue is ${session.selected_restaurant}. Do NOT ask which restaurant unless the guest explicitly changes venue. Carry this venue forward for reservation handling.]] `;
 }
@@ -2412,12 +2422,24 @@ app.post("/webhook", async (req, res) => {
     const exitCommand = detectExitCommand(userText);
     const greetingReentry = isGreetingReentry(userText);
     let detectedIntent = detectIntent(userText, session.active_request?.type || null);
-    if (  
-        session.fast_path_context === "restaurant_followup_menu" &&
-        ["reservation", "reserve", "book", "reserva", "reservacion", "reservación", "reservar"].includes(normalizeText(userText))
-    ) {
+    if (session.fast_path_context === "restaurant_followup_menu") {
+      const isStructuredContinuation = hasStructuredReservationDetails(userText, session);
+
+      if (isStructuredContinuation) {
         detectedIntent = null;
-    }      
+      }
+    }
+
+    if (
+      session.fast_path_context === "restaurant_followup_menu" &&
+      session.selected_restaurant &&
+      hasStructuredReservationDetails(userText, session)
+    ) {
+      session.active_request = {
+        type: "reservation",
+        status: session.active_request?.status || "inquiry"
+      };
+    }
 
     await runLogsHook(
       "captureInboundMessage",
