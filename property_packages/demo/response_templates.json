@@ -1,10 +1,10 @@
 {
   "file": "response_templates.json",
-  "version": "v14.0.4",
-  "date": "2026-05-11",
+  "version": "v14.0.5",
+  "date": "2026-05-12",
   "role": "Response templates for SOL V14 Fast Path trial",
   "status": "trial_dynamic_templates",
-  "design_note": "Templates are additive and menu-tree friendly. Branch-specific wording can continue to expand from the KB without changing shared middleware logic. Loyalty wording must remain limited to KB-safe general guidance and escalation boundaries.",
+  "design_note": "Templates are additive and menu-tree friendly. Branch-specific wording can continue to expand from the KB without changing shared middleware logic. Loyalty wording must remain limited to KB-safe general guidance and escalation boundaries. Phone-reuse templates are scoped to the reservation contact step only.",
   
   "restaurant_intro_en": "Sure — I can help with dining. Do you already know where you'd like to go? You can say the restaurant name or type LIST to see all options.",
   "restaurant_intro_es": "Claro — puedo ayudarte con restaurantes. ¿Ya sabes dónde quieres ir? Puedes decir el nombre del restaurante o escribir LISTA para ver todas las opciones.",
@@ -26,19 +26,28 @@
   
   "restaurant_escalation_existing_change_vip_group_en": "For existing reservation changes or cancellations, VIP services, private dining, large groups, or other special arrangements, staff support is required. I can route this to Guest Services or Reservations.",
   "restaurant_escalation_existing_change_vip_group_es": "Para cambios o cancelaciones de reservaciones existentes, servicios VIP, dining privado, grupos grandes u otros arreglos especiales, se requiere apoyo del personal. Puedo dirigir esto a Guest Services o Reservations.",
-
-  "loyalty_intro_en": "Sure — I can help with loyalty and points. Reply with a number:\n1. Program information\n2. Points and rewards information\n3. Account-specific issue",
-  "loyalty_intro_es": "Claro — puedo ayudarte con lealtad y puntos. Responde con un número:\n1. Información del programa\n2. Información sobre puntos y recompensas\n3. Asunto específico de la cuenta",
-
-  "loyalty_program_info_en": "I can help with general information about the loyalty program. For official current program details, I can share the general information available here or direct you to staff if needed.",
-  "loyalty_program_info_es": "Puedo ayudarte con información general sobre el programa de lealtad. Para detalles oficiales y actuales del programa, puedo compartir la información general disponible aquí o dirigirte al personal si es necesario.",
-
-  "loyalty_rewards_points_info_en": "I can help with general information about points and rewards. For account-specific balances, missing points, tier status, or account-specific rewards, staff assistance is required.",
-  "loyalty_rewards_points_info_es": "Puedo ayudarte con información general sobre puntos y recompensas. Para saldos específicos, puntos faltantes, estado de nivel o recompensas específicas de la cuenta, se requiere ayuda del personal.",
-
-  "loyalty_account_issue_en": "For account-specific issues such as point balances, missing points, tier status, or account-specific rewards, staff handling is required.",
-  "loyalty_account_issue_es": "Para asuntos específicos de la cuenta, como saldo de puntos, puntos faltantes, estado de nivel o recompensas específicas de la cuenta, se requiere atención del personal.",
-
+  
+  "loyalty_intro_en": "Sure — I can help with loyalty and points. Reply with a number or the option name:\n1. Program information\n2. Points and rewards information\n3. Account-specific help",
+  "loyalty_intro_es": "Claro — puedo ayudarte con lealtad y puntos. Responde con un número o el nombre de la opción:\n1. Información del programa\n2. Información sobre puntos y recompensas\n3. Ayuda específica de la cuenta",
+  
+  "loyalty_program_info_en": "Program information — Your Casino Club Card is the casino loyalty program. Enrollment is free for guests who meet the legal gaming age and present a valid government-issued ID. Members receive a club card used to track eligible casino play and tier progress. Tier levels are Silver, Gold, Black, and Diamond. Enrollment and program support are handled at the Player's Club desk. For account-specific items (balances, missing points, tier status, card replacement) please reply 3 and I will escalate to staff.",
+  "loyalty_program_info_es": "Información del programa — Your Casino Club Card es el programa de lealtad del casino. La inscripción es gratuita para huéspedes que cumplan con la edad legal para juego y presenten una identificación oficial válida. Los miembros reciben una tarjeta de club para registrar el juego elegible y el progreso de nivel. Los niveles son Silver, Gold, Black y Diamond. La inscripción y soporte del programa se atienden en el Player's Club desk. Para asuntos específicos de la cuenta (saldos, puntos faltantes, estado de nivel, reposición de tarjeta) responde 3 y lo escalo al personal.",
+  
+  "loyalty_rewards_points_info_en": "Points and rewards — Standard slot earning reference is 1 point per $5 wagered on slot machines; members should insert or present their card during eligible play so points are tracked. Points may be redeemed for free play, dining offers, casino promotions, promotional drawings, and special events. Minimum redemption is 100 points; typical redemption methods are casino kiosks, the Player's Club desk, and some promotional events. Points expire after 3 months of account inactivity; gaming activity or reward redemption resets the inactivity period. For account-specific balances, missing points, or tier status, please reply 3 and I will escalate to staff.",
+  "loyalty_rewards_points_info_es": "Puntos y recompensas — La referencia estándar de acumulación en slots es 1 punto por cada $5 apostados; los miembros deben insertar o presentar su tarjeta durante el juego elegible para que se acumulen. Los puntos pueden canjearse por free play, ofertas de comida, promociones del casino, sorteos promocionales y eventos especiales. El canje mínimo es de 100 puntos; los métodos típicos son kioscos del casino, el Player's Club desk y algunos eventos promocionales. Los puntos expiran tras 3 meses de inactividad; el juego o el canje reinicia el periodo de inactividad. Para saldo, puntos faltantes o estado de nivel específicos de la cuenta, responde 3 y lo escalo al personal.",
+  
+  "loyalty_account_issue_en": "Account-specific help — items such as your current point balance, missing points, tier-status verification, card replacement, identity-based account questions, or account corrections require staff handling. I will route this to the Player's Club desk / Guest Services for follow-up. I will not share or change personal account details directly.",
+  "loyalty_account_issue_es": "Ayuda específica de la cuenta — asuntos como saldo de puntos, puntos faltantes, verificación de estado de nivel, reposición de tarjeta, preguntas de identidad o correcciones de la cuenta requieren atención del personal. Lo dirigiré al Player's Club desk / Guest Services para seguimiento. No compartiré ni cambiaré datos personales de la cuenta directamente.",
+  
+  "loyalty_stay_reprompt_en": "Staying in Loyalty and points. Reply with a number or the option name:\n1. Program information\n2. Points and rewards information\n3. Account-specific help",
+  "loyalty_stay_reprompt_es": "Continuamos en Lealtad y puntos. Responde con un número o el nombre de la opción:\n1. Información del programa\n2. Información sobre puntos y recompensas\n3. Ayuda específica de la cuenta",
+  
+  "reservation_phone_reuse_offer_en": "Before we add a phone number — I already have {{phone}} on file from your WhatsApp. Would you like me to use this same number for the reservation? Reply YES to use it, or send a different phone number.",
+  "reservation_phone_reuse_offer_es": "Antes de agregar un número — ya tengo {{phone}} registrado desde tu WhatsApp. ¿Quieres que use este mismo número para la reservación? Responde SÍ para usarlo, o envía un número de teléfono diferente.",
+  
+  "reservation_phone_reuse_confirmed_en": "Got it — I'll use {{phone}} for the reservation contact.",
+  "reservation_phone_reuse_confirmed_es": "Listo — usaré {{phone}} como contacto para la reservación.",
+  
   "shows_intro_en": "Sure — I can help with shows and live entertainment.",
   "shows_intro_es": "Claro — puedo ayudarte con shows y entretenimiento en vivo.",
   
