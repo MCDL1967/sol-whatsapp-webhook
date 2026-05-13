@@ -1,17 +1,22 @@
 /*
 File: fast_path_classifier.js
-Version: v14.0.3
-Date: 2026-05-11
+Version: v14.0.4
+Date: 2026-05-12
 Role: Fast Path classifier using menu_dictionary and context
-Status: upgraded for restaurant continuation fixes and loyalty branch population
+Status: additive cross-context loyalty re-entry guard for V14 mid-track
 
-This version changes:
-- preserves current main-menu and restaurant deterministic handling
-- preserves menu-driven normalized choice parsing through `choice_aliases`
-- aligns top-level entry to the approved 6-branch menu tree
-- adds loyalty branch classification at the approved next useful tree level
-- keeps parsing reusable for future branch-by-branch menu-tree population
+This version changes (v14.0.4, additive only):
+- preserves all v14.0.3 main-menu, restaurants_menu, restaurant_followup_menu,
+  and loyalty_rewards_menu handling exactly
+- adds a final cross-context fallback that re-routes textual top-level keywords
+  (e.g. "loyalty", "loyalty and points", "rewards", "points", "club card") into
+  the approved main-menu branch when the guest is currently in a sub-context
+- bare numeric digits are intentionally excluded from the fallback so existing
+  numbered sub-menu choices (restaurants, restaurant follow-up, loyalty submenu)
+  continue to behave deterministically
 - does not invent new loyalty sub-branches
+- does not change restaurant deterministic selection, follow-up submenu, or
+  reservation carry-forward
 */
 
 function normalize(text = "") {
@@ -177,6 +182,29 @@ function classifyFastPath({ input = "", session = {}, menuDictionary = {} }) {
         type: "loyalty_selection",
         key: lookup[leadingChoice.choice],
         trailing_text: leadingChoice.remainder || null
+      };
+    }
+  }
+
+  // v14.0.4 additive: cross-context textual top-level fallback.
+  // When the guest types an explicit textual main-menu keyword (e.g. "loyalty",
+  // "loyalty and points", "rewards", "club card") from inside a sub-context such
+  // as restaurants_menu, restaurant_followup_menu, or loyalty_rewards_menu, the
+  // classifier re-routes them into the approved main-menu branch so the deeper
+  // sub-menus do not silently fall through to the LLM fallback (which has been
+  // observed to drift Loyalty into non-approved submenu wording).
+  //
+  // Bare numeric digits are excluded so that existing in-context numbered
+  // selections (1–7 for restaurants, 1–3 for restaurant follow-up, 1–3 for
+  // loyalty) continue to take precedence and the restaurant flow is preserved.
+  if (context !== "main_menu" && menus.main_menu) {
+    const lookup = menus.main_menu.lookup || {};
+    const isBareDigit = /^\d+$/.test(text);
+    if (!isBareDigit && text && lookup[text]) {
+      return {
+        type: "menu_selection",
+        key: lookup[text],
+        next_context: menus.main_menu.options[lookup[text]]?.next_context || null
       };
     }
   }
