@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.1 — built 2026-05-13 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.1a — built 2026-05-13 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2143,7 +2143,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.5.1";
+const APP_VERSION = "v8.5.1a";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2877,7 +2877,7 @@ function _updateSpBottom(){
 function dbg(msg, type="info"){
   const panel=el("debugPanel"); if(!panel) return;
   // Only show panel if debug is enabled in settings
-  if(localStorage.getItem("hpfleet_debug")==="1"){
+  if(currentUser && localStorage.getItem("hpfleet_debug")==="1"){
     panel.classList.add("on");
     _updateSpBottom();
   }
