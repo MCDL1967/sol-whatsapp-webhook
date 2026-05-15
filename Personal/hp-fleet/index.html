@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.2 — built 2026-05-13 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.2b — built 2026-05-13 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2998,6 +2998,7 @@ function doLogin(){
 }
 
 function doLogout(){
+  closeSidePanel();
   addAudit("🚪",currentUser.name,lang==="es"?"cerró sesión":"logged out","—");
   currentUser=null;
   el("appShell").style.display="none";
