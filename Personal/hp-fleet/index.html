@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.2b — built 2026-05-13 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.3 — built 2026-05-13 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2143,7 +2143,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.5.2";
+const APP_VERSION = "v8.5.3";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2973,6 +2973,10 @@ function doLogin(){
   // Auth against DB users (USERS array loaded from DB at init)
   setTimeout(async ()=>{
     try {
+      if(USERS.length&&!USERS.some(u=>u.pwd)){
+        const _fresh=await sbGet("users");
+        if(_fresh&&_fresh.length) USERS.splice(0,USERS.length,..._fresh);
+      }
       const user=USERS.find(u=>u.email===email&&u.pwd===pwd);
       if(!user||user.status!=="active"){
         errEl.textContent=!user?t("loginErr"):t("inactiveErr");
@@ -2988,6 +2992,7 @@ function doLogin(){
       // Update last_login in DB silently
       sbPatch("users","id=eq."+user.id,{last_login:user.lastLogin}).catch(()=>{});
       currentUser=user;
+      USERS.forEach(u=>{ delete u.pwd; });
       addAudit("🔑",user.name,lang==="es"?"inició sesión":"logged in","—");
       await bootApp();
     } catch(err){
@@ -3153,6 +3158,7 @@ async function loadAdminCcFromDB(){
 }
 
 async function saveAdminCcToDB(val){
+  if(!currentUser||currentUser.role!=="ADMIN") return;
   try{
     const rows=await sbGet("settings","key=eq.admin_cc_enabled");
     if(rows&&rows.length){
@@ -3193,6 +3199,7 @@ function updateApiStatus(){
 }
 
 async function saveApiKey(){
+  if(!currentUser||currentUser.role!=="ADMIN") return;
   const val=el("apiKeyInput").value.trim();
   if(!val||val.startsWith("•")){ showToast("Enter a valid API key","err"); return; }
   _cachedApiKey=val;
@@ -3209,6 +3216,7 @@ async function saveApiKey(){
 }
 
 async function clearApiKey(){
+  if(!currentUser||currentUser.role!=="ADMIN") return;
   _cachedApiKey="";
   localStorage.removeItem("hpfleet_apikey");
   try {
@@ -3432,6 +3440,7 @@ function openDeleteUser(id){
 }
 
 function confirmDelete(){
+  if(!currentUser||currentUser.role!=="ADMIN") return;
   if(deleteType==="user"){
     const u=USERS.find(x=>x.id===deletingId); if(!u) return;
     USERS.splice(USERS.indexOf(u),1);
