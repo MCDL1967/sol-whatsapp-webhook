@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.1a — built 2026-05-13 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.2 — built 2026-05-13 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2143,7 +2143,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.5.1a";
+const APP_VERSION = "v8.5.2";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2521,7 +2521,7 @@ const PREF_DEFAULTS = {
   role_banner:     true,
   viewas_visible:  true,
   debug_mode:      false,
-  sidepanel_width: "420px",
+  sidepanel_width: 420,
   active_tab:      null   // resolved per-role at boot if null
 };
 
@@ -2613,7 +2613,7 @@ function applyUserPreferences(){
     const clamped = Math.min(parseInt(spw) || 420, maxW);
     const clamped_str = clamped + "px";
     localStorage.setItem("hpfleet_sp_width", clamped_str);
-    _userPrefs.sidepanel_width = clamped_str;
+    _userPrefs.sidepanel_width = clamped;
   }
   // viewas_visible — apply topbar widget early (mirrors bootApp inline logic)
   const vaw = el("viewAsWrap");
@@ -3688,7 +3688,6 @@ function initDebugToggle(){
   if(saved) el("debugPanel").classList.add("on");
   check.addEventListener("change",function(){
     const on=this.checked;
-    localStorage.setItem("hpfleet_debug",on?"1":"0");
     saveUserPreference("debug_mode", on);
     if(label){ label.textContent=on?"On":"Off"; label.style.color=on?"var(--cyan)":"var(--dim2)"; }
     if(on){ el("debugPanel").classList.add("on"); _updateSpBottom(); }
@@ -3722,7 +3721,6 @@ function initViewAsToggle(){
   if(vaw&&currentUser&&currentUser.role==="ADMIN") vaw.style.display=on?"flex":"none";
   check.addEventListener("change",function(){
     const on=this.checked;
-    localStorage.setItem("hpfleet_viewas_visible",on?"1":"0");
     saveUserPreference("viewas_visible", on);
     if(label){ label.textContent=on?(lang==="es"?"Activo":"On"):(lang==="es"?"Inactivo":"Off"); label.style.color=on?"var(--cyan)":"var(--dim2)"; }
     const vaw=el("viewAsWrap");
@@ -3750,7 +3748,6 @@ function initStickyHeadersToggle(){
   _applyStickyHeaders(on);
   check.addEventListener("change",function(){
     const isOn=this.checked;
-    localStorage.setItem("hpfleet_stickyheaders",isOn?"1":"0");
     saveUserPreference("sticky_headers", isOn);
     if(label){ label.textContent=isOn?"On":"Off"; label.style.color=isOn?"var(--cyan)":"var(--dim2)"; }
     _applyStickyHeaders(isOn);
@@ -3774,7 +3771,6 @@ function initStickyTabsToggle(){
   _applyStickyTabs(on);
   check.addEventListener("change",function(){
     const isOn=this.checked;
-    localStorage.setItem("hpfleet_stickytabs",isOn?"1":"0");
     saveUserPreference("sticky_tabs", isOn);
     if(label){ label.textContent=isOn?"On":"Off"; label.style.color=isOn?"var(--cyan)":"var(--dim2)"; }
     _applyStickyTabs(isOn);
@@ -3797,7 +3793,6 @@ function initRoleBannerToggle(){
   if(banner) banner.style.display=on?"":"none";
   check.addEventListener("change",function(){
     const isOn=this.checked;
-    localStorage.setItem("hpfleet_rolebanner",isOn?"1":"0");
     saveUserPreference("role_banner", isOn);
     if(label){ label.textContent=isOn?"On":"Off"; label.style.color=isOn?"var(--cyan)":"var(--dim2)"; }
     const b=el("roleBanner");
@@ -7537,7 +7532,7 @@ function wireEvents(){
     }
     function stopResize(){
       const w=Math.min(parseInt(panel.style.width)||420,Math.floor(window.innerWidth*0.5));
-      saveUserPreference("sidepanel_width", w+"px");
+      saveUserPreference("sidepanel_width", w);
       document.removeEventListener("mousemove",onResize);
       document.removeEventListener("mouseup",stopResize);
     }
