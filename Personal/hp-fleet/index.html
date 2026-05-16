@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.5b — built 2026-05-13 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.5c — built 2026-05-13 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -850,6 +850,9 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 .pi-total{background:var(--s2);border:2px solid var(--cyan);padding:14px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
 .pi-total-label{font-family:var(--display);font-weight:700;font-size:14px;color:var(--dim2)}
 .pi-total-amt{font-family:var(--display);font-weight:700;font-size:22px;color:var(--green);letter-spacing:1px}
+/* When prompt payment exists: de-emphasize TOTAL AMOUNT DUE */
+.pi-total-amt.has-pronto{font-size:17px;color:var(--dim2);letter-spacing:0}
+.pi-total-label.has-pronto{font-size:12px;font-weight:400;color:var(--dim)}
 .pi-signoff{display:flex;gap:12px;align-items:center}
 .pi-signed{background:rgba(61,220,132,.1);border:1px solid var(--green);padding:10px 16px;font-family:var(--mono);font-size:11px;color:var(--green)}
 
@@ -2155,7 +2158,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.5.5b";
+const APP_VERSION = "v8.5.5c";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -3603,10 +3606,12 @@ function renderTempRules(){
   const BTN="font-family:var(--mono);font-size:9px;padding:5px 8px;background:transparent;border-radius:2px;cursor:pointer";
   tempRules.forEach((r,i)=>{
     const isDisc=r.type==="discount";
-    // Row 1
+    // ── Row 1 ─────────────────────────────────────────────────────────────
     const row=document.createElement("div");
     if(isDisc){
-      row.style.cssText="margin-bottom:2px;display:grid;grid-template-columns:1fr 52px 46px 64px 60px 36px 28px;gap:6px;align-items:center";
+      // Discount Row 1: name(1fr) | amount(52px) | mode(46px) | base(64px) | type(60px)
+      // ON/OFF and ✕ moved to Row 2 to free width for name input
+      row.style.cssText="margin-bottom:2px;display:grid;grid-template-columns:1fr 52px 46px 64px 60px;gap:6px;align-items:center";
     } else {
       row.style.cssText="margin-bottom:8px;display:grid;grid-template-columns:1fr 80px auto auto auto;gap:8px;align-items:center";
     }
@@ -3623,28 +3628,33 @@ function renderTempRules(){
         '<option value="flat"'+((!r.type||r.type==="charge")&&r.unit==="flat"?" selected":"")+'>Flat</option>'+
         '<option value="discount"'+(isDisc?" selected":"")+'>Disc.</option>'+
       '</select>'+
-      '<button style="'+BTN+';border:1px solid '+(r.active?"rgba(61,220,132,.4)":"var(--border2)")+';color:'+(r.active?"var(--green)":"var(--dim)")+'">'+(r.active?"ON":"OFF")+'</button>'+
-      '<button style="'+BTN+';border:1px solid var(--border2);color:var(--red)">✕</button>';
-    // Row 2 — discount only: pronto pago controls
+      // Charge rules keep ON/OFF and ✕ on Row 1
+      (!isDisc?'<button style="'+BTN+';border:1px solid '+(r.active?"rgba(61,220,132,.4)":"var(--border2)")+';color:'+(r.active?"var(--green)":"var(--dim)")+'">'+(r.active?"ON":"OFF")+'</button>':"")+
+      (!isDisc?'<button style="'+BTN+';border:1px solid var(--border2);color:var(--red)">✕</button>':"");
+    // ── Row 2 — discount only ─────────────────────────────────────────────
     if(isDisc){
+      // Row 2: [☑ Show breakdown] [Validity days] [days#] [ON] [✕]
       const sub=document.createElement("div");
-      sub.style.cssText="display:grid;grid-template-columns:auto auto auto 1fr;gap:8px;align-items:center;margin-bottom:8px;background:rgba(178,141,255,.05);border:1px solid rgba(178,141,255,.2);border-left:2px solid var(--violet);padding:5px 8px;border-radius:0 0 2px 2px";
+      sub.style.cssText="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;margin-bottom:8px;background:rgba(178,141,255,.05);border:1px solid rgba(178,141,255,.2);border-left:2px solid var(--violet);padding:5px 8px;border-radius:0 0 2px 2px";
       sub.innerHTML=
-        '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-family:var(--mono);font-size:9px;color:var(--violet);white-space:nowrap">'+
+        '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-family:var(--mono);font-size:9px;color:var(--violet);white-space:nowrap;flex-shrink:0">'+
           '<input type="checkbox"'+(r.showDiscountLine?" checked":"")+' style="accent-color:var(--violet)"> '+t("showDiscLine")+
         '</label>'+
-        '<span style="font-family:var(--mono);font-size:9px;color:var(--dim2);white-space:nowrap">'+t("paymentDays")+'</span>'+
-        '<input type="number" min="0" step="1" value="'+(r.paymentWindowDays||0)+'" style="'+INP+';font-size:10px;padding:3px 5px;width:44px;text-align:right">'+
-        '<input type="text" value="'+(r.footerText||"")+'" placeholder="'+t("discFooterPlaceholder")+'" style="'+INP+';font-size:10px;padding:4px 8px;width:100%">';
+        '<span style="font-family:var(--mono);font-size:9px;color:var(--dim2);white-space:nowrap;flex-shrink:0">'+t("paymentDays")+'</span>'+
+        '<input type="number" min="0" step="1" value="'+(r.paymentWindowDays||0)+'" style="'+INP+';font-size:10px;padding:3px 5px;width:44px;text-align:right;flex-shrink:0">'+
+        '<span style="flex:1"></span>'+
+        '<button style="'+BTN+';border:1px solid '+(r.active?"rgba(61,220,132,.4)":"var(--border2)")+';color:'+(r.active?"var(--green)":"var(--dim)")+';flex-shrink:0">'+(r.active?"ON":"OFF")+'</button>'+
+        '<button style="'+BTN+';border:1px solid var(--border2);color:var(--red);flex-shrink:0">✕</button>';
       sub.querySelector("input[type=checkbox]").addEventListener("change",function(){tempRules[i].showDiscountLine=this.checked;});
       sub.querySelector("input[type=number]").addEventListener("input",function(){tempRules[i].paymentWindowDays=parseInt(this.value)||0;});
-      sub.querySelector("input[type=text]").addEventListener("input",function(){tempRules[i].footerText=this.value;});
+      sub.querySelectorAll("button")[0].addEventListener("click",()=>{tempRules[i].active=!tempRules[i].active;renderTempRules();});
+      sub.querySelectorAll("button")[1].addEventListener("click",()=>{tempRules.splice(i,1);renderTempRules();});
       wrap.appendChild(row);
       wrap.appendChild(sub);
     } else {
       wrap.appendChild(row);
     }
-    // Event listeners
+    // ── Event listeners ───────────────────────────────────────────────────
     row.querySelector("input:first-child").addEventListener("input",function(){tempRules[i].name=this.value;});
     row.querySelectorAll("input")[1].addEventListener("input",function(){tempRules[i].amount=parseFloat(this.value)||0;});
     const selects=row.querySelectorAll("select");
@@ -3652,6 +3662,11 @@ function renderTempRules(){
     if(isDisc){
       selects[0].addEventListener("change",function(){tempRules[i].discountMode=this.value;});
       selects[1].addEventListener("change",function(){tempRules[i].discountBase=this.value;});
+    } else {
+      // Charge rule ON/OFF and ✕ listeners
+      const btns=row.querySelectorAll("button");
+      btns[0].addEventListener("click",()=>{tempRules[i].active=!tempRules[i].active;renderTempRules();});
+      btns[1].addEventListener("click",()=>{tempRules.splice(i,1);renderTempRules();});
     }
     selects[typeSelIdx].addEventListener("change",function(){
       if(this.value==="discount"){
@@ -3669,8 +3684,6 @@ function renderTempRules(){
       }
       renderTempRules();
     });
-    row.querySelectorAll("button")[0].addEventListener("click",()=>{tempRules[i].active=!tempRules[i].active;renderTempRules();});
-    row.querySelectorAll("button")[1].addEventListener("click",()=>{tempRules.splice(i,1);renderTempRules();});
   });
 }
 function addBillingRuleRow(){
@@ -5054,9 +5067,14 @@ function renderPiCharges(subtotal){
   // Render discount breakdown and pronto pago block
   const discWrap=el("pi_discount_block");
   const prontoWrap=el("pi_pronto_block");
+  const totalAmtEl=el("pi_total_amt");
+  const totalLblEl=totalAmtEl?totalAmtEl.previousElementSibling:null;
   if(discWrap) discWrap.innerHTML="";
   if(prontoWrap){ prontoWrap.innerHTML=""; prontoWrap.style.display="none"; }
   if(discounts.length){
+    // De-emphasize TOTAL AMOUNT DUE when pronto pago exists
+    if(totalAmtEl) totalAmtEl.classList.add("has-pronto");
+    if(totalLblEl) totalLblEl.classList.add("has-pronto");
     // Compute stacked net total across all discounts
     let totalDiscAmt=0;
     discounts.forEach(d=>{
@@ -5080,21 +5098,24 @@ function renderPiCharges(subtotal){
         discWrap.appendChild(dRow);
       });
     }
-    // Render pronto pago / prompt payment block
+    // Render pronto pago — larger amt (24px), more breathing room (margin-bottom:20px)
     if(prontoWrap){
-      prontoWrap.style.display="block";
-      prontoWrap.style.cssText="margin-top:6px;padding:10px 14px;background:rgba(26,153,85,.06);border:1px solid rgba(26,153,85,.25);border-left:3px solid var(--green);border-radius:2px;display:block";
+      prontoWrap.style.cssText="margin-top:8px;margin-bottom:20px;padding:12px 16px;background:rgba(26,153,85,.07);border:1px solid rgba(26,153,85,.3);border-left:3px solid var(--green);border-radius:2px;display:block";
       const d=discounts[0];
       const footerDays=d._paymentWindowDays??0;
       const footerCustom=d._footerText||"";
       const footerLine=footerCustom||(footerDays>0?(t("validoPor")+" "+footerDays+" "+t("diasHabiles")):"");
       prontoWrap.innerHTML=
         '<div style="display:flex;justify-content:space-between;align-items:baseline;font-family:var(--mono)">'+
-          '<span class="pi-pronto-label" style="font-size:12px;font-weight:700;letter-spacing:1px;color:var(--green)">'+t("prontoPago")+'</span>'+
-          '<span class="pi-pronto-amt" style="font-size:18px;font-weight:700;color:var(--green)">'+fmtCurrency(netTotal)+'</span>'+
+          '<span class="pi-pronto-label" style="font-size:13px;font-weight:700;letter-spacing:1px;color:var(--green)">'+t("prontoPago")+'</span>'+
+          '<span class="pi-pronto-amt" style="font-size:24px;font-weight:700;color:var(--green);letter-spacing:1px">'+fmtCurrency(netTotal)+'</span>'+
         '</div>'+
-        (footerLine?'<div class="pi-pronto-footer" style="font-family:var(--mono);font-size:9px;color:var(--dim2);margin-top:3px">'+footerLine+'</div>':"");
+        (footerLine?'<div class="pi-pronto-footer" style="font-family:var(--mono);font-size:9px;color:var(--dim2);margin-top:4px">'+footerLine+'</div>':"");
     }
+  } else {
+    // No discount: restore full emphasis on TOTAL AMOUNT DUE
+    if(totalAmtEl) totalAmtEl.classList.remove("has-pronto");
+    if(totalLblEl) totalLblEl.classList.remove("has-pronto");
   }
   wrap.querySelectorAll("input").forEach(inp=>{
     inp.addEventListener("change",()=>{
@@ -7021,7 +7042,7 @@ function wireEvents(){
   el("um_cancel").addEventListener("click",()=>closeModal("userMbd"));
   el("um_save").addEventListener("click",saveUser);
   el("um_role").addEventListener("change",updateRoleDesc);
-  el("userMbd").addEventListener("click",e=>{ if(e.target===el("userMbd")) closeModal("userMbd"); });
+  // userMbd: backdrop click disabled — prevents accidental loss of unsaved user data
 
   // User table delegation
   el("userTbody").addEventListener("click",function(e){
@@ -7045,7 +7066,7 @@ function wireEvents(){
     if(el(id)) el(id).addEventListener("change",_syncInvChkStyles);
   });
   el("co_addRule").addEventListener("click",addBillingRuleRow);
-  el("coMbd").addEventListener("click",e=>{ if(e.target===el("coMbd")) closeModal("coMbd"); });
+  // coMbd: backdrop click disabled — prevents accidental loss of unsaved company/billing rule data
 
   // Company grid delegation
   el("coGrid").addEventListener("click",function(e){
@@ -7460,7 +7481,8 @@ function wireEvents(){
   if(el("nb_close")) el("nb_close").addEventListener("click",()=>{ closeModal("newBatchMbd"); nbFiles=[]; nbRenderQueue(); });
   if(el("nb_cancel")) el("nb_cancel").addEventListener("click",()=>{ closeModal("newBatchMbd"); nbFiles=[]; nbRenderQueue(); });
   if(el("nb_confirm")) el("nb_confirm").addEventListener("click",confirmNewBatch);
-  if(el("newBatchMbd")) el("newBatchMbd").addEventListener("click",e=>{ if(e.target===el("newBatchMbd")){ closeModal("newBatchMbd"); nbFiles=[]; nbRenderQueue(); }});
+  // newBatchMbd: backdrop click disabled — prevents accidental loss of queued file uploads
+  if(el("newBatchMbd")) el("newBatchMbd").addEventListener("click",e=>{ e.stopPropagation(); });
   initNbDropZone();
   // Add More Files dialog
   if(el("btn_addMoreFiles")) el("btn_addMoreFiles").addEventListener("click",openAddFilesDialog);
