@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.5f — built 2026-05-13 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.5g — built 2026-05-13 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1944,7 +1944,24 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
       </div>
       <div class="frow fc2">
         <div class="field"><label>Seats</label><input type="number" id="ac_asientos" placeholder="2"></div>
-        <div></div>
+        <div class="field">
+          <label style="font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim2)">Aircraft Photo</label>
+          <div id="ac_photo_area" style="background:var(--s3);border:1px dashed var(--border2);border-radius:2px;padding:8px;display:flex;align-items:center;gap:9px;min-height:52px">
+            <!-- no-photo state -->
+            <div id="ac_photo_empty" style="display:flex;align-items:center;gap:8px;width:100%">
+              <span style="font-family:var(--mono);font-size:9px;color:var(--dim)">No photo</span>
+              <button type="button" id="ac_photo_add" class="btn-sm" style="border-color:rgba(65,209,255,.35);color:var(--cyan)">+ Add Photo</button>
+            </div>
+            <!-- photo present state (hidden until staged/loaded) -->
+            <div id="ac_photo_present" style="display:none;align-items:center;gap:9px;width:100%">
+              <img id="ac_photo_thumb" src="" alt="aircraft" style="width:80px;height:56px;object-fit:cover;border-radius:2px;border:1px solid var(--border2);flex-shrink:0">
+              <div style="display:flex;flex-direction:column;gap:5px">
+                <span id="ac_photo_filename" style="font-family:var(--mono);font-size:9px;color:var(--dim2)"></span>
+                <button type="button" id="ac_photo_replace" class="btn-sm">Replace Photo</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="frow fc2">
         <div class="field"><label>Owner *</label><input type="text" id="ac_owner" placeholder="Unidad Fragata, S.A."></div>
@@ -1958,6 +1975,29 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
       </div>
     </div>
     <div class="mftr"><button class="btn-ghost" id="ac_cancel">Cancel</button><button class="btn-primary" id="ac_save">Save Aircraft</button></div>
+  </div>
+</div>
+
+<!-- AIRCRAFT PHOTO SELECTION MODAL -->
+<div class="mbd" id="acPhotoMbd">
+  <div class="mbox" style="border-top:2px solid var(--violet);max-width:380px">
+    <div class="mhdr"><div class="mhdr-t cv">✦ Aircraft Photo</div><button class="m-x" id="acPhoto_close">✕</button></div>
+    <div class="mbody" style="padding:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <label class="btn-sm" for="ac_photo_input" style="cursor:pointer">Choose file</label>
+        <input type="file" id="ac_photo_input" accept="image/*" style="display:none">
+        <span id="ac_photo_input_name" style="font-family:var(--mono);font-size:9px;color:var(--dim)">No file chosen</span>
+      </div>
+      <div id="ac_photo_preview_box" style="background:var(--s3);border:1px solid var(--border2);border-radius:2px;height:190px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;overflow:hidden">
+        <span id="ac_photo_preview_empty" style="font-family:var(--mono);font-size:9px;color:var(--dim)">Preview appears here</span>
+        <img id="ac_photo_preview_img" src="" alt="" style="width:100%;height:100%;object-fit:contain;display:none">
+      </div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--dim)">Image will be compressed before staging</div>
+    </div>
+    <div class="mftr">
+      <button class="btn-ghost" id="acPhoto_cancel">Cancel</button>
+      <button class="btn-primary" id="acPhoto_ok">OK — Use Photo</button>
+    </div>
   </div>
 </div>
 
@@ -2159,7 +2199,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.5.5f";
+const APP_VERSION = "v8.5.5g";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2205,6 +2245,22 @@ async function uploadImageToStorage(blob, filename){
     dbg("Image uploaded: "+filename,"ok");
     return publicUrl;
   } catch(err){dbg("Storage upload error: "+err.message,"err");return null;}
+}
+
+// ── AIRCRAFT PHOTO UPLOAD ──
+async function uploadAircraftPhoto(blob, registration){
+  try {
+    const filename="aircraft_"+registration.replace(/[^a-zA-Z0-9\-]/g,"_")+".jpg";
+    const r=await fetch(SB_URL+"/storage/v1/object/aircraft_photos/"+filename,{
+      method:"POST",
+      headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":"image/jpeg","x-upsert":"true"},
+      body:blob
+    });
+    if(!r.ok){const e=await r.text();dbg("Aircraft photo upload failed: "+e,"err");return null;}
+    const publicUrl=SB_URL+"/storage/v1/object/public/aircraft_photos/"+filename;
+    dbg("Aircraft photo uploaded: "+filename,"ok");
+    return publicUrl;
+  } catch(err){dbg("Aircraft photo upload error: "+err.message,"err");return null;}
 }
 
 // ── IMAGE COMPRESSION ──
@@ -5827,6 +5883,7 @@ async function loadMasterData(){
       consumoGalHr:a.consumo_gal_hr||0, diffThreshold:parseFloat(a.diff_threshold)||0.2,
       diffWarn:parseFloat(a.diff_warn)||0.3, diffAlert:parseFloat(a.diff_alert)||0.4,
       owner:a.owner||"", ownerAddress:a.owner_address||"",
+      photoUrl:a.photo_url||null,
       rates:Array.isArray(a.rates)?a.rates.map(r=>({operador:r.operador,multiplicador:parseFloat(r.multiplicador)||1,tarifaHr:parseFloat(r.tarifaHr||r.tarifa_hr)||0})):(typeof a.rates==="string"&&a.rates?JSON.parse(a.rates).map(r=>({operador:r.operador,multiplicador:parseFloat(r.multiplicador)||1,tarifaHr:parseFloat(r.tarifaHr||r.tarifa_hr)||0})):[])
     })));
     AIRCRAFT.forEach(ac=>dbg("Aircraft loaded: "+ac.matricula+" rates: "+JSON.stringify(ac.rates),"info"));
@@ -6849,6 +6906,7 @@ function renderAircraftTab(){
 
 // ── FLEET SETTINGS — FULL CRUD ──
 let tempRates=[];
+let _stagedAcPhoto=null; // blob staged before aircraft save — cleared on modal open
 
 function renderAcRates(){
   const wrap=el("acRatesList"); if(!wrap) return;
@@ -6896,15 +6954,42 @@ function renderFleetSettings(){
       '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Multiplier</span><span style="color:var(--yellow)">'+ac.multiplicador.toFixed(3)+"×</span></div>"+
       '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Engine</span><span>'+ac.motorId+"</span></div>"+
       '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Fuel (gal/hr)</span><span>'+ac.consumoGalHr+"</span></div>"+
-      '<div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">'+
-      '<span style="color:var(--dim)">Diff Threshold</span>'+
-      '<span style="color:'+(ac.diffThreshold<=0.2?"var(--green)":"var(--yellow)")+'">'+ac.diffThreshold.toFixed(1)+" hrs</span></div>"+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">'+
+      '<div><span style="color:var(--dim)">Diff Threshold</span><br><span style="color:'+(ac.diffThreshold<=0.2?"var(--green)":"var(--yellow)")+'">'+ac.diffThreshold.toFixed(1)+" hrs</span></div>"+
+      (ac.photoUrl?'<img src="'+ac.photoUrl+'" alt="'+ac.matricula+'" style="width:90px;height:62px;object-fit:cover;border-radius:2px;border:1px solid var(--border2);flex-shrink:0">':"")+
+      "</div>"+
       "</div>";
     grid.appendChild(card);
   });
   // Wire edit/delete buttons
   grid.querySelectorAll("[data-edit-ac]").forEach(btn=>btn.addEventListener("click",()=>openEditAircraft(btn.dataset.editAc)));
   grid.querySelectorAll("[data-del-ac]").forEach(btn=>btn.addEventListener("click",()=>openDeleteAircraft(btn.dataset.delAc)));
+}
+
+// ── AIRCRAFT PHOTO UI HELPERS ──
+function _resetAcPhotoUI(){
+  _stagedAcPhoto=null;
+  const empty=el("ac_photo_empty"); const present=el("ac_photo_present");
+  if(empty) empty.style.display="flex";
+  if(present) present.style.display="none";
+}
+function _showAcPhotoThumb(src, label){
+  const empty=el("ac_photo_empty"); const present=el("ac_photo_present");
+  const thumb=el("ac_photo_thumb"); const fname=el("ac_photo_filename");
+  if(empty) empty.style.display="none";
+  if(present) present.style.display="flex";
+  if(thumb) thumb.src=src;
+  if(fname) fname.textContent=label||"";
+}
+function openAcPhotoModal(){
+  // Reset photo modal state
+  const inp=el("ac_photo_input"); const nameSpan=el("ac_photo_input_name");
+  const previewImg=el("ac_photo_preview_img"); const previewEmpty=el("ac_photo_preview_empty");
+  if(inp) inp.value="";
+  if(nameSpan) nameSpan.textContent="No file chosen";
+  if(previewImg){previewImg.style.display="none"; previewImg.src="";}
+  if(previewEmpty) previewEmpty.style.display="block";
+  openModal("acPhotoMbd");
 }
 
 function openCreateAircraft(){
@@ -6920,6 +7005,7 @@ function openCreateAircraft(){
   el("ac_asientos").value="2";
   if(el("ac_owner")) el("ac_owner").value="";
   if(el("ac_owner_address")) el("ac_owner_address").value="";
+  _resetAcPhotoUI();
   tempRates=[]; renderAcRates();
   openModal("acMbd");
 }
@@ -6940,6 +7026,9 @@ function openEditAircraft(id){
   el("ac_asientos").value=ac.asientos||"";
   if(el("ac_owner")) el("ac_owner").value=ac.owner||"";
   if(el("ac_owner_address")) el("ac_owner_address").value=ac.ownerAddress||"";
+  _stagedAcPhoto=null; // always reset staged on edit open
+  if(ac.photoUrl){ _showAcPhotoThumb(ac.photoUrl, ac.matricula+".jpg"); }
+  else { _resetAcPhotoUI(); }
   tempRates=JSON.parse(JSON.stringify(ac.rates||[]));
   renderAcRates();
   openModal("acMbd");
@@ -6973,6 +7062,15 @@ async function saveAircraft(){
     ownerAddress:el("ac_owner_address")?el("ac_owner_address").value.trim():"",
     rates:tempRates
   };
+  // Upload staged photo if present — failure does NOT block save
+  let photoUrl=editingAcId?(AIRCRAFT.find(a=>a.id===editingAcId)?.photoUrl||null):null;
+  if(_stagedAcPhoto){
+    const compressed=await compressImage(_stagedAcPhoto,800,0.78);
+    const url=await uploadAircraftPhoto(compressed,data.matricula);
+    if(url) photoUrl=url;
+    else dbg("Photo upload failed — aircraft saves without new photo","warn");
+  }
+  data.photoUrl=photoUrl;
   if(editingAcId){
     const ac=AIRCRAFT.find(a=>a.id===editingAcId); Object.assign(ac,data);
     sbPatch("aircraft","id=eq."+editingAcId,{
@@ -6981,7 +7079,8 @@ async function saveAircraft(){
       diff_threshold:data.diffThreshold, diff_warn:data.diffWarn, diff_alert:data.diffAlert,
       motor_id:data.motorId||"", consumo_gal_hr:data.consumoGalHr||0,
       asientos:data.asientos||2, rates:data.rates,
-      owner:data.owner||"", owner_address:data.ownerAddress||""
+      owner:data.owner||"", owner_address:data.ownerAddress||"",
+      photo_url:photoUrl
     }).then(()=>dbg("Aircraft updated in DB: "+data.matricula,"ok"))
       .catch(e=>dbg("Aircraft update error: "+e.message,"err"));
     showToast("Aircraft updated");
@@ -6994,11 +7093,13 @@ async function saveAircraft(){
       diff_threshold:data.diffThreshold, diff_warn:data.diffWarn, diff_alert:data.diffAlert,
       motor_id:data.motorId||"", consumo_gal_hr:data.consumoGalHr||0,
       asientos:data.asientos||2, rates:data.rates,
-      owner:data.owner||"", owner_address:data.ownerAddress||""
+      owner:data.owner||"", owner_address:data.ownerAddress||"",
+      photo_url:photoUrl
     }).then(()=>dbg("Aircraft created in DB: "+data.matricula,"ok"))
       .catch(e=>dbg("Aircraft create error: "+e.message,"err"));
     showToast("Aircraft added");
   }
+  _stagedAcPhoto=null;
   closeModal("acMbd");
   renderFleetSettings();
   renderAircraftTab();
@@ -7727,6 +7828,30 @@ function wireEvents(){
   if(el("ac_cancel")) el("ac_cancel").addEventListener("click",()=>closeModal("acMbd"));
   if(el("ac_save")) el("ac_save").addEventListener("click",saveAircraft);
   // acMbd: backdrop click disabled — prevents accidental loss of unsaved aircraft data
+  // Aircraft photo modal
+  if(el("ac_photo_add")) el("ac_photo_add").addEventListener("click",openAcPhotoModal);
+  if(el("ac_photo_replace")) el("ac_photo_replace").addEventListener("click",openAcPhotoModal);
+  if(el("acPhoto_close")) el("acPhoto_close").addEventListener("click",()=>closeModal("acPhotoMbd"));
+  if(el("acPhoto_cancel")) el("acPhoto_cancel").addEventListener("click",()=>closeModal("acPhotoMbd"));
+  if(el("ac_photo_input")) el("ac_photo_input").addEventListener("change",function(){
+    const file=this.files[0]; if(!file) return;
+    const nameSpan=el("ac_photo_input_name");
+    const previewImg=el("ac_photo_preview_img");
+    const previewEmpty=el("ac_photo_preview_empty");
+    if(nameSpan) nameSpan.textContent=file.name;
+    const url=URL.createObjectURL(file);
+    if(previewImg){previewImg.src=url; previewImg.style.display="block"; previewImg.onload=()=>URL.revokeObjectURL(url);}
+    if(previewEmpty) previewEmpty.style.display="none";
+  });
+  if(el("acPhoto_ok")) el("acPhoto_ok").addEventListener("click",async function(){
+    const inp=el("ac_photo_input"); if(!inp||!inp.files[0]) return;
+    const file=inp.files[0];
+    const compressed=await compressImage(file,800,0.78);
+    _stagedAcPhoto=compressed;
+    const thumbUrl=URL.createObjectURL(compressed);
+    _showAcPhotoThumb(thumbUrl, file.name);
+    closeModal("acPhotoMbd");
+  });
 
   // Flag modal
   el("flag_close").addEventListener("click",()=>closeModal("flagMbd"));
