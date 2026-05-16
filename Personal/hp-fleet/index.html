@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.5d — built 2026-05-13 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.5e — built 2026-05-13 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1296,7 +1296,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
           <div class="pi-period">
             <div>Period: <span id="pi_period">—</span></div>
             <div>Logs: <span id="pi_log_range">—</span></div>
-            <div>Rate: <span id="pi_rate_display" style="color:var(--yellow);font-family:var(--mono)">—</span></div>
+            <div id="pi_rate_wrap">Rate: <span id="pi_rate_display" style="color:var(--yellow);font-family:var(--mono)">—</span></div>
           </div>
           <!-- Line items -->
           <table class="pi-tbl">
@@ -1572,6 +1572,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
           <label class="chk-item" id="co_inv_addr_lbl"><input type="checkbox" id="co_inv_addr"> <span data-i18n="invShowAddress">Show Address</span></label>
           <label class="chk-item" id="co_inv_phone_lbl"><input type="checkbox" id="co_inv_phone"> <span data-i18n="invShowPhone">Show Phone</span></label>
           <label class="chk-item" id="co_inv_notes_lbl"><input type="checkbox" id="co_inv_notes"> <span data-i18n="invShowNotes">Show Notes</span></label>
+          <label class="chk-item" id="co_inv_rate_lbl"><input type="checkbox" id="co_inv_rate"> <span data-i18n="invShowRate">Show Rate</span></label>
         </div>
       </div>
       <div class="section-divider">Contacts <span style="color:var(--dim);font-size:9px">(max 5)</span></div>
@@ -1930,12 +1931,12 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
         <div class="field"><label>Make/Model *</label><input type="text" id="ac_makeModel" placeholder="Piper PA-28"></div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>Type</label><input type="text" id="ac_tipo" placeholder="Single Engine" title="Aircraft type e.g. Single Engine, Multi Engine"></div>
-        <div class="field"><label>Tach Tolerance (hrs)</label><input type="number" id="ac_horoTolerance" step="0.01" placeholder="0.01" title="Acceptable gap between prev Motor In and curr Motor Out — default 0.01"></div>
+        <div class="field"><label>Normal Threshold (hrs) <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green);vertical-align:middle;margin-left:4px" title="Green: gap is within normal range"></span></label><input type="number" id="ac_diffThreshold" step="0.01" placeholder="0.2" title="Motor vs Flight time gap below this value is considered normal"></div>
+        <div class="field"><label>Warn Threshold (hrs) <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--yellow);vertical-align:middle;margin-left:4px" title="Yellow: gap warrants attention"></span></label><input type="number" id="ac_diffWarn" step="0.1" placeholder="0.3" title="Motor vs Flight time gap above this value triggers a yellow warning"></div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>Warn Threshold (hrs) <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--yellow);vertical-align:middle;margin-left:4px" title="Yellow: gap warrants attention"></span></label><input type="number" id="ac_diffWarn" step="0.1" placeholder="0.3" title="Motor vs Flight time gap above this value triggers a yellow warning"></div>
         <div class="field"><label>Alert Threshold (hrs) <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);vertical-align:middle;margin-left:4px" title="Red: gap requires immediate review"></span></label><input type="number" id="ac_diffAlert" step="0.1" placeholder="0.4" title="Motor vs Flight time gap above this value triggers a red alert"></div>
+        <div class="field"><label>Tach Tolerance (hrs)</label><input type="number" id="ac_horoTolerance" step="0.01" placeholder="0.01" title="Acceptable gap between prev Motor In and curr Motor Out — default 0.01"></div>
       </div>
       <div class="frow fc2">
         <div class="field"><label>Engine</label><input type="text" id="ac_motorId" placeholder="Lycoming O-320"></div>
@@ -2158,7 +2159,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.5.5d";
+const APP_VERSION = "v8.5.5e";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2422,7 +2423,7 @@ const I18N = {
     delUserWarn:"Permanently delete",delUserWarn2:"? This cannot be undone.",
     delCoWarn:"Permanently delete company",delCoWarn2:"? Billing rules will also be removed.",
     noRules:"No billing rules defined.",
-    invShowAddress:"Show Address",invShowPhone:"Show Phone",invShowNotes:"Show Notes",
+    invShowAddress:"Show Address",invShowPhone:"Show Phone",invShowNotes:"Show Notes",invShowRate:"Show Rate",
     invOnInvoice:"Invoice",invHeader:"Invoice Header",invHeaderHint:"Controls what appears in the Bill To block",
     discApplyAs:"Apply as",discOfSubtotal:"of Subtotal",discOfTotal:"of Total",
     showDiscLine:"Show discount breakdown",paymentDays:"Prompt payment validity (days)",
@@ -2512,7 +2513,7 @@ const I18N = {
     delUserWarn:"¿Eliminar permanentemente a",delUserWarn2:"? Esta acción no se puede deshacer.",
     delCoWarn:"¿Eliminar permanentemente la compañía",delCoWarn2:"? Las reglas de facturación también serán eliminadas.",
     noRules:"Sin reglas de facturación.",
-    invShowAddress:"Mostrar Dirección",invShowPhone:"Mostrar Teléfono",invShowNotes:"Mostrar Notas",
+    invShowAddress:"Mostrar Dirección",invShowPhone:"Mostrar Teléfono",invShowNotes:"Mostrar Notas",invShowRate:"Mostrar tarifa",
     invOnInvoice:"Factura",invHeader:"Encabezado de Factura",invHeaderHint:"Controla lo que aparece en el bloque Facturar A",
     discApplyAs:"Aplicar como",discOfSubtotal:"del Subtotal",discOfTotal:"del Total",
     showDiscLine:"Mostrar descuento en factura",paymentDays:"Validez pronto pago (días)",
@@ -3560,7 +3561,7 @@ function openDeleteCompany(id){
 }
 
 function _syncInvChkStyles(){
-  ["co_inv_addr","co_inv_phone","co_inv_notes"].forEach(id=>{
+  ["co_inv_addr","co_inv_phone","co_inv_notes","co_inv_rate"].forEach(id=>{
     const cb=el(id); const lbl=el(id+"_lbl");
     if(cb&&lbl) lbl.classList.toggle("checked",cb.checked);
   });
@@ -3576,6 +3577,7 @@ function openCreateCompany(){
   if(el("co_inv_addr")) el("co_inv_addr").checked=true;
   if(el("co_inv_phone")) el("co_inv_phone").checked=true;
   if(el("co_inv_notes")) el("co_inv_notes").checked=false;
+  if(el("co_inv_rate")) el("co_inv_rate").checked=true;
   _syncInvChkStyles();
   tempContacts=[]; renderTempContacts();
   renderTempRules(); openModal("coMbd");
@@ -3592,6 +3594,7 @@ function openEditCompany(id){
   if(el("co_inv_addr")) el("co_inv_addr").checked=co.inv_show_address!==false;
   if(el("co_inv_phone")) el("co_inv_phone").checked=co.inv_show_phone!==false;
   if(el("co_inv_notes")) el("co_inv_notes").checked=co.inv_show_notes===true;
+  if(el("co_inv_rate")) el("co_inv_rate").checked=co.inv_show_rate!==false;
   _syncInvChkStyles();
   tempContacts=JSON.parse(JSON.stringify(co.contacts||[]));
   renderTempContacts(); renderTempRules(); openModal("coMbd");
@@ -3700,18 +3703,19 @@ function saveCompany(){
   const inv_show_address=el("co_inv_addr")?el("co_inv_addr").checked:true;
   const inv_show_phone=el("co_inv_phone")?el("co_inv_phone").checked:true;
   const inv_show_notes=el("co_inv_notes")?el("co_inv_notes").checked:false;
+  const inv_show_rate=el("co_inv_rate")?el("co_inv_rate").checked:true;
   let ok=true;
   if(!name){setFerr("coe_name","co_name",t("required"));ok=false;}
   if(!code){setFerr("coe_code","co_code",t("required"));ok=false;}
   else if(COMPANIES.find(c=>c.code===code&&c.id!==editingCoId)){setFerr("coe_code","co_code",t("codeExists"));ok=false;}
   if(!ok) return;
-  const data={name,code,status,notes,address,phone,inv_show_address,inv_show_phone,inv_show_notes,contacts:tempContacts,billingRules:tempRules};
+  const data={name,code,status,notes,address,phone,inv_show_address,inv_show_phone,inv_show_notes,inv_show_rate,contacts:tempContacts,billingRules:tempRules};
   if(editingCoId){
     const co=COMPANIES.find(x=>x.id===editingCoId); Object.assign(co,data);
     // Reset invoice seeding so next renderPreInvoice picks up updated billing rules
     piAdditionalCharges=piAdditionalCharges.filter(c=>!c._auto&&!c._discount);
     piRulesSeeded=false;
-    sbPatch("companies","id=eq."+co.id,{name,code,status,notes,address,phone,inv_show_address,inv_show_phone,inv_show_notes,
+    sbPatch("companies","id=eq."+co.id,{name,code,status,notes,address,phone,inv_show_address,inv_show_phone,inv_show_notes,inv_show_rate,
       contacts:JSON.stringify(tempContacts),billing_rules:JSON.stringify(tempRules)})
       .then(()=>dbg("Company updated in DB: "+name,"ok"))
       .catch(e=>dbg("Company update error: "+e.message,"err"));
@@ -3719,7 +3723,7 @@ function saveCompany(){
   } else {
     const newCo={id:"c"+nextCoId++,...data};
     COMPANIES.push(newCo);
-    sbPost("companies",{id:newCo.id,name,code,status,notes,address,phone,inv_show_address,inv_show_phone,inv_show_notes,
+    sbPost("companies",{id:newCo.id,name,code,status,notes,address,phone,inv_show_address,inv_show_phone,inv_show_notes,inv_show_rate,
       contacts:JSON.stringify(tempContacts),billing_rules:JSON.stringify(tempRules)})
       .then(()=>dbg("Company created in DB: "+name,"ok"))
       .catch(e=>dbg("Company create error: "+e.message,"err"));
@@ -4966,6 +4970,7 @@ function renderPreInvoice(){
     if(el("pi_period")) el("pi_period").textContent=dates.length?(dates[0]+" — "+dates[dates.length-1]):"—";
     if(el("pi_log_range")) el("pi_log_range").textContent=bnums.length?("#"+bnums[0]+" — #"+bnums[bnums.length-1]):"—";
     if(el("pi_rate_display")) el("pi_rate_display").textContent=tarifaHr>0?"$"+tarifaHr.toFixed(2)+"/hr":"—";
+    if(el("pi_rate_wrap")) el("pi_rate_wrap").style.display=company?.inv_show_rate!==false?"":"none";
     // Sort approved entries
     const sortedApproved=[...approved].sort((a,b)=>{
       let av,bv;
@@ -5809,6 +5814,7 @@ async function loadMasterData(){
       inv_show_address:c.inv_show_address!==false,
       inv_show_phone:c.inv_show_phone!==false,
       inv_show_notes:c.inv_show_notes===true,
+      inv_show_rate:c.inv_show_rate!==false,
       adminContact:c.admin_contact||c.adminContact||"",
       acctContact:c.acct_contact||c.acctContact||"",
       contacts:typeof c.contacts==="string"?JSON.parse(c.contacts):c.contacts||[],
@@ -7062,7 +7068,7 @@ function wireEvents(){
   el("co_close").addEventListener("click",()=>closeModal("coMbd"));
   el("co_cancel").addEventListener("click",()=>closeModal("coMbd"));
   el("co_save").addEventListener("click",saveCompany);
-  ["co_inv_addr","co_inv_phone","co_inv_notes"].forEach(id=>{
+  ["co_inv_addr","co_inv_phone","co_inv_notes","co_inv_rate"].forEach(id=>{
     if(el(id)) el(id).addEventListener("change",_syncInvChkStyles);
   });
   el("co_addRule").addEventListener("click",addBillingRuleRow);
@@ -7720,7 +7726,7 @@ function wireEvents(){
   if(el("ac_close")) el("ac_close").addEventListener("click",()=>closeModal("acMbd"));
   if(el("ac_cancel")) el("ac_cancel").addEventListener("click",()=>closeModal("acMbd"));
   if(el("ac_save")) el("ac_save").addEventListener("click",saveAircraft);
-  if(el("acMbd")) el("acMbd").addEventListener("click",e=>{ if(e.target===el("acMbd")) closeModal("acMbd"); });
+  // acMbd: backdrop click disabled — prevents accidental loss of unsaved aircraft data
 
   // Flag modal
   el("flag_close").addEventListener("click",()=>closeModal("flagMbd"));
