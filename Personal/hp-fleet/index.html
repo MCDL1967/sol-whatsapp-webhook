@@ -3584,6 +3584,11 @@ function openCreateCompany(){
 function openEditCompany(id){
   const co=COMPANIES.find(x=>x.id===id); if(!co) return;
   editingCoId=id; tempRules=JSON.parse(JSON.stringify(co.billingRules||[])); clearCoErrors();
+  if(tempRules.some(r=>r.type==="discount")){
+    console.log("[PROBE-5] openCoModal tempRules (discount found):", JSON.stringify(tempRules));
+  } else {
+    console.log("[PROBE-5] openCoModal tempRules (NO discount):", JSON.stringify(tempRules));
+  }
   el("coModalTitle").textContent=(lang==="es"?"Editar Compañía: ":"Edit Company: ")+co.name;
   el("co_name").value=co.name; el("co_code").value=co.code;
   el("co_status").value=co.status; el("co_notes").value=co.notes||"";
@@ -3711,10 +3716,24 @@ function saveCompany(){
     // Reset invoice seeding so next renderPreInvoice picks up updated billing rules
     piAdditionalCharges=piAdditionalCharges.filter(c=>!c._auto&&!c._discount);
     piRulesSeeded=false;
+    const _br_probe=JSON.stringify(tempRules);
+    console.log("[PROBE-1] tempRules BEFORE save:", JSON.stringify(tempRules, null, 2));
+    console.log("[PROBE-1] billing_rules payload:", _br_probe);
     sbPatch("companies","id=eq."+co.id,{name,code,status,notes,address,phone,inv_show_address,inv_show_phone,inv_show_notes,
-      contacts:JSON.stringify(tempContacts),billing_rules:JSON.stringify(tempRules)})
-      .then(()=>dbg("Company updated in DB: "+name,"ok"))
-      .catch(e=>dbg("Company update error: "+e.message,"err"));
+      contacts:JSON.stringify(tempContacts),billing_rules:_br_probe})
+      .then(async(res)=>{
+        dbg("Company updated in DB: "+name,"ok");
+        console.log("[PROBE-2] sbPatch SUCCESS");
+        // Probe 3: read back from DB immediately
+        try {
+          const _rows=await sbGet("companies","id=eq."+co.id+"&select=billing_rules,inv_show_phone");
+          console.log("[PROBE-3] DB row immediately after save:", JSON.stringify(_rows));
+        } catch(e) { console.log("[PROBE-3] readback error:", e.message); }
+      })
+      .catch(e=>{
+        dbg("Company update error: "+e.message,"err");
+        console.log("[PROBE-2] sbPatch FAILED:", e.message);
+      });
     addAudit("✏️",currentUser.name,(lang==="es"?"editó compañía":"edited company"),name);
   } else {
     const newCo={id:"c"+nextCoId++,...data};
@@ -5812,7 +5831,15 @@ async function loadMasterData(){
       adminContact:c.admin_contact||c.adminContact||"",
       acctContact:c.acct_contact||c.acctContact||"",
       contacts:typeof c.contacts==="string"?JSON.parse(c.contacts):c.contacts||[],
-      billingRules:typeof c.billing_rules==="string"?JSON.parse(c.billing_rules):c.billing_rules||[]
+      billingRules:(()=>{
+        const _raw=c.billing_rules;
+        const _parsed=typeof _raw==="string"?JSON.parse(_raw):_raw||[];
+        if(_parsed.some&&_parsed.some(r=>r.type==="discount")){
+          console.log("[PROBE-4] loadMasterData raw billing_rules for "+c.code+":", typeof _raw, JSON.stringify(_raw));
+          console.log("[PROBE-4] parsed billingRules:", JSON.stringify(_parsed));
+        }
+        return _parsed;
+      })()
     })));
     if(aircraft&&aircraft.length) AIRCRAFT.splice(0,AIRCRAFT.length,...aircraft.map(a=>({
       id:a.id, matricula:a.matricula, makeModel:a.make_model||"",
