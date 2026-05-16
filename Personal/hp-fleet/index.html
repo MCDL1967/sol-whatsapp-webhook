@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.4a — built 2026-05-13 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.5 — built 2026-05-13 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -932,6 +932,13 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
   /* Keep summary block together — no page break inside charges+total+stamp */
   .pi-charges,.pi-total,.pi-signoff{page-break-inside:avoid;break-inside:avoid}
   .pi-total{page-break-before:avoid;break-before:avoid}
+  /* Discount breakdown and pronto pago block */
+  #pi_discount_block{display:block!important;color:#333!important}
+  #pi_discount_block span{color:#333!important}
+  #pi_pronto_block{display:block!important}
+  .pi-pronto-label{color:#333!important;font-weight:700}
+  .pi-pronto-amt{color:#1a9955!important;font-weight:700}
+  .pi-pronto-footer{color:#555!important;font-size:9px!important}
 }
 .pi-charges input[type=number]::-webkit-inner-spin-button,
 .pi-charges input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
@@ -1324,6 +1331,8 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
           </div>
           <!-- Discount / Net Total block -->
           <div id="pi_discount_block" style="padding:0 0 8px"></div>
+          <!-- Pronto pago / prompt payment block -->
+          <div id="pi_pronto_block" style="display:none"></div>
           <!-- Sign-off -->
           <div class="pi-signoff">
             <button class="btn-primary" id="pi_signoff_btn">✓ Approve &amp; Sign Off</button>
@@ -2143,7 +2152,7 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 <div class="toast" id="toast"></div>
 <script>
 // ── DATA ──
-const APP_VERSION = "v8.5.4a";
+const APP_VERSION = "v8.5.5";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2410,6 +2419,11 @@ const I18N = {
     invShowAddress:"Show Address",invShowPhone:"Show Phone",invShowNotes:"Show Notes",
     invOnInvoice:"Invoice",invHeader:"Invoice Header",invHeaderHint:"Controls what appears in the Bill To block",
     discApplyAs:"Apply as",discOfSubtotal:"of Subtotal",discOfTotal:"of Total",
+    showDiscLine:"Show discount breakdown",paymentDays:"Prompt payment validity (days)",
+    discFooterPlaceholder:"e.g. Valid for payment within N business days",
+    prontoPago:"TOTAL PROMPT PAYMENT",
+    validoPor:"Valid for payment within",diasHabiles:"business days from invoice date",
+    oneDiscountOnly:"Only one discount rule is allowed.",
     roleDescAdmin:"Administrator — full access including users and companies.",
     roleDescOperator:"Operator — loads files, reviews entries for assigned companies, submits.",
     roleDescReviewer:"Reviewer — views submitted batches for assigned companies, approves.",
@@ -2495,6 +2509,11 @@ const I18N = {
     invShowAddress:"Mostrar Dirección",invShowPhone:"Mostrar Teléfono",invShowNotes:"Mostrar Notas",
     invOnInvoice:"Factura",invHeader:"Encabezado de Factura",invHeaderHint:"Controla lo que aparece en el bloque Facturar A",
     discApplyAs:"Aplicar como",discOfSubtotal:"del Subtotal",discOfTotal:"del Total",
+    showDiscLine:"Mostrar descuento en factura",paymentDays:"Validez pronto pago (días)",
+    discFooterPlaceholder:"ej. válido por N días hábiles desde facturación",
+    prontoPago:"TOTAL PRONTO PAGO",
+    validoPor:"Válido por",diasHabiles:"días hábiles desde fecha de facturación",
+    oneDiscountOnly:"Solo se permite una regla de descuento.",
     roleDescAdmin:"Administrador — acceso total incluyendo usuarios y compañías.",
     roleDescOperator:"Operador — carga archivos, revisa entradas de sus compañías, envía.",
     roleDescReviewer:"Revisor — ve lotes enviados de sus compañías, aprueba.",
@@ -3490,7 +3509,7 @@ function renderCompanies(){
     const rulesHtml=co.billingRules&&co.billingRules.length
       ?co.billingRules.map(r=>'<div class="br-item"><span class="br-name">'+r.name+"</span>"+
         '<span class="br-val">$'+r.amount.toFixed(2)+"</span>"+
-        '<span class="br-unit">'+r.unit+"</span>"+
+        '<span class="br-unit">'+(r.type==="discount"?(lang==="es"?"Descuento":"Discount"):(r.unit||""))+"</span>"+
         '<span style="color:'+( r.active?"var(--green)":"var(--dim)")+';font-size:8px">●</span></div>').join("")
       :'<div class="br-empty">'+t("noRules")+"</div>";
     card.innerHTML='<div class="co-stripe" style="background:'+color+'"></div>'+
@@ -3601,15 +3620,40 @@ function renderTempRules(){
         '<span style="font-family:var(--mono);font-size:9px;color:var(--dim2);text-align:right">→ nets below Total</span>';
       sub.querySelectorAll("select")[0].addEventListener("change",function(){tempRules[i].discountMode=this.value;});
       sub.querySelectorAll("select")[1].addEventListener("change",function(){tempRules[i].discountBase=this.value;});
+      // Pronto pago controls — second row inside sub
+      const sub2=document.createElement("div");
+      sub2.style.cssText="display:grid;grid-template-columns:auto 160px 1fr;gap:6px;align-items:center;margin-top:5px;padding-top:5px;border-top:1px dashed rgba(178,141,255,.2)";
+      sub2.innerHTML=
+        '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-family:var(--mono);font-size:9px;color:var(--violet);white-space:nowrap">'+
+          '<input type="checkbox"'+(r.showDiscountLine?' checked':'')+' style="accent-color:var(--violet)"> '+t("showDiscLine")+
+        '</label>'+
+        '<div style="display:flex;align-items:center;gap:4px">'+
+          '<span style="font-family:var(--mono);font-size:9px;color:var(--dim2);white-space:nowrap">'+t("paymentDays")+'</span>'+
+          '<input type="number" min="0" step="1" value="'+(r.paymentWindowDays||0)+'" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:10px;padding:4px 6px;border-radius:2px;outline:none;width:52px">'+
+        '</div>'+
+        '<input type="text" value="'+(r.footerText||'')+'" placeholder="'+t("discFooterPlaceholder")+'" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:10px;padding:4px 8px;border-radius:2px;outline:none;width:100%">';
+      sub2.querySelector('input[type=checkbox]').addEventListener('change',function(){tempRules[i].showDiscountLine=this.checked;});
+      sub2.querySelector('input[type=number]').addEventListener('input',function(){tempRules[i].paymentWindowDays=parseInt(this.value)||0;});
+      sub2.querySelector('input[type=text]').addEventListener('input',function(){tempRules[i].footerText=this.value;});
+      sub.appendChild(sub2);
       row.appendChild(sub);
     }
     row.querySelector("input:first-child").addEventListener("input",function(){tempRules[i].name=this.value;});
     row.querySelectorAll("input")[1].addEventListener("input",function(){tempRules[i].amount=parseFloat(this.value)||0;});
     row.querySelector("select").addEventListener("change",function(){
       if(this.value==="discount"){
+        const alreadyHasDiscount=tempRules.some((r,j)=>j!==i&&r.type==="discount");
+        if(alreadyHasDiscount){
+          showToast(t("oneDiscountOnly"),"err");
+          this.value=tempRules[i].unit||"per Flight Hour";
+          return;
+        }
         tempRules[i].type="discount";
         tempRules[i].discountMode=tempRules[i].discountMode||"pct";
         tempRules[i].discountBase=tempRules[i].discountBase||"subtotal";
+        tempRules[i].showDiscountLine=tempRules[i].showDiscountLine??false;
+        tempRules[i].paymentWindowDays=tempRules[i].paymentWindowDays??0;
+        tempRules[i].footerText=tempRules[i].footerText||"";
       } else {
         tempRules[i].type="charge";
         tempRules[i].unit=this.value;
@@ -3644,6 +3688,9 @@ function saveCompany(){
   const data={name,code,status,notes,address,phone,inv_show_address,inv_show_phone,inv_show_notes,contacts:tempContacts,billingRules:tempRules};
   if(editingCoId){
     const co=COMPANIES.find(x=>x.id===editingCoId); Object.assign(co,data);
+    // Reset invoice seeding so next renderPreInvoice picks up updated billing rules
+    piAdditionalCharges=piAdditionalCharges.filter(c=>!c._auto&&!c._discount);
+    piRulesSeeded=false;
     sbPatch("companies","id=eq."+co.id,{name,code,status,notes,address,phone,inv_show_address,inv_show_phone,inv_show_notes,
       contacts:JSON.stringify(tempContacts),billing_rules:JSON.stringify(tempRules)})
       .then(()=>dbg("Company updated in DB: "+name,"ok"))
@@ -4863,7 +4910,7 @@ function renderPreInvoice(){
       });
       // Seed discount rules — amount computed later in renderPiCharges against live subtotal/total
       company.billingRules.filter(r=>r.active&&r.type==="discount").forEach(r=>{
-        piAdditionalCharges.push({desc:r.name,amount:r.amount,_discount:true,_discountMode:r.discountMode||"pct",_discountBase:r.discountBase||"subtotal"});
+        piAdditionalCharges.push({desc:r.name,amount:r.amount,_discount:true,_discountMode:r.discountMode||"pct",_discountBase:r.discountBase||"subtotal",_showDiscountLine:r.showDiscountLine??false,_paymentWindowDays:r.paymentWindowDays??0,_footerText:r.footerText||""});
       });
       piRulesSeeded=true;
     }
@@ -4997,26 +5044,49 @@ function renderPiCharges(subtotal){
   wrap.appendChild(tbl);
   const grandTotal=subtotal+chargesTotal;
   if(el("pi_total_amt")) el("pi_total_amt").textContent=fmtCurrency(grandTotal);
-  // Render discount block below Total if any discounts exist
+  // Render discount breakdown and pronto pago block
   const discWrap=el("pi_discount_block");
-  if(discWrap){
-    discWrap.innerHTML="";
-    if(discounts.length){
+  const prontoWrap=el("pi_pronto_block");
+  if(discWrap) discWrap.innerHTML="";
+  if(prontoWrap){ prontoWrap.innerHTML=""; prontoWrap.style.display="none"; }
+  if(discounts.length){
+    // Compute stacked net total across all discounts
+    let totalDiscAmt=0;
+    discounts.forEach(d=>{
+      const base=d._discountBase==="total"?grandTotal:subtotal;
+      totalDiscAmt+=d._discountMode==="pct"?parseFloat((base*(d.amount/100)).toFixed(2)):d.amount;
+    });
+    totalDiscAmt=parseFloat(totalDiscAmt.toFixed(2));
+    const netTotal=parseFloat((grandTotal-totalDiscAmt).toFixed(2));
+    // Render optional per-discount breakdown lines (showDiscountLine=true only)
+    if(discWrap){
       discounts.forEach(d=>{
+        if(!(d._showDiscountLine??false)) return;
         const base=d._discountBase==="total"?grandTotal:subtotal;
-        const discAmt=d._discountMode==="pct"?parseFloat((base*(d.amount/100)).toFixed(2)):d.amount;
-        const netTotal=grandTotal-discAmt;
-        const row=document.createElement("div");
-        row.style.cssText="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px dashed var(--border2);font-family:var(--mono);font-size:11px";
-        row.innerHTML='<span style="color:var(--dim2)">'+d.desc+' <span style="color:var(--dim);font-size:9px">('+
-          (d._discountMode==="pct"?d.amount+"% of "+(d._discountBase==="total"?"Total":"Subtotal"):"$"+d.amount.toFixed(2)+" off")+
-          ')</span></span><span style="color:var(--red)">− '+fmtCurrency(discAmt)+'</span>';
-        discWrap.appendChild(row);
-        const netRow=document.createElement("div");
-        netRow.style.cssText="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:2px solid var(--cyan);margin-top:4px;font-family:var(--mono)";
-        netRow.innerHTML='<span style="font-size:11px;letter-spacing:1px;color:var(--cyan)">NET TOTAL</span><span style="font-size:16px;font-weight:700;color:var(--cyan)">'+fmtCurrency(netTotal)+'</span>';
-        discWrap.appendChild(netRow);
+        const dAmt=d._discountMode==="pct"?parseFloat((base*(d.amount/100)).toFixed(2)):d.amount;
+        const dRow=document.createElement("div");
+        dRow.style.cssText="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-top:1px dashed var(--border2);font-family:var(--mono);font-size:11px";
+        dRow.innerHTML='<span style="color:var(--dim2)">'+d.desc+
+          ' <span style="color:var(--dim);font-size:9px">('+
+          (d._discountMode==="pct"?d.amount+"% "+t(d._discountBase==="total"?"discOfTotal":"discOfSubtotal"):"$"+dAmt.toFixed(2)+" off")+
+          ')</span></span><span style="color:var(--red)">− '+fmtCurrency(dAmt)+'</span>';
+        discWrap.appendChild(dRow);
       });
+    }
+    // Render pronto pago / prompt payment block
+    if(prontoWrap){
+      prontoWrap.style.display="block";
+      prontoWrap.style.cssText="margin-top:6px;padding:10px 14px;background:rgba(26,153,85,.06);border:1px solid rgba(26,153,85,.25);border-left:3px solid var(--green);border-radius:2px;display:block";
+      const d=discounts[0];
+      const footerDays=d._paymentWindowDays??0;
+      const footerCustom=d._footerText||"";
+      const footerLine=footerCustom||(footerDays>0?(t("validoPor")+" "+footerDays+" "+t("diasHabiles")):"");
+      prontoWrap.innerHTML=
+        '<div style="display:flex;justify-content:space-between;align-items:baseline;font-family:var(--mono)">'+
+          '<span class="pi-pronto-label" style="font-size:12px;font-weight:700;letter-spacing:1px;color:var(--green)">'+t("prontoPago")+'</span>'+
+          '<span class="pi-pronto-amt" style="font-size:18px;font-weight:700;color:var(--green)">'+fmtCurrency(netTotal)+'</span>'+
+        '</div>'+
+        (footerLine?'<div class="pi-pronto-footer" style="font-family:var(--mono);font-size:9px;color:var(--dim2);margin-top:3px">'+footerLine+'</div>':"");
     }
   }
   wrap.querySelectorAll("input").forEach(inp=>{
