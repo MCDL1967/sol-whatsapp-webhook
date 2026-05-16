@@ -6894,7 +6894,10 @@ function renderAircraftTab(){
       '<div><span style="color:var(--dim)">Make/Model</span><br><span>'+( ac.makeModel||"—")+'</span></div>'+
       '<div><span style="color:var(--dim)">Engine</span><br><span>'+(ac.motorId||"—")+'</span></div>'+
       '<div><span style="color:var(--dim)">Fuel (gal/hr)</span><br><span>'+(ac.consumoGalHr||"—")+'</span></div>'+
-      '<div><span style="color:var(--dim)">Diff Threshold</span><br><span style="color:'+(ac.diffThreshold<=0.2?"var(--green)":"var(--yellow)")+'">'+ac.diffThreshold.toFixed(1)+' hrs</span></div>'+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-end">'+
+        '<div><span style="color:var(--dim)">Diff Threshold</span><br><span style="color:'+(ac.diffThreshold<=0.2?"var(--green)":"var(--yellow)")+'">'+ac.diffThreshold.toFixed(1)+' hrs</span></div>'+
+        (ac.photoUrl?'<img src="'+ac.photoUrl+'" alt="'+ac.matricula+'" style="width:90px;height:62px;object-fit:cover;border-radius:2px;border:1px solid var(--border2);flex-shrink:0">':"")+
+      '</div>'+
       '</div>'+
       '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Operator Rates</div>'+
       (ratesHtml||'<div style="color:var(--dim);font-size:10px;font-family:var(--mono)">No rates configured</div>');
