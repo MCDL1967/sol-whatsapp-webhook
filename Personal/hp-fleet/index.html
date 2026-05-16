@@ -1931,12 +1931,12 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
         <div class="field"><label>Make/Model *</label><input type="text" id="ac_makeModel" placeholder="Piper PA-28"></div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>Normal Threshold (hrs) <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green);vertical-align:middle;margin-left:4px" title="Green: gap is within normal range"></span></label><input type="number" id="ac_diffThreshold" step="0.01" placeholder="0.2" title="Motor vs Flight time gap below this value is considered normal"></div>
-        <div class="field"><label>Warn Threshold (hrs) <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--yellow);vertical-align:middle;margin-left:4px" title="Yellow: gap warrants attention"></span></label><input type="number" id="ac_diffWarn" step="0.1" placeholder="0.3" title="Motor vs Flight time gap above this value triggers a yellow warning"></div>
+        <div class="field"><label>Type</label><input type="text" id="ac_tipo" placeholder="Single Engine" title="Aircraft type e.g. Single Engine, Multi Engine"></div>
+        <div class="field"><label>Tach Tolerance (hrs)</label><input type="number" id="ac_horoTolerance" step="0.01" placeholder="0.01" title="Acceptable gap between prev Motor In and curr Motor Out — default 0.01"></div>
       </div>
       <div class="frow fc2">
+        <div class="field"><label>Warn Threshold (hrs) <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--yellow);vertical-align:middle;margin-left:4px" title="Yellow: gap warrants attention"></span></label><input type="number" id="ac_diffWarn" step="0.1" placeholder="0.3" title="Motor vs Flight time gap above this value triggers a yellow warning"></div>
         <div class="field"><label>Alert Threshold (hrs) <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);vertical-align:middle;margin-left:4px" title="Red: gap requires immediate review"></span></label><input type="number" id="ac_diffAlert" step="0.1" placeholder="0.4" title="Motor vs Flight time gap above this value triggers a red alert"></div>
-        <div class="field"><label>Tach Tolerance (hrs)</label><input type="number" id="ac_horoTolerance" step="0.01" placeholder="0.01" title="Acceptable gap between prev Motor In and curr Motor Out — default 0.01"></div>
       </div>
       <div class="frow fc2">
         <div class="field"><label>Engine</label><input type="text" id="ac_motorId" placeholder="Lycoming O-320"></div>
@@ -7726,7 +7726,7 @@ function wireEvents(){
   if(el("ac_close")) el("ac_close").addEventListener("click",()=>closeModal("acMbd"));
   if(el("ac_cancel")) el("ac_cancel").addEventListener("click",()=>closeModal("acMbd"));
   if(el("ac_save")) el("ac_save").addEventListener("click",saveAircraft);
-  // acMbd: backdrop click disabled — prevents accidental loss of unsaved aircraft data
+  if(el("acMbd")) el("acMbd").addEventListener("click",e=>{ if(e.target===el("acMbd")) closeModal("acMbd"); });
 
   // Flag modal
   el("flag_close").addEventListener("click",()=>closeModal("flagMbd"));
