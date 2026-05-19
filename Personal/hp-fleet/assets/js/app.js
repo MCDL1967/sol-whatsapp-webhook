@@ -2002,7 +2002,7 @@ async function extractAll(){
   showResultBanner(hasErrors?"warn":"ok",msg);
   el("srcBar").style.display="flex";
   el("reviewSection").style.display="block";
-  await saveBatchToDB();
+  await saveBatchToDB("initial extraction save");
   renderWfBar(); setupFlRoleUI(); renderFlTable();
 }
 
@@ -2755,7 +2755,7 @@ function handleSubmit(){
 async function doSubmit(){
   batchStatus="SUBMITTED";
   if(el("resultBanner")) el("resultBanner").style.display="none";
-  await saveBatchToDB();
+  await saveBatchToDB("submit batch");
   addFlAudit("📤",currentUser.name,"submitted batch",flEntries.filter(e=>e.status==="approved").length+" approved entries");
   const flagged=flEntries.filter(e=>e.status==="flagged").length;
   const approved=flEntries.filter(e=>e.status==="approved").length;
@@ -3054,7 +3054,7 @@ async function reopenBatch(){
   if(!reason){showToast("Reason required","err");return;}
   const prevStatus=batchStatus;
   batchStatus="DRAFT";
-  await saveBatchToDB();
+  await saveBatchToDB("manual reopen batch");
   addFlAudit("↩",currentUser.name,"batch reopened","From: "+prevStatus+" — Reason: "+reason);
   addAudit("↩",currentUser.name,"batch reopened",currentBatchId+" from "+prevStatus+" — "+reason);
   closeModal("reopenMbd");
@@ -3066,7 +3066,7 @@ async function reopenBatch(){
 async function doApprove(){
   batchStatus="APPROVED";
   if(el("resultBanner")) el("resultBanner").style.display="none";
-  await saveBatchToDB();
+  await saveBatchToDB("approve for invoicing");
   exportFlCSV();
   addFlAudit("✅",currentUser.name,"approved for invoicing",flEntries.filter(e=>e.status==="approved").length+" entries");
   renderWfBar(); setupFlRoleUI(); renderPreInvoice();
@@ -3139,7 +3139,7 @@ async function doReturnForReview(){
   batchStatus="DRAFT";
   reviewCycle++;
   if(el("resultBanner")) el("resultBanner").style.display="none";
-  await saveBatchToDB();
+  await saveBatchToDB("return for review");
   addFlAudit("↩",currentUser.name,lang==="es"?"devolvió lote para corrección":"returned batch for review",
     flagged.length+(lang==="es"?" entradas marcadas":" flagged entries"));
   renderWfBar(); setupFlRoleUI(); renderFlTable();
@@ -3162,7 +3162,7 @@ async function doReturnForReview(){
 }
 
 async function saveDraft(){
-  await saveBatchToDB();
+  await saveBatchToDB("save draft");
   addFlAudit("💾",currentUser.name,"saved draft",flEntries.length+" entries");
   showToast(lang==="es"?"Borrador guardado.":"Draft saved.");
 }
@@ -3264,7 +3264,7 @@ async function saveFlagEntry(){
   e.flagNote=comment;
   addFlAudit("🚩",currentUser.name,"flagged entry #"+(flEntries.indexOf(e)+1),comment);
   closeModal("flagMbd");
-  await saveBatchToDB();
+  await saveBatchToDB("flag entry");
   renderFlTable();
   showToast("Entry flagged");
 }
@@ -3317,7 +3317,7 @@ async function resetTestData(){
     e.reviewThread=[];
     e.status="pending";
   });
-  await saveBatchToDB();
+  await saveBatchToDB("reset test data");
   renderFlTable(); updateSrcBar(); renderWfBar();
   addFlAudit("🗑",currentUser.name,"reset test data","All entry flag_note, review_thread cleared, status → pending");
   showToast(lang==="es"?"Datos de prueba reiniciados":"Test data reset","warn");
@@ -3610,7 +3610,9 @@ function applyNameProp(mode){
   _namePropData=null;
   renderFlTable();
 }
-async function saveBatchToDB(){
+async function saveBatchToDB(reason="unspecified"){
+  const saveStarted=performance.now();
+  dbg("Batch save started — reason: "+reason+" — status: "+batchStatus+" — entries: "+flEntries.length+" — audit rows: "+flAuditLog.length,"info");
   try {
     const meta=window._pendingBatchMeta||{};
     const logNums=flEntries.map(e=>e.bnum).filter(Boolean).sort();
@@ -3677,6 +3679,7 @@ async function saveBatchToDB(){
       }));
       await sbPost("audit_log",auditRows);
     }
+    dbg("Batch save completed — reason: "+reason+" — "+Math.round(performance.now()-saveStarted)+"ms","ok");
   } catch(err){ dbg("DB save error: "+err.message,"err"); showToast("DB save error: "+err.message,"err"); }
 }
 
@@ -4018,7 +4021,7 @@ async function saveSpEntry(){
       :"This batch is APPROVED. Reopen to DRAFT to allow edits?";
     if(!confirm(msg)) return;
     batchStatus="DRAFT";
-    await saveBatchToDB();
+    await saveBatchToDB("auto-reopen before entry edit");
     addFlAudit("↩",currentUser.name,"batch reopened via edit","Auto-reopened to DRAFT on entry edit");
     addAudit("↩",currentUser.name,"batch auto-reopened",currentBatchId);
     renderWfBar(); setupFlRoleUI();
@@ -4075,7 +4078,7 @@ async function saveSpEntry(){
     // Clear stale diff flag from obs before rechecking
     if(e.obs) e.obs=e.obs.replace(/△\s*Dif\s*Motor\/Vuelo[^|]*/g,"").replace(/\|\s*△\s*$/,"").trim();
     addFlAudit("✏️",currentUser.name,"edited entry via panel","#"+(flEntries.indexOf(e)+1));
-    await saveBatchToDB();
+    await saveBatchToDB("side panel entry edit");
     renderFlTable();
     showToast("Entry updated");
     spClearDirty();
@@ -4085,17 +4088,17 @@ async function saveSpEntry(){
     // Check name propagation
     if(newPiloto!==oldPiloto){
       checkNamePropagation(e.id,"piloto",oldPiloto,newPiloto,async(updated)=>{
-        if(updated.length) await saveBatchToDB();
+        if(updated.length) await saveBatchToDB("propagate pilot name");
       });
     } else if(newInstructor!==oldInstructor){
       checkNamePropagation(e.id,"instructor",oldInstructor,newInstructor,async(updated)=>{
-        if(updated.length) await saveBatchToDB();
+        if(updated.length) await saveBatchToDB("propagate instructor name");
       });
     }
     return; // already saved above
   }
   // Reviewer comment path
-  await saveBatchToDB();
+  await saveBatchToDB("reviewer comment");
   renderFlTable();
   showToast(role==="REVIEWER"?"Comment saved":"Entry updated");
   if(el("sp_title")) el("sp_title").textContent="Log Entry #"+(flEntries.indexOf(e)+1);
@@ -4264,7 +4267,7 @@ async function confirmAddFiles(){
   }));
   afFiles=[];
   closeAddFilesDialog();
-  await saveBatchToDB();
+  await saveBatchToDB("preserve batch before append");
   openUploadStatusWindow(true);
   await extractAllAppend(afQueue);
 }
@@ -4377,7 +4380,7 @@ async function extractAllAppend(appendQueue){
   uploadLog("Append complete — ready for review");
 
   updateSrcBar();
-  await saveBatchToDB();
+  await saveBatchToDB("append extracted files");
   renderWfBar(); setupFlRoleUI(); renderFlTable();
 }
 
@@ -4630,7 +4633,7 @@ async function loadBatchFromDB(id){
 async function switchToBatch(batchId){
   if(!batchId) return;
   if(batchId===currentBatchId) return;
-  if(currentBatchId&&flEntries.length) await saveBatchToDB();
+  if(currentBatchId&&flEntries.length) await saveBatchToDB("before switching batch");
   await loadBatchFromDB(batchId);
   renderBatchSelector();
   if(el("srcBar")) el("srcBar").style.display="flex";
@@ -4712,7 +4715,7 @@ async function importFromXLSX(file){
       el("srcBar").style.display="flex";
       el("reviewSection").style.display="block";
       batchStatus="DRAFT";
-      await saveBatchToDB();
+      await saveBatchToDB("Excel import");
       addFlAudit("📊",currentUser.name,"imported from Excel",imported+" entries from "+file.name);
       renderWfBar(); setupFlRoleUI(); renderFlTable();
       showToast("✓ "+imported+" "+t("xlsxImported"));
@@ -5359,7 +5362,7 @@ function wireEvents(){
     piSignedAt=new Date().toLocaleString("es-PA");
     addFlAudit("✍️",currentUser.name,"signed off billing",piInvNum);
     renderPreInvoice();
-    await saveBatchToDB();
+    await saveBatchToDB("billing signoff");
     showToast("Billing signed off");
   });
   // Sort headers
@@ -5519,7 +5522,7 @@ function wireEvents(){
     const newId=this.value; if(!newId||newId===currentBatchId) return;
     if(flEntries.length){
       const msg=lang==="es"?"¿Guardar el lote actual antes de cambiar?":"Save current batch before switching?";
-      if(confirm(msg)) await saveBatchToDB();
+      if(confirm(msg)) await saveBatchToDB("batch selector switch");
     }
     await switchToBatch(newId);
   });
