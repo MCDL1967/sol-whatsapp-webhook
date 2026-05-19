@@ -746,7 +746,8 @@ table.fl-tbl td:last-child{border-right:none}
 /* SIDE PANEL LEFT RESIZE (width) */
 /* STICKY HEADERS */
 table.fl-tbl.sticky-headers thead th{position:sticky;top:0;z-index:5;background:var(--s2)}
-table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 0 0 var(--s2)}
+table.fl-tbl.sticky-headers thead tr:nth-child(1) th{box-shadow:0 -8px 0 0 var(--s2)}
+table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -8px 0 0 var(--s2)}
 .fl-tbl-wrap.sticky-active{overflow-y:auto!important;max-height:calc(100vh - 320px)!important}
 /* DUPLICATE LOG MARKER */
 .log-dup-gap{border-left:3px solid var(--red)!important}
