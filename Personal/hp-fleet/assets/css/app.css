@@ -586,6 +586,20 @@ table.fl-tbl td:last-child{border-right:none}
   border:1px solid var(--border);border-radius:2px;display:block}
 .sp-img-wrap{cursor:grab}
 .sp-img-wrap:active{cursor:grabbing}
+.sp-swipe-cue{position:absolute;top:50%;transform:translateY(-50%) scale(.92);
+  width:82px;height:82px;border-radius:50%;background:rgba(10,18,28,.58);
+  border:1px solid rgba(65,209,255,.38);color:rgba(220,246,255,.88);
+  display:flex;align-items:center;justify-content:center;font-size:70px;
+  line-height:1;font-family:var(--mono);font-weight:300;opacity:0;
+  pointer-events:none;z-index:7;text-shadow:0 0 18px rgba(65,209,255,.55)}
+.sp-swipe-cue.prev{left:22px}
+.sp-swipe-cue.next{right:22px}
+.sp-swipe-cue.show{animation:spSwipeCueFlash .32s ease-out}
+@keyframes spSwipeCueFlash{
+  0%{opacity:0;transform:translateY(-50%) scale(.82)}
+  28%{opacity:1;transform:translateY(-50%) scale(1)}
+  100%{opacity:0;transform:translateY(-50%) scale(1.08)}
+}
 .sp-overlay{position:fixed;inset:0;background:transparent;
   z-index:99;display:none;pointer-events:none}
 .sp-overlay.open{display:block}

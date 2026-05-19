@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.5j";
+const APP_VERSION = "v8.5.5k";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -3923,12 +3923,15 @@ function _updateSpNav(){
   if(pos) pos.textContent="Entry "+(spCurrentIndex+1)+" of "+flEntries.length;
 }
 
-function spNavigate(dir){
-  spGuardDirty(()=>_spNavigate(dir));
+function spNavigate(dir, afterNav){
+  spGuardDirty(()=>{
+    const moved=_spNavigate(dir);
+    if(moved&&afterNav) afterNav();
+  });
 }
 function _spNavigate(dir){
   const newIdx=spCurrentIndex+dir;
-  if(newIdx<0||newIdx>=flEntries.length) return;
+  if(newIdx<0||newIdx>=flEntries.length) return false;
   spCurrentIndex=newIdx;
   const entry=flEntries[newIdx];
   spEditingEntryId=entry.id;
@@ -3945,6 +3948,16 @@ function _spNavigate(dir){
     }
   });
   if(activeRow) activeRow.scrollIntoView({block:"nearest",behavior:"smooth"});
+  return true;
+}
+
+function showSpSwipeCue(dir){
+  const cue=el("spSwipeCue");
+  if(!cue) return;
+  cue.textContent=dir>0?"›":"‹";
+  cue.className="sp-swipe-cue "+(dir>0?"next":"prev");
+  void cue.offsetWidth;
+  cue.classList.add("show");
 }
 
 function populateSpEditFields(e){
@@ -5389,7 +5402,8 @@ function wireEvents(){
       const elapsed=Date.now()-swipeStartT;
       if(swipeHorizontal&&elapsed<900&&Math.abs(dx)>=60&&Math.abs(dx)>Math.abs(dy)*1.35){
         e.preventDefault();
-        spNavigate(dx<0?1:-1);
+        const dir=dx<0?1:-1;
+        spNavigate(dir,()=>showSpSwipeCue(dir));
       }
     },{passive:false});
     spImgWrap.addEventListener("touchcancel",()=>{
