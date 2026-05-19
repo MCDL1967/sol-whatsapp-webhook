@@ -511,9 +511,9 @@ table.fl-tbl td:last-child{border-right:none}
   /* M9 — Sticky headers offset */
   .fl-tbl-wrap.sticky-active{max-height:calc(100vh - 240px)!important}
 
-  /* M10 — Float dialogs: full width, no drag needed */
+  /* M10 — Float dialogs: full width, JS-centered and draggable */
   .float-dialog{min-width:unset!important;max-width:100%!important;
-    width:calc(100vw - 24px)!important;left:12px!important}
+    width:calc(100vw - 24px)!important}
 
   /* M11 — Touch targets: minimum 44px height on action buttons */
   .btn-primary,.btn-ghost,.btn-success,.btn-warn,.btn-danger{min-height:44px}
@@ -882,7 +882,9 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
   box-shadow:0 8px 32px rgba(0,0,0,.5);display:none;flex-direction:column}
 .float-dialog.open{display:flex}
 .float-dialog-hdr{display:flex;align-items:center;justify-content:space-between;
-  padding:10px 14px;background:var(--cyan);cursor:move;flex-shrink:0;border-radius:3px 3px 0 0}
+  padding:10px 14px;background:var(--cyan);cursor:move;flex-shrink:0;border-radius:3px 3px 0 0;
+  touch-action:none;user-select:none}
+.float-dialog-hdr.dragging{filter:brightness(1.08)}
 .float-dialog-title{font-family:var(--mono);font-size:11px;letter-spacing:.5px;color:#000;font-weight:700}
 .float-dialog-close{background:none;border:none;color:#000;cursor:pointer;font-size:16px;padding:0 4px;opacity:.7}
 .float-dialog-close:hover{opacity:1}

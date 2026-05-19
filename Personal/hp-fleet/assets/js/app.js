@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.5k";
+const APP_VERSION = "v8.5.5l";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -5231,6 +5231,31 @@ function wireEvents(){
   });
 
   // Floating dialog wiring — srcBar clickable links
+  function getFloatViewport(){
+    const vv=window.visualViewport;
+    return vv
+      ? {left:vv.offsetLeft, top:vv.offsetTop, width:vv.width, height:vv.height}
+      : {left:0, top:0, width:window.innerWidth, height:window.innerHeight};
+  }
+  function clampFloatDialog(dlg,left,top){
+    const vp=getFloatViewport();
+    const margin=12;
+    const maxLeft=vp.left+Math.max(margin,vp.width-dlg.offsetWidth-margin);
+    const maxTop=vp.top+Math.max(margin,vp.height-dlg.offsetHeight-margin);
+    return {
+      left:Math.min(Math.max(left,vp.left+margin),maxLeft),
+      top:Math.min(Math.max(top,vp.top+margin),maxTop)
+    };
+  }
+  function centerFloatDialog(dlg){
+    const vp=getFloatViewport();
+    dlg.style.transform="none";
+    const left=vp.left+(vp.width-dlg.offsetWidth)/2;
+    const top=vp.top+(vp.height-dlg.offsetHeight)/2;
+    const pos=clampFloatDialog(dlg,left,top);
+    dlg.style.left=pos.left+"px";
+    dlg.style.top=pos.top+"px";
+  }
   function openFloatDialog(dlgId,title,lines,color,entryIds){
     const dlg=el(dlgId); if(!dlg) return;
     const body=dlg.querySelector(".float-dialog-body");
@@ -5263,23 +5288,35 @@ function wireEvents(){
     const titleEl=dlg.querySelector(".float-dialog-title");
     if(titleEl) titleEl.style.color="#000";
     dlg.style.border="1.5px solid "+(color||"var(--border2)");
-    dlg.style.top="";
-    dlg.style.left="";
     dlg.classList.add("open");
+    centerFloatDialog(dlg);
   }
   function makeDraggable(dlgId,hdrId){
     const dlg=el(dlgId); const hdr=el(hdrId); if(!dlg||!hdr) return;
-    let ox,oy,sx,sy,dragging=false;
-    hdr.addEventListener("mousedown",e=>{
-      dragging=true; sx=e.clientX; sy=e.clientY;
-      ox=dlg.offsetLeft; oy=dlg.offsetTop; e.preventDefault();
+    let ox,oy,sx,sy,dragging=false,pointerId=null;
+    hdr.addEventListener("pointerdown",e=>{
+      if(e.target.closest(".float-dialog-close")) return;
+      dragging=true; pointerId=e.pointerId; sx=e.clientX; sy=e.clientY;
+      const rect=dlg.getBoundingClientRect();
+      dlg.style.transform="none";
+      ox=rect.left; oy=rect.top;
+      hdr.classList.add("dragging");
+      if(hdr.setPointerCapture) hdr.setPointerCapture(e.pointerId);
+      e.preventDefault();
     });
-    document.addEventListener("mousemove",e=>{
+    document.addEventListener("pointermove",e=>{
       if(!dragging) return;
-      dlg.style.left=(ox+(e.clientX-sx))+"px";
-      dlg.style.top=(oy+(e.clientY-sy))+"px";
+      const pos=clampFloatDialog(dlg,ox+(e.clientX-sx),oy+(e.clientY-sy));
+      dlg.style.left=pos.left+"px";
+      dlg.style.top=pos.top+"px";
+      e.preventDefault();
     });
-    document.addEventListener("mouseup",()=>{ dragging=false; });
+    function stopDrag(e){
+      if(pointerId!==null&&e&&e.pointerId!==pointerId) return;
+      dragging=false; pointerId=null; hdr.classList.remove("dragging");
+    }
+    document.addEventListener("pointerup",stopDrag);
+    document.addEventListener("pointercancel",stopDrag);
   }
   makeDraggable("dlgDups","dlgDupsHdr");
   makeDraggable("dlgNotRead","dlgNotReadHdr");
