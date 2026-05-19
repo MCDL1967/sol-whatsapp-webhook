@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.5i";
+const APP_VERSION = "v8.5.5j";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -5331,6 +5331,7 @@ function wireEvents(){
   const spImgWrap=el("sp_img_wrap");
   if(spImgWrap){
     let isDragging=false, dragStartX=0, dragStartY=0, panStartX=0, panStartY=0, didDrag=false;
+    let swipeStartX=0, swipeStartY=0, swipeStartT=0, swipeTracking=false, swipeHorizontal=false;
     spImgWrap.addEventListener("mousedown",e=>{
       if(e.button!==0) return;
       isDragging=true; didDrag=false;
@@ -5359,6 +5360,41 @@ function wireEvents(){
       e.preventDefault();
       spZoomIn();
     });
+    spImgWrap.addEventListener("touchstart",e=>{
+      if(e.touches.length!==1||!spEditingEntryId||spZoom!==1||spPanMode) return;
+      const t=e.touches[0];
+      swipeStartX=t.clientX;
+      swipeStartY=t.clientY;
+      swipeStartT=Date.now();
+      swipeTracking=true;
+      swipeHorizontal=false;
+    },{passive:true});
+    spImgWrap.addEventListener("touchmove",e=>{
+      if(!swipeTracking||e.touches.length!==1) return;
+      const t=e.touches[0];
+      const dx=t.clientX-swipeStartX;
+      const dy=t.clientY-swipeStartY;
+      if(Math.abs(dx)>14&&Math.abs(dx)>Math.abs(dy)*1.35){
+        swipeHorizontal=true;
+        e.preventDefault();
+      }
+    },{passive:false});
+    spImgWrap.addEventListener("touchend",e=>{
+      if(!swipeTracking) return;
+      swipeTracking=false;
+      const t=e.changedTouches[0];
+      if(!t) return;
+      const dx=t.clientX-swipeStartX;
+      const dy=t.clientY-swipeStartY;
+      const elapsed=Date.now()-swipeStartT;
+      if(swipeHorizontal&&elapsed<900&&Math.abs(dx)>=60&&Math.abs(dx)>Math.abs(dy)*1.35){
+        e.preventDefault();
+        spNavigate(dx<0?1:-1);
+      }
+    },{passive:false});
+    spImgWrap.addEventListener("touchcancel",()=>{
+      swipeTracking=false;
+    },{passive:true});
     // Scroll wheel zoom — throttled to prevent over-sensitivity on trackpad
     let _wheelThrottle=null;
     spImgWrap.addEventListener("wheel",e=>{

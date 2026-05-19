@@ -581,7 +581,7 @@ table.fl-tbl td:last-child{border-right:none}
   font-family:var(--mono);font-size:10px;color:var(--dim2);flex-shrink:0}
 .sp-img-wrap{overflow:hidden;padding:8px;display:flex;
   align-items:center;justify-content:center;position:relative;
-  min-height:150px;flex-shrink:0}
+  min-height:150px;flex-shrink:0;touch-action:pan-y}
 .sp-img-wrap img{max-width:100%;max-height:100%;object-fit:contain;
   border:1px solid var(--border);border-radius:2px;display:block}
 .sp-img-wrap{cursor:grab}
