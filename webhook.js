@@ -3372,6 +3372,29 @@ app.post("/webhook", async (req, res) => {
       }
     }
 
+    // v14.0.7 mid-track correction — ownership boundary:
+    //   deterministic → routing / menu structure / resets / safety boundaries
+    //   AI / Voiceflow → conversational phrasing
+    // A bare greeting at main_menu (with language already selected) should NOT
+    // force a Voiceflow launch — launch re-renders the welcome + 6-branch menu
+    // deterministically, which reads as a robotic loop on every "hi". Defer the
+    // turn to the AI/Voiceflow text path so the greeting can be phrased
+    // conversationally. Restart still force-launches. Idle + greeting in any
+    // non-main context (Loyalty drift guard runs first anyway) is unchanged.
+    const _atMainMenu =
+      (sessions[userID]?.fast_path_context || session.fast_path_context || "main_menu") === "main_menu";
+    const _hasLanguage = !!(sessions[userID]?.current_language || session.current_language);
+    const _suppressForceLaunchForMainMenuGreeting =
+      session.state === "idle" &&
+      greetingReentry &&
+      _atMainMenu &&
+      _hasLanguage &&
+      !languageCommand &&
+      !menuCommand &&
+      !exitCommand &&
+      !restartCommand &&
+      !detectedIntent;
+
     const forceLaunch =
       restartCommand ||
       (session.state === "idle" &&
@@ -3379,7 +3402,14 @@ app.post("/webhook", async (req, res) => {
         !languageCommand &&
         !menuCommand &&
         !exitCommand &&
-        !detectedIntent);
+        !detectedIntent &&
+        !_suppressForceLaunchForMainMenuGreeting);
+
+    if (_suppressForceLaunchForMainMenuGreeting) {
+      console.log(
+        `[MAIN MENU GREETING → AI OWNERSHIP] user=${userID} session_id=${sessions[userID]?.session_id || session.session_id} text="${userText}" reason=suppress_force_launch`
+      );
+    }
 
     let forwardedText = userText;
 
