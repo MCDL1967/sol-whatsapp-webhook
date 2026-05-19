@@ -95,8 +95,10 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
   border:1px solid var(--border2);color:var(--dim2);cursor:pointer;border-radius:2px;transition:all .15s}
 .btn-so:hover{border-color:var(--red);color:var(--red)}
 .tab-nav{background:var(--s1);border-bottom:1px solid var(--border);
-  padding:0 24px;display:flex;align-items:stretch;gap:0;overflow-x:auto;flex-shrink:0}
+  padding:0 24px;display:flex;align-items:stretch;gap:0;overflow-x:auto;flex-shrink:0;position:relative}
 .tab-nav.sticky-tabs{position:sticky;top:54px;z-index:49}
+.tab-nav.sticky-tabs::before{content:'';position:absolute;left:0;right:0;top:-8px;height:8px;
+  background:var(--s1);pointer-events:none}
 .tab-btn{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;
   padding:0 18px;height:44px;background:transparent;border:none;
   border-bottom:2px solid transparent;color:var(--dim2);cursor:pointer;
@@ -471,6 +473,7 @@ table.fl-tbl td:last-child{border-right:none}
 
   /* M2 — Tab nav: smaller padding, scroll indicator fade */
   .tab-nav{padding:0 8px;-webkit-overflow-scrolling:touch}
+  .tab-nav.sticky-tabs{top:48px}
   .tab-nav::after{content:'';position:sticky;right:0;width:24px;flex-shrink:0;
     background:linear-gradient(to right,transparent,var(--s1));pointer-events:none}
   .tab-btn{padding:0 10px;font-size:10px;letter-spacing:.5px;height:40px;gap:5px}
