@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.5h";
+const APP_VERSION = "v8.5.5i";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -455,6 +455,7 @@ const PREF_DEFAULTS = {
   viewas_visible:  true,
   debug_mode:      false,
   sidepanel_width: 420,
+  sidepanel_image_height: null,
   active_tab:      null   // resolved per-role at boot if null
 };
 
@@ -466,6 +467,7 @@ const LS_MAP = {
   viewas_visible:  "hpfleet_viewas_visible",
   debug_mode:      "hpfleet_debug",
   sidepanel_width: "hpfleet_sp_width",
+  sidepanel_image_height: "hpfleet_sp_img_h",
   active_tab:      null   // no prior localStorage key for active tab
 };
 
@@ -3484,6 +3486,14 @@ async function spGuardDirty(proceedFn){
   proceedFn();
 }
 
+function getSavedSpImageHeight(panel, fixedH=0){
+  const raw=localStorage.getItem("hpfleet_sp_img_h");
+  const saved=parseInt(raw||"",10);
+  if(!saved) return null;
+  const maxH=Math.max(150,(panel?panel.offsetHeight:window.innerHeight)-fixedH-220);
+  return Math.max(150,Math.min(saved,maxH));
+}
+
 async function spReextract(){
   if(!spEditingEntryId) return;
   if(spReextracting){showToast("Re-extraction already in progress","warn");return;}
@@ -3855,6 +3865,12 @@ function _loadSpEntry(entry){
                  (meta?meta.offsetHeight:0)+
                  (toolbar?toolbar.offsetHeight:0)+
                  (vresize?vresize.offsetHeight:6);
+    const savedImgH=getSavedSpImageHeight(panel,fixedH);
+    if(savedImgH){
+      imgWrap.style.height=savedImgH+"px";
+      _scaleNonBillWatermark();
+      return;
+    }
     // Measure data section natural height
     editSec.style.flex="0 0 auto";
     editSec.style.height="auto";
@@ -5599,10 +5615,13 @@ function wireEvents(){
   }
   if(handle&&panel){
     let startX, startW;
-    handle.addEventListener("mousedown",e=>{
+    handle.addEventListener("pointerdown",e=>{
       startX=e.clientX; startW=panel.offsetWidth;
-      document.addEventListener("mousemove",onResize);
-      document.addEventListener("mouseup",stopResize);
+      handle.classList.add("dragging");
+      if(handle.setPointerCapture) handle.setPointerCapture(e.pointerId);
+      document.addEventListener("pointermove",onResize);
+      document.addEventListener("pointerup",stopResize);
+      document.addEventListener("pointercancel",stopResize);
       e.preventDefault();
     });
     function onResize(e){
@@ -5612,9 +5631,11 @@ function wireEvents(){
     }
     function stopResize(){
       const w=Math.min(parseInt(panel.style.width)||420,Math.floor(window.innerWidth*0.5));
+      handle.classList.remove("dragging");
       saveUserPreference("sidepanel_width", w);
-      document.removeEventListener("mousemove",onResize);
-      document.removeEventListener("mouseup",stopResize);
+      document.removeEventListener("pointermove",onResize);
+      document.removeEventListener("pointerup",stopResize);
+      document.removeEventListener("pointercancel",stopResize);
     }
   }
 
@@ -5633,12 +5654,14 @@ function wireEvents(){
   const vHandle=el("spVResize");
   if(vHandle){
     let vStartY, vStartH;
-    vHandle.addEventListener("mousedown",e=>{
+    vHandle.addEventListener("pointerdown",e=>{
       vStartY=e.clientY;
       vStartH=el("sp_img_wrap").offsetHeight;
       vHandle.classList.add("dragging");
-      document.addEventListener("mousemove",onVResize);
-      document.addEventListener("mouseup",stopVResize);
+      if(vHandle.setPointerCapture) vHandle.setPointerCapture(e.pointerId);
+      document.addEventListener("pointermove",onVResize);
+      document.addEventListener("pointerup",stopVResize);
+      document.addEventListener("pointercancel",stopVResize);
       e.preventDefault();
     });
     function onVResize(e){
@@ -5653,8 +5676,11 @@ function wireEvents(){
     }
     function stopVResize(){
       vHandle.classList.remove("dragging");
-      document.removeEventListener("mousemove",onVResize);
-      document.removeEventListener("mouseup",stopVResize);
+      const imgWrap=el("sp_img_wrap");
+      if(imgWrap) saveUserPreference("sidepanel_image_height", imgWrap.offsetHeight);
+      document.removeEventListener("pointermove",onVResize);
+      document.removeEventListener("pointerup",stopVResize);
+      document.removeEventListener("pointercancel",stopVResize);
     }
   }
 
