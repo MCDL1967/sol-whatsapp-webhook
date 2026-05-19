@@ -6,24 +6,75 @@ const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1lcmFydmZrYmV2dmRidGdoaGZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MzkzODYsImV4cCI6MjA5MzQxNTM4Nn0.owEXkpm43DFHMyEZ3bClu8l3gM9CVXEX3aBQ6Yg1sIY";
 const SB_HEADERS = {"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY};
 
+function dbTrace(msg, type="info"){
+  try {
+    if(localStorage.getItem("hpfleet_debug")==="1") dbg(msg,type);
+  } catch(_){}
+}
+function dbResultSummary(data){
+  if(Array.isArray(data)) return data.length+" row"+(data.length===1?"":"s");
+  if(data && typeof data==="object") return "object";
+  return "ok";
+}
+
 async function sbGet(table, params=""){
+  const started=performance.now();
+  const label="GET "+table+(params?"?"+params:"");
+  dbTrace("DB → "+label,"info");
   const r=await fetch(SB_URL+"/rest/v1/"+table+"?"+params,{headers:{...SB_HEADERS,"Prefer":"return=representation"}});
-  if(!r.ok) throw new Error("DB read failed: "+await r.text());
-  return r.json();
+  const elapsed=Math.round(performance.now()-started);
+  if(!r.ok){
+    const err=await r.text();
+    dbTrace("DB ✕ "+label+" — "+r.status+" in "+elapsed+"ms — "+err,"err");
+    throw new Error("DB read failed: "+err);
+  }
+  const data=await r.json();
+  dbTrace("DB ✓ "+label+" — "+r.status+" in "+elapsed+"ms — "+dbResultSummary(data),"ok");
+  return data;
 }
 async function sbPost(table, body){
+  const started=performance.now();
+  const count=Array.isArray(body)?body.length:1;
+  const label="POST "+table+" ("+count+" row"+(count===1?"":"s")+")";
+  dbTrace("DB → "+label,"info");
   const r=await fetch(SB_URL+"/rest/v1/"+table,{method:"POST",headers:{...SB_HEADERS,"Prefer":"return=representation"},body:JSON.stringify(body)});
-  if(!r.ok) throw new Error("DB write failed: "+await r.text());
-  return r.json();
+  const elapsed=Math.round(performance.now()-started);
+  if(!r.ok){
+    const err=await r.text();
+    dbTrace("DB ✕ "+label+" — "+r.status+" in "+elapsed+"ms — "+err,"err");
+    throw new Error("DB write failed: "+err);
+  }
+  const data=await r.json();
+  dbTrace("DB ✓ "+label+" — "+r.status+" in "+elapsed+"ms — "+dbResultSummary(data),"ok");
+  return data;
 }
 async function sbPatch(table, filter, body){
+  const started=performance.now();
+  const label="PATCH "+table+"?"+filter;
+  dbTrace("DB → "+label,"info");
   const r=await fetch(SB_URL+"/rest/v1/"+table+"?"+filter,{method:"PATCH",headers:{...SB_HEADERS,"Prefer":"return=representation"},body:JSON.stringify(body)});
-  if(!r.ok) throw new Error("DB update failed: "+await r.text());
-  return r.json();
+  const elapsed=Math.round(performance.now()-started);
+  if(!r.ok){
+    const err=await r.text();
+    dbTrace("DB ✕ "+label+" — "+r.status+" in "+elapsed+"ms — "+err,"err");
+    throw new Error("DB update failed: "+err);
+  }
+  const data=await r.json();
+  dbTrace("DB ✓ "+label+" — "+r.status+" in "+elapsed+"ms — "+dbResultSummary(data),"ok");
+  return data;
 }
 async function sbDelete(table, filter){
+  const started=performance.now();
+  const label="DELETE "+table+"?"+filter;
+  dbTrace("DB → "+label,"info");
   const r=await fetch(SB_URL+"/rest/v1/"+table+"?"+filter,{method:"DELETE",headers:SB_HEADERS});
-  if(!r.ok) throw new Error("DB delete failed: "+await r.text());
+  const elapsed=Math.round(performance.now()-started);
+  if(!r.ok){
+    const err=await r.text();
+    dbTrace("DB ✕ "+label+" — "+r.status+" in "+elapsed+"ms — "+err,"err");
+    throw new Error("DB delete failed: "+err);
+  }
+  dbTrace("DB ✓ "+label+" — "+r.status+" in "+elapsed+"ms","ok");
   return true;
 }
 // ── SUPABASE STORAGE — IMAGE UPLOAD ──
@@ -1610,8 +1661,15 @@ function addAudit(icon,actor,action,detail){
   if(auditLog.length>300) auditLog=auditLog.slice(0,300);
   renderAudit();
   // Persist to DB silently — use return=minimal to avoid SELECT permission requirement on audit_log_app
+  const started=performance.now();
+  dbTrace("DB → POST audit_log_app (return=minimal)","info");
   fetch(SB_URL+"/rest/v1/audit_log_app",{method:"POST",headers:{...SB_HEADERS,"Prefer":"return=minimal"},body:JSON.stringify({icon,actor,action,detail,ts:new Date().toISOString()})})
-    .catch(()=>{}); // never block UI for audit failures
+    .then(async r=>{
+      const elapsed=Math.round(performance.now()-started);
+      if(r.ok) dbTrace("DB ✓ POST audit_log_app — "+r.status+" in "+elapsed+"ms","ok");
+      else dbTrace("DB ✕ POST audit_log_app — "+r.status+" in "+elapsed+"ms — "+await r.text(),"err");
+    })
+    .catch(e=>dbTrace("DB ✕ POST audit_log_app — "+e.message,"err")); // never block UI for audit failures
 }
 
 // ── DEBUG TOGGLE ──
