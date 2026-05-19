@@ -1,0 +1,5711 @@
+// ── DATA ──
+const APP_VERSION = "v8.5.5g";
+
+// ── SUPABASE CONFIG ──
+const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1lcmFydmZrYmV2dmRidGdoaGZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MzkzODYsImV4cCI6MjA5MzQxNTM4Nn0.owEXkpm43DFHMyEZ3bClu8l3gM9CVXEX3aBQ6Yg1sIY";
+const SB_HEADERS = {"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY};
+
+async function sbGet(table, params=""){
+  const r=await fetch(SB_URL+"/rest/v1/"+table+"?"+params,{headers:{...SB_HEADERS,"Prefer":"return=representation"}});
+  if(!r.ok) throw new Error("DB read failed: "+await r.text());
+  return r.json();
+}
+async function sbPost(table, body){
+  const r=await fetch(SB_URL+"/rest/v1/"+table,{method:"POST",headers:{...SB_HEADERS,"Prefer":"return=representation"},body:JSON.stringify(body)});
+  if(!r.ok) throw new Error("DB write failed: "+await r.text());
+  return r.json();
+}
+async function sbPatch(table, filter, body){
+  const r=await fetch(SB_URL+"/rest/v1/"+table+"?"+filter,{method:"PATCH",headers:{...SB_HEADERS,"Prefer":"return=representation"},body:JSON.stringify(body)});
+  if(!r.ok) throw new Error("DB update failed: "+await r.text());
+  return r.json();
+}
+async function sbDelete(table, filter){
+  const r=await fetch(SB_URL+"/rest/v1/"+table+"?"+filter,{method:"DELETE",headers:SB_HEADERS});
+  if(!r.ok) throw new Error("DB delete failed: "+await r.text());
+  return true;
+}
+// ── SUPABASE STORAGE — IMAGE UPLOAD ──
+async function uploadImageToStorage(blob, filename){
+  try {
+    const path="batches/"+( currentBatchId||"unknown")+"/"+filename;
+    const r=await fetch(SB_URL+"/storage/v1/object/bitacoras/"+path,{
+      method:"POST",
+      headers:{
+        "apikey":SB_KEY,
+        "Authorization":"Bearer "+SB_KEY,
+        "Content-Type":"image/jpeg",
+        "x-upsert":"true"
+      },
+      body:blob
+    });
+    if(!r.ok){const e=await r.text();dbg("Storage upload failed: "+e,"err");return null;}
+    const publicUrl=SB_URL+"/storage/v1/object/public/bitacoras/"+path;
+    dbg("Image uploaded: "+filename,"ok");
+    return publicUrl;
+  } catch(err){dbg("Storage upload error: "+err.message,"err");return null;}
+}
+
+// ── AIRCRAFT PHOTO UPLOAD ──
+async function uploadAircraftPhoto(blob, registration){
+  try {
+    const filename="aircraft_"+registration.replace(/[^a-zA-Z0-9\-]/g,"_")+".jpg";
+    const r=await fetch(SB_URL+"/storage/v1/object/aircraft_photos/"+filename,{
+      method:"POST",
+      headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":"image/jpeg","x-upsert":"true"},
+      body:blob
+    });
+    if(!r.ok){const e=await r.text();dbg("Aircraft photo upload failed: "+e,"err");return null;}
+    const publicUrl=SB_URL+"/storage/v1/object/public/aircraft_photos/"+filename;
+    dbg("Aircraft photo uploaded: "+filename,"ok");
+    return publicUrl;
+  } catch(err){dbg("Aircraft photo upload error: "+err.message,"err");return null;}
+}
+
+// ── IMAGE COMPRESSION ──
+async function compressImage(blob, maxPx=800, quality=0.7){
+  return new Promise((resolve)=>{
+    const img=new Image();
+    const url=URL.createObjectURL(blob);
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      let w=img.width, h=img.height;
+      if(w>maxPx||h>maxPx){
+        if(w>h){h=Math.round(h*maxPx/w);w=maxPx;}
+        else{w=Math.round(w*maxPx/h);h=maxPx;}
+      }
+      const canvas=document.createElement("canvas");
+      canvas.width=w; canvas.height=h;
+      const ctx=canvas.getContext("2d");
+      ctx.drawImage(img,0,0,w,h);
+      canvas.toBlob(resolve,"image/jpeg",quality);
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);resolve(blob);};
+    img.src=url;
+  });
+}
+
+// ── PDF.JS — RENDER PAGE TO IMAGE BLOB WITH ROTATION FIX ──
+async function pdfPageToBlob(pdfDoc, pageNum){
+  const page=await pdfDoc.getPage(pageNum);
+  const rotation=page.rotate||0; // 0, 90, 180, 270
+  const viewport=page.getViewport({scale:1.5, rotation:0}); // render without rotation first
+  const canvas=document.createElement("canvas");
+  // For 90/270 degree rotations, swap width/height
+  const swap=rotation===90||rotation===270;
+  canvas.width=swap?viewport.height:viewport.width;
+  canvas.height=swap?viewport.width:viewport.height;
+  const ctx=canvas.getContext("2d");
+  // Apply rotation correction
+  if(rotation!==0){
+    ctx.translate(canvas.width/2,canvas.height/2);
+    ctx.rotate(rotation*Math.PI/180);
+    ctx.translate(-viewport.width/2,-viewport.height/2);
+  }
+  await page.render({canvasContext:ctx,viewport}).promise;
+  return new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",0.85));
+}
+
+// ── EXIF ROTATION FIX ──
+async function fixImageRotation(file){
+  return new Promise((resolve)=>{
+    const reader=new FileReader();
+    reader.onload=(e)=>{
+      const view=new DataView(e.target.result);
+      if(view.getUint16(0,false)!==0xFFD8){resolve(file);return;}
+      let offset=2;
+      while(offset<view.byteLength){
+        const marker=view.getUint16(offset,false); offset+=2;
+        if(marker===0xFFE1){
+          if(view.getUint32(offset+2,false)!==0x45786966){resolve(file);return;}
+          const little=view.getUint16(offset+8,false)===0x4949;
+          const tags=view.getUint16(offset+14,little);
+          for(let i=0;i<tags;i++){
+            if(view.getUint16(offset+16+i*12,little)===0x0112){
+              const orient=view.getUint16(offset+16+i*12+8,little);
+              if(orient===1){resolve(file);return;}
+              // Redraw with correct orientation
+              const img=new Image();
+              const url=URL.createObjectURL(file);
+              img.onload=()=>{
+                URL.revokeObjectURL(url);
+                const canvas=document.createElement("canvas");
+                const ctx=canvas.getContext("2d");
+                const swap=orient>=5&&orient<=8;
+                canvas.width=swap?img.height:img.width;
+                canvas.height=swap?img.width:img.height;
+                const t={1:[]};
+                const transforms={
+                  3:[Math.PI,canvas.width,canvas.height],
+                  6:[Math.PI/2,canvas.width,0],
+                  8:[-Math.PI/2,0,canvas.height]
+                };
+                const tr=transforms[orient]||[];
+                if(tr.length){ctx.translate(tr[1],tr[2]);ctx.rotate(tr[0]);}
+                ctx.drawImage(img,0,0);
+                canvas.toBlob(b=>resolve(new File([b],file.name,{type:"image/jpeg"})),"image/jpeg",0.92);
+              };
+              img.src=url; return;
+            }
+          }
+          resolve(file); return;
+        }
+        offset+=view.getUint16(offset,false);
+      }
+      resolve(file);
+    };
+    reader.readAsArrayBuffer(file.slice(0,65536));
+  });
+}
+let COMPANIES = [
+  {id:"c001",name:"Flightmax Advanced Training",code:"FM",multiplier:1.15,status:"active",notes:"Primary flight school client",
+    billingRules:[{id:"br001",name:"Fuel Surcharge",amount:10.00,unit:"per Flight Hour",active:true},{id:"br002",name:"Landing Fee",amount:8.00,unit:"per Flight",active:false}]},
+  {id:"c002",name:"MAG Flight Training",code:"MAG",multiplier:1.275,status:"active",notes:"Secondary operator",
+    billingRules:[{id:"br003",name:"Fuel Surcharge",amount:10.00,unit:"per Flight Hour",active:true}]}
+];
+let AIRCRAFT = [
+  {id:"ac001",matricula:"HP-1861",makeModel:"Piper PA-28",operador:"FM",
+   multiplicador:1.275,tipo:"Single Engine",asientos:2,
+   motorId:"Lycoming O-320",consumoGalHr:8.5,diffThreshold:0.2,
+   owner:"Unidad Fragata, S.A.",ownerAddress:"Panama City, Panama",
+   rates:[
+     {operador:"FM",  multiplicador:1.275, tarifaHr:0},
+     {operador:"MAG", multiplicador:1.275, tarifaHr:0}
+   ]},
+  {id:"ac002",matricula:"HP-1862FX",makeModel:"Piper PA-28",operador:"FM",
+   multiplicador:1.15,tipo:"Single Engine",asientos:2,
+   motorId:"Lycoming O-320",consumoGalHr:8.5,diffThreshold:0.2,
+   owner:"GRANSOLUX S.A.",ownerAddress:"Panama City, Panama",
+   rates:[
+     {operador:"FM",  multiplicador:1.15,  tarifaHr:165},
+     {operador:"MAG", multiplicador:1.275, tarifaHr:155}
+   ]}
+];
+let USERS = [
+  {id:"u001",name:"Marcelo C.",email:"marcelo@hp-fleet.com",pwd:"admin1234",role:"ADMIN",companies:["FM","MAG"],phone:"+50760000001",status:"active",created:"2025-01-15",lastLogin:null},
+  {id:"u002",name:"Asistente FM",email:"asistente@flymax.com",pwd:"fm2025",role:"OPERATOR",companies:["FM"],phone:"+50760000002",status:"active",created:"2025-02-01",lastLogin:null},
+  {id:"u003",name:"Revisor Fact.",email:"revisor@hp-fleet.com",pwd:"rev2025",role:"REVIEWER",companies:["FM","MAG"],phone:"+50760000003",status:"active",created:"2025-02-10",lastLogin:null},
+  {id:"u004",name:"Vista MAG",email:"vista@mag.com",pwd:"mag2025",role:"READONLY",companies:["MAG"],phone:"",status:"inactive",created:"2025-03-01",lastLogin:null}
+];
+
+// ── ROLES ──
+const ROLES = {
+  ADMIN:    {icon:"🛡️",color:"var(--violet)",bannerClass:"rb-admin",chipClass:"rc-admin",avatarBg:"rgba(192,132,252,.15)",
+    en:{label:"Administrator",desc:"Full system access. Manage users, companies, flight logs, and billing.",perms:["Load PDFs","Review & Edit","Submit & Approve","Manage Users","Manage Companies","Export"]},
+    es:{label:"Administrador",desc:"Acceso total. Gestiona usuarios, compañías, flight logs y facturación.",perms:["Cargar PDFs","Revisar y Editar","Enviar y Aprobar","Gestionar Usuarios","Gestionar Compañías","Exportar"]}},
+  OPERATOR: {icon:"✈️",color:"var(--cyan)",bannerClass:"rb-operator",chipClass:"rc-operator",avatarBg:"rgba(65,209,255,.15)",
+    en:{label:"Operator",desc:"Load flight log files for your assigned companies, review extracted entries, correct inconsistencies, and submit for approval.",perms:["Load PDFs","Review Entries","Edit Entries","Submit for Review","Export"]},
+    es:{label:"Operador",desc:"Carga archivos de bitácoras para tus compañías, revisa entradas extraídas, corrige inconsistencias y envía para aprobación.",perms:["Cargar PDFs","Revisar Entradas","Editar Entradas","Enviar a Revisión","Exportar"]}},
+  REVIEWER: {icon:"✅",color:"var(--green)",bannerClass:"rb-reviewer",chipClass:"rc-reviewer",avatarBg:"rgba(61,220,132,.15)",
+    en:{label:"Reviewer / Approver",desc:"Review submitted flight log batches for your assigned companies and approve them for invoicing.",perms:["View Entries","Approve for Invoicing","Request Changes","Export"]},
+    es:{label:"Revisor / Aprobador",desc:"Revisa los lotes enviados de tus compañías y apruébalos para facturación.",perms:["Ver Entradas","Aprobar Facturación","Solicitar Cambios","Exportar"]}},
+  READONLY: {icon:"👁️",color:"var(--dim2)",bannerClass:"rb-readonly",chipClass:"rc-readonly",avatarBg:"rgba(136,153,187,.15)",
+    en:{label:"Read Only",desc:"View-only access for your assigned companies.",perms:["View Entries"]},
+    es:{label:"Solo Lectura",desc:"Acceso de solo lectura para tus compañías asignadas.",perms:["Ver Entradas"]}}
+};
+
+// ── I18N ──
+const I18N = {
+  en:{
+    signIn:"Sign In",signingIn:"Checking…",signOut:"↩ Sign Out",
+    emailLbl:"Email / Username",pwdLbl:"Password",
+    loginErr:"Incorrect username or password.",inactiveErr:"Account inactive. Contact your administrator.",
+    tabUsers:"Users",tabCompanies:"Companies",tabAircraft:"Aircraft",tabFlightLog:"Flight Log",tabBilling:"Billing",tabSettings:"Settings",
+    utTitle:"User Management",utAdd:"+ New User",utExport:"↓ Export JSON",
+    utAudit:"Audit Log",utClear:"Clear Log",
+    thUser:"User",thRole:"Role",thCompanies:"Companies",thStatus:"Status",thCreated:"Created",thLast:"Last Login",thActions:"Actions",
+    active:"Active",inactive:"Inactive",never:"Never",edit:"Edit",del:"Delete",
+    cantDelSelf:"Cannot delete your own account.",cantDeactivateSelf:"Cannot deactivate your own account.",
+    userCreated:"User created.",userUpdated:"User updated.",userDeleted:"User deleted.",statusUpdated:"Status updated.",
+    ctTitle:"Companies",ctAdd:"+ New Company",
+    flTitle:"Flight Log / Bitácora Review",flNewBatch:"+ New Batch",
+    apiWarnMsg:"Anthropic API key not configured.",apiWarnLink:"Configure in Settings →",
+    uzTitle:"Drop flight log files here",uzSub:"or click to browse",
+    extractBtn:"✦ Upload",extracting:"Extracting…",
+    clearQueue:"Clear Queue",
+    sbFile:"Source File",sbHoro:"Horometer",sbCsv:"Audit CSV",sbTs:"Extracted At",sbBatch:"Batch Status",sbDlCsv:"↓ CSV",
+    horoAlert:"⚠ Horometer Gap Detected",
+    tbEntries:"Extracted Entries",
+    allOp:"— Filters —",pendOnly:"Pending Only",apprOnly:"Approved Only",rejOnly:"Rejected Only",
+    approveAll:"Approve All",approveReviewed:"Approve Reviewed",resetAll:"Reset",newEntry:"+ New Manual Log Entry",
+    ptEntries:"Entries",ptAudit:"Audit Log",
+    thDate:"Date",thAc:"Aircraft",thOp:"Operator",thPilot:"Pilot",
+    thMotor:"Motor",thFlight:"Flight",thBilling:"Billing",
+    thMout:"Out",thMin:"In",thTm:"T.Motor",thFout:"Out",thFin:"In",thTf:"T.Flight",
+    thMult:"Mult.",thTbp:"TBH",thHoro:"Horo",thObs:"Notes",thStatus2:"Status",
+    fmMotor:"FM — T.Motor",magMotor:"MAG — T.Motor",totMotor:"Total T.Motor",totTbp:"Total TBH",
+    approved2:"Approved",tbpHours:"hrs to invoice",tFlight:"T.Flight",
+    btnCsv:"↓ CSV",btnXlsx:"↓ XLSX",btnDraft:"Save Draft",
+    btnSubmit:"Submit for Review",btnApprove:"Approve for Invoicing",btnReqChanges:"Request Changes",btnReturnForReview:"Return for Review",
+    rfrTitle:"Return for Review",rfrBatchNote:"Batch note for operator (optional):",rfrBatchNotePh:"Add a general note for the operator…",rfrContinue:"Continue",rfrCancel:"Cancel",rfrAdminNotice:"Admin notified of all workflow details for support",
+    reopenTitle:"Reopen Batch",reopenSubtitle:"Batch will be reset to DRAFT. Provide a reason to continue.",reopenReasonLabel:"Reason (required)",reopenConfirm:"Reopen Batch",
+    rfrColEntry:"Entry",rfrColLog:"Log #",rfrColComment:"Reviewer Comment",rfrNoFlags:"No entries with reviewer comments found.",
+    rfrWaMsg:"HP Fleet — Batch returned for review by",rfrWaFlagged:"flagged entries",rfrWaLogs:"Entries:",rfrWaLogin:"Log in to correct: https://sol-whatsapp-webhook.onrender.com",
+    stAdminCcLabel:"Copy Admin on all Status Changes",stAdminCcHint:"Admin receives email copy of all workflow notifications",
+    stViewAsLabel:"Show View As Selector",stViewAsHint:"Show role simulator in toolbar (Admin only)",
+    pending:"Pending",rejected:"Rejected",horoOk:"✓ ok",horoGap:"⚠ gap",
+    editEntry:"Edit Entry",newEntryTitle:"New Entry",
+    noApiKey:"API key not configured. Go to Settings tab.",
+    noFiles:"Add files to the queue first.",
+    extractSuccess:"entries extracted from",extractPartial:"entries extracted. Some fields need review.",
+    extractError:"Extraction failed. Check API key.",
+    fileAdded:"added.",fileRemoved:"removed.",
+    contOk:"✓ Continuous",multOverride:"Multiplier overridden",
+    cantEdit:"No edit permissions for this batch.",cantApprove:"Only Reviewers can approve.",
+    confirmSubmit:"Confirm Submission",confirmApprove:"Confirm Approval for Invoicing",
+    confirmSubmitBody:"These approved entries will be submitted for review:",
+    confirmApproveBody:"These approved entries will be marked for invoicing:",
+    totalApproved:"Total approved entries",csvNote:"Audit CSV generated automatically.",
+    excProceed:"Proceed Anyway",excBack:"Back to Review",
+    reqSent:"Change request sent.",draftSaved:"Draft saved.",
+    submitted:"Batch submitted for review.",approvedMsg:"Batch approved for invoicing.",
+    csvDl:"↓ CSV downloaded.",xlsxDl:"↓ XLSX exported.",noAudit:"No activity yet.",
+    wfUpload:"Upload",wfExtract:"Extract",wfReview:"Review",wfSubmit:"Submitted",wfApproved:"Approved",
+    stTitle:"Settings",stApiTitle:"Anthropic API Key",stApiLabel:"API Key",
+    stApiHint:"Stored in localStorage on this device. Admin sets once, persists until cleared or expired. Get key at console.anthropic.com",
+    saveKey:"Save Key",clearKey:"Clear",keySaved:"API key saved.",keyCleared:"API key cleared.",
+    apiOk:"Configured",apiMissing:"Not configured",
+    filesLoaded:"Files loaded — click Upload to begin",
+    importXlsx:"↑ Import from Excel",xlsxImported:"entries imported from Excel",
+    thInstructor:"Instructor",stFleetTitle:"Fleet / Aircraft",
+    showing:"Showing",of:"of",users:"users",noResults:"No results.",
+    allCompanies:"All Companies",activeOnly:"Active Only",inactiveOnly:"Inactive Only",
+    emailExists:"Email already in use.",pwdShort:"Min. 6 characters.",required:"Required.",
+    codeExists:"Code already in use.",multInvalid:"Must be > 0.",
+    companySaved:"Company saved.",companyDeleted:"Company deleted.",
+    ctAdmin:"Admin",ctAccounting:"Accounting",ctOperations:"Operations",ctShop:"Shop",ctOther:"Other",
+    deleteUser:"Delete User",deleteCompany:"Delete Company",
+    delUserWarn:"Permanently delete",delUserWarn2:"? This cannot be undone.",
+    delCoWarn:"Permanently delete company",delCoWarn2:"? Billing rules will also be removed.",
+    noRules:"No billing rules defined.",
+    invShowAddress:"Show Address",invShowPhone:"Show Phone",invShowNotes:"Show Notes",invShowRate:"Show Rate",
+    invOnInvoice:"Invoice",invHeader:"Invoice Header",invHeaderHint:"Controls what appears in the Bill To block",
+    discApplyAs:"Apply as",discOfSubtotal:"of Subtotal",discOfTotal:"of Total",
+    showDiscLine:"Show discount breakdown",paymentDays:"Prompt payment validity (days)",
+    discFooterPlaceholder:"e.g. Valid for payment within N business days",
+    prontoPago:"TOTAL PROMPT PAYMENT",
+    validoPor:"Valid for payment within",diasHabiles:"business days from invoice date",
+    oneDiscountOnly:"Only one discount rule is allowed.",
+    roleDescAdmin:"Administrator — full access including users and companies.",
+    roleDescOperator:"Operator — loads files, reviews entries for assigned companies, submits.",
+    roleDescReviewer:"Reviewer — views submitted batches for assigned companies, approves.",
+    roleDescReadonly:"Read Only — view only for assigned companies.",
+    noCompanySelected:"Select at least one company.",
+    srcCsvReady:"✓ Ready",srcCsvDone:"✓ Archived",
+    csBilling:"Billing",
+    piGoTo:"Billing",piLoadCycle:"Load Billing Cycle",piCurrent:"Current Batch",piHistoric:"Historic",
+    piLoadTitle:"Load Billing Cycle",piNoApproved:"No approved batch in memory.",
+  },
+  es:{
+    signIn:"Iniciar Sesión",signingIn:"Verificando…",signOut:"↩ Salir",
+    emailLbl:"Email / Usuario",pwdLbl:"Contraseña",
+    loginErr:"Usuario o contraseña incorrectos.",inactiveErr:"Cuenta inactiva. Contacta al administrador.",
+    tabUsers:"Usuarios",tabCompanies:"Compañías",tabAircraft:"Aeronaves",tabFlightLog:"Flight Log",tabBilling:"Pre-Factura",tabSettings:"Configuración",
+    utTitle:"Gestión de Usuarios",utAdd:"+ Nuevo Usuario",utExport:"↓ Exportar JSON",
+    utAudit:"Log de Auditoría",utClear:"Limpiar Log",
+    thUser:"Usuario",thRole:"Rol",thCompanies:"Compañías",thStatus:"Estado",thCreated:"Creado",thLast:"Último Acceso",thActions:"Acciones",
+    active:"Activo",inactive:"Inactivo",never:"Nunca",edit:"Editar",del:"Eliminar",
+    cantDelSelf:"No puedes eliminar tu propia cuenta.",cantDeactivateSelf:"No puedes desactivarte.",
+    userCreated:"Usuario creado.",userUpdated:"Usuario actualizado.",userDeleted:"Usuario eliminado.",statusUpdated:"Estado actualizado.",
+    ctTitle:"Compañías",ctAdd:"+ Nueva Compañía",
+    flTitle:"Flight Log / Revisión de Bitácora",flNewBatch:"+ Nuevo Lote",
+    apiWarnMsg:"API key de Anthropic no configurada.",apiWarnLink:"Configurar en Ajustes →",
+    uzTitle:"Arrastra los archivos aquí",uzSub:"o haz clic para seleccionar",
+    extractBtn:"✦ Cargar",extracting:"Extrayendo…",
+    clearQueue:"Limpiar Cola",
+    sbFile:"Archivo Fuente",sbHoro:"Horómetro",sbCsv:"CSV Auditoría",sbTs:"Extraído",sbBatch:"Estado del Lote",sbDlCsv:"↓ CSV",
+    horoAlert:"⚠ Inconsistencia de Horómetro",
+    tbEntries:"Entradas Extraídas",
+    allOp:"— Filtros —",pendOnly:"Solo Pendientes",apprOnly:"Solo Aprobados",rejOnly:"Solo Rechazados",
+    approveAll:"Aprobar Todo",approveReviewed:"Aprobar Revisadas",resetAll:"Resetear",newEntry:"+ Nueva Entrada Manual",
+    ptEntries:"Entradas",ptAudit:"Log de Auditoría",
+    thDate:"Fecha",thAc:"Aeronave",thOp:"Operador",thPilot:"Piloto",
+    thMotor:"Motor",thFlight:"Vuelo",thBilling:"Facturación",
+    thMout:"Out",thMin:"In",thTm:"T.Motor",thFout:"Out",thFin:"In",thTf:"T.Vuelo",
+    thMult:"Mult.",thTbp:"TBH",thHoro:"Horo",thObs:"Obs.",thStatus2:"Estado",
+    fmMotor:"FM — T.Motor",magMotor:"MAG — T.Motor",totMotor:"Total T.Motor",totTbp:"Total TBH",
+    approved2:"Aprobados",tbpHours:"hrs a facturar",tFlight:"T.Vuelo",
+    btnCsv:"↓ CSV",btnXlsx:"↓ XLSX",btnDraft:"Guardar Borrador",
+    btnSubmit:"Enviar para Revisión",btnApprove:"Aprobar para Facturación",btnReqChanges:"Solicitar Cambios",btnReturnForReview:"Devolver para Corrección",
+    rfrTitle:"Devolver para Corrección",rfrBatchNote:"Nota general para el operador (opcional):",rfrBatchNotePh:"Agregar nota general para el operador…",rfrContinue:"Continuar",rfrCancel:"Cancelar",rfrAdminNotice:"El administrador ha sido notificado para seguimiento",
+    reopenTitle:"Reabrir Lote",reopenSubtitle:"El lote volverá a estado BORRADOR. Ingrese un motivo para continuar.",reopenReasonLabel:"Motivo (requerido)",reopenConfirm:"Reabrir Lote",
+    rfrColEntry:"Entrada",rfrColLog:"Log #",rfrColComment:"Comentario del Revisor",rfrNoFlags:"No hay entradas con comentarios del revisor.",
+    rfrWaMsg:"HP Fleet — Lote devuelto para corrección por",rfrWaFlagged:"entradas marcadas",rfrWaLogs:"Entradas:",rfrWaLogin:"Inicia sesión para corregir: https://sol-whatsapp-webhook.onrender.com",
+    stAdminCcLabel:"Copiar Admin en todos los cambios de estado",stAdminCcHint:"El admin recibe copia por email de todas las notificaciones",
+    stViewAsLabel:"Mostrar selector Ver Como",stViewAsHint:"Muestra el simulador de rol en la barra (solo Admin)",
+    pending:"Pendiente",rejected:"Rechazado",horoOk:"✓ ok",horoGap:"⚠ gap",
+    editEntry:"Editar Entrada",newEntryTitle:"Nueva Entrada",
+    noApiKey:"API key no configurada. Ve a Configuración.",
+    noFiles:"Agrega archivos a la cola primero.",
+    extractSuccess:"entradas extraídas de",extractPartial:"entradas extraídas. Algunos campos requieren revisión.",
+    extractError:"Error de extracción. Verifica la API key.",
+    fileAdded:"agregado.",fileRemoved:"eliminado.",
+    contOk:"✓ Continuo",multOverride:"Multiplicador sobreescrito",
+    cantEdit:"Sin permisos de edición en este lote.",cantApprove:"Solo los Revisores pueden aprobar.",
+    confirmSubmit:"Confirmar Envío",confirmApprove:"Confirmar Aprobación",
+    confirmSubmitBody:"Estas entradas aprobadas serán enviadas para revisión:",
+    confirmApproveBody:"Estas entradas aprobadas serán marcadas para facturación:",
+    totalApproved:"Total entradas aprobadas",csvNote:"CSV de auditoría generado automáticamente.",
+    excProceed:"Registrar de Todos Modos",excBack:"Volver a Revisar",
+    reqSent:"Solicitud enviada.",draftSaved:"Borrador guardado.",
+    submitted:"Lote enviado para revisión.",approvedMsg:"Lote aprobado para facturación.",
+    csvDl:"↓ CSV descargado.",xlsxDl:"↓ XLSX exportado.",noAudit:"Sin actividad.",
+    wfUpload:"Carga",wfExtract:"Extracción",wfReview:"Revisión",wfSubmit:"Enviado",wfApproved:"Aprobado",
+    stTitle:"Configuración",stApiTitle:"API Key de Anthropic",stApiLabel:"API Key",
+    stApiHint:"Guardada en localStorage de este dispositivo. El Admin la configura una vez, persiste hasta que se borre o expire. Obtén tu key en console.anthropic.com",
+    saveKey:"Guardar Key",clearKey:"Limpiar",keySaved:"API key guardada.",keyCleared:"API key borrada.",
+    apiOk:"Configurada",apiMissing:"No configurada",
+    filesLoaded:"Archivos cargados — haz clic en Cargar para comenzar",
+    importXlsx:"↑ Importar desde Excel",xlsxImported:"entradas importadas desde Excel",
+    thInstructor:"Instructor",stFleetTitle:"Flota / Aeronaves",
+    showing:"Mostrando",of:"de",users:"usuarios",noResults:"Sin resultados.",
+    allCompanies:"Todas las Compañías",activeOnly:"Solo Activos",inactiveOnly:"Solo Inactivos",
+    emailExists:"Email ya en uso.",pwdShort:"Mín. 6 caracteres.",required:"Campo requerido.",
+    codeExists:"Código ya en uso.",multInvalid:"Debe ser mayor a 0.",
+    companySaved:"Compañía guardada.",companyDeleted:"Compañía eliminada.",
+    ctAdmin:"Administración",ctAccounting:"Contabilidad",ctOperations:"Operaciones",ctShop:"Hangar",ctOther:"Otro",
+    deleteUser:"Eliminar Usuario",deleteCompany:"Eliminar Compañía",
+    delUserWarn:"¿Eliminar permanentemente a",delUserWarn2:"? Esta acción no se puede deshacer.",
+    delCoWarn:"¿Eliminar permanentemente la compañía",delCoWarn2:"? Las reglas de facturación también serán eliminadas.",
+    noRules:"Sin reglas de facturación.",
+    invShowAddress:"Mostrar Dirección",invShowPhone:"Mostrar Teléfono",invShowNotes:"Mostrar Notas",invShowRate:"Mostrar tarifa",
+    invOnInvoice:"Factura",invHeader:"Encabezado de Factura",invHeaderHint:"Controla lo que aparece en el bloque Facturar A",
+    discApplyAs:"Aplicar como",discOfSubtotal:"del Subtotal",discOfTotal:"del Total",
+    showDiscLine:"Mostrar descuento en factura",paymentDays:"Validez pronto pago (días)",
+    discFooterPlaceholder:"ej. válido por N días hábiles desde facturación",
+    prontoPago:"TOTAL PRONTO PAGO",
+    validoPor:"Válido por",diasHabiles:"días hábiles desde fecha de facturación",
+    oneDiscountOnly:"Solo se permite una regla de descuento.",
+    roleDescAdmin:"Administrador — acceso total incluyendo usuarios y compañías.",
+    roleDescOperator:"Operador — carga archivos, revisa entradas de sus compañías, envía.",
+    roleDescReviewer:"Revisor — ve lotes enviados de sus compañías, aprueba.",
+    roleDescReadonly:"Solo Lectura — acceso de visualización para sus compañías.",
+    noCompanySelected:"Selecciona al menos una compañía.",
+    srcCsvReady:"✓ Listo",srcCsvDone:"✓ Archivado",
+    csBilling:"Pre-Factura y Facturación",
+    piGoTo:"Pre-Factura",piLoadCycle:"Cargar Ciclo de Facturación",piCurrent:"Lote Activo",piHistoric:"Histórico",
+    piLoadTitle:"Cargar Ciclo de Facturación",piNoApproved:"No hay lote aprobado en memoria.",
+  }
+};
+
+// ── STATE ──
+let lang="en", currentUser=null, auditLog=[], activeTab=null;
+
+// ── PREFERENCE LAYER (v8.5.1) ──────────────────────────────────────────────
+// Single source of truth for all user UI preferences.
+// Flow: DB → localStorage → UI  (login)
+//       UI → localStorage → DB  (usage, debounced)
+
+const PREF_DEFAULTS = {
+  sticky_headers:  true,
+  sticky_tabs:     true,
+  role_banner:     true,
+  viewas_visible:  true,
+  debug_mode:      false,
+  sidepanel_width: 420,
+  active_tab:      null   // resolved per-role at boot if null
+};
+
+// Maps preference key → localStorage key used in v8.5.0
+const LS_MAP = {
+  sticky_headers:  "hpfleet_stickyheaders",
+  sticky_tabs:     "hpfleet_stickytabs",
+  role_banner:     "hpfleet_rolebanner",
+  viewas_visible:  "hpfleet_viewas_visible",
+  debug_mode:      "hpfleet_debug",
+  sidepanel_width: "hpfleet_sp_width",
+  active_tab:      null   // no prior localStorage key for active tab
+};
+
+let _userPrefs = {};         // in-memory cache
+let _prefSaveTimer = null;   // debounce handle
+
+// Read users.preferences from DB into cache; returns true if prefs existed
+async function loadUserPreferences(){
+  try {
+    const rows = await sbGet("users","id=eq."+currentUser.id+"&select=preferences");
+    const dbPrefs = (rows && rows[0] && rows[0].preferences) ? rows[0].preferences : null;
+    const isEmpty = !dbPrefs || Object.keys(dbPrefs).length === 0;
+    if(isEmpty){
+      await migrateLocalPreferencesIfNeeded();
+    } else {
+      // DB is source of truth — overwrite localStorage
+      _userPrefs = Object.assign({}, PREF_DEFAULTS, dbPrefs);
+      Object.keys(LS_MAP).forEach(key=>{
+        const lsKey = LS_MAP[key];
+        if(!lsKey) return;
+        const val = _userPrefs[key];
+        if(typeof val === "boolean"){
+          localStorage.setItem(lsKey, val ? "1" : "0");
+        } else if(val !== null && val !== undefined){
+          localStorage.setItem(lsKey, String(val));
+        }
+      });
+      dbg("Preferences restored from DB", "info");
+    }
+  } catch(err){
+    dbg("loadUserPreferences failed: "+err.message+". Using localStorage fallback.", "warn");
+    // Populate cache from localStorage so the app still works
+    _userPrefs = {};
+    Object.keys(LS_MAP).forEach(key=>{
+      const lsKey = LS_MAP[key];
+      if(!lsKey){ _userPrefs[key] = PREF_DEFAULTS[key]; return; }
+      const raw = localStorage.getItem(lsKey);
+      if(raw === null){ _userPrefs[key] = PREF_DEFAULTS[key]; return; }
+      if(PREF_DEFAULTS[key] === true || PREF_DEFAULTS[key] === false){
+        _userPrefs[key] = raw === "1";
+      } else {
+        _userPrefs[key] = raw;
+      }
+    });
+  }
+}
+
+// First-login migration: read existing localStorage → build object → PATCH DB
+async function migrateLocalPreferencesIfNeeded(){
+  _userPrefs = {};
+  Object.keys(LS_MAP).forEach(key=>{
+    const lsKey = LS_MAP[key];
+    if(!lsKey){ _userPrefs[key] = PREF_DEFAULTS[key]; return; }
+    const raw = localStorage.getItem(lsKey);
+    if(raw === null){ _userPrefs[key] = PREF_DEFAULTS[key]; return; }
+    if(PREF_DEFAULTS[key] === true || PREF_DEFAULTS[key] === false){
+      _userPrefs[key] = raw === "1";
+    } else {
+      _userPrefs[key] = raw;
+    }
+  });
+  dbg("First login — migrating localStorage to DB preferences", "info");
+  try {
+    await sbPatch("users","id=eq."+currentUser.id,{preferences: _userPrefs});
+    dbg("Preferences migrated to DB", "info");
+  } catch(err){
+    dbg("Preference migration PATCH failed: "+err.message, "warn");
+  }
+}
+
+// Apply cached preferences to all UI elements.
+// Called once after load. Toggle inits will read from localStorage (now synced).
+function applyUserPreferences(){
+  // Side panel width — clamp to 50% viewport
+  const spw = _userPrefs.sidepanel_width;
+  if(spw){
+    const maxW = Math.floor(window.innerWidth * 0.5);
+    const clamped = Math.min(parseInt(spw) || 420, maxW);
+    const clamped_str = clamped + "px";
+    localStorage.setItem("hpfleet_sp_width", clamped_str);
+    _userPrefs.sidepanel_width = clamped;
+  }
+  // viewas_visible — apply topbar widget early (mirrors bootApp inline logic)
+  const vaw = el("viewAsWrap");
+  if(vaw && currentUser && currentUser.role === "ADMIN"){
+    vaw.style.display = _userPrefs.viewas_visible ? "flex" : "none";
+  }
+  // All other prefs are read by the existing init* functions from localStorage
+  // No need to apply them here — localStorage is now synced from DB above
+  dbg("Preferences applied to UI", "info");
+}
+
+// Write-through: update cache → localStorage → debounced PATCH to DB
+function saveUserPreference(key, value){
+  if(!(key in PREF_DEFAULTS)) return;
+  _userPrefs[key] = value;
+  // Sync localStorage
+  const lsKey = LS_MAP[key];
+  if(lsKey){
+    if(typeof value === "boolean"){
+      localStorage.setItem(lsKey, value ? "1" : "0");
+    } else if(value !== null && value !== undefined){
+      localStorage.setItem(lsKey, String(value));
+    }
+  }
+  // No PATCH if not logged in
+  if(!currentUser) return;
+  // Debounced PATCH — 400ms window collapses rapid changes (e.g. panel drag)
+  if(_prefSaveTimer) clearTimeout(_prefSaveTimer);
+  _prefSaveTimer = setTimeout(async ()=>{
+    try {
+      await sbPatch("users","id=eq."+currentUser.id,{preferences: _userPrefs});
+      dbg("Preferences saved to DB", "info");
+    } catch(err){
+      dbg("Preference PATCH failed: "+err.message, "warn");
+    }
+  }, 400);
+}
+// ── END PREFERENCE LAYER ────────────────────────────────────────────────────
+let editingUserId=null, editingCoId=null, deletingId=null, deleteType=null;
+let nextUserId=200, nextCoId=300, nextRuleId=400, tempRules=[], tempContacts=[];
+
+function contactTypeOptions(selected){
+  const types=["Admin","Accounting","Operations","Shop","Other"];
+  return types.map(tp=>'<option value="'+tp+'"'+(selected===tp?" selected":"")+'>'+tp+'</option>').join("");
+}
+
+function renderTempContacts(){
+  const wrap=el("co_contacts_list"); if(!wrap) return;
+  wrap.innerHTML="";
+  const inp=s=>'<input type="text" '+s+' style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-size:12px;padding:6px 8px;border-radius:2px;outline:none;width:100%;box-sizing:border-box">';
+  tempContacts.forEach((c,i)=>{
+    const card=document.createElement("div");
+    card.style.cssText="border:1px solid var(--border2);border-radius:4px;padding:8px 10px;margin-bottom:8px;position:relative";
+    // Delete button — top right of card
+    const delBtn=document.createElement("button");
+    delBtn.textContent="✕";
+    delBtn.style.cssText="position:absolute;top:6px;right:6px;background:none;border:1px solid var(--border2);color:var(--red);cursor:pointer;padding:2px 6px;border-radius:2px;font-size:11px;line-height:1";
+    // Row 1: Type + Name + Invoice checkbox
+    const row1=document.createElement("div");
+    row1.style.cssText="display:grid;grid-template-columns:130px 1fr auto;gap:6px;margin-bottom:6px;padding-right:32px";
+    const typeSel=document.createElement("select");
+    typeSel.style.cssText="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:10px;padding:6px 8px;border-radius:2px;outline:none;width:100%";
+    typeSel.innerHTML=contactTypeOptions(c.type);
+    const nameInp=document.createElement("input");
+    nameInp.type="text"; nameInp.value=c.name||""; nameInp.placeholder="Name";
+    nameInp.style.cssText="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-size:12px;padding:6px 8px;border-radius:2px;outline:none;width:100%;box-sizing:border-box";
+    // Invoice toggle
+    const invLbl=document.createElement("label");
+    invLbl.className="chk-item"+(c.inv_show!==false?" checked":"");
+    invLbl.title=t("invOnInvoice");
+    invLbl.style.cssText="padding:4px 7px;font-size:9px;white-space:nowrap;cursor:pointer";
+    const invCb=document.createElement("input");
+    invCb.type="checkbox"; invCb.checked=c.inv_show!==false;
+    invCb.style.cssText="accent-color:var(--cyan);width:11px;height:11px;cursor:pointer";
+    invLbl.appendChild(invCb);
+    invLbl.appendChild(document.createTextNode(" "+t("invOnInvoice")));
+    row1.appendChild(typeSel); row1.appendChild(nameInp); row1.appendChild(invLbl);
+    // Row 2: Phone + Email
+    const row2=document.createElement("div");
+    row2.style.cssText="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-right:32px";
+    const phoneInp=document.createElement("input");
+    phoneInp.type="text"; phoneInp.value=c.phone||""; phoneInp.placeholder="Phone";
+    phoneInp.style.cssText="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-size:12px;padding:6px 8px;border-radius:2px;outline:none;width:100%;box-sizing:border-box";
+    const emailInp=document.createElement("input");
+    emailInp.type="text"; emailInp.value=c.email||""; emailInp.placeholder="Email";
+    emailInp.style.cssText="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-size:12px;padding:6px 8px;border-radius:2px;outline:none;width:100%;box-sizing:border-box";
+    row2.appendChild(phoneInp); row2.appendChild(emailInp);
+    // Wire events — use data-index attribute to avoid closure-over-loop-index
+    card.dataset.contactIdx=i;
+    typeSel.addEventListener("change",()=>{const idx=+card.dataset.contactIdx;tempContacts[idx].type=typeSel.value;});
+    nameInp.addEventListener("input",()=>{const idx=+card.dataset.contactIdx;tempContacts[idx].name=nameInp.value;});
+    invCb.addEventListener("change",()=>{const idx=+card.dataset.contactIdx;tempContacts[idx].inv_show=invCb.checked;invLbl.classList.toggle("checked",invCb.checked);});
+    phoneInp.addEventListener("input",()=>{const idx=+card.dataset.contactIdx;tempContacts[idx].phone=phoneInp.value;});
+    emailInp.addEventListener("input",()=>{const idx=+card.dataset.contactIdx;tempContacts[idx].email=emailInp.value;});
+    delBtn.addEventListener("click",()=>{const idx=+card.dataset.contactIdx;tempContacts.splice(idx,1);renderTempContacts();});
+    card.appendChild(delBtn); card.appendChild(row1); card.appendChild(row2);
+    wrap.appendChild(card);
+  });
+}
+
+function addContact(){
+  if(tempContacts.length>=5){showToast("Maximum 5 contacts per company","warn");return;}
+  tempContacts.push({type:"Admin",name:"",phone:"",email:""});
+  renderTempContacts();
+}
+// Flight log state
+let flEntries=[], flAuditLog=[], fileQueue=[], editingEntryId=null;
+let batchStatus="DRAFT", confirmCb=null, batchSourceFile=[], nextEntryId=1;
+let currentBatchId=null;
+let reviewCycle=1;
+
+// ── REVIEW THREAD HELPERS ──
+function addThreadComment(entry, role, text){
+  if(!entry.reviewThread) entry.reviewThread=[];
+  entry.reviewThread.push({
+    cycle:reviewCycle,
+    role,
+    author:currentUser.name,
+    text:text.trim(),
+    ts:new Date().toISOString()
+  });
+}
+
+function getCurrentCycleComments(entry){
+  if(!entry.reviewThread||!entry.reviewThread.length) return [];
+  return entry.reviewThread.filter(c=>c.cycle===reviewCycle);
+}
+
+function getThreadForEntry(entry){
+  return entry.reviewThread||[];
+}
+
+function renderSpThread(entry){
+  const thread=getThreadForEntry(entry);
+  const body=el("spThreadBody"); if(!body) return;
+  body.innerHTML="";
+  const role=effectiveRole();
+  const isReviewer=role==="REVIEWER"||role==="ADMIN";
+  const isOperator=role==="OPERATOR"||role==="ADMIN";
+
+  // Group by cycle
+  const cycles=[...new Set(thread.map(c=>c.cycle))].sort((a,b)=>a-b);
+  const circled=["①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩"];
+
+  if(cycles.length===0){
+    body.innerHTML="<div style='padding:10px 8px;font-size:10px;color:var(--dim2);text-align:center'>"+
+      (lang==="es"?"Sin comentarios aún":"No comments yet")+"</div>";
+  } else {
+    cycles.forEach(cyc=>{
+      const reviewerComments=thread.filter(c=>c.cycle===cyc&&c.role==="REVIEWER");
+      const operatorComments=thread.filter(c=>c.cycle===cyc&&c.role==="OPERATOR");
+      const maxRows=Math.max(reviewerComments.length,operatorComments.length,1);
+      const num=circled[cyc-1]||("#"+cyc);
+      for(let i=0;i<maxRows;i++){
+        const rc=reviewerComments[i];
+        const oc=operatorComments[i];
+        const row=document.createElement("div");
+        row.style.cssText="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid rgba(255,255,255,0.04)";
+        row.innerHTML=
+          "<div style='padding:6px 8px;border-right:1px solid rgba(255,255,255,0.06)'>"+(rc?
+            "<div style='font-size:8px;color:rgba(255,196,59,0.5);margin-bottom:2px'>"+num+" "+rc.author+"</div>"+
+            "<div style='font-size:10px;color:var(--yellow)'>"+rc.text+"</div>":
+            "<div style='font-size:10px;color:var(--dim2)'>—</div>")+
+          "</div>"+
+          "<div style='padding:6px 8px'>"+(oc?
+            "<div style='font-size:8px;color:rgba(34,211,238,0.5);margin-bottom:2px'>"+num+" "+oc.author+"</div>"+
+            "<div style='font-size:10px;color:var(--cyan)'>"+oc.text+"</div>":
+            "<div style='font-size:10px;color:var(--dim2)'>—</div>")+
+          "</div>";
+        body.appendChild(row);
+      }
+    });
+  }
+
+  // Show meta
+  if(el("spThreadMeta")) el("spThreadMeta").textContent="- "+thread.length+" "+(lang==="es"?"comentarios":"comments");
+
+  // Show/hide action buttons based on role and batch state
+  const canReviewerComment=(isReviewer)&&batchStatus==="SUBMITTED";
+  const canOperatorRespond=(isOperator)&&batchStatus==="DRAFT";
+  if(el("spAddCommentBtn")) el("spAddCommentBtn").style.display=canReviewerComment?"":"none";
+  if(el("spSaveResponseBtn")) el("spSaveResponseBtn").style.display=canOperatorRespond?"":"none";
+}
+
+function openSpThreadInput(role){
+  const ta=el("spThreadTextarea"); if(!ta) return;
+  ta.value="";
+  // Style based on role
+  if(role==="REVIEWER"){
+    ta.style.borderColor="rgba(255,196,59,0.4)";
+    ta.style.color="var(--yellow)";
+    ta.placeholder=lang==="es"?"Agregar comentario…":"Add comment…";
+    if(el("spThreadSaveBtn")){ el("spThreadSaveBtn").style.background="var(--yellow)"; el("spThreadSaveBtn").style.color="#000"; }
+  } else {
+    ta.style.borderColor="rgba(34,211,238,0.4)";
+    ta.style.color="var(--cyan)";
+    ta.placeholder=lang==="es"?"Agregar respuesta…":"Add response…";
+    if(el("spThreadSaveBtn")){ el("spThreadSaveBtn").style.background="var(--cyan)"; el("spThreadSaveBtn").style.color="#000"; }
+  }
+  el("spThreadInput").dataset.role=role;
+  el("spThreadInput").style.display="";
+  ta.focus();
+}
+
+function closeSpThreadInput(){
+  if(el("spThreadInput")) el("spThreadInput").style.display="none";
+  if(el("spThreadTextarea")) el("spThreadTextarea").value="";
+}
+
+function saveSpThreadComment(){
+  const ta=el("spThreadTextarea"); if(!ta) return;
+  const text=ta.value.trim(); if(!text) return;
+  const role=el("spThreadInput").dataset.role||effectiveRole();
+  const entry=flEntries.find(e=>e.id===spEditingEntryId); if(!entry) return;
+  addThreadComment(entry,role,text);
+  // Sync flagNote for backwards compat — drives Notes column marker, RFR dialog, filter, WA message
+  if(role==="REVIEWER"){
+    entry.flagNote=text;
+    entry.status="flagged";
+  }
+  closeSpThreadInput();
+  renderSpThread(entry);
+  renderFlTable();
+  addFlAudit("💬",currentUser.name,"thread comment added","Entry "+(flEntries.indexOf(entry)+1)+" cycle "+reviewCycle);
+}
+
+function migrateFlagnoteToThread(entry){
+  // Migrate legacy flagNote to review_thread as cycle 1 REVIEWER comment
+  if(entry.flagNote&&entry.flagNote.trim()!==""&&
+    (!entry.reviewThread||!entry.reviewThread.length)){
+    entry.reviewThread=[{
+      cycle:1,
+      role:"REVIEWER",
+      author:"Reviewer",
+      text:entry.flagNote.trim(),
+      ts:new Date().toISOString()
+    }];
+    entry.flagNote=""; // clear after migration — thread is source of truth
+    dbg("Migrated flagNote to reviewThread for entry "+(entry.id),"info");
+  }
+}
+let isExtracting=false;
+let extractionAbort=null;
+let viewRole=null;
+let flaggingEntryId=null;
+// Sort state
+let userSortCol=null, userSortDir=1; // dir: 1=asc, -1=desc
+let flSortCol=null, flSortDir=1;
+const DEFAULT_MULT = {FM:1.15, MAG:1.275};
+const LAST_HORO = {"HP-1862FX":1298.4,"HP-1861":1105.7};
+const FL_LOAD_TS = new Date();
+const MODEL = "claude-sonnet-4-6";
+
+function _updateSpBottom(){
+  const panel=el("sidePanel"); if(!panel) return;
+  const debugOn=el("debugPanel")&&el("debugPanel").classList.contains("on")&&!el("debugBody").classList.contains("collapsed");
+  panel.classList.toggle("debug-open",debugOn);
+}
+
+// ── DEBUG LOGGER ──
+function dbg(msg, type="info"){
+  const panel=el("debugPanel"); if(!panel) return;
+  // Only show panel if debug is enabled in settings
+  if(currentUser && localStorage.getItem("hpfleet_debug")==="1"){
+    panel.classList.add("on");
+    _updateSpBottom();
+  }
+  const body=el("debugBody");
+  const line=document.createElement("div");
+  line.className="debug-line "+(type||"info");
+  const ts=new Date().toLocaleTimeString("en-US",{hour12:false});
+  line.textContent="["+ts+"] "+msg;
+  body.appendChild(line);
+  body.scrollTop=body.scrollHeight;
+}
+
+function t(k){ return I18N[lang][k] ?? I18N.en[k] ?? k; }
+function el(id){ return document.getElementById(id); }
+function initials(n){ return n.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(); }
+function roleColor(r){ return {ADMIN:"var(--violet)",OPERATOR:"var(--cyan)",REVIEWER:"var(--green)",READONLY:"var(--dim2)"}[r]||"var(--cyan)"; }
+function coColor(code){
+  const map = {FM:"var(--green)",MAG:"var(--yellow)"};
+  if(map[code]) return map[code];
+  const hues=[200,280,340,160,30,260];
+  const idx = COMPANIES.findIndex(c=>c.code===code) % hues.length;
+  return "hsl("+hues[Math.max(0,idx)]+",80%,65%)";
+}
+function openModal(id){ el(id).classList.add("open"); }
+function closeModal(id){ el(id).classList.remove("open"); }
+function showToast(msg,type=""){
+  const t=el("toast"); t.textContent=msg;
+  t.className="toast on"+(type?" "+type:"");
+  setTimeout(()=>t.className="toast",3200);
+}
+
+// ── LANG ──
+function setLang(l){
+  lang=l;
+  ["EN","ES"].forEach(x=>{
+    const b1=el("btn"+x); const b2=el("app"+x);
+    if(b1) b1.className=l===x.toLowerCase()?"active":"";
+    if(b2) b2.className=l===x.toLowerCase()?"active":"";
+  });
+  applyI18n();
+  if(currentUser){ renderAll(); }
+}
+
+function applyI18n(){
+  el("loginTitle").textContent=t("signIn");
+  el("loginBtnTxt").textContent=t("signIn");
+  el("lbl_user").textContent=t("emailLbl");
+  el("lbl_pass").textContent=t("pwdLbl");
+  if(!currentUser) return;
+  el("btnSignOut").textContent=t("signOut");
+  const ids={
+    ut_title:"utTitle",ut_export:"utExport",ut_add:"utAdd",ut_auditTitle:"utAudit",ut_clearLog:"utClear",
+    th_user:"thUser",th_role:"thRole",th_companies:"thCompanies",th_status:"thStatus",
+    th_created:"thCreated",th_last:"thLast",th_actions:"thActions",
+    fo_op:"",fo_rev:"",fo_ro:"",fo_active:"activeOnly",fo_inactive:"inactiveOnly",fo_allco:"allCompanies",
+    ct_title:"ctTitle",ct_add:"ctAdd",
+    fl_title:"flTitle",fl_newBatch:"flNewBatch",
+    apiWarnMsg:"apiWarnMsg",apiWarnLink:"apiWarnLink",
+    sb_file:"sbFile",sb_horo:"sbHoro",sb_csv:"sbCsv",sb_ts:"sbTs",sb_batch:"sbBatch",sb_dlcsv:"sbDlCsv",
+    al_horoTitle:"horoAlert",tb_entries:"tbEntries",
+    fo_allop:"allOp",
+    btn_approveAll:"approveAll",btn_resetAll:"resetAll",btn_newEntry:"newEntry",
+    pt_entries:"ptEntries",pt_audit:"ptAudit",
+    th_date:"thDate",th_ac:"thAc",th_op:"thOp",th_pilot:"thPilot",th_instructor:"thInstructor",
+    th_motor:"thMotor",th_flight:"thFlight",th_billing:"thBilling",
+    th_mout:"thMout",th_min:"thMin",th_tm:"thTm",th_fout:"thFout",th_fin:"thFin",th_tf:"thTf",
+    th_mult:"thMult",th_tbp:"thTbp",th_horo:"thHoro",th_obs:"thObs",th_status:"thStatus2",
+    btn_csv:"btnCsv",btn_xlsx:"btnXlsx",btn_saveDraft:"btnDraft",
+    btn_submit:"btnSubmit",btn_approve:"btnApprove",btn_reqChanges:"btnReqChanges",btn_returnForReview:"btnReturnForReview",
+    fo_reviewerComments:"rfrColComment",
+    st_adminCcLabel:"stAdminCcLabel",st_adminCcHint:"stAdminCcHint",
+    st_viewAsLabel:"stViewAsLabel",st_viewAsHint:"stViewAsHint",
+    st_title:"stTitle",st_apiTitle:"stApiTitle",st_apiLabel:"stApiLabel",st_apiHint:"stApiHint",
+    btn_saveApiKey:"saveKey",btn_clearApiKey:"clearKey",
+    cs_billing:"csBilling",st_fleetTitle:"stFleetTitle",
+    pi_title:"tabBilling",pi_load_cycle_btn:"piLoadCycle",cs_billing:"csBilling",
+  };
+  const roleLabels={OPERATOR:ROLES.OPERATOR[lang].label,REVIEWER:ROLES.REVIEWER[lang].label,READONLY:ROLES.READONLY[lang].label};
+  if(el("fo_op")) el("fo_op").textContent=roleLabels.OPERATOR;
+  if(el("fo_rev")) el("fo_rev").textContent=roleLabels.REVIEWER;
+  if(el("fo_ro")) el("fo_ro").textContent=roleLabels.READONLY;
+  Object.entries(ids).forEach(([id,key])=>{ if(key && el(id)) el(id).textContent=t(key); });
+  renderTabs();
+  updateApiStatus();
+}
+
+// ── AUTH ──
+function doLogin(){
+  const email=el("li_user").value.trim();
+  const pwd=el("li_pass").value;
+  const errEl=el("loginErr"); const btn=el("loginBtnTxt");
+  errEl.classList.remove("on"); btn.textContent=t("signingIn");
+  // Auth against DB users (USERS array loaded from DB at init)
+  setTimeout(async ()=>{
+    try {
+      if(USERS.length&&!USERS.some(u=>u.pwd)){
+        const _fresh=await sbGet("users");
+        if(_fresh&&_fresh.length) USERS.splice(0,USERS.length,..._fresh);
+      }
+      const user=USERS.find(u=>u.email===email&&u.pwd===pwd);
+      if(!user||user.status!=="active"){
+        errEl.textContent=!user?t("loginErr"):t("inactiveErr");
+        errEl.classList.add("on"); btn.textContent=t("signIn"); return;
+      }
+      // Remember username
+      if(el("rememberMe")&&el("rememberMe").checked){
+        localStorage.setItem("hpfleet_remember_email",email);
+      } else {
+        localStorage.removeItem("hpfleet_remember_email");
+      }
+      user.lastLogin=new Date().toISOString();
+      // Update last_login in DB silently
+      sbPatch("users","id=eq."+user.id,{last_login:user.lastLogin}).catch(()=>{});
+      currentUser=user;
+      USERS.forEach(u=>{ delete u.pwd; });
+      addAudit("🔑",user.name,lang==="es"?"inició sesión":"logged in","—");
+      await bootApp();
+    } catch(err){
+      errEl.textContent="Login error: "+err.message;
+      errEl.classList.add("on"); btn.textContent=t("signIn");
+    }
+  },400);
+}
+
+function doLogout(){
+  closeSidePanel();
+  addAudit("🚪",currentUser.name,lang==="es"?"cerró sesión":"logged out","—");
+  currentUser=null;
+  el("appShell").style.display="none";
+  el("loginScreen").style.display="flex";
+  el("li_user").value=""; el("li_pass").value="";
+  el("loginErr").classList.remove("on");
+  el("loginBtnTxt").textContent=t("signIn");
+}
+
+async function bootApp(){
+  el("loginScreen").style.display="none";
+  el("appShell").style.display="flex";
+  const r=ROLES[currentUser.role];
+  el("tbName").textContent=currentUser.name;
+  el("tbRoleLabel").textContent=r[lang].label;
+  el("tbCompanies").textContent=currentUser.companies.join(" · ");
+  el("tbAvatar").textContent=initials(currentUser.name);
+  el("tbAvatar").style.color=r.color;
+  if(el("viewAsRole")) el("viewAsRole").value="ADMIN";
+  viewRole=null;
+  applyI18n();
+  renderRoleBanner();
+  renderTabs();
+  renderAll();
+  updateApiStatus();
+  // Load API key from DB (centralized for all devices)
+  await loadApiKeyFromDB();
+  await loadAdminCcFromDB();
+  // ── v8.5.1: load and apply user preferences before initing toggles ──
+  await loadUserPreferences();
+  applyUserPreferences();
+  // ───────────────────────────────────────────────────────────────────
+  initDebugToggle();
+  initAdminCcToggle();
+  initViewAsToggle();
+  initRoleBannerToggle();
+  initStickyHeadersToggle();
+  initStickyTabsToggle();
+  // Restore active tab from preferences; fall back to role default
+  const defaultTab=currentUser.role==="ADMIN"?"users":"flightlog";
+  const TAB_IDS=TAB_CONFIG.filter(t=>t.roles.includes(effectiveRole())).map(t=>t.id);
+  const savedTab=_userPrefs.active_tab;
+  const restoredTab=(savedTab && TAB_IDS.includes(savedTab)) ? savedTab : defaultTab;
+  switchTab(restoredTab);
+  // Load billing cycle history
+  await loadAllBatches();
+  // Load batch from DB
+  dbg("Loading batch from database…","info");
+  const hasBatch=await loadBatchFromDB();
+  if(hasBatch){
+    if(el("srcBar")) el("srcBar").style.display="flex";
+    if(el("reviewSection")) el("reviewSection").style.display="block";
+    updateSrcBar();
+    renderWfBar(); setupFlRoleUI(); renderFlTable(); renderFlAudit();
+    showToast("Batch restored from database","info");
+  }
+}
+
+// ── TABS ──
+const TAB_CONFIG=[
+  {id:"users",     icon:"👥",labelKey:"tabUsers",     roles:["ADMIN"]},
+  {id:"companies", icon:"🏢",labelKey:"tabCompanies", roles:["ADMIN"]},
+  {id:"aircraft",  icon:"✈️",labelKey:"tabAircraft",  roles:["ADMIN","OPERATOR"]},
+  {id:"flightlog", icon:"📋",labelKey:"tabFlightLog", roles:["ADMIN","OPERATOR","REVIEWER","READONLY"]},
+  {id:"preinvoice",icon:"💳",labelKey:"tabBilling",   roles:["ADMIN","REVIEWER","OPERATOR","READONLY"]},
+  {id:"settings",  icon:"⚙️",labelKey:"tabSettings",  roles:["ADMIN","OPERATOR","REVIEWER","READONLY"]},
+];
+
+function renderTabs(){
+  const nav=el("tabNav"); nav.innerHTML="";
+  TAB_CONFIG.filter(tab=>tab.roles.includes(effectiveRole())).forEach(tab=>{
+    const btn=document.createElement("button");
+    btn.className="tab-btn"+(activeTab===tab.id?" active":"");
+    btn.innerHTML='<span class="tab-icon">'+tab.icon+"</span>"+t(tab.labelKey);
+    btn.addEventListener("click",()=>switchTab(tab.id));
+    nav.appendChild(btn);
+  });
+}
+
+function switchTab(id){
+  if(id!=="flightlog" && el("sidePanel")&&el("sidePanel").classList.contains("open")){
+    spGuardDirty(()=>{ closeSidePanel(); _doSwitchTab(id); });
+    return;
+  }
+  _doSwitchTab(id);
+}
+function _doSwitchTab(id){
+  activeTab=id;
+  saveUserPreference("active_tab", id);
+  document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));
+  const panel=el("panel-"+id);
+  if(panel) panel.classList.add("active");
+  renderTabs();
+  // Refresh batch list when entering flight log or pre-invoice
+  if(id==="flightlog"||id==="preinvoice") loadAllBatches();
+}
+
+// ── ROLE BANNER ──
+function renderRoleBanner(){
+  const r=ROLES[currentUser.role]; const rd=r[lang];
+  const coNames=currentUser.companies.map(code=>{
+    const co=COMPANIES.find(c=>c.code===code); return co?co.name:code;
+  }).join(", ");
+  const permsHtml=rd.perms.map(p=>'<span class="perm-tag">✓ '+p+"</span>").join("");
+  el("roleBanner").innerHTML='<div class="role-banner '+r.bannerClass+'" style="margin:20px 24px 0">'+
+    '<div class="rb-icon">'+r.icon+"</div>"+
+    "<div>"+
+    '<div class="rb-role">'+rd.label+"</div>"+
+    '<div class="rb-name">'+currentUser.name+"</div>"+
+    '<div class="rb-co">'+coNames+"</div>"+
+    '<div class="rb-desc">'+rd.desc+"</div>"+
+    '<div class="rb-perms">'+permsHtml+"</div>"+
+    "</div></div>";
+}
+
+// ── SETTINGS / API KEY ──
+let _cachedApiKey="";
+
+async function loadApiKeyFromDB(){
+  try {
+    const rows=await sbGet("settings","key=eq.anthropic_api_key");
+    if(rows&&rows.length&&rows[0].value){
+      _cachedApiKey=rows[0].value;
+      localStorage.setItem("hpfleet_apikey",_cachedApiKey);
+      dbg("API key loaded from DB","ok");
+    } else {
+      // Fall back to localStorage
+      _cachedApiKey=localStorage.getItem("hpfleet_apikey")||"";
+      if(_cachedApiKey) dbg("API key loaded from localStorage","info");
+    }
+  } catch(err){
+    _cachedApiKey=localStorage.getItem("hpfleet_apikey")||"";
+    dbg("API key DB load failed, using localStorage: "+err.message,"warn");
+  }
+  updateApiStatus();
+}
+
+function getApiKey(){ return _cachedApiKey||localStorage.getItem("hpfleet_apikey")||""; }
+
+async function loadAdminCcFromDB(){
+  try{
+    const rows=await sbGet("settings","key=eq.admin_cc_enabled");
+    _adminCcEnabled=rows&&rows.length&&rows[0].value==="1";
+  } catch(err){
+    _adminCcEnabled=false;
+    dbg("Admin CC setting load failed: "+err.message,"warn");
+  }
+  const chk=el("adminCcToggleCheck");
+  const lbl=el("adminCcToggleLabel");
+  if(chk) chk.checked=_adminCcEnabled;
+  if(lbl) lbl.textContent=_adminCcEnabled?(lang==="es"?"Activo":"On"):(lang==="es"?"Inactivo":"Off");
+}
+
+async function saveAdminCcToDB(val){
+  if(!currentUser||currentUser.role!=="ADMIN") return;
+  try{
+    const rows=await sbGet("settings","key=eq.admin_cc_enabled");
+    if(rows&&rows.length){
+      await sbPatch("settings","key=eq.admin_cc_enabled",{value:val?"1":"0"});
+    } else {
+      await sbPost("settings",{key:"admin_cc_enabled",value:val?"1":"0"});
+    }
+    dbg("Admin CC setting saved: "+val,"ok");
+  } catch(err){
+    dbg("Admin CC setting save failed: "+err.message,"warn");
+  }
+}
+
+function updateApiStatus(){
+  const key=getApiKey();
+  const badge=el("apiStatusBadge");
+  const isAdmin=currentUser&&(currentUser.role==="ADMIN");
+  if(badge){
+    badge.textContent=key?t("apiOk"):t("apiMissing");
+    badge.className="api-status "+(key?"api-ok":"api-missing");
+  }
+  // Non-admin sees masked configured status only
+  if(el("apiKeyInput")){
+    if(!isAdmin){
+      el("apiKeyInput").value=key?"[Configured by Admin]":"";
+      el("apiKeyInput").readOnly=true;
+      el("apiKeyInput").style.color="var(--dim2)";
+    } else {
+      el("apiKeyInput").value=key?"••••••••••••••":"";
+      el("apiKeyInput").readOnly=false;
+      el("apiKeyInput").style.color="";
+    }
+  }
+  if(el("btn_saveApiKey")) el("btn_saveApiKey").style.display=isAdmin?"":"none";
+  if(el("btn_clearApiKey")) el("btn_clearApiKey").style.display=isAdmin?"":"none";
+  const warn=el("apiWarn");
+  if(warn){ if(!key) warn.classList.add("on"); else warn.classList.remove("on"); }
+}
+
+async function saveApiKey(){
+  if(!currentUser||currentUser.role!=="ADMIN") return;
+  const val=el("apiKeyInput").value.trim();
+  if(!val||val.startsWith("•")){ showToast("Enter a valid API key","err"); return; }
+  _cachedApiKey=val;
+  localStorage.setItem("hpfleet_apikey",val);
+  // Save to DB settings table
+  try {
+    await sbDelete("settings","key=eq.anthropic_api_key");
+    await sbPost("settings",{key:"anthropic_api_key",value:val});
+    dbg("API key saved to DB","ok");
+  } catch(e){ dbg("API key DB save error: "+e.message,"err"); }
+  el("apiKeyInput").value="••••••••••••••";
+  updateApiStatus();
+  showToast(t("keySaved"));
+}
+
+async function clearApiKey(){
+  if(!currentUser||currentUser.role!=="ADMIN") return;
+  _cachedApiKey="";
+  localStorage.removeItem("hpfleet_apikey");
+  try {
+    await sbDelete("settings","key=eq.anthropic_api_key");
+    dbg("API key cleared from DB","ok");
+  } catch(e){ dbg("API key DB clear error: "+e.message,"err"); }
+  if(el("apiKeyInput")) el("apiKeyInput").value="";
+  updateApiStatus();
+  showToast(t("keyCleared"),"warn");
+}
+
+// ── USER STATS ──
+function renderUserStats(){
+  const roles=["ADMIN","OPERATOR","REVIEWER","READONLY"];
+  const cls={ADMIN:"sc-admin",OPERATOR:"sc-op",REVIEWER:"sc-rev",READONLY:"sc-ro"};
+  const active=USERS.filter(u=>u.status==="active").length;
+  let html='<div class="scard sc-tot"><div class="sc-l">Total</div><div class="sc-v">'+USERS.length+"</div>"+
+    '<div class="sc-s">'+active+" "+t("active")+"</div></div>";
+  roles.forEach(r=>{
+    const cnt=USERS.filter(u=>u.role===r).length;
+    const act=USERS.filter(u=>u.role===r&&u.status==="active").length;
+    html+='<div class="scard '+cls[r]+'"><div class="sc-l">'+ROLES[r][lang].label+"</div>"+
+      '<div class="sc-v">'+cnt+"</div>"+
+      '<div class="sc-s">'+act+" "+t("active")+"</div></div>";
+  });
+  el("userStats").innerHTML=html;
+}
+
+function populateCompanyFilter(){
+  const sel=el("filterCompany"); const cur=sel.value;
+  sel.innerHTML='<option value="ALL">'+t("allCompanies")+"</option>";
+  COMPANIES.forEach(co=>{
+    const opt=document.createElement("option");
+    opt.value=co.code; opt.textContent=co.code+" — "+co.name;
+    sel.appendChild(opt);
+  });
+  sel.value=cur||"ALL";
+}
+
+function getFilteredUsers(){
+  const q=el("userSearch").value.toLowerCase();
+  const r=el("filterRole").value;
+  const co=el("filterCompany").value;
+  const s=el("filterStatus").value;
+  return USERS.filter(u=>{
+    const mq=!q||u.name.toLowerCase().includes(q)||u.email.toLowerCase().includes(q);
+    return mq&&(r==="ALL"||u.role===r)&&(co==="ALL"||(u.companies||[]).includes(co))&&(s==="ALL"||u.status===s);
+  });
+}
+
+function renderUsers(){
+  renderUserStats(); populateCompanyFilter();
+  let list=getFilteredUsers();
+  // Apply sort
+  if(userSortCol){
+    list=[...list].sort((a,b)=>{
+      let av=a[userSortCol]||"", bv=b[userSortCol]||"";
+      if(Array.isArray(av)) av=av.join(",");
+      if(Array.isArray(bv)) bv=bv.join(",");
+      return String(av).localeCompare(String(bv))*userSortDir;
+    });
+  }
+  // Update header indicators
+  document.querySelectorAll("[data-sort-user]").forEach(th=>{
+    const col=th.dataset.sortUser;
+    const base=th.textContent.replace(/ [▲▼]$/,"");
+    th.textContent=base+(userSortCol===col?(userSortDir===1?" ▲":" ▼"):"");
+  });
+  el("userCount").textContent=t("showing")+" "+list.length+" "+t("of")+" "+USERS.length+" "+t("users");
+  const tbody=el("userTbody"); tbody.innerHTML="";
+  if(!list.length){
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;font-family:var(--mono);font-size:11px;color:var(--dim)">'+t("noResults")+"</td></tr>"; return;
+  }
+  list.forEach(u=>{
+    const r=ROLES[u.role]; const isSelf=currentUser&&u.id===currentUser.id;
+    const tr=document.createElement("tr");
+    tr.className=u.status==="inactive"?"row-inactive":"";
+    const coTagsHtml=(u.companies||[]).map(code=>{
+      const color=coColor(code);
+      return '<span class="co-tag" style="color:'+color+';border-color:'+color+'40;background:'+color+'12">'+code+"</span>";
+    }).join("");
+    tr.innerHTML='<td><div class="u-cell">'+
+      '<div class="u-av" style="background:'+r.avatarBg+';color:'+r.color+'">'+initials(u.name)+"</div>"+
+      "<div>"+
+      '<div class="u-name">'+u.name+(isSelf?' <span style="font-family:var(--mono);font-size:9px;color:var(--dim)">(me)</span>':"")+
+      "</div>"+
+      '<div class="u-email">'+u.email+"</div>"+
+      '<div class="u-companies">'+coTagsHtml+"</div>"+
+      "</div></div></td>"+
+      '<td><span class="role-chip '+r.chipClass+'">'+r[lang].label+"</span></td>"+
+      '<td><div style="display:flex;gap:4px;flex-wrap:wrap">'+coTagsHtml+"</div></td>"+
+      '<td><button class="sp '+(u.status==="active"?"sp-on":"sp-off")+'" data-uid="'+u.id+'" '+(isSelf?"disabled":"")+'>'+
+      (u.status==="active"?t("active"):t("inactive"))+"</button></td>"+
+      '<td style="font-family:var(--mono);font-size:11px;color:var(--dim2)">'+
+      (u.created||"—")+"</td>"+
+      '<td style="font-family:var(--mono);font-size:11px;color:var(--dim2)">'+
+      (u.lastLogin?new Date(u.lastLogin).toLocaleString(lang==="es"?"es-PA":"en-US"):t("never"))+"</td>"+
+      '<td><div class="act-cell">'+
+      '<button class="btn-sm" data-edit-user="'+u.id+'">'+t("edit")+"</button>"+
+      '<button class="btn-sm del" data-del-user="'+u.id+'" '+(isSelf?"disabled":"")+'>'+t("del")+"</button>"+
+      "</div></td>";
+    tbody.appendChild(tr);
+  });
+}
+
+function toggleUserStatus(id){
+  const u=USERS.find(x=>x.id===id); if(!u) return;
+  if(currentUser.id===id){showToast(t("cantDeactivateSelf"),"err");return;}
+  u.status=u.status==="active"?"inactive":"active";
+  sbPatch("users","id=eq."+u.id,{status:u.status})
+    .then(()=>dbg("User status updated: "+u.name+" → "+u.status,"ok"))
+    .catch(e=>dbg("User status error: "+e.message,"err"));
+  addAudit("🔄",currentUser.name,(lang==="es"?"cambió estado":"toggled status"),u.name+" → "+t(u.status));
+  renderUsers(); showToast(t("statusUpdated"));
+}
+
+// ── CREATE/EDIT USER ──
+function openCreateUser(){
+  editingUserId=null; clearUserErrors();
+  el("umTitle").textContent=lang==="es"?"Nuevo Usuario":"New User";
+  el("um_name").value=""; el("um_email").value="";
+  if(el("um_phone")) el("um_phone").value="";
+  el("um_role").value="OPERATOR"; el("um_status").value="active"; el("um_pwd").value="";
+  el("um_lbl_pwd").textContent=lang==="es"?"Contraseña *":"Password *";
+  el("um_pwd_hint").style.display="block";
+  buildCompanyCheckboxes([]);
+  updateRoleDesc();
+  openModal("userMbd");
+}
+
+function openEditUser(id){
+  const u=USERS.find(x=>x.id===id); if(!u) return;
+  editingUserId=id; clearUserErrors();
+  el("umTitle").textContent=(lang==="es"?"Editar Usuario: ":"Edit User: ")+u.name;
+  el("um_name").value=u.name; el("um_email").value=u.email;
+  if(el("um_phone")) el("um_phone").value=u.phone||"";
+  el("um_role").value=u.role; el("um_status").value=u.status; el("um_pwd").value="";
+  el("um_lbl_pwd").textContent=lang==="es"?"Nueva Contraseña (dejar en blanco para mantener)":"New password (leave blank to keep)";
+  el("um_pwd_hint").style.display="none";
+  buildCompanyCheckboxes(u.companies||[]);
+  updateRoleDesc();
+  openModal("userMbd");
+}
+
+function buildCompanyCheckboxes(selected){
+  const wrap=el("um_companies_chk"); wrap.innerHTML="";
+  COMPANIES.filter(co=>co.status==="active").forEach(co=>{
+    const isChecked=selected.includes(co.code);
+    const label=document.createElement("label");
+    label.className="chk-item"+(isChecked?" checked":"");
+    label.innerHTML='<input type="checkbox" value="'+co.code+'"'+(isChecked?" checked":"")+'>'+co.code+" — "+co.name;
+    label.querySelector("input").addEventListener("change",function(){
+      label.classList.toggle("checked",this.checked);
+    });
+    wrap.appendChild(label);
+  });
+}
+
+function getSelectedCompanies(){
+  return Array.from(el("um_companies_chk").querySelectorAll("input[type=checkbox]:checked")).map(cb=>cb.value);
+}
+
+function updateRoleDesc(){
+  const role=el("um_role").value;
+  const descs={ADMIN:t("roleDescAdmin"),OPERATOR:t("roleDescOperator"),REVIEWER:t("roleDescReviewer"),READONLY:t("roleDescReadonly")};
+  el("roleDesc").textContent=descs[role]||"";
+}
+
+function saveUser(){
+  clearUserErrors();
+  const name=el("um_name").value.trim(), email=el("um_email").value.trim();
+  const role=el("um_role").value, status=el("um_status").value, pwd=el("um_pwd").value;
+  const phone=el("um_phone")?el("um_phone").value.trim():"";
+  const companies=getSelectedCompanies();
+  let ok=true;
+  if(!name){setFerr("ume_name","um_name",t("required"));ok=false;}
+  if(!email){setFerr("ume_email","um_email",t("required"));ok=false;}
+  else if(USERS.find(u=>u.email===email&&u.id!==editingUserId)){setFerr("ume_email","um_email",t("emailExists"));ok=false;}
+  if(!companies.length){const e=el("ume_companies");e.textContent=t("noCompanySelected");e.classList.add("on");ok=false;}
+  if(!editingUserId&&pwd.length<6){setFerr("ume_pwd","um_pwd",t("pwdShort"));ok=false;}
+  if(editingUserId&&pwd&&pwd.length<6){setFerr("ume_pwd","um_pwd",t("pwdShort"));ok=false;}
+  if(!ok) return;
+  if(editingUserId){
+    const u=USERS.find(x=>x.id===editingUserId);
+    const changes=[];
+    if(u.name!==name) changes.push('name→"'+name+'"');
+    if(u.role!==role) changes.push("role→"+ROLES[role][lang].label);
+    if(u.status!==status) changes.push("status→"+t(status));
+    if(JSON.stringify(u.companies)!==JSON.stringify(companies)) changes.push("companies→["+companies.join(",")+"]");
+    if(pwd) changes.push("password updated");
+    u.name=name; u.email=email; u.role=role; u.status=status; u.phone=phone; u.companies=companies;
+    if(pwd) u.pwd=pwd;
+    sbPatch("users","id=eq."+u.id,{
+      name:u.name, email:u.email, role:u.role, status:u.status,
+      phone:u.phone||"", companies:u.companies,
+      ...(pwd?{pwd}:{})
+    }).then(()=>dbg("User updated in DB: "+u.name,"ok"))
+      .catch(e=>dbg("User update error: "+e.message,"err"));
+    addAudit("✏️",currentUser.name,(lang==="es"?"editó usuario":"edited user"),u.name+(changes.length?" ("+changes.join(", ")+")":""));
+    showToast(t("userUpdated"));
+  } else {
+    const nu={id:"u"+nextUserId++,name,email,pwd,role,status,phone,companies,created:new Date().toISOString().slice(0,10),lastLogin:null};
+    USERS.push(nu);
+    sbPost("users",{id:nu.id,name,email,pwd,role,status,phone:phone||"",companies,
+      created:nu.created,last_login:null})
+      .then(()=>dbg("User created in DB: "+name,"ok"))
+      .catch(e=>dbg("User create error: "+e.message,"err"));
+    addAudit("➕",currentUser.name,(lang==="es"?"creó usuario":"created user"),name+" ("+email+") — "+ROLES[role][lang].label+" ["+companies.join(",")+"]");
+    showToast(t("userCreated"));
+  }
+  closeModal("userMbd"); renderUsers();
+}
+
+function openDeleteUser(id){
+  const u=USERS.find(x=>x.id===id); if(!u) return;
+  if(currentUser.id===id){showToast(t("cantDelSelf"),"err");return;}
+  deletingId=id; deleteType="user";
+  el("delWarn").innerHTML=t("delUserWarn")+" <strong>"+u.name+"</strong> ("+u.email+")"+t("delUserWarn2");
+  el("del_confirm").textContent=t("deleteUser");
+  openModal("delMbd");
+}
+
+function confirmDelete(){
+  if(!currentUser||currentUser.role!=="ADMIN") return;
+  if(deleteType==="user"){
+    const u=USERS.find(x=>x.id===deletingId); if(!u) return;
+    USERS.splice(USERS.indexOf(u),1);
+    sbDelete("users","id=eq."+u.id).catch(e=>dbg("User delete error: "+e.message,"err"));
+    addAudit("🗑️",currentUser.name,(lang==="es"?"eliminó usuario":"deleted user"),u.name+" ("+u.email+")");
+    closeModal("delMbd"); renderUsers(); showToast(t("userDeleted"),"warn");
+  } else if(deleteType==="company"){
+    const co=COMPANIES.find(x=>x.id===deletingId); if(!co) return;
+    COMPANIES.splice(COMPANIES.indexOf(co),1);
+    sbDelete("companies","id=eq."+co.id).catch(e=>dbg("Company delete error: "+e.message,"err"));
+    addAudit("🗑️",currentUser.name,(lang==="es"?"eliminó compañía":"deleted company"),co.name);
+    closeModal("delMbd"); renderCompanies(); showToast(t("companyDeleted"),"warn");
+  } else if(deleteType==="aircraft"){
+    const ac=AIRCRAFT.find(x=>x.id===deletingId); if(!ac) return;
+    AIRCRAFT.splice(AIRCRAFT.indexOf(ac),1);
+    sbDelete("aircraft","id=eq."+ac.id).catch(e=>dbg("Aircraft delete error: "+e.message,"err"));
+    closeModal("delMbd"); renderFleetSettings(); showToast("Aircraft deleted","warn");
+    initBatchConstants();
+  }
+  deletingId=null; deleteType=null;
+}
+
+function clearUserErrors(){
+  ["name","email","pwd","companies"].forEach(f=>{
+    const e=el("ume_"+f); const i=el("um_"+f);
+    if(e){e.textContent="";e.classList.remove("on");}
+    if(i&&i.classList) i.classList.remove("err");
+  });
+}
+
+function setFerr(errId,inputId,msg){
+  const e=el(errId); if(!e) return;
+  e.textContent=msg; e.classList.add("on");
+  const inp=el(inputId); if(inp&&inp.classList) inp.classList.add("err");
+}
+
+// ── COMPANIES ──
+function renderCompanies(){
+  const active=COMPANIES.filter(c=>c.status==="active").length;
+  el("coStats").innerHTML='<div class="scard sc-tot"><div class="sc-l">Total</div><div class="sc-v">'+COMPANIES.length+"</div>"+
+    '<div class="sc-s">'+active+" "+(lang==="es"?"activas":"active")+"</div></div>";
+  el("coGrid").innerHTML="";
+  COMPANIES.forEach(co=>{
+    const color=coColor(co.code);
+    const card=document.createElement("div");
+    card.className="co-card"+(co.status==="inactive"?" co-inactive":"");
+    const rulesHtml=co.billingRules&&co.billingRules.length
+      ?co.billingRules.map(r=>'<div class="br-item"><span class="br-name">'+r.name+"</span>"+
+        '<span class="br-val">'+(r.type==="discount"&&r.discountMode==="pct"?r.amount+"%":"$"+r.amount.toFixed(2))+"</span>"+
+        '<span class="br-unit">'+(r.type==="discount"?(lang==="es"?"Descuento":"Discount"):(r.unit||""))+"</span>"+
+        '<span style="color:'+( r.active?"var(--green)":"var(--dim)")+';font-size:8px">●</span></div>').join("")
+      :'<div class="br-empty">'+t("noRules")+"</div>";
+    card.innerHTML='<div class="co-stripe" style="background:'+color+'"></div>'+
+      '<div class="co-card-header">'+
+      '<div class="co-card-name">'+co.name+"</div>"+
+      '<span class="co-card-code" style="color:'+color+';border-color:'+color+'50;background:'+color+'15">'+co.code+"</span>"+
+      "</div>"+
+      '<div class="co-card-body">'+
+      '<div class="co-row"><span class="co-row-label">Status</span>'+
+      '<span class="co-row-val">'+(co.status==="active"?(lang==="es"?"activa":"active"):(lang==="es"?"inactiva":"inactive"))+"</span></div>"+
+      (co.address?'<div class="co-row"><span class="co-row-label">Address</span><span class="co-row-val" style="color:var(--dim2);font-size:10px">'+co.address+"</span></div>":"")+
+      (co.phone?'<div class="co-row"><span class="co-row-label">Phone</span><span class="co-row-val">'+co.phone+"</span></div>":"")+
+      (co.adminContact?'<div class="co-row"><span class="co-row-label">Contact</span><span class="co-row-val" style="color:var(--cyan);font-size:10px">'+co.adminContact+"</span></div>":"")+
+      (co.notes?'<div class="co-row"><span class="co-row-label">'+(lang==="es"?"Notas":"Notes")+"</span>"+
+      '<span class="co-row-val" style="color:var(--dim2);font-size:10px">'+co.notes+"</span></div>":"")+
+      '<div style="margin-top:10px">'+
+      '<div class="co-row-label" style="margin-bottom:6px">'+(lang==="es"?"Reglas de Facturación":"Billing Rules")+"</div>"+
+      '<div class="br-list">'+rulesHtml+"</div></div></div>"+
+      '<div class="co-card-footer">'+
+      '<button class="btn-sm" data-edit-co="'+co.id+'">'+(lang==="es"?"Editar":"Edit")+"</button>"+
+      '<button class="btn-sm" data-toggle-co="'+co.id+'">'+(co.status==="active"?(lang==="es"?"Desactivar":"Deactivate"):(lang==="es"?"Activar":"Activate"))+"</button>"+
+      '<button class="btn-sm del" data-del-co="'+co.id+'">'+(lang==="es"?"Eliminar":"Delete")+"</button>"+
+      "</div>";
+    el("coGrid").appendChild(card);
+  });
+}
+
+function toggleCompanyStatus(id){
+  const co=COMPANIES.find(x=>x.id===id); if(!co) return;
+  co.status=co.status==="active"?"inactive":"active";
+  sbPatch("companies","id=eq."+co.id,{status:co.status}).catch(e=>dbg("Company status error: "+e.message,"err"));
+  addAudit("🔄",currentUser.name,(lang==="es"?"cambió estado compañía":"toggled company"),co.name+" → "+co.status);
+  renderCompanies(); showToast(t("statusUpdated"));
+}
+
+function openDeleteCompany(id){
+  const co=COMPANIES.find(x=>x.id===id); if(!co) return;
+  deletingId=id; deleteType="company";
+  el("delWarn").innerHTML=t("delCoWarn")+" <strong>"+co.name+"</strong>"+t("delCoWarn2");
+  el("del_confirm").textContent=t("deleteCompany");
+  openModal("delMbd");
+}
+
+function _syncInvChkStyles(){
+  ["co_inv_addr","co_inv_phone","co_inv_notes","co_inv_rate"].forEach(id=>{
+    const cb=el(id); const lbl=el(id+"_lbl");
+    if(cb&&lbl) lbl.classList.toggle("checked",cb.checked);
+  });
+}
+
+function openCreateCompany(){
+  editingCoId=null; tempRules=[]; clearCoErrors();
+  el("coModalTitle").textContent=lang==="es"?"Nueva Compañía":"New Company";
+  el("co_name").value=""; el("co_code").value="";
+  el("co_status").value="active"; el("co_notes").value="";
+  if(el("co_address")) el("co_address").value="";
+  if(el("co_phone")) el("co_phone").value="";
+  if(el("co_inv_addr")) el("co_inv_addr").checked=true;
+  if(el("co_inv_phone")) el("co_inv_phone").checked=true;
+  if(el("co_inv_notes")) el("co_inv_notes").checked=false;
+  if(el("co_inv_rate")) el("co_inv_rate").checked=true;
+  _syncInvChkStyles();
+  tempContacts=[]; renderTempContacts();
+  renderTempRules(); openModal("coMbd");
+}
+
+function openEditCompany(id){
+  const co=COMPANIES.find(x=>x.id===id); if(!co) return;
+  editingCoId=id; tempRules=JSON.parse(JSON.stringify(co.billingRules||[])); clearCoErrors();
+  el("coModalTitle").textContent=(lang==="es"?"Editar Compañía: ":"Edit Company: ")+co.name;
+  el("co_name").value=co.name; el("co_code").value=co.code;
+  el("co_status").value=co.status; el("co_notes").value=co.notes||"";
+  if(el("co_address")) el("co_address").value=co.address||"";
+  if(el("co_phone")) el("co_phone").value=co.phone||"";
+  if(el("co_inv_addr")) el("co_inv_addr").checked=co.inv_show_address!==false;
+  if(el("co_inv_phone")) el("co_inv_phone").checked=co.inv_show_phone!==false;
+  if(el("co_inv_notes")) el("co_inv_notes").checked=co.inv_show_notes===true;
+  if(el("co_inv_rate")) el("co_inv_rate").checked=co.inv_show_rate!==false;
+  _syncInvChkStyles();
+  tempContacts=JSON.parse(JSON.stringify(co.contacts||[]));
+  renderTempContacts(); renderTempRules(); openModal("coMbd");
+}
+
+function renderTempRules(){
+  const wrap=el("co_rules_list");
+  if(!tempRules.length){wrap.innerHTML='<div class="br-empty">'+t("noRules")+"</div>";return;}
+  wrap.innerHTML="";
+  const INP="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);border-radius:2px;outline:none";
+  const SEL=INP+";font-size:10px;padding:4px 5px";
+  const BTN="font-family:var(--mono);font-size:9px;padding:5px 8px;background:transparent;border-radius:2px;cursor:pointer";
+  tempRules.forEach((r,i)=>{
+    const isDisc=r.type==="discount";
+    // ── Row 1 ─────────────────────────────────────────────────────────────
+    const row=document.createElement("div");
+    if(isDisc){
+      // Discount Row 1: name(1fr) | amount(52px) | mode(46px) | base(64px) | type(60px)
+      // ON/OFF and ✕ moved to Row 2 to free width for name input
+      row.style.cssText="margin-bottom:2px;display:grid;grid-template-columns:1fr 52px 46px 64px 60px;gap:6px;align-items:center";
+    } else {
+      row.style.cssText="margin-bottom:8px;display:grid;grid-template-columns:1fr 80px auto auto auto;gap:8px;align-items:center";
+    }
+    const modeOpts=isDisc?'<option value="pct"'+(r.discountMode==="pct"?" selected":"")+'>%</option><option value="fixed"'+(r.discountMode==="fixed"?" selected":"")+'>$</option>':"";
+    const baseOpts=isDisc?'<option value="subtotal"'+((!r.discountBase||r.discountBase==="subtotal")?" selected":"")+'>'+t("discOfSubtotal")+'</option><option value="total"'+(r.discountBase==="total"?" selected":"")+'>'+t("discOfTotal")+'</option>':"";
+    row.innerHTML=
+      '<input style="'+INP+';font-size:11px;padding:6px 8px;width:100%" value="'+r.name+'" placeholder="Rule name">'+
+      '<input type="number" style="'+INP+';font-size:11px;padding:4px 6px;width:'+(isDisc?"52":"80")+'px;text-align:right" value="'+r.amount+'" step="'+(isDisc?"1":"0.01")+'" min="0">'+
+      (isDisc?'<select style="'+SEL+';color:var(--violet)">'+modeOpts+'</select>':"")+
+      (isDisc?'<select style="'+SEL+';color:var(--dim2)">'+baseOpts+'</select>':"")+
+      '<select style="'+SEL+';color:'+(isDisc?"var(--violet)":"var(--text)")+'">'+
+        '<option value="per Flight Hour"'+((!r.type||r.type==="charge")&&(r.unit==="per Flight Hour"||r.unit==="/ TBH")?" selected":"")+'>/ TBH</option>'+
+        '<option value="per Flight"'+((!r.type||r.type==="charge")&&(r.unit==="per Flight"||r.unit==="/ Flight")?" selected":"")+'>/ Flight</option>'+
+        '<option value="flat"'+((!r.type||r.type==="charge")&&r.unit==="flat"?" selected":"")+'>Flat</option>'+
+        '<option value="discount"'+(isDisc?" selected":"")+'>Disc.</option>'+
+      '</select>'+
+      // Charge rules keep ON/OFF and ✕ on Row 1
+      (!isDisc?'<button style="'+BTN+';border:1px solid '+(r.active?"rgba(61,220,132,.4)":"var(--border2)")+';color:'+(r.active?"var(--green)":"var(--dim)")+'">'+(r.active?"ON":"OFF")+'</button>':"")+
+      (!isDisc?'<button style="'+BTN+';border:1px solid var(--border2);color:var(--red)">✕</button>':"");
+    // ── Row 2 — discount only ─────────────────────────────────────────────
+    if(isDisc){
+      // Row 2: [☑ Show breakdown] [Validity days] [days#] [ON] [✕]
+      const sub=document.createElement("div");
+      sub.style.cssText="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;margin-bottom:8px;background:rgba(178,141,255,.05);border:1px solid rgba(178,141,255,.2);border-left:2px solid var(--violet);padding:5px 8px;border-radius:0 0 2px 2px";
+      sub.innerHTML=
+        '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-family:var(--mono);font-size:9px;color:var(--violet);white-space:nowrap;flex-shrink:0">'+
+          '<input type="checkbox"'+(r.showDiscountLine?" checked":"")+' style="accent-color:var(--violet)"> '+t("showDiscLine")+
+        '</label>'+
+        '<span style="font-family:var(--mono);font-size:9px;color:var(--dim2);white-space:nowrap;flex-shrink:0">'+t("paymentDays")+'</span>'+
+        '<input type="number" min="0" step="1" value="'+(r.paymentWindowDays||0)+'" style="'+INP+';font-size:10px;padding:3px 5px;width:44px;text-align:right;flex-shrink:0">'+
+        '<span style="flex:1"></span>'+
+        '<button style="'+BTN+';border:1px solid '+(r.active?"rgba(61,220,132,.4)":"var(--border2)")+';color:'+(r.active?"var(--green)":"var(--dim)")+';flex-shrink:0">'+(r.active?"ON":"OFF")+'</button>'+
+        '<button style="'+BTN+';border:1px solid var(--border2);color:var(--red);flex-shrink:0">✕</button>';
+      sub.querySelector("input[type=checkbox]").addEventListener("change",function(){tempRules[i].showDiscountLine=this.checked;});
+      sub.querySelector("input[type=number]").addEventListener("input",function(){tempRules[i].paymentWindowDays=parseInt(this.value)||0;});
+      sub.querySelectorAll("button")[0].addEventListener("click",()=>{tempRules[i].active=!tempRules[i].active;renderTempRules();});
+      sub.querySelectorAll("button")[1].addEventListener("click",()=>{tempRules.splice(i,1);renderTempRules();});
+      wrap.appendChild(row);
+      wrap.appendChild(sub);
+    } else {
+      wrap.appendChild(row);
+    }
+    // ── Event listeners ───────────────────────────────────────────────────
+    row.querySelector("input:first-child").addEventListener("input",function(){tempRules[i].name=this.value;});
+    row.querySelectorAll("input")[1].addEventListener("input",function(){tempRules[i].amount=parseFloat(this.value)||0;});
+    const selects=row.querySelectorAll("select");
+    const typeSelIdx=isDisc?2:0;
+    if(isDisc){
+      selects[0].addEventListener("change",function(){tempRules[i].discountMode=this.value;});
+      selects[1].addEventListener("change",function(){tempRules[i].discountBase=this.value;});
+    } else {
+      // Charge rule ON/OFF and ✕ listeners
+      const btns=row.querySelectorAll("button");
+      btns[0].addEventListener("click",()=>{tempRules[i].active=!tempRules[i].active;renderTempRules();});
+      btns[1].addEventListener("click",()=>{tempRules.splice(i,1);renderTempRules();});
+    }
+    selects[typeSelIdx].addEventListener("change",function(){
+      if(this.value==="discount"){
+        const alreadyHasDiscount=tempRules.some((r,j)=>j!==i&&r.type==="discount");
+        if(alreadyHasDiscount){showToast(t("oneDiscountOnly"),"err");this.value=tempRules[i].unit||"per Flight Hour";return;}
+        tempRules[i].type="discount";
+        tempRules[i].discountMode=tempRules[i].discountMode||"pct";
+        tempRules[i].discountBase=tempRules[i].discountBase||"subtotal";
+        tempRules[i].showDiscountLine=tempRules[i].showDiscountLine??false;
+        tempRules[i].paymentWindowDays=tempRules[i].paymentWindowDays??0;
+        tempRules[i].footerText=tempRules[i].footerText||"";
+      } else {
+        tempRules[i].type="charge";
+        tempRules[i].unit=this.value;
+      }
+      renderTempRules();
+    });
+  });
+}
+function addBillingRuleRow(){
+  tempRules.push({id:"br"+nextRuleId++,name:"",amount:0,unit:"per Flight Hour",type:"charge",active:true});
+  renderTempRules();
+}
+
+function saveCompany(){
+  clearCoErrors();
+  const name=el("co_name").value.trim(), code=el("co_code").value.trim().toUpperCase();
+  const status=el("co_status").value, notes=el("co_notes").value.trim();
+  const address=el("co_address")?el("co_address").value.trim():"";
+  const phone=el("co_phone")?el("co_phone").value.trim():"";
+  const inv_show_address=el("co_inv_addr")?el("co_inv_addr").checked:true;
+  const inv_show_phone=el("co_inv_phone")?el("co_inv_phone").checked:true;
+  const inv_show_notes=el("co_inv_notes")?el("co_inv_notes").checked:false;
+  const inv_show_rate=el("co_inv_rate")?el("co_inv_rate").checked:true;
+  let ok=true;
+  if(!name){setFerr("coe_name","co_name",t("required"));ok=false;}
+  if(!code){setFerr("coe_code","co_code",t("required"));ok=false;}
+  else if(COMPANIES.find(c=>c.code===code&&c.id!==editingCoId)){setFerr("coe_code","co_code",t("codeExists"));ok=false;}
+  if(!ok) return;
+  const data={name,code,status,notes,address,phone,inv_show_address,inv_show_phone,inv_show_notes,inv_show_rate,contacts:tempContacts,billingRules:tempRules};
+  if(editingCoId){
+    const co=COMPANIES.find(x=>x.id===editingCoId); Object.assign(co,data);
+    // Reset invoice seeding so next renderPreInvoice picks up updated billing rules
+    piAdditionalCharges=piAdditionalCharges.filter(c=>!c._auto&&!c._discount);
+    piRulesSeeded=false;
+    sbPatch("companies","id=eq."+co.id,{name,code,status,notes,address,phone,inv_show_address,inv_show_phone,inv_show_notes,inv_show_rate,
+      contacts:JSON.stringify(tempContacts),billing_rules:JSON.stringify(tempRules)})
+      .then(()=>dbg("Company updated in DB: "+name,"ok"))
+      .catch(e=>dbg("Company update error: "+e.message,"err"));
+    addAudit("✏️",currentUser.name,(lang==="es"?"editó compañía":"edited company"),name);
+  } else {
+    const newCo={id:"c"+nextCoId++,...data};
+    COMPANIES.push(newCo);
+    sbPost("companies",{id:newCo.id,name,code,status,notes,address,phone,inv_show_address,inv_show_phone,inv_show_notes,inv_show_rate,
+      contacts:JSON.stringify(tempContacts),billing_rules:JSON.stringify(tempRules)})
+      .then(()=>dbg("Company created in DB: "+name,"ok"))
+      .catch(e=>dbg("Company create error: "+e.message,"err"));
+    addAudit("➕",currentUser.name,(lang==="es"?"creó compañía":"created company"),name+" ("+code+")");
+  }
+  closeModal("coMbd"); renderCompanies(); renderUsers(); showToast(t("companySaved"));
+}
+
+function clearCoErrors(){
+  ["name","code","mult"].forEach(f=>{
+    const e=el("coe_"+f); const i=el("co_"+f);
+    if(e){e.textContent="";e.classList.remove("on");}
+    if(i&&i.classList) i.classList.remove("err");
+  });
+}
+
+function exportUsersJSON(){
+  const safe=USERS.map(u=>({...u,pwd:"[REDACTED]"}));
+  const blob=new Blob([JSON.stringify({users:safe,companies:COMPANIES},null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="hp_fleet_data.json"; a.click();
+  showToast("↓ hp_fleet_data.json exported");
+}
+
+// ── AUDIT LOG (shared) — persists to Supabase ──
+function addAudit(icon,actor,action,detail){
+  auditLog.unshift({icon,actor,action,detail,ts:new Date()});
+  if(auditLog.length>300) auditLog=auditLog.slice(0,300);
+  renderAudit();
+  // Persist to DB silently — use return=minimal to avoid SELECT permission requirement on audit_log_app
+  fetch(SB_URL+"/rest/v1/audit_log_app",{method:"POST",headers:{...SB_HEADERS,"Prefer":"return=minimal"},body:JSON.stringify({icon,actor,action,detail,ts:new Date().toISOString()})})
+    .catch(()=>{}); // never block UI for audit failures
+}
+
+// ── DEBUG TOGGLE ──
+function initDebugToggle(){
+  const check=el("debugToggleCheck");
+  const label=el("debugToggleLabel");
+  if(!check) return;
+  const saved=localStorage.getItem("hpfleet_debug")==="1";
+  check.checked=saved;
+  if(label){ label.textContent=saved?"On":"Off"; label.style.color=saved?"var(--cyan)":"var(--dim2)"; }
+  if(saved) el("debugPanel").classList.add("on");
+  check.addEventListener("change",function(){
+    const on=this.checked;
+    saveUserPreference("debug_mode", on);
+    if(label){ label.textContent=on?"On":"Off"; label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+    if(on){ el("debugPanel").classList.add("on"); _updateSpBottom(); }
+    else{ el("debugPanel").classList.remove("on"); _updateSpBottom(); }
+  });
+}
+
+function initAdminCcToggle(){
+  const check=el("adminCcToggleCheck");
+  const label=el("adminCcToggleLabel");
+  if(!check) return;
+  check.checked=_adminCcEnabled;
+  if(label){ label.textContent=_adminCcEnabled?(lang==="es"?"Activo":"On"):(lang==="es"?"Inactivo":"Off"); label.style.color=_adminCcEnabled?"var(--cyan)":"var(--dim2)"; }
+  check.addEventListener("change",async function(){
+    const on=this.checked;
+    _adminCcEnabled=on;
+    if(label){ label.textContent=on?(lang==="es"?"Activo":"On"):(lang==="es"?"Inactivo":"Off"); label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+    await saveAdminCcToDB(on);
+  });
+}
+
+function initViewAsToggle(){
+  const check=el("viewAsToggleCheck");
+  const label=el("viewAsToggleLabel");
+  if(!check) return;
+  const saved=localStorage.getItem("hpfleet_viewas_visible");
+  const on=saved===null?true:saved==="1";
+  check.checked=on;
+  if(label){ label.textContent=on?(lang==="es"?"Activo":"On"):(lang==="es"?"Inactivo":"Off"); label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+  const vaw=el("viewAsWrap");
+  if(vaw&&currentUser&&currentUser.role==="ADMIN") vaw.style.display=on?"flex":"none";
+  check.addEventListener("change",function(){
+    const on=this.checked;
+    saveUserPreference("viewas_visible", on);
+    if(label){ label.textContent=on?(lang==="es"?"Activo":"On"):(lang==="es"?"Inactivo":"Off"); label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+    const vaw=el("viewAsWrap");
+    if(vaw&&currentUser&&currentUser.role==="ADMIN") vaw.style.display=on?"flex":"none";
+    if(!on){ viewRole=null; renderWfBar(); setupFlRoleUI(); renderFlTable(); renderTabs(); updateActionBar(); }
+  });
+}
+
+function setupSettingsUI(){
+  const isAdmin=effectiveRole()==="ADMIN";
+  if(el("stSection_api")) el("stSection_api").style.display=isAdmin?"":"none";
+  if(el("stSection_dev")) el("stSection_dev").style.display=isAdmin?"":"none";
+  if(el("stSection_db")) el("stSection_db").style.display=isAdmin?"":"none";
+}
+
+// ── STICKY HEADERS TOGGLE ──
+function initStickyHeadersToggle(){
+  const check=el("stickyHeadersToggleCheck");
+  const label=el("stickyHeadersToggleLabel");
+  if(!check) return;
+  const saved=localStorage.getItem("hpfleet_stickyheaders");
+  const on=saved===null?true:saved==="1";
+  check.checked=on;
+  if(label){ label.textContent=on?"On":"Off"; label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+  _applyStickyHeaders(on);
+  check.addEventListener("change",function(){
+    const isOn=this.checked;
+    saveUserPreference("sticky_headers", isOn);
+    if(label){ label.textContent=isOn?"On":"Off"; label.style.color=isOn?"var(--cyan)":"var(--dim2)"; }
+    _applyStickyHeaders(isOn);
+  });
+}
+function _applyStickyHeaders(on){
+  const tbl=document.querySelector("table.fl-tbl");
+  const wrap=document.querySelector(".fl-tbl-wrap");
+  if(tbl) tbl.classList.toggle("sticky-headers",on);
+  if(wrap) wrap.classList.toggle("sticky-active",on);
+}
+
+function initStickyTabsToggle(){
+  const check=el("stickyTabsToggleCheck");
+  const label=el("stickyTabsToggleLabel");
+  if(!check) return;
+  const saved=localStorage.getItem("hpfleet_stickytabs");
+  const on=saved===null?true:saved==="1";
+  check.checked=on;
+  if(label){ label.textContent=on?"On":"Off"; label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+  _applyStickyTabs(on);
+  check.addEventListener("change",function(){
+    const isOn=this.checked;
+    saveUserPreference("sticky_tabs", isOn);
+    if(label){ label.textContent=isOn?"On":"Off"; label.style.color=isOn?"var(--cyan)":"var(--dim2)"; }
+    _applyStickyTabs(isOn);
+  });
+}
+
+function _applyStickyTabs(on){
+  const nav=el("tabNav");
+  if(nav) nav.classList.toggle("sticky-tabs",on);
+}
+function initRoleBannerToggle(){
+  const check=el("roleBannerToggleCheck");
+  const label=el("roleBannerToggleLabel");
+  if(!check) return;
+  const saved=localStorage.getItem("hpfleet_rolebanner");
+  const on=saved===null?true:saved==="1"; // default on
+  check.checked=on;
+  if(label){ label.textContent=on?"On":"Off"; label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+  const banner=el("roleBanner");
+  if(banner) banner.style.display=on?"":"none";
+  check.addEventListener("change",function(){
+    const isOn=this.checked;
+    saveUserPreference("role_banner", isOn);
+    if(label){ label.textContent=isOn?"On":"Off"; label.style.color=isOn?"var(--cyan)":"var(--dim2)"; }
+    const b=el("roleBanner");
+    if(b) b.style.display=isOn?"":"none";
+  });
+}
+
+function renderAudit(){
+  const wrap=el("auditList"); if(!wrap) return;
+  if(!auditLog.length){wrap.innerHTML='<div class="audit-empty">'+t("noAudit")+"</div>";return;}
+  wrap.innerHTML=auditLog.map(e=>'<div class="ae">'+
+    '<div class="ae-ts">'+e.ts.toLocaleTimeString(lang==="es"?"es-PA":"en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+"<br>"+
+    e.ts.toLocaleDateString(lang==="es"?"es-PA":"en-US")+"</div>"+
+    '<div style="font-size:14px;flex-shrink:0">'+e.icon+"</div>"+
+    '<div class="ae-body">'+
+    '<span class="ae-actor">'+e.actor+"</span>"+
+    '<span class="ae-action"> '+e.action+"</span>"+
+    (e.detail&&e.detail!=="—"?'<div class="ae-diff">'+e.detail+"</div>":"")+
+    "</div></div>").join("");
+}
+
+function clearAudit(){auditLog=[];renderAudit();showToast(lang==="es"?"Log limpiado.":"Log cleared.");}
+
+// ── FLIGHT LOG — UPLOAD ──
+function initUploadZone(){ /* inline upload zone removed — handled by New Batch modal */ }
+
+function addFilesToQueue(files){
+  const allowed=["application/pdf","image/jpeg","image/jpg","image/png"];
+  files.forEach(f=>{
+    if(!allowed.includes(f.type)&&!f.name.match(/\.(pdf|jpg|jpeg|png)$/i)){
+      showToast(f.name+": unsupported format","err"); return;
+    }
+    if(fileQueue.find(q=>q.name===sanitizeFilename(f.name)&&q.size===f.size)){
+      if(!confirm("\""+f.name+"\" has already been loaded.\nIf you continue, you may duplicate records.\n\nContinue anyway?")) return;
+    }
+    fileQueue.push({file:f,name:sanitizeFilename(f.name),size:f.size,type:f.type,status:"waiting",progress:0,_preview:null});
+  });
+}
+
+function removeFromQueue(idx){ fileQueue.splice(idx,1); }
+function clearFileQueue(){ fileQueue=[]; }
+function renderQueue(){ /* no-op — inline queue UI removed */ }
+
+// ── FLIGHT LOG — EXTRACTION ──
+function buildExtractionPrompt(){
+  return "You are processing a Panamanian flight school bitacora (flight log) form.\n\n"+
+    "FIELD MAPPING:\n"+
+    "- motorOut = TACH SALIDA (departure tach, the SMALLER number)\n"+
+    "- motorIn = TACH LLEGADA (arrival tach, the LARGER number)\n"+
+    "- vueloOut = HOBBS ANTERIOR (previous hobbs, the SMALLER number)\n"+
+    "- vueloIn = HOBBS HOY (current hobbs, the LARGER number)\n"+
+    "- motorIn MUST be greater than motorOut. If reversed, swap them.\n"+
+    "- vueloIn MUST be greater than vueloOut. If reversed, swap them.\n\n"+
+    "HOBBS RANGE HINTS (to prevent decimal misreads):\n"+
+    "- HP-1861 HOBBS values are typically between 6000 and 7000.\n"+
+    "- HP-1862FX HOBBS values are typically between 1000 and 2000.\n"+
+    "- If a HOBBS value seems too small (e.g. 65.3 instead of 6530), correct the decimal.\n\n"+
+    "\nReturn ONLY a valid JSON array:\n"+
+    '[{"bnum":"log number e.g. 00591","fecha":"DD/MM/YYYY","aeronave":"HP-XXXX","operador":"FM or MAG",'+
+    '"piloto":"name","instructor":"name or empty","horoIn":number,'+
+    '"motorOut":"SALIDA decimal","motorIn":"LLEGADA decimal",'+
+    '"vueloOut":"ANTERIOR decimal","vueloIn":"HOY decimal","obs":"notes only"}]\n'+
+    "Return [] if page has no bitacora data (blank, maintenance-only, cover page, etc).";
+}
+
+// ── MOTOR/VUELO DIFF CHECK ──
+function checkDiff(entry){
+  const ac = AIRCRAFT.find(a=>a.matricula===entry.aeronave);
+  const threshold = ac ? ac.diffThreshold : 0.2;
+  const tm = Math.abs(t2h(entry.motorIn) - t2h(entry.motorOut));
+  const tv = Math.abs(t2h(entry.vueloIn) - t2h(entry.vueloOut));
+  const diff = Math.abs(tm - tv);
+  // Clear any existing diff flag first
+  if(entry.obs) entry.obs=entry.obs.replace(/[|]?\s*[⚠△▲]\s*Dif\s*Motor\/Vuelo[^|]*/g,"").trim();
+  if(diff > threshold){
+    const flag = "⚠ Dif Motor/Vuelo="+diff.toFixed(1);
+    entry.obs = (entry.obs ? entry.obs+" | " : "") + flag;
+  }
+  return entry;
+}
+
+async function extractAll(){
+  if(isExtracting){ showToast("Extraction already running","warn"); return; }
+  const apiKey=getApiKey();
+  if(!apiKey){showToast(t("noApiKey"),"err");switchTab("settings");return;}
+  if(!fileQueue.length){showToast(t("noFiles"),"err");return;}
+  isExtracting=true;
+  extractionAbort=new AbortController();
+  let allExtracted=[]; let hasErrors=false;
+  const total=fileQueue.length;
+
+  // Set PDF.js worker
+  if(typeof pdfjsLib!=="undefined"){
+    pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+
+  for(let i=0;i<fileQueue.length;i++){
+    const fq=fileQueue[i];
+    const isPdf=fq.type==="application/pdf"||fq.name.endsWith(".pdf");
+    fq.status="processing"; renderQueue();
+
+    try {
+      if(isPdf && typeof pdfjsLib!=="undefined"){
+        // PDF: render each page → extract → store image
+        dbg("Loading PDF: "+fq.name,"info");
+        uploadLog("Loading PDF: "+fq.name);
+        const arrayBuf=await fq.file.arrayBuffer();
+        const pdfDoc=await pdfjsLib.getDocument({data:arrayBuf}).promise;
+        const numPages=pdfDoc.numPages;
+        dbg("PDF loaded — "+numPages+" pages","ok");
+        uploadLog("PDF loaded — "+numPages+" pages");
+        let pdfExtracted=[];
+        for(let p=1;p<=numPages;p++){
+          fq._label="[Page "+p+"/"+numPages+"] "+fq.name+" — Extracting…";
+          fq.progress=Math.round((p/numPages)*100);
+          renderQueue();
+          try {
+            const pageBlob=await pdfPageToBlob(pdfDoc,p);
+            const pageFile=new File([pageBlob],"page_"+p+".jpg",{type:"image/jpeg"});
+            const pageEntries=await extractImageFile(pageFile,apiKey);
+            pageEntries.forEach(e=>checkDiff(e));
+            const compressed=await compressImage(pageBlob);
+            const filename="pg"+String(p).padStart(3,"0")+"_"+Date.now()+".jpg";
+            const imageUrl=await uploadImageToStorage(compressed,filename);
+            pageEntries.forEach(e=>{e._imageUrl=imageUrl;e._sourcePage=p;});
+            pdfExtracted=[...pdfExtracted,...pageEntries];
+            dbg("Page "+p+"/"+numPages+": "+pageEntries.length+" entries","ok");
+            uploadLog("Page "+p+"/"+numPages+": "+pageEntries.length+" entr"+(pageEntries.length===1?"y":"ies")+" extracted");
+          } catch(pageErr){
+            if(pageErr.name==="AbortError"){
+              dbg("Extraction aborted at page "+p,"warn");
+              uploadLog("⚠ Extraction aborted at page "+p);
+              break;
+            } else if(pageErr.message.startsWith("NO_BITACORA")){
+              // Still upload image and create stub entry
+              try {
+                const pageBlob=await pdfPageToBlob(pdfDoc,p);
+                const compressed=await compressImage(pageBlob);
+                const filename="pg"+String(p).padStart(3,"0")+"_skip_"+Date.now()+".jpg";
+                const imageUrl=await uploadImageToStorage(compressed,filename);
+                pdfExtracted.push({
+                  _imageUrl:imageUrl, _sourcePage:p, _isStub:true,
+                  bnum:"", fecha:"", aeronave:"", operador:"",
+                  piloto:"", instructor:"", horoIn:0,
+                  motorOut:"", motorIn:"", vueloOut:"", vueloIn:"",
+                  multOverride:null, obs:"Skipped — no log data on page "+p,
+                  status:"skipped"
+                });
+                dbg("Page "+p+": skipped — image stored as stub","info");
+                uploadLog("Page "+p+": skipped — no log data");
+              } catch(imgErr){
+                dbg("Page "+p+": skipped — image upload failed","info");
+                uploadLog("Page "+p+": skipped — image upload failed");
+              }
+            } else {
+              dbg("Page "+p+" error: "+pageErr.message,"err"); hasErrors=true;
+              uploadLog("✕ Page "+p+" error: "+pageErr.message);
+            }
+          }
+        }
+        allExtracted=[...allExtracted,...pdfExtracted];
+        fq.status="done"; fq._entryCount=pdfExtracted.length;
+        uploadLog("✓ Done — "+pdfExtracted.length+" entries from "+numPages+" pages");
+        addFlAudit("🤖",currentUser.name,"extracted PDF",pdfExtracted.length+" entries from "+numPages+" pages — "+fq.name);
+      } else {
+        // Image file: fix rotation, compress, extract, upload
+        fq._label="["+(i+1)+"/"+total+"] "+fq.name+" — Extracting…";
+        fq.progress=10; renderQueue();
+        const fixedFile=await fixImageRotation(fq.file);
+        // Compress BEFORE sending to Claude (fixes large/sideways image errors)
+        const rawBlob=await fetch(URL.createObjectURL(fixedFile)).then(r=>r.blob());
+        const compressedBlob=await compressImage(rawBlob,1200,0.85);
+        const compressedFile=new File([compressedBlob],fixedFile.name,{type:"image/jpeg"});
+        fq.progress=30; renderQueue();
+        const extracted=await extractImageFile(compressedFile,apiKey);
+        extracted.forEach(e=>checkDiff(e));
+        fq.progress=70; renderQueue();
+        // Further compress for storage (smaller for DB)
+        const storageBlob=await compressImage(rawBlob,800,0.7);
+        const filename="img_"+Date.now()+"_"+i+".jpg";
+        const imageUrl=await uploadImageToStorage(storageBlob,filename);
+        extracted.forEach(e=>{e._imageUrl=imageUrl;});
+        fq._preview=URL.createObjectURL(storageBlob);
+        allExtracted=[...allExtracted,...extracted];
+        fq.status="done"; fq._entryCount=extracted.length; fq.progress=100;
+        addFlAudit("🤖",currentUser.name,"extracted image",extracted.length+" from "+fq.name);
+      }
+    } catch(err){
+      fq.status="error"; fq._error=translateFetchError(err.message); hasErrors=true;
+      addFlAudit("⚠️",currentUser.name,"extraction error",fq.name+": "+err.message);
+      dbg("Error on "+fq.name+": "+err.message,"err");
+    }
+    renderQueue();
+  }
+
+  isExtracting=false; extractionAbort=null;
+  if(!allExtracted.length&&hasErrors){
+    uploadLog("✕ Extraction failed — no entries extracted");
+    showResultBanner("err","✗ "+t("extractError"));return;
+  }
+  flEntries=[...flEntries,...allExtracted.map(e=>({
+    id:nextEntryId++,status:"pending",multOverride:null,...e,
+    horoIn:parseFloat(e.horoIn)||0,
+    imageUrl:e._imageUrl||null
+  }))];
+  batchSourceFile=fileQueue.map(f=>f.name);
+  // Populate session bar
+  updateSrcBar();
+  const msg=hasErrors?"⚠ "+allExtracted.length+" "+t("extractPartial"):"✓ "+allExtracted.length+" "+t("extractSuccess")+" "+batchSourceFile.join(", ");
+  uploadLog(msg);
+  uploadLog("Extraction complete — ready for review");
+  showResultBanner(hasErrors?"warn":"ok",msg);
+  el("srcBar").style.display="flex";
+  el("reviewSection").style.display="block";
+  await saveBatchToDB();
+  renderWfBar(); setupFlRoleUI(); renderFlTable();
+}
+
+// ── LOG # SEQUENCE CHECK ──
+function logCheck(){
+  const breaks=[];
+  // Global sequence — Log # is shared across all aircraft in the batch
+  const entries=flEntries
+    .filter(e=>e.bnum&&e.status!=="skipped"&&e.status!=="void")
+    .sort((a,b)=>parseInt(a.bnum)-parseInt(b.bnum));
+  for(let i=1;i<entries.length;i++){
+    const prev=parseInt(entries[i-1].bnum);
+    const curr=parseInt(entries[i].bnum);
+    if(curr-prev>1){
+      const origIdx=flEntries.indexOf(entries[i]);
+      breaks.push({
+        idx:origIdx,
+        entry:entries[i],
+        prev, curr,
+        msg:"Log gap: "+String(prev).padStart(5,"0")+" → "+String(curr).padStart(5,"0")+" (missing "+(curr-prev-1)+")"
+      });
+    }
+  }
+  return breaks;
+}
+
+function horoCheck(entry,idx){
+  // Skip void/skipped entries entirely — they don't count in the sequence
+  if(!entry.motorOut||!entry.aeronave) return{ok:true};
+  if(entry.status==="void"||entry.status==="skipped") return{ok:true};
+  const prev=flEntries.slice(0,idx).filter(e=>
+    e.aeronave===entry.aeronave&&
+    e.status!=="skipped"&&e.status!=="void"&&
+    e.motorIn&&e.motorIn!=="—"
+  ).pop();
+  if(!prev) return{ok:true};
+  const ac=AIRCRAFT.find(a=>a.matricula===entry.aeronave);
+  const tolerance=ac?.horoTolerance??0.01;
+  const prevIn=parseFloat(prev.motorIn);
+  const currOut=parseFloat(entry.motorOut);
+  if(isNaN(prevIn)||isNaN(currOut)) return{ok:true};
+  const diff=Math.abs(currOut-prevIn);
+  return{
+    ok:diff<=tolerance,
+    prevIn:prevIn.toFixed(2),
+    currOut:currOut.toFixed(2),
+    diff:diff.toFixed(2),
+    tolerance:tolerance
+  };
+}
+
+// ── DUPLICATE LOG # CHECK ──
+function duplicateCheck(){
+  const seen={};
+  const dups=[];
+  flEntries.forEach((e,idx)=>{
+    if(!e.bnum||e.status==="skipped"||e.status==="void") return;
+    if(seen[e.bnum]===undefined){ seen[e.bnum]=idx; }
+    else {
+      // Flag both the first and current occurrence
+      if(!dups.find(d=>d.idx===seen[e.bnum])){
+        dups.push({idx:seen[e.bnum],entry:flEntries[seen[e.bnum]],bnum:e.bnum});
+      }
+      dups.push({idx,entry:e,bnum:e.bnum});
+    }
+  });
+  return dups;
+}
+
+function updateSrcBar(){
+  const total=flEntries.length;
+  const read=flEntries.filter(e=>e.status!=="skipped"&&e.status!=="void"&&e.aeronave&&e.fecha).length;
+  const notRead=total-read;
+  const nonBill=flEntries.filter(e=>e.status==="nonbillable").length;
+  const logBreaks=logCheck();
+  const dups=duplicateCheck();
+  const seqAlerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; });
+  const sentBack=flEntries.filter(e=>e.flagNote&&e.flagNote.trim()!=="");
+
+  if(el("srcFile")){
+    const files=Array.isArray(batchSourceFile)?batchSourceFile:(batchSourceFile||"—").split(/,\s*/);
+    el("srcFile").textContent=files.length?files.map((f,i)=>(i+1)+". "+f).join("\n"):"—";
+  }
+  if(el("srcTotalRecords")) el("srcTotalRecords").textContent=total||"—";
+  if(el("srcRead")){ el("srcRead").textContent=read; el("srcRead").style.color=read>0?"var(--green)":"var(--dim2)"; }
+  if(el("srcNotRead")){ el("srcNotRead").textContent=notRead||"—"; el("srcNotRead").style.color=notRead>0?"var(--yellow)":"var(--dim2)"; el("srcNotRead").style.pointerEvents=notRead>0?"auto":"none"; }
+
+  // Non-Billable
+  if(el("srcNonBill")){
+    el("srcNonBill").textContent=nonBill||"—";
+    el("srcNonBill").style.color=nonBill>0?"var(--red)":"var(--dim2)";
+    el("srcNonBill").style.pointerEvents=nonBill>0?"auto":"none";
+  }
+  // Duplicates
+  if(el("srcDups")){
+    el("srcDups").textContent=dups.length||"—";
+    el("srcDups").style.color=dups.length>0?"orange":"var(--dim2)";
+    el("srcDups").style.pointerEvents=dups.length>0?"auto":"none";
+  }
+  // Log Breaks
+  if(el("srcLogBreaks")){
+    el("srcLogBreaks").textContent=logBreaks.length||"—";
+    el("srcLogBreaks").style.color=logBreaks.length>0?"var(--red)":"var(--dim2)";
+    el("srcLogBreaks").style.pointerEvents=logBreaks.length>0?"auto":"none";
+    el("srcLogBreaks")._data=logBreaks;
+  }
+  // Seq Alerts
+  if(el("srcHoro")){
+    el("srcHoro").textContent=seqAlerts.length||"—";
+    el("srcHoro").style.color=seqAlerts.length>0?"var(--yellow)":"var(--dim2)";
+    el("srcHoro").style.pointerEvents=seqAlerts.length>0?"auto":"none";
+    el("srcHoro")._data=seqAlerts;
+  }
+  // Sent Back
+  if(el("srcSentBack")){
+    el("srcSentBack").textContent=sentBack.length||"—";
+    el("srcSentBack").style.color=sentBack.length>0?"var(--yellow)":"var(--dim2)";
+    el("srcSentBack").style.pointerEvents=sentBack.length>0?"auto":"none";
+    el("srcSentBack")._data=sentBack;
+  }
+  if(el("sb_sentBack")) el("sb_sentBack").textContent=lang==="es"?"Devuelto":"Sent Back";
+  if(el("dlgSentBackTitle")) el("dlgSentBackTitle").textContent=lang==="es"?"↩ DEVUELTO PARA CORRECCIÓN":"↩ SENT BACK FOR REVIEW";
+  if(el("srcStatus")) el("srcStatus").textContent=batchStatus||"—";
+
+  // Update row markers on table
+  if(el("flTbody")){
+    const breakIdxs=new Set(logBreaks.map(b=>b.idx));
+    const dupIdxs=new Set(dups.map(d=>d.idx));
+    el("flTbody").querySelectorAll("tr[data-entry-id]").forEach(row=>{
+      const entryIdx=flEntries.findIndex(e=>e.id===parseInt(row.dataset.entryId));
+      const bnumCell=row.querySelector("td:nth-child(2)");
+      if(bnumCell){
+        bnumCell.classList.toggle("log-seq-gap",breakIdxs.has(entryIdx)&&!dupIdxs.has(entryIdx));
+        bnumCell.classList.toggle("log-dup-gap",dupIdxs.has(entryIdx));
+      }
+    });
+  }
+}
+
+function translateFetchError(msg){
+  if(msg==="Failed to fetch") return "Network error — check connection or API key";
+  if(msg.includes("image exceeds")) return "Image too large — max 5MB per image";
+  if(msg.includes("HTTP 401")) return "Invalid API key";
+  if(msg.includes("HTTP 429")) return "Rate limit — wait a moment and retry";
+  return msg;
+}
+
+async function extractImageFile(file, apiKey){
+  const base64=await fileToBase64(file);
+  const mediaType=file.type||"image/jpeg";
+  const response=await fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST",
+    signal:extractionAbort?.signal,
+    headers:{
+      "Content-Type":"application/json",
+      "x-api-key":apiKey,
+      "anthropic-version":"2023-06-01",
+      "anthropic-dangerous-direct-browser-access":"true"
+    },
+    body:JSON.stringify({
+      model:MODEL,max_tokens:4096,
+      messages:[{role:"user",content:[
+        {type:"image",source:{type:"base64",media_type:mediaType,data:base64}},
+        {type:"text",text:buildExtractionPrompt()}
+      ]}]
+    })
+  });
+  if(!response.ok){
+    const err=await response.json().catch(()=>({}));
+    const msg=err.error?.message||"HTTP "+response.status;
+    if(response.status===429) throw new Error("RATE_LIMIT: System busy — wait and retry");
+    if(response.status===401) throw new Error("API_ERROR: Invalid API key");
+    throw new Error("API_ERROR: "+msg);
+  }
+  const data=await response.json();
+  const text=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("")||"[]";
+  const cleaned=text.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
+  // Extract JSON array from anywhere in the response — handles preamble text
+  const jsonMatch=cleaned.match(/\[[\s\S]*\]/);
+  if(!jsonMatch){
+    dbg("Re-extract raw response: "+cleaned.substring(0,200),"warn");
+    throw new Error("NO_BITACORA: No log data found on this page");
+  }
+  try {
+    const parsed=JSON.parse(jsonMatch[0]);
+    if(!Array.isArray(parsed)||parsed.length===0) throw new Error("empty");
+    return parsed;
+  } catch(e){
+    throw new Error("NO_BITACORA: No log data found on this page");
+  }
+}
+
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result.split(",")[1]);
+    reader.onerror=()=>reject(new Error("File read failed"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function showResultBanner(type,msg){
+  const wrap=el("resultBanner"); if(!wrap) return;
+  const icons={ok:"✅",warn:"⚠️",err:"❌"};
+  const cls={ok:"rb-ok",warn:"rb-warn",err:"rb-err"};
+  wrap.style.display="block";
+  wrap.innerHTML='<div class="result-banner '+cls[type]+'">'+
+    '<div style="font-size:18px;flex-shrink:0">'+icons[type]+"</div>"+
+    '<div class="rb-msg">'+msg+"</div></div>";
+}
+
+// ── FLIGHT LOG — CALCULATIONS ──
+function t2h(s){
+  s=String(s||"").trim();
+  if(!s) return 0;
+  if(s.includes(":")){
+    const[h,m]=s.split(":").map(Number);
+    return (isNaN(h)||isNaN(m))?0:h+m/60;
+  }
+  const n=parseFloat(s);
+  return isNaN(n)?0:n;
+}
+function getAircraftMult(aeronave, operador){
+  if(!aeronave) return DEFAULT_MULT[operador]||1; // stub entry — silent
+  const ac=AIRCRAFT.find(a=>a.matricula===aeronave);
+  if(!ac){ dbg("getAircraftMult: aircraft not found: "+aeronave,"warn"); return DEFAULT_MULT[operador]||1; }
+  const rates=ac.rates;
+  if(rates&&Array.isArray(rates)&&rates.length){
+    const rate=rates.find(r=>r.operador===operador);
+    if(rate){ return parseFloat(rate.multiplicador)||1; }
+    dbg("getAircraftMult: no rate for "+aeronave+"/"+operador+" in rates: "+JSON.stringify(rates),"warn");
+    return parseFloat(rates[0].multiplicador)||1;
+  }
+  dbg("getAircraftMult: no rates array on "+aeronave+", using multiplicador: "+ac.multiplicador,"warn");
+  if(ac.multiplicador) return parseFloat(ac.multiplicador)||1;
+  return DEFAULT_MULT[operador]||1;
+}
+
+function calcEntry(e){
+  if(!e.aeronave||e.status==="skipped"||e.status==="void") return{tm:0,tv:0,mult:1,tbp:0};
+  const tm=e._directTm>0?e._directTm:Math.max(0,t2h(e.motorIn)-t2h(e.motorOut));
+  const tv=e._directTv>0?e._directTv:Math.max(0,t2h(e.vueloIn)-t2h(e.vueloOut));
+  const mult=e.multOverride||getAircraftMult(e.aeronave,e.operador);
+  return{tm,tv,mult,tbp:parseFloat((tm*mult).toFixed(3))};
+}
+function sanitizeFilename(name){
+  return name
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"") // strip accents
+    .replace(/[^\w.\-]/g,"_")                        // replace special chars with _
+    .replace(/_+/g,"_")                              // collapse multiple _
+    .replace(/^_|_$/g,"");                           // trim leading/trailing _
+}
+
+
+function fmt(n){return isNaN(n)||n===0?"—":n.toFixed(1);}
+function fmtCurrency(n){
+  return "$ "+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,",");
+}
+
+// ── FLIGHT LOG — HOROMETER ──
+function runHoroChecks(){ updateSrcBar(); } // delegated to updateSrcBar
+
+// ── FLIGHT LOG — WORKFLOW BAR ──
+function renderWfBar(){
+  const hasEntries=flEntries.length>0;
+  const st=batchStatus;
+  const inCycle=reviewCycle>1; // batch has been through at least one review cycle
+  const steps=[
+    {key:"wfUpload",  state:"done"},
+    {key:"wfExtract", state:hasEntries?"done":"pending"},
+    {key:"wfReview",  state:hasEntries&&(st==="SUBMITTED"||st==="APPROVED"||(st==="DRAFT"&&inCycle))?"done":hasEntries&&st==="DRAFT"&&!inCycle?"active":"pending"},
+    {key:"wfSubmit",  state:st==="APPROVED"?"done":(st==="SUBMITTED"||(st==="DRAFT"&&inCycle))?"active":"pending"},
+    {key:"wfApproved",state:st==="APPROVED"?"active":"pending"}
+  ];
+  const bar=el("wfBar"); if(!bar) return;
+  let html=steps.map((s,i)=>{
+    const arrow=i<steps.length-1?'<span class="wf-arrow">›</span>':"";
+    return '<div class="wf-step '+s.state+'"><div class="wf-dot"></div>'+t(s.key)+"</div>"+arrow;
+  }).join("");
+  // CTA when APPROVED
+  if(st==="APPROVED"){
+    html+='<span class="wf-arrow">›</span><button id="wf_goto_pi" style="font-family:var(--mono);font-size:10px;padding:4px 14px;background:transparent;color:var(--cyan);border:1px solid var(--cyan);cursor:pointer;border-radius:2px;font-weight:700;letter-spacing:1px;white-space:nowrap;text-transform:uppercase;transition:all .15s" onmouseover="this.style.background=\'rgba(65,209,255,.12)\'" onmouseout="this.style.background=\'transparent\'">'+t("piGoTo")+' →</button>';
+  }
+  bar.innerHTML=html;
+  // Wire CTA button
+  const ctaBtn=el("wf_goto_pi");
+  if(ctaBtn) ctaBtn.addEventListener("click",()=>{
+    if(currentBatchId&&batchStatus==="APPROVED") renderPreInvoice();
+    switchTab("preinvoice");
+  });
+  if(el("srcStatus")){
+    const labels={DRAFT:t("wfReview"),SUBMITTED:t("wfSubmit"),APPROVED:t("wfApproved"),CHANGES:lang==="es"?"Cambios Solicitados":"Changes Requested"};
+    el("srcStatus").textContent=labels[batchStatus]||batchStatus;
+  }
+}
+
+// ── EFFECTIVE ROLE (View As override for Admin) ──
+function effectiveRole(){ return viewRole || (currentUser ? currentUser.role : "READONLY"); }
+
+// ── FLIGHT LOG — ROLE UI ──
+function setupFlRoleUI(){
+  const role=effectiveRole();
+  const isReview=batchStatus==="SUBMITTED"&&role==="REVIEWER";
+  const canEdit=(role==="ADMIN"||role==="OPERATOR")&&batchStatus==="DRAFT";
+  const canSubmit=(role==="ADMIN"||role==="OPERATOR")&&batchStatus==="DRAFT";
+  const canApprove=(role==="ADMIN"||role==="REVIEWER")&&batchStatus==="SUBMITTED";
+  const canFlag=(role==="ADMIN"||role==="REVIEWER")&&batchStatus==="SUBMITTED";
+  // Standard buttons
+  if(el("btn_newEntry")) el("btn_newEntry").style.display=(canEdit&&!isReview)?"":"none";
+  if(el("btn_approveAll")) el("btn_approveAll").style.display=(canEdit&&!isReview)?"":"none";
+  if(el("btn_resetAll")) el("btn_resetAll").style.display=(canEdit&&!isReview)?"":"none";
+  if(el("btn_saveDraft")) el("btn_saveDraft").style.display=(canSubmit&&!isReview)?"":"none";
+  if(el("btn_submit")) el("btn_submit").style.display=(canSubmit&&!isReview)?"":"none";
+  if(el("btn_approve")) el("btn_approve").style.display=canApprove?"flex":"none";
+  if(el("btn_reqChanges")) el("btn_reqChanges").style.display="none";
+  // REVIEW mode — hide upload area, batch constants, new batch, add more files
+  const isReviewer=role==="REVIEWER"||role==="READONLY";
+  if(el("fl_newBatch")) el("fl_newBatch").style.display=isReviewer?"none":"";
+  if(el("btn_addMoreFiles")) el("btn_addMoreFiles").style.display=isReviewer?"none":"";
+  // OCR and non-billable toggle hidden in REVIEW mode (side panel)
+  if(el("sp_reextract")) el("sp_reextract").style.display=isReviewer?"none":"";
+  if(el("sp_nonbill_toggle")) el("sp_nonbill_toggle").style.display=isReviewer?"none":"";
+  // Return for Review button — only in REVIEW mode
+  if(el("btn_returnForReview")) el("btn_returnForReview").style.display=isReview?"flex":"none";
+  const canReopen=role==="ADMIN"&&batchStatus!=="DRAFT"&&batchStatus!=="CLOSED";
+  if(el("btn_reopen")) el("btn_reopen").style.display=canReopen?"":"none";
+  if(role==="REVIEWER"||role==="READONLY"){
+    const us=el("uploadSection"); if(us) us.style.display="none";
+    const bc=el("batchConstants"); if(bc) bc.style.display="none";
+  } else {
+    const us=el("uploadSection"); if(us) us.style.display="";
+    const bc=el("batchConstants"); if(bc) bc.style.display="";
+  }
+}
+
+// ── FLIGHT LOG — TABLE ──
+function getFilteredEntries(){
+  const f=el("filterOp") ? el("filterOp").value : "ALL";
+  if(f==="ALL") return flEntries;
+  if(f==="FM"||f==="MAG") return flEntries.filter(e=>e.operador===f);
+  if(f==="problems") return flEntries.filter(e=>
+    e.status==="skipped"||e.status==="void"||e.status==="flagged"||
+    !e.aeronave||!e.fecha||!e.piloto||!e.motorOut||!e.motorIn
+  );
+  if(f==="hide_nonbill") return flEntries.filter(e=>e.status!=="nonbillable"&&e.status!=="void");
+  if(f==="show_nonbill") return flEntries.filter(e=>e.status==="nonbillable");
+  if(f==="reviewer_comments") return flEntries.filter(e=>e.flagNote&&e.flagNote.trim()!=="");
+  return flEntries.filter(e=>e.status===f);
+}
+
+function renderFlTable(){
+  const tbody=el("flTbody"); if(!tbody) return;
+  let visible=getFilteredEntries();
+  // Apply sort
+  if(flSortCol){
+    visible=[...visible].sort((a,b)=>{
+      let av, bv;
+      if(flSortCol==="mult"){ av=getAircraftMult(a.aeronave,a.operador); bv=getAircraftMult(b.aeronave,b.operador); }
+      else if(flSortCol==="tbp"){ av=calcEntry(a).tbp; bv=calcEntry(b).tbp; }
+      else { av=a[flSortCol]||""; bv=b[flSortCol]||""; }
+      if(typeof av==="number") return (av-bv)*flSortDir;
+      return String(av).localeCompare(String(bv))*flSortDir;
+    });
+  }
+  // Update header indicators
+  document.querySelectorAll("[data-sort-fl]").forEach(th=>{
+    const col=th.dataset.sortFl;
+    const base=th.textContent.replace(/ [▲▼]$/,"");
+    th.textContent=base+(flSortCol===col?(flSortDir===1?" ▲":" ▼"):"");
+  });
+  const role=effectiveRole();
+  const canEdit=(role==="ADMIN"||role==="OPERATOR")&&batchStatus==="DRAFT";
+  tbody.innerHTML="";
+  visible.forEach((e,rowIdx)=>{
+    const gi=flEntries.indexOf(e);
+    const{tm,tv,mult,tbp}=calcEntry(e);
+    const h=horoCheck(e,gi);
+    const hasDiffGap=e.obs&&e.obs.includes("Dif Motor/Vuelo");
+    const isOverride=e.multOverride&&e.multOverride!==getAircraftMult(e.aeronave,e.operador);
+    const tr=document.createElement("tr");
+    tr.className=e.status==="approved"?"r-ok":e.status==="rejected"?"r-rej":e.status==="flagged"?"r-flagged":e.status==="skipped"?"r-skipped":e.status==="nonbillable"?"r-nonbillable":e.status==="void"?"r-void":"";
+    if(batchStatus==="DRAFT"&&e.flagNote&&e.flagNote.trim()!==""&&e.status==="flagged") tr.classList.add("r-reviewed");
+    tr.style.cursor="pointer";
+    tr.dataset.entryId=e.id;
+    // Notes — show flag note or obs, plus red triangle if diff gap
+    const diffTriangle=hasDiffGap?'<span style="color:var(--red);margin-left:4px" title="Motor/Vuelo diff exceeds threshold">▲</span>':"";
+    const reviewedMarker=e.flagNote&&e.flagNote.trim()!==""?'<span style="color:var(--yellow);margin-left:4px;font-size:10px" title="'+e.flagNote+'">△</span>':"";
+    const notesDisplay=e.flagNote&&e.status==="flagged"
+      ?'<span style="color:var(--yellow);font-size:10px" title="'+e.flagNote+'">⚠ '+e.flagNote+"</span>"
+      :(e.obs||"—");
+    const motorOutCell='<td class="cb'+((!h.ok)?' horo-seq-gap':'')+'">'+(e.motorOut||"—")+"</td>";
+    tr.innerHTML=
+      '<td class="cd" style="font-family:var(--mono);font-size:10px;color:var(--dim2);text-align:center">'+String(rowIdx+1).padStart(2,"0")+"</td>"+
+      '<td class="bnum-cell">'+(e.bnum||"—")+"</td>"+
+      "<td>"+(e.fecha||"—")+"</td>"+
+      "<td>"+(e.aeronave||"—")+"</td>"+
+      '<td><span style="color:'+(e.operador==="FM"?"var(--green)":"var(--yellow)")+'">'+( e.operador||"—")+"</span></td>"+
+      "<td>"+(e.piloto||"—")+"</td>"+
+      '<td style="color:var(--dim2);font-size:12px">'+(e.instructor||"—")+"</td>"+
+      motorOutCell+
+      '<td class="cb">'+(e.motorIn||"—")+"</td>"+
+      '<td class="cb">'+fmt(tm)+"</td>"+
+      "<td>"+(e.vueloOut||"—")+"</td>"+
+      "<td>"+(e.vueloIn||"—")+"</td>"+
+      '<td class="cx">'+fmt(tv)+"</td>"+
+      '<td class="cd" style="'+(isOverride?"color:var(--yellow)":"")+'">'+mult+(isOverride?" ⚠":"")+"</td>"+
+      '<td class="cg">'+fmt(tbp)+"</td>"+
+      '<td class="cd">'+(e.horoIn?.toFixed(1)||"—")+"</td>"+
+      '<td class="cd" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+notesDisplay+diffTriangle+reviewedMarker+"</td>"+
+      "<td>"+mkFlToggle(e,canEdit)+"</td>";
+    tbody.appendChild(tr);
+  });
+  if(el("ptab_count")) el("ptab_count").textContent=flEntries.length;
+  updateFlSummary(); runHoroChecks();
+  // Re-apply sticky headers preference after re-render
+  const _sh=localStorage.getItem("hpfleet_stickyheaders");
+  _applyStickyHeaders(_sh===null?true:_sh==="1");
+  updateApproveAllBtn();
+}
+
+function mkFlToggle(e,canEdit){
+  const isLocked=e.status==="nonbillable"||e.status==="void";
+  const dis=(canEdit&&!isLocked)?"":"disabled";
+  const pc=e.status==="pending"?"tp":"", oc=e.status==="approved"?"tok":"", rc=e.status==="rejected"?"tr":"";
+  return '<div class="t3">'+
+    '<button class="'+pc+'" data-st-entry="'+e.id+'" data-st="pending" '+dis+' title="'+t("pending")+'">?</button>'+
+    '<button class="'+oc+'" data-st-entry="'+e.id+'" data-st="approved" '+dis+' title="'+t("approved2")+'">✓</button>'+
+    '<button class="'+rc+'" data-st-entry="'+e.id+'" data-st="rejected" '+dis+' title="'+t("rejected")+'">✗</button>'+
+    "</div>";
+}
+
+function setEntrySt(id,st){
+  const e=flEntries.find(x=>x.id===id); if(!e) return;
+  const old=e.status;
+  const oldReason=e.nonBillReason;
+  e.status=st;
+  addFlAudit("🔄",currentUser.name,"entry "+(flEntries.indexOf(e)+1)+" status",old+"→"+st);
+  recordStatusChange(id,old,oldReason);
+  renderFlTable();
+}
+
+function setAllFlStatus(st){
+  const targets=getFilteredEntries().filter(e=>e.status!=="nonbillable"&&e.status!=="void");
+  targets.forEach(e=>e.status=st);
+  addFlAudit("🔄",currentUser.name,"all visible entries→"+st,targets.length+" entries");
+  renderFlTable();
+}
+
+function approveReviewedEntries(){
+  const targets=flEntries.filter(e=>e.flagNote&&e.flagNote.trim()!==""&&e.status==="flagged");
+  targets.forEach(e=>e.status="approved");
+  addFlAudit("✅",currentUser.name,"approve reviewed entries",targets.length+" entries approved");
+  renderFlTable(); updateApproveAllBtn();
+}
+
+function updateApproveAllBtn(){
+  const btn=el("btn_approveAll"); if(!btn) return;
+  const hasReviewed=flEntries.some(e=>e.flagNote&&e.flagNote.trim()!==""&&e.status==="flagged");
+  btn.textContent=hasReviewed?t("approveReviewed"):t("approveAll");
+  btn.onclick=hasReviewed?approveReviewedEntries:()=>setAllFlStatus("approved");
+}
+
+// ── FLIGHT LOG — SUMMARY ──
+function updateFlSummary(){
+  let fmM=0,fmT=0,magM=0,magT=0,totV=0,approved=0;
+  flEntries.filter(e=>e.status==="approved").forEach(e=>{
+    approved++;
+    const{tm,tv,tbp}=calcEntry(e); totV+=tv;
+    if(e.operador==="FM"){fmM+=tm;fmT+=tbp;}else{magM+=tm;magT+=tbp;}
+  });
+  const sg=el("sumGrid"); if(!sg) return;
+  sg.innerHTML=
+    '<div class="scard sc-fm"><div class="sc-l">'+t("fmMotor")+"</div><div class=\"sc-v\">"+fmt(fmM)+"</div><div class=\"sc-s\">TBH: "+fmt(fmT)+" hrs</div></div>"+
+    '<div class="scard sc-mag"><div class="sc-l">'+t("magMotor")+"</div><div class=\"sc-v\">"+fmt(magM)+"</div><div class=\"sc-s\">TBH: "+fmt(magT)+" hrs</div></div>"+
+    '<div class="scard sc-tot"><div class="sc-l">'+t("totMotor")+"</div><div class=\"sc-v\">"+fmt(fmM+magM)+"</div><div class=\"sc-s\">"+t("tFlight")+": "+fmt(totV)+" hrs</div></div>"+
+    '<div class="scard sc-tbp"><div class="sc-l">'+t("totTbp")+"</div><div class=\"sc-v\">"+fmt(fmT+magT)+"</div><div class=\"sc-s\">"+t("tbpHours")+"</div></div>"+
+    '<div class="scard sc-ent"><div class="sc-l">'+t("approved2")+"</div><div class=\"sc-v\">"+approved+"</div><div class=\"sc-s\">"+t("showing")+" "+getFilteredEntries().length+" "+t("of")+" "+flEntries.length+"</div></div>";
+  updateActionBar();
+}
+
+function updateActionBar(){
+  const pending=flEntries.filter(e=>e.status==="pending").length;
+  const approved=flEntries.filter(e=>e.status==="approved").length;
+  const rejected=flEntries.filter(e=>e.status==="rejected").length;
+  const canSubmit=(effectiveRole()==="ADMIN"||effectiveRole()==="OPERATOR")&&batchStatus==="DRAFT";
+  if(canSubmit&&el("btn_submit")){
+    el("btn_submit").disabled=approved===0;
+    el("actionNote").textContent=pending+" "+t("pending").toLowerCase()+" · "+approved+" "+t("approved2").toLowerCase()+" · "+rejected+" "+t("rejected").toLowerCase();
+  }
+}
+
+// ── FLIGHT LOG AUDIT ──
+function addFlAudit(icon,actor,action,detail){
+  flAuditLog.unshift({icon,actor,action,detail,ts:new Date()});
+  if(flAuditLog.length>300) flAuditLog=flAuditLog.slice(0,300);
+  renderFlAudit();
+}
+
+function renderFlAudit(){
+  const wrap=el("flAuditList"); if(!wrap) return;
+  if(el("ptab_audit_count")) el("ptab_audit_count").textContent=flAuditLog.length;
+  if(!flAuditLog.length){wrap.innerHTML='<div class="audit-empty">'+t("noAudit")+"</div>";return;}
+  wrap.innerHTML=flAuditLog.map(e=>'<div class="ae">'+
+    '<div class="ae-ts">'+e.ts.toLocaleTimeString(lang==="es"?"es-PA":"en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+"<br>"+
+    e.ts.toLocaleDateString(lang==="es"?"es-PA":"en-US")+"</div>"+
+    '<div style="font-size:14px;flex-shrink:0">'+e.icon+"</div>"+
+    '<div class="ae-body"><span class="ae-actor">'+e.actor+"</span><span class=\"ae-action\"> "+e.action+"</span>"+
+    (e.detail&&e.detail!=="—"?'<div class="ae-diff">'+e.detail+"</div>":"")+
+    "</div></div>").join("");
+}
+
+function switchFlPanel(id){
+  document.querySelectorAll(".ppanel").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".ptab").forEach(b=>b.classList.remove("active"));
+  const panel=el("ppanel_"+id); if(panel) panel.classList.add("active");
+  const tab=el("ptab_"+id); if(tab) tab.classList.add("active");
+}
+
+// ── FLIGHT LOG — EDIT ENTRY MODAL ──
+function openEditEntry(id){
+  const canEdit=(effectiveRole()==="ADMIN"||effectiveRole()==="OPERATOR")&&batchStatus==="DRAFT";
+  if(!canEdit){showToast(t("cantEdit"),"err");return;}
+  editingEntryId=id;
+  clearEntryErrors();
+  // Populate aircraft dropdown from AIRCRAFT data
+  const acSel=el("f_aeronave");
+  acSel.innerHTML=AIRCRAFT.map(a=>'<option value="'+a.matricula+'">'+a.matricula+"</option>").join("");
+  const e=id===null?null:flEntries.find(x=>x.id===id);
+  el("flEditTitle").textContent=e?t("editEntry")+" #"+(flEntries.indexOf(e)+1):"New Manual Entry";
+  if(el("f_bnum")) el("f_bnum").value=e?.bnum||"";
+  el("f_fecha").value=e?.fecha||"";
+  el("f_aeronave").value=e?.aeronave||"HP-1862FX";
+  el("f_operador").value=e?.operador||"FM";
+  el("f_piloto").value=e?.piloto||"";
+  if(el("f_instructor")) el("f_instructor").value=e?.instructor||"";
+  // Show diff alert if entry has a motor/vuelo gap flag
+  const diffEl=el("diffAlert"); const diffMsg=el("diffAlertMsg");
+  if(diffEl&&diffMsg){
+    const ac=AIRCRAFT.find(a=>a.matricula===(e?.aeronave||""));
+    const threshold=ac?ac.diffThreshold:0.2;
+    const tm2=Math.abs(t2h(e?.motorIn)-t2h(e?.motorOut));
+    const tv2=Math.abs(t2h(e?.vueloIn)-t2h(e?.vueloOut));
+    const diff=Math.abs(tm2-tv2);
+    if(e&&diff>threshold){
+      diffMsg.textContent="T.Motor="+fmt(tm2)+" hrs vs T.Flight="+fmt(tv2)+" hrs — gap: "+diff.toFixed(2)+" hrs (threshold: "+threshold+" hrs)";
+      diffEl.classList.add("on");
+    } else {
+      diffEl.classList.remove("on");
+    }
+  }
+  el("f_horoIn").value=e?.horoIn||"";
+  el("f_motorOut").value=e?.motorOut||"";
+  el("f_motorIn").value=e?.motorIn||"";
+  el("f_vueloOut").value=e?.vueloOut||"";
+  el("f_vueloIn").value=e?.vueloIn||"";
+  // For new entry: auto-populate mult from aircraft+operator; for edit: use saved override
+  if(e){
+    el("f_mult").value=e.multOverride||"";
+  } else {
+    const defMult=getAircraftMult(el("f_aeronave").value,el("f_operador").value);
+    el("f_mult").value=defMult&&defMult!==1?defMult:"";
+  }
+  el("f_obs").value=e?.obs||"";
+  liveCalcEntry();
+  openModal("flMbd"); el("flMbd").style.display="flex";
+}
+
+function liveCalcEntry(){
+  const mOut=el("f_motorOut").value.trim(); const mIn=el("f_motorIn").value.trim();
+  const vOut=el("f_vueloOut").value.trim(); const vIn=el("f_vueloIn").value.trim();
+  const tmField=el("f_tmotor"); const tvField=el("f_tvuelo");
+  const tmLbl=el("lbl_tmotor"); const tvLbl=el("lbl_tvuelo");
+
+  // T.Motor: free-entry when Out+In both empty, calculated otherwise
+  const tmFree=!mOut&&!mIn;
+  if(tmFree){
+    tmField.removeAttribute("readonly"); tmField.style.background="";
+    if(tmLbl) tmLbl.textContent="T.Motor";
+  } else {
+    tmField.setAttribute("readonly",""); tmField.style.background="var(--s2)";
+    if(tmLbl) tmLbl.textContent="T.Motor (calc.)";
+  }
+  // T.Flight: free-entry when Out+In both empty, calculated otherwise
+  const tvFree=!vOut&&!vIn;
+  if(tvFree){
+    tvField.removeAttribute("readonly"); tvField.style.background="";
+    if(tvLbl) tvLbl.textContent="T.Flight";
+  } else {
+    tvField.setAttribute("readonly",""); tvField.style.background="var(--s2)";
+    if(tvLbl) tvLbl.textContent="T.Flight (calc.)";
+  }
+
+  const fake={
+    aeronave:el("f_aeronave").value,
+    operador:el("f_operador").value,
+    motorOut:mOut, motorIn:mIn,
+    vueloOut:vOut, vueloIn:vIn,
+    multOverride:parseFloat(el("f_mult").value)||null
+  };
+  const{tm:calcTm,tv:calcTv,mult}=calcEntry(fake);
+
+  // Use calculated value if available, else use direct entry
+  const tm=calcTm>0?calcTm:(tmFree?parseFloat(tmField.value)||0:0);
+  const tv=calcTv>0?calcTv:(tvFree?parseFloat(tvField.value)||0:0);
+
+  if(!tmFree) tmField.value=calcTm>0?calcTm.toFixed(2):"";
+  if(!tvFree) tvField.value=calcTv>0?calcTv.toFixed(2):"";
+
+  const tbp=tm>0?+(tm*mult).toFixed(2):0;
+  el("pv_tm").textContent=tm>0?fmt(tm)+" hrs":"—";
+  el("pv_tf").textContent=tv>0?fmt(tv)+" hrs":"—";
+  el("pv_mult").textContent=mult+"×";
+  el("pv_tbp").textContent=tm>0?fmt(tbp)+" hrs":"—";
+}
+
+const TIMERE=/^([01]?\d|2[0-3]):[0-5]\d$/;
+const DATERE=/^\d{2}\/\d{2}\/\d{4}$/;
+
+function validateEntryForm(){
+  clearEntryErrors(); let ok=true; let softWarnings=[];
+  const fecha=el("f_fecha").value.trim(), piloto=el("f_piloto").value.trim();
+  const horoIn=parseFloat(el("f_horoIn").value);
+  const mOut=el("f_motorOut").value.trim(), mIn=el("f_motorIn").value.trim();
+  const vOut=el("f_vueloOut").value.trim(), vIn=el("f_vueloIn").value.trim();
+  // Hard: date required and format
+  if(!fecha){setFerr("fe_fecha","f_fecha",t("required"));ok=false;}
+  else if(!DATERE.test(fecha)){setFerr("fe_fecha","f_fecha",lang==="es"?"Formato: DD/MM/AAAA":"Format: DD/MM/YYYY");ok=false;}
+  // Soft: pilot and horo start
+  if(!piloto) softWarnings.push("Pilot name");
+  if(isNaN(horoIn)||horoIn<=0) softWarnings.push("Horo. Start");
+  // Hard: motor values
+  const tmDirect=parseFloat(el("f_tmotor").value)||0;
+  const tvDirect=parseFloat(el("f_tvuelo").value)||0;
+  if(mOut||mIn){
+    if(!mOut){setFerr("fe_motorOut","f_motorOut",t("required"));ok=false;}
+    else if(isNaN(t2h(mOut))){setFerr("fe_motorOut","f_motorOut",lang==="es"?"Valor inválido":"Invalid value");ok=false;}
+    if(!mIn){setFerr("fe_motorIn","f_motorIn",t("required"));ok=false;}
+    else if(isNaN(t2h(mIn))){setFerr("fe_motorIn","f_motorIn",lang==="es"?"Valor inválido":"Invalid value");ok=false;}
+    else if(mOut&&t2h(mIn)<=t2h(mOut)){setFerr("fe_motorIn","f_motorIn",lang==="es"?"Motor In debe ser posterior":"Motor In must be after Motor Out");ok=false;}
+  } else if(!tmDirect){
+    setFerr("fe_motorOut","f_motorOut",lang==="es"?"Ingrese Motor Out/In o T.Motor":"Enter Motor Out/In or T.Motor directly");ok=false;
+  }
+  // Hard: flight values
+  if(vOut||vIn){
+    if(!vOut){setFerr("fe_vueloOut","f_vueloOut",t("required"));ok=false;}
+    else if(isNaN(t2h(vOut))){setFerr("fe_vueloOut","f_vueloOut",lang==="es"?"Valor inválido":"Invalid value");ok=false;}
+    if(!vIn){setFerr("fe_vueloIn","f_vueloIn",t("required"));ok=false;}
+    else if(isNaN(t2h(vIn))){setFerr("fe_vueloIn","f_vueloIn",lang==="es"?"Valor inválido":"Invalid value");ok=false;}
+    else if(vOut&&t2h(vIn)<=t2h(vOut)){setFerr("fe_vueloIn","f_vueloIn",lang==="es"?"Vuelo In debe ser posterior":"Flight In must be after Flight Out");ok=false;}
+  } else if(!tvDirect){
+    softWarnings.push("T.Flight");
+  }
+  if(!ok) return false;
+  // Soft warning — show inline banner if critical fields missing
+  if(softWarnings.length){
+    const warn=el("fl_soft_warn"); const msg=el("fl_soft_warn_msg");
+    if(warn&&msg){
+      msg.textContent="⚠ Missing: "+softWarnings.join(", ")+". Save anyway?";
+      warn.style.display="block";
+    }
+    return false; // block save — user must click "Save Anyway"
+  }
+  return true;
+}
+
+function saveEntryForm(){
+  if(el("fl_soft_warn")) el("fl_soft_warn").style.display="none";
+  if(!validateEntryForm()) return;
+  proceedSaveEntry();
+}
+
+function proceedSaveEntry(){
+  const multRaw=parseFloat(el("f_mult").value);
+  const multOverride=isNaN(multRaw)||!el("f_mult").value.trim()?null:multRaw;
+  const data={
+    fecha:el("f_fecha").value.trim(), aeronave:el("f_aeronave").value,
+    operador:el("f_operador").value, piloto:el("f_piloto").value.trim(),
+    bnum:el("f_bnum")?el("f_bnum").value.trim():"",
+    instructor:el("f_instructor")?el("f_instructor").value.trim():"",
+    horoIn:parseFloat(el("f_horoIn").value),
+    motorOut:el("f_motorOut").value.trim(), motorIn:el("f_motorIn").value.trim(),
+    vueloOut:el("f_vueloOut").value.trim(), vueloIn:el("f_vueloIn").value.trim(),
+    _directTm:(!el("f_motorOut").value.trim()&&!el("f_motorIn").value.trim())?parseFloat(el("f_tmotor").value)||null:null,
+    _directTv:(!el("f_vueloOut").value.trim()&&!el("f_vueloIn").value.trim())?parseFloat(el("f_tvuelo").value)||null:null,
+    obs:el("f_obs").value.trim(), multOverride
+  };
+  checkDiff(data);
+  if(editingEntryId!==null){
+    const e=flEntries.find(x=>x.id===editingEntryId);
+    if(e){
+      const changes=[];
+      Object.entries(data).forEach(([k,v])=>{if(JSON.stringify(e[k])!==JSON.stringify(v)) changes.push(k+": '"+e[k]+"'→'"+v+"'");});
+      if(multOverride&&multOverride!==DEFAULT_MULT[data.operador]) changes.push("⚠ "+t("multOverride")+": "+DEFAULT_MULT[data.operador]+"→"+multOverride);
+      Object.assign(e,data);
+      addFlAudit("✏️",currentUser.name,"edited entry "+(flEntries.indexOf(e)+1),changes.join(", ")||"no changes");
+    }
+    showToast(lang==="es"?"Entrada actualizada.":"Entry updated.");
+  } else {
+    flEntries.push({id:nextEntryId++,status:"pending",...data});
+    addFlAudit("➕",currentUser.name,"added entry",data.fecha+"|"+data.aeronave+"|"+data.piloto);
+    showToast(lang==="es"?"Nueva entrada agregada.":"New entry added.");
+  }
+  closeModal("flMbd"); el("flMbd").style.display="none"; renderFlTable();
+}
+
+function clearEntryErrors(){
+  ["fecha","piloto","horoIn","motorOut","motorIn","vueloOut","vueloIn"].forEach(f=>{
+    const e=el("fe_"+f); const i=el("f_"+f);
+    if(e){e.textContent="";e.classList.remove("on");}
+    if(i) i.classList.remove("err");
+  });
+}
+
+// ── FLIGHT LOG — WORKFLOW ACTIONS ──
+function handleSubmit(){
+  const reviewed=flEntries.filter(e=>e.status==="flagged"&&e.flagNote&&e.flagNote.trim()!=="");
+  const pending=flEntries.filter(e=>e.status==="pending");
+  const approved=flEntries.filter(e=>e.status==="approved");
+  if(!approved.length){
+    showResultBanner("err","⚠ Please approve at least one entry before submitting for review.");
+    return;
+  }
+  if(reviewed.length){
+    // Contextual message for reviewed entries
+    el("excWarn").textContent=reviewed.length+" "+(lang==="es"
+      ?`registro(s) marcados para revisión serán devueltos al Revisor.`
+      :`record(s) marked for review will be returned to the Reviewer.`);
+    el("excDetail").innerHTML=reviewed.map(e=>"• Entry "+(flEntries.indexOf(e)+1)+": "+e.fecha+" | "+e.aeronave+" | "+e.piloto+(e.flagNote?" — "+e.flagNote:"")).join("<br>");
+    if(el("exc_proceed")) el("exc_proceed").textContent=lang==="es"?"Reenviar":"Resend";
+    if(el("exc_back")) el("exc_back").textContent=lang==="es"?"Cancelar":"Cancel";
+    confirmCb=()=>{
+      // Auto-approve all reviewed entries then submit
+      reviewed.forEach(e=>e.status="approved");
+      closeModal("excMbd");
+      doSubmit();
+    };
+    openModal("excMbd");
+  } else if(pending.length){
+    el("excWarn").textContent=pending.length+" "+(lang==="es"?"entradas pendientes. ¿Continuar?":"entries still pending. Proceed anyway?");
+    el("excDetail").innerHTML=pending.map(e=>"• Entry "+(flEntries.indexOf(e)+1)+": "+e.fecha+" | "+e.aeronave+" | "+e.piloto).join("<br>");
+    if(el("exc_proceed")) el("exc_proceed").textContent=lang==="es"?"Continuar":"Proceed Anyway";
+    if(el("exc_back")) el("exc_back").textContent=lang==="es"?"Volver":"Back to Review";
+    confirmCb=()=>{closeModal("excMbd");doSubmit();};
+    openModal("excMbd");
+  } else {
+    showFlConfirm(t("confirmSubmit"),t("confirmSubmitBody"),approved,()=>doSubmit());
+  }
+}
+
+async function doSubmit(){
+  batchStatus="SUBMITTED";
+  if(el("resultBanner")) el("resultBanner").style.display="none";
+  await saveBatchToDB();
+  addFlAudit("📤",currentUser.name,"submitted batch",flEntries.filter(e=>e.status==="approved").length+" approved entries");
+  const flagged=flEntries.filter(e=>e.status==="flagged").length;
+  const approved=flEntries.filter(e=>e.status==="approved").length;
+  renderWfBar(); setupFlRoleUI();
+  showToast(lang==="es"?"Lote enviado para revisión.":"Batch submitted for review.");
+  notifyWhatsApp("REVIEWER",
+    lang==="es"
+      ? "HP Fleet — Lote enviado para revisión por "+currentUser.name+".\n"+
+        approved+" entradas aprobadas"+(flagged?" | "+flagged+" marcadas":"")+"\n"+
+        "Fuente: "+batchSourceFile+"\nInicia sesión para revisar: https://sol-whatsapp-webhook.onrender.com"
+      : "HP Fleet — Batch submitted for review by "+currentUser.name+".\n"+
+        approved+" entries approved"+(flagged?" | "+flagged+" flagged":"")+"\n"+
+        "Source: "+batchSourceFile+"\nLog in to review: https://sol-whatsapp-webhook.onrender.com",
+    true
+  );
+}
+
+function handleApprove(){
+  const approved=flEntries.filter(e=>e.status==="approved");
+  showFlConfirm(t("confirmApprove"),t("confirmApproveBody"),approved,()=>doApprove());
+}
+
+// ── PRE-INVOICE RENDER ──
+let piAdditionalCharges=[];
+let piSignedBy=null, piSignedAt=null, piInvNum=null;
+let piRulesSeeded=false;
+let piSortCol="bnum", piSortDir="asc";
+
+function generateInvNum(){
+  const now=new Date();
+  return "INV-"+now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(Math.floor(Math.random()*900)+100);
+}
+
+async function openPiLoadModal(){
+  await loadAllBatches();
+  // Update i18n labels
+  if(el("piLoadTitle")) el("piLoadTitle").textContent=t("piLoadTitle");
+  if(el("piLoad_currentLabel")) el("piLoad_currentLabel").textContent=t("piCurrent");
+  if(el("piLoad_historicLabel")) el("piLoad_historicLabel").textContent=t("piHistoric");
+  // Describe current batch
+  const desc=el("piLoad_currentDesc");
+  if(desc){
+    if(batchStatus==="APPROVED"){
+      const approved=flEntries.filter(e=>e.status==="approved");
+      desc.textContent=approved.length+" approved entries · "+batchStatus;
+      desc.style.color="var(--green)";
+    } else {
+      desc.textContent=lang==="es"?"Estado actual: "+batchStatus:"Current status: "+batchStatus;
+      desc.style.color="var(--dim2)";
+    }
+  }
+  // Populate historic selector — APPROVED batches only, using shared function
+  populateBatchSelect(el("piLoad_batchSel"), true);
+  // Reset historic section
+  const historicSel=el("piLoad_historicSel");
+  if(historicSel) historicSel.style.display="none";
+  openModal("piLoadMbd");
+}
+
+function renderPreInvoice(){
+  const ready=el("piDraftState");
+  const soon=el("piComingSoon");
+  if(!ready||!soon) return;
+  if(batchStatus==="APPROVED"){
+    ready.style.display="block"; soon.style.display="none";
+    if(!piInvNum) piInvNum=generateInvNum();
+    const approved=flEntries.filter(e=>e.status==="approved");
+    const aircraft=approved.length?AIRCRAFT.find(a=>a.matricula===approved[0].aeronave):null;
+    const operatorCode=approved.length?approved[0].operador:"";
+    const company=COMPANIES.find(c=>c.code===operatorCode);
+    const rate=aircraft?.rates?.find(r=>r.operador===operatorCode);
+    const tarifaHr=rate?rate.tarifaHr:0;
+    // Auto-seed billing rules from company if not yet seeded for this invoice
+    if(!piRulesSeeded && company?.billingRules?.length){
+      const totalTbh=approved.reduce((s,e)=>s+calcEntry(e).tbp,0);
+      const totalEntries=approved.length;
+      company.billingRules.filter(r=>r.active&&r.type!=="discount").forEach(r=>{
+        let amt=0, formula="";
+        if(r.unit==="per Flight Hour"||r.unit==="/ TBH"){
+          amt=parseFloat((r.amount*totalTbh).toFixed(2));
+          formula="$"+r.amount.toFixed(2)+" × "+totalTbh.toFixed(2)+" TBH";
+        } else if(r.unit==="per Flight"||r.unit==="/ Flight"){
+          amt=parseFloat((r.amount*totalEntries).toFixed(2));
+          formula="$"+r.amount.toFixed(2)+" × "+totalEntries+" flights";
+        } else {
+          amt=r.amount;
+          formula="$"+r.amount.toFixed(2)+" (flat)";
+        }
+        piAdditionalCharges.push({desc:r.name,amount:amt,_auto:true,_formula:formula});
+      });
+      // Seed discount rules — amount computed later in renderPiCharges against live subtotal/total
+      company.billingRules.filter(r=>r.active&&r.type==="discount").forEach(r=>{
+        piAdditionalCharges.push({desc:r.name,amount:r.amount,_discount:true,_discountMode:r.discountMode||"pct",_discountBase:r.discountBase||"subtotal",_showDiscountLine:r.showDiscountLine??false,_paymentWindowDays:r.paymentWindowDays??0,_footerText:r.footerText||""});
+      });
+      piRulesSeeded=true;
+    }
+    if(el("pi_owner_name")) el("pi_owner_name").textContent=aircraft?.owner||"—";
+    if(el("pi_owner_detail")) el("pi_owner_detail").textContent=aircraft?.ownerAddress||"";
+    if(el("pi_inv_num")) el("pi_inv_num").textContent=piInvNum;
+    if(el("pi_inv_date")) el("pi_inv_date").textContent=new Date().toLocaleDateString("es-PA");
+    if(el("pi_inv_aircraft")) el("pi_inv_aircraft").textContent=aircraft?.matricula||"—";
+    if(el("pi_bill_name")) el("pi_bill_name").textContent=company?.name||"—";
+    if(el("pi_bill_detail")){
+      const parts=[];
+      if(company?.inv_show_address!==false && company?.address) parts.push(company.address);
+      if(company?.inv_show_phone!==false && company?.phone) parts.push(company.phone);
+      if(company?.inv_show_notes===true && company?.notes) parts.push(company.notes);
+      // Contacts flagged for invoice
+      if(company?.contacts&&company.contacts.length){
+        company.contacts.forEach(c=>{
+          if(c.inv_show===false) return;
+          let line=c.type+": "+c.name;
+          if(c.phone) line+=" · "+c.phone;
+          if(c.email) line+=" · "+c.email;
+          parts.push(line);
+        });
+      } else {
+        // Fallback to legacy fields
+        if(company?.adminContact) parts.push("Attn: "+company.adminContact);
+        if(company?.acctContact) parts.push("Acctg: "+company.acctContact);
+      }
+      el("pi_bill_detail").innerHTML=parts.join("<br>");
+    }
+    const dates=approved.map(e=>e.fecha).filter(Boolean).sort();
+    const bnums=approved.map(e=>e.bnum).filter(Boolean).sort();
+    if(el("pi_period")) el("pi_period").textContent=dates.length?(dates[0]+" — "+dates[dates.length-1]):"—";
+    if(el("pi_log_range")) el("pi_log_range").textContent=bnums.length?("#"+bnums[0]+" — #"+bnums[bnums.length-1]):"—";
+    if(el("pi_rate_display")) el("pi_rate_display").textContent=tarifaHr>0?"$"+tarifaHr.toFixed(2)+"/hr":"—";
+    if(el("pi_rate_wrap")) el("pi_rate_wrap").style.display=company?.inv_show_rate!==false?"":"none";
+    // Sort approved entries
+    const sortedApproved=[...approved].sort((a,b)=>{
+      let av,bv;
+      if(piSortCol==="bnum"){
+        av=a.bnum||""; bv=b.bnum||"";
+        return piSortDir==="asc"?av.localeCompare(bv):bv.localeCompare(av);
+      } else {
+        // fecha is DD/MM/YYYY — convert to YYYYMMDD for correct comparison
+        const toYMD=s=>{ if(!s) return ""; const p=s.split("/"); return p.length===3?p[2]+p[1]+p[0]:""; };
+        av=toYMD(a.fecha); bv=toYMD(b.fecha);
+        return piSortDir==="asc"?av.localeCompare(bv):bv.localeCompare(av);
+      }
+    });
+    // Update sort arrow indicators
+    if(el("pi_sort_bnum")) el("pi_sort_bnum").textContent=piSortCol==="bnum"?(piSortDir==="asc"?"↑":"↓"):"";
+    if(el("pi_sort_fecha")) el("pi_sort_fecha").textContent=piSortCol==="fecha"?(piSortDir==="asc"?"↑":"↓"):"";
+    if(el("pi_th_bnum")) el("pi_th_bnum").style.color=piSortCol==="bnum"?"var(--cyan)":"";
+    if(el("pi_th_fecha")) el("pi_th_fecha").style.color=piSortCol==="fecha"?"var(--cyan)":"";
+    let totalTbp=0, totalAmt=0;
+    const tbody=el("pi_line_items");
+    const lastRowTbl=el("pi_last_row");
+    if(tbody){
+      tbody.innerHTML="";
+      if(lastRowTbl) lastRowTbl.innerHTML="";
+      sortedApproved.forEach((e,i)=>{
+        const{tm,tbp}=calcEntry(e);
+        const amt=tarifaHr>0?parseFloat((tbp*tarifaHr).toFixed(2)):0;
+        totalTbp+=tbp; totalAmt+=amt;
+        const tr=document.createElement("tr");
+        tr.innerHTML="<td>"+(i+1)+"</td><td>"+(e.bnum||"—")+"</td><td>"+(e.fecha||"—")+"</td><td>"+(e.piloto||"—")+"</td><td>"+fmt(tbp)+" hrs</td><td class='pi-amt"+(amt===0?" pi-zero":"")+"'>"+fmtCurrency(amt)+"</td>";
+        // Last row goes into the summary block, rest into main tbody
+        if(i===sortedApproved.length-1 && lastRowTbl){
+          lastRowTbl.appendChild(tr);
+        } else {
+          tbody.appendChild(tr);
+        }
+      });
+    }
+    if(el("pi_sub_hrs")) el("pi_sub_hrs").textContent=fmt(totalTbp)+" hrs";
+    if(el("pi_sub_amt")) el("pi_sub_amt").textContent=fmtCurrency(totalAmt);
+    renderPiCharges(totalAmt);
+    if(piSignedBy&&el("pi_signed_badge")){
+      el("pi_signed_badge").style.display="flex";
+      el("pi_signed_badge").textContent="✓ Approved by "+piSignedBy+" on "+piSignedAt;
+      if(el("pi_signoff_btn")) el("pi_signoff_btn").style.display="none";
+    }
+  } else {
+    ready.style.display="none"; soon.style.display="block";
+    const msg=el("pi_coming_msg");
+    if(msg) msg.textContent=batchStatus==="SUBMITTED"?"Batch under review — awaiting approval":"Approve a batch to unlock billing";
+  }
+}
+
+function renderPiCharges(subtotal){
+  const wrap=el("pi_charges_list"); if(!wrap) return;
+  wrap.innerHTML="";
+  let chargesTotal=0;
+  const charges=piAdditionalCharges.filter(c=>!c._discount);
+  const discounts=piAdditionalCharges.filter(c=>c._discount);
+  // Render as a table matching pi-tbl 6-column structure: #, Log#, Date, Pilot, TBH, Amount
+  const tbl=document.createElement("table");
+  tbl.className="pi-tbl"; tbl.style.marginBottom="0";
+  const tbody=document.createElement("tbody");
+  charges.forEach((c,i)=>{
+    const origIdx=piAdditionalCharges.indexOf(c);
+    chargesTotal+=c.amount;
+    const tr=document.createElement("tr");
+    if(c._auto){
+      tr.innerHTML=
+        '<td colspan="4" style="font-family:var(--mono);font-size:11px;color:var(--text);vertical-align:middle">'+
+          c.desc+
+          (c._formula?'<div style="font-size:10px;color:var(--dim2);margin-top:2px">'+c._formula+'</div>':'')+
+        '</td>'+
+        '<td style="vertical-align:middle;text-align:right">'+
+          '<input type="number" value="'+c.amount+'" step="0.01" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:4px 6px;font-size:11px;border-radius:2px;width:80px;text-align:right;font-family:var(--mono);box-sizing:border-box" data-ci="'+origIdx+'" data-cf="amt">'+
+        '</td>'+
+        '<td class="pi-amt" style="text-align:right;vertical-align:middle">'+fmtCurrency(c.amount)+
+          ' <button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0 0 0 6px;vertical-align:middle" data-del-charge="'+origIdx+'">✕</button>'+
+        '</td>';
+    } else {
+      tr.innerHTML=
+        '<td colspan="4" style="vertical-align:middle">'+
+          '<span class="pi-desc-print" style="font-family:var(--mono);font-size:11px;color:var(--text)">'+c.desc+'</span>'+
+          '<input type="text" value="'+c.desc+'" placeholder="Description" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:4px 8px;font-size:11px;border-radius:2px;width:100%;font-family:var(--mono);box-sizing:border-box" data-ci="'+origIdx+'" data-cf="desc">'+
+        '</td>'+
+        '<td style="vertical-align:middle;text-align:right">'+
+          '<input type="number" value="'+c.amount+'" step="0.01" placeholder="0.00" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:4px 6px;font-size:11px;border-radius:2px;width:80px;text-align:right;font-family:var(--mono);box-sizing:border-box" data-ci="'+origIdx+'" data-cf="amt">'+
+        '</td>'+
+        '<td class="pi-amt" style="text-align:right;vertical-align:middle">'+fmtCurrency(c.amount)+
+          ' <button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0 0 0 6px;vertical-align:middle" data-del-charge="'+origIdx+'">✕</button>'+
+        '</td>';
+    }
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  wrap.appendChild(tbl);
+  const grandTotal=subtotal+chargesTotal;
+  if(el("pi_total_amt")) el("pi_total_amt").textContent=fmtCurrency(grandTotal);
+  // Render discount breakdown and pronto pago block
+  const discWrap=el("pi_discount_block");
+  const prontoWrap=el("pi_pronto_block");
+  const totalAmtEl=el("pi_total_amt");
+  const totalLblEl=totalAmtEl?totalAmtEl.previousElementSibling:null;
+  if(discWrap) discWrap.innerHTML="";
+  if(prontoWrap){ prontoWrap.innerHTML=""; prontoWrap.style.display="none"; }
+  if(discounts.length){
+    // De-emphasize TOTAL AMOUNT DUE when pronto pago exists
+    if(totalAmtEl) totalAmtEl.classList.add("has-pronto");
+    if(totalLblEl) totalLblEl.classList.add("has-pronto");
+    // Compute stacked net total across all discounts
+    let totalDiscAmt=0;
+    discounts.forEach(d=>{
+      const base=d._discountBase==="total"?grandTotal:subtotal;
+      totalDiscAmt+=d._discountMode==="pct"?parseFloat((base*(d.amount/100)).toFixed(2)):d.amount;
+    });
+    totalDiscAmt=parseFloat(totalDiscAmt.toFixed(2));
+    const netTotal=parseFloat((grandTotal-totalDiscAmt).toFixed(2));
+    // Render optional per-discount breakdown lines (showDiscountLine=true only)
+    if(discWrap){
+      discounts.forEach(d=>{
+        if(!(d._showDiscountLine??false)) return;
+        const base=d._discountBase==="total"?grandTotal:subtotal;
+        const dAmt=d._discountMode==="pct"?parseFloat((base*(d.amount/100)).toFixed(2)):d.amount;
+        const dRow=document.createElement("div");
+        dRow.style.cssText="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-top:1px dashed var(--border2);font-family:var(--mono);font-size:11px";
+        dRow.innerHTML='<span style="color:var(--dim2)">'+d.desc+
+          ' <span style="color:var(--dim);font-size:9px">('+
+          (d._discountMode==="pct"?d.amount+"% "+t(d._discountBase==="total"?"discOfTotal":"discOfSubtotal"):"$"+dAmt.toFixed(2)+" off")+
+          ')</span></span><span style="color:var(--red)">− '+fmtCurrency(dAmt)+'</span>';
+        discWrap.appendChild(dRow);
+      });
+    }
+    // Render pronto pago — larger amt (24px), more breathing room (margin-bottom:20px)
+    if(prontoWrap){
+      prontoWrap.style.cssText="margin-top:8px;margin-bottom:20px;padding:12px 16px;background:rgba(26,153,85,.07);border:1px solid rgba(26,153,85,.3);border-left:3px solid var(--green);border-radius:2px;display:block";
+      const d=discounts[0];
+      const footerDays=d._paymentWindowDays??0;
+      const footerCustom=d._footerText||"";
+      const footerLine=footerCustom||(footerDays>0?(t("validoPor")+" "+footerDays+" "+t("diasHabiles")):"");
+      prontoWrap.innerHTML=
+        '<div style="display:flex;justify-content:space-between;align-items:baseline;font-family:var(--mono)">'+
+          '<span class="pi-pronto-label" style="font-size:13px;font-weight:700;letter-spacing:1px;color:var(--green)">'+t("prontoPago")+'</span>'+
+          '<span class="pi-pronto-amt" style="font-size:24px;font-weight:700;color:var(--green);letter-spacing:1px;font-family:var(--display)">'+fmtCurrency(netTotal)+'</span>'+
+        '</div>'+
+        (footerLine?'<div class="pi-pronto-footer" style="font-family:var(--mono);font-size:9px;color:var(--dim2);margin-top:4px">'+footerLine+'</div>':"");
+    }
+  } else {
+    // No discount: restore full emphasis on TOTAL AMOUNT DUE
+    if(totalAmtEl) totalAmtEl.classList.remove("has-pronto");
+    if(totalLblEl) totalLblEl.classList.remove("has-pronto");
+  }
+  wrap.querySelectorAll("input").forEach(inp=>{
+    inp.addEventListener("change",()=>{
+      const i=parseInt(inp.dataset.ci);
+      if(inp.dataset.cf==="desc") piAdditionalCharges[i].desc=inp.value;
+      else{ piAdditionalCharges[i].amount=parseFloat(inp.value)||0; }
+      renderPiCharges(subtotal);
+    });
+  });
+  wrap.querySelectorAll("[data-del-charge]").forEach(btn=>{
+    btn.addEventListener("click",()=>{piAdditionalCharges.splice(parseInt(btn.dataset.delCharge),1);renderPiCharges(subtotal);});
+  });
+}
+
+async function reopenBatch(){
+  const reason=el("reopen_reason")?el("reopen_reason").value.trim():"";
+  if(!reason){showToast("Reason required","err");return;}
+  const prevStatus=batchStatus;
+  batchStatus="DRAFT";
+  await saveBatchToDB();
+  addFlAudit("↩",currentUser.name,"batch reopened","From: "+prevStatus+" — Reason: "+reason);
+  addAudit("↩",currentUser.name,"batch reopened",currentBatchId+" from "+prevStatus+" — "+reason);
+  closeModal("reopenMbd");
+  if(el("reopen_reason")) el("reopen_reason").value="";
+  renderWfBar(); setupFlRoleUI(); renderFlTable();
+  showToast("Batch reopened — status set to DRAFT","warn");
+}
+
+async function doApprove(){
+  batchStatus="APPROVED";
+  if(el("resultBanner")) el("resultBanner").style.display="none";
+  await saveBatchToDB();
+  exportFlCSV();
+  addFlAudit("✅",currentUser.name,"approved for invoicing",flEntries.filter(e=>e.status==="approved").length+" entries");
+  renderWfBar(); setupFlRoleUI(); renderPreInvoice();
+  showToast(lang==="es"?"Lote aprobado para facturación.":"Batch approved for invoicing.");
+  notifyWhatsApp("OPERATOR",
+    lang==="es"
+      ? "HP Fleet — Lote APROBADO para facturación por "+currentUser.name+".\n"+
+        flEntries.filter(e=>e.status==="approved").length+" entradas aprobadas.\n"+
+        "Fuente: "+batchSourceFile+"\nInicia sesión para ver Facturación: https://sol-whatsapp-webhook.onrender.com"
+      : "HP Fleet — Batch APPROVED for invoicing by "+currentUser.name+".\n"+
+        flEntries.filter(e=>e.status==="approved").length+" entries approved.\n"+
+        "Source: "+batchSourceFile+"\nLog in to view Billing: https://sol-whatsapp-webhook.onrender.com",
+    true
+  );
+}
+
+// ── RETURN FOR REVIEW ──
+function openRfr(){
+  const flagged=flEntries.filter(e=>e.flagNote&&e.flagNote.trim()!=="");
+  const tbody=el("rfr_tbody"); if(tbody) tbody.innerHTML="";
+  const noFlags=el("rfr_noFlags");
+  if(flagged.length===0){
+    if(noFlags){ noFlags.style.display=""; noFlags.textContent=t("rfrNoFlags"); }
+  } else {
+    if(noFlags) noFlags.style.display="none";
+    flagged.forEach(e=>{
+      const gi=flEntries.indexOf(e)+1;
+      const tr=document.createElement("tr");
+      tr.style.borderBottom="1px solid var(--border)";
+      tr.innerHTML=`<td style="padding:6px 8px;color:var(--text)">${gi}</td>`+
+        `<td style="padding:6px 8px;color:var(--cyan)">${e.logNum||"—"}</td>`+
+        `<td style="padding:6px 8px;color:var(--yellow)">${e.flagNote||""}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+  // i18n labels
+  if(el("rfr_title")) el("rfr_title").textContent=t("rfrTitle");
+  if(el("rfr_subtitle")) el("rfr_subtitle").textContent=flagged.length+" "+(lang==="es"?"entradas con comentarios":"entries with comments");
+  if(el("rfr_colEntry")) el("rfr_colEntry").textContent=t("rfrColEntry");
+  if(el("rfr_colLog")) el("rfr_colLog").textContent=t("rfrColLog");
+  if(el("rfr_colComment")) el("rfr_colComment").textContent=t("rfrColComment");
+  if(el("rfr_batchNoteLabel")) el("rfr_batchNoteLabel").textContent=t("rfrBatchNote");
+  if(el("rfr_batchNote")) el("rfr_batchNote").placeholder=t("rfrBatchNotePh");
+  if(el("rfr_cancel")) el("rfr_cancel").textContent=t("rfrCancel");
+  if(el("rfr_continue")) el("rfr_continue").textContent=t("rfrContinue");
+  // Admin CC notice
+  const notice=el("rfr_adminNotice");
+  if(notice) notice.style.display=_adminCcEnabled?"":"none";
+  if(el("rfr_adminNoticeText")) el("rfr_adminNoticeText").textContent=t("rfrAdminNotice");
+  // Show dialog
+  const dlg=el("rfrDialog"); if(dlg){ dlg.style.display="flex"; }
+  el("rfrMbd").style.display="flex";
+  makeDraggable("rfrDialog","rfrDialogHdr");
+}
+
+function closeRfr(){
+  if(el("rfrDialog")) el("rfrDialog").style.display="none";
+  if(el("rfrMbd")) el("rfrMbd").style.display="none";
+  if(el("rfr_batchNote")) el("rfr_batchNote").value="";
+}
+
+async function doReturnForReview(){
+  const batchNote=el("rfr_batchNote")?el("rfr_batchNote").value.trim():"";
+  const flagged=flEntries.filter(e=>e.flagNote&&e.flagNote.trim()!=="");
+  const logNums=flagged.map(e=>e.logNum||(  "#"+(flEntries.indexOf(e)+1))).join(", ");
+  // Auto-set all reviewed entries to flagged status
+  flagged.forEach(e=>{ if(e.status!=="nonbillable"&&e.status!=="void") e.status="flagged"; });
+  closeRfr();
+  // Revert batch to DRAFT, increment cycle
+  batchStatus="DRAFT";
+  reviewCycle++;
+  if(el("resultBanner")) el("resultBanner").style.display="none";
+  await saveBatchToDB();
+  addFlAudit("↩",currentUser.name,lang==="es"?"devolvió lote para corrección":"returned batch for review",
+    flagged.length+(lang==="es"?" entradas marcadas":" flagged entries"));
+  renderWfBar(); setupFlRoleUI(); renderFlTable();
+  // Pre-activate reviewer_comments filter for operator
+  if(el("filterOp")){ el("filterOp").value="reviewer_comments"; renderFlTable(); }
+  showToast(lang==="es"?"Lote devuelto para corrección.":"Batch returned for review.");
+  // Build bilingual WA message
+  const msg = lang==="es"
+    ? t("rfrWaMsg")+" "+currentUser.name+".\n"+
+      flagged.length+" "+t("rfrWaFlagged")+".\n"+
+      t("rfrWaLogs")+" "+logNums+
+      (batchNote?"\nNota: "+batchNote:"")+"\n"+
+      t("rfrWaLogin")
+    : t("rfrWaMsg")+" "+currentUser.name+".\n"+
+      flagged.length+" "+t("rfrWaFlagged")+".\n"+
+      t("rfrWaLogs")+" "+logNums+
+      (batchNote?"\nNote: "+batchNote:"")+"\n"+
+      t("rfrWaLogin");
+  notifyWhatsApp("OPERATOR", msg, true);
+}
+
+async function saveDraft(){
+  await saveBatchToDB();
+  addFlAudit("💾",currentUser.name,"saved draft",flEntries.length+" entries");
+  showToast(lang==="es"?"Borrador guardado.":"Draft saved.");
+}
+
+function proceedAnyway(){ closeModal("excMbd"); if(confirmCb){confirmCb();confirmCb=null;} }
+
+function showFlConfirm(title,body,approvedEntries,cb){
+  el("confirm_title").textContent=title; el("confirm_body").textContent=body;
+  let fmM=0,fmT=0,magM=0,magT=0;
+  approvedEntries.forEach(e=>{ const{tm,tbp}=calcEntry(e); if(e.operador==="FM"){fmM+=tm;fmT+=tbp;}else{magM+=tm;magT+=tbp;} });
+  el("confirmStats").innerHTML=
+    '<div class="cs-ok">FM — T.Motor: '+fmt(fmM)+" hrs | TBH: "+fmt(fmT)+" hrs</div>"+
+    '<div class="cs-w">MAG — T.Motor: '+fmt(magM)+" hrs | TBH: "+fmt(magT)+" hrs</div>"+
+    '<div class="cs-c" style="margin-top:4px">'+t("totalApproved")+": "+approvedEntries.length+"</div>"+
+    '<div class="cs-c">Total TBH: '+fmt(fmT+magT)+" hrs</div>"+
+    '<div class="cs-d">'+t("csvNote")+"</div>";
+  confirmCb=cb; openModal("confirmMbd");
+}
+
+function executeConfirm(){ closeModal("confirmMbd"); if(confirmCb){confirmCb();confirmCb=null;} }
+
+// ── EXPORTS ──
+function exportFlCSV(){
+  const hdrs=["#","Log#","Date","Aircraft","Operator","Pilot","Instructor","Horo.Start","Motor.Out","Motor.In","T.Motor",
+    "Flight.Out","Flight.In","T.Flight","Default.Mult","Override.Mult","Total.TBH","Notes","Review.Comment","Status",
+    "Batch.Status","Loaded.By","Source.File","Timestamp"];
+  const rows=flEntries.map((e,i)=>{
+    const{tm,tv,tbp}=calcEntry(e);
+    return [i+1,e.bnum||"",e.fecha,e.aeronave,e.operador,e.piloto,e.instructor||"",e.horoIn,
+      e.motorOut,e.motorIn,tm.toFixed(2),e.vueloOut,e.vueloIn,tv.toFixed(2),
+      DEFAULT_MULT[e.operador]||"",e.multOverride||"",tbp.toFixed(2),
+      e.obs||"",e.flagNote||"",e.status,batchStatus,currentUser.name,batchSourceFile.join(", "),FL_LOAD_TS.toISOString()]
+      .map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(",");
+  });
+  const ts=FL_LOAD_TS.toISOString().slice(0,16).replace(/[T:]/g,"-");
+  dlFile("flightlog_audit_"+ts+".csv",[hdrs.join(","),...rows].join("\n"),"text/csv");
+  if(el("srcCsv")) el("srcCsv").textContent=t("srcCsvDone")+" "+new Date().toLocaleTimeString();
+  showToast(lang==="es"?"↓ CSV descargado.":"↓ CSV downloaded.");
+}
+
+function exportFlXLSX(){
+  if(typeof XLSX==="undefined"){showToast("XLSX library not loaded","err");return;}
+  const headers=["#","Log#","Date","Aircraft","Operator","Pilot","Instructor","Horo.Start","Motor Out","Motor In","T.Motor",
+    "Flight Out","Flight In","T.Flight","Default Mult","Override Mult","Total TBH","Notes","Review Comment","Status",
+    "Batch Status","Loaded By","Source File","Timestamp"];
+  const data=[headers,...flEntries.map((e,i)=>{
+    const{tm,tv,tbp}=calcEntry(e);
+    return [i+1,e.bnum||"",e.fecha,e.aeronave,e.operador,e.piloto,e.instructor||"",e.horoIn,
+      e.motorOut,e.motorIn,parseFloat(tm.toFixed(2)),
+      e.vueloOut,e.vueloIn,parseFloat(tv.toFixed(2)),
+      DEFAULT_MULT[e.operador]||"",e.multOverride||"",parseFloat(tbp.toFixed(2)),
+      e.obs||"",e.flagNote||"",e.status,batchStatus,currentUser.name,batchSourceFile.join(", "),FL_LOAD_TS.toISOString()];
+  })];
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  ws["!cols"]=[4,12,12,10,18,18,11,10,10,9,10,10,9,9,10,10,20,10,12,16,22,22].map(w=>({wch:w}));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Flight Log");
+  let fmM=0,fmT=0,magM=0,magT=0;
+  flEntries.filter(e=>e.status==="approved").forEach(e=>{const{tm,tbp}=calcEntry(e);if(e.operador==="FM"){fmM+=tm;fmT+=tbp;}else{magM+=tm;magT+=tbp;}});
+  const sumData=[
+    ["HP Fleet — Flight Log Summary",""],
+    ["Generated",new Date().toLocaleString()],
+    ["Source File",batchSourceFile.join(", ")],["Batch Status",batchStatus],["Loaded By",currentUser.name],["",""],
+    ["Operator","T.Motor (hrs)","Total TBH (hrs)"],
+    ["FM",parseFloat(fmM.toFixed(2)),parseFloat(fmT.toFixed(2))],
+    ["MAG",parseFloat(magM.toFixed(2)),parseFloat(magT.toFixed(2))],
+    ["TOTAL",parseFloat((fmM+magM).toFixed(2)),parseFloat((fmT+magT).toFixed(2))]
+  ];
+  const wsSum=XLSX.utils.aoa_to_sheet(sumData);
+  wsSum["!cols"]=[{wch:18},{wch:14},{wch:16}];
+  XLSX.utils.book_append_sheet(wb,wsSum,"Summary");
+  const ts=FL_LOAD_TS.toISOString().slice(0,16).replace(/[T:]/g,"-");
+  XLSX.writeFile(wb,"flightlog_"+ts+".xlsx");
+  showToast(lang==="es"?"↓ XLSX exportado.":"↓ XLSX exported.");
+}
+
+function dlFile(name,content,type){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([content],{type}));
+  a.download=name; a.click();
+}
+
+
+
+// ── FLAG ENTRY (Reviewer) ──
+function openFlagEntry(id){
+  const e=flEntries.find(x=>x.id===id); if(!e) return;
+  flaggingEntryId=id;
+  el("flagEntryLabel").textContent="Entry #"+(flEntries.indexOf(e)+1)+" — "+e.fecha+" | "+e.piloto;
+  el("flag_comment").value=e.flagNote||"";
+  openModal("flagMbd");
+}
+
+async function saveFlagEntry(){
+  const comment=el("flag_comment").value.trim();
+  if(!comment){showToast("Please describe the issue","err");return;}
+  const e=flEntries.find(x=>x.id===flaggingEntryId); if(!e) return;
+  e.status="flagged";
+  e.flagNote=comment;
+  addFlAudit("🚩",currentUser.name,"flagged entry #"+(flEntries.indexOf(e)+1),comment);
+  closeModal("flagMbd");
+  await saveBatchToDB();
+  renderFlTable();
+  showToast("Entry flagged");
+}
+
+// ── WHATSAPP NOTIFY — with confirmation dialog ──
+let _waPendingUrl=null;
+let _adminCcEnabled=false;
+let _waCcMessage=null;
+
+function notifyWhatsApp(toRole, message, ccAdmin=false){
+  const recipient=USERS.find(u=>u.role===toRole&&u.status==="active"&&u.phone);
+  if(!recipient||!recipient.phone){ dbg("No WhatsApp number for "+toRole,"warn"); return; }
+  const phone=recipient.phone.replace(/[^0-9]/g,"");
+  _waPendingUrl="https://wa.me/"+phone+"?text="+encodeURIComponent(message);
+  _waCcMessage=(_adminCcEnabled&&ccAdmin)?message:null;
+  // Show confirmation dialog
+  if(el("wa_msg_preview")) el("wa_msg_preview").textContent=message.split("\n")[0];
+  if(el("wa_recipient")) el("wa_recipient").textContent=recipient.name+" · "+recipient.phone;
+  const showCc=_adminCcEnabled&&ccAdmin;
+  if(el("wa_adminNotice")) el("wa_adminNotice").style.display=showCc?"":"none";
+  if(el("wa_adminNoticeText")) el("wa_adminNoticeText").textContent=t("rfrAdminNotice");
+  openModal("waMbd");
+}
+
+function sendWhatsApp(){
+  closeModal("waMbd");
+  if(_waPendingUrl){window.open(_waPendingUrl,"_blank");_waPendingUrl=null;}
+  if(_waCcMessage){
+    // Silent email CC to admin
+    const admin=USERS.find(u=>u.role==="ADMIN"&&u.status==="active"&&u.email);
+    if(admin&&admin.email){
+      const subject=encodeURIComponent("HP Fleet — Workflow Notification");
+      const body=encodeURIComponent(_waCcMessage);
+      const a=document.createElement("a");
+      a.href="mailto:"+admin.email+"?subject="+subject+"&body="+body;
+      a.click();
+    }
+    _waCcMessage=null;
+  }
+}
+function skipWhatsApp(){ closeModal("waMbd"); _waPendingUrl=null; _waCcMessage=null; }
+
+// ── SIDE PANEL IMAGE ZOOM & ROTATE ──
+let spZoom=1, spRotation=0, spPanX=0, spPanY=0, spPanMode=false;
+
+async function resetTestData(){
+  if(!currentBatchId){showToast(lang==="es"?"No hay lote activo":"No active batch","err");return;}
+  flEntries.forEach(e=>{
+    e.flagNote="";
+    e.reviewThread=[];
+    e.status="pending";
+  });
+  await saveBatchToDB();
+  renderFlTable(); updateSrcBar(); renderWfBar();
+  addFlAudit("🗑",currentUser.name,"reset test data","All entry flag_note, review_thread cleared, status → pending");
+  showToast(lang==="es"?"Datos de prueba reiniciados":"Test data reset","warn");
+}
+
+function _scaleNonBillWatermark(){
+  const wrap=el("sp_img_wrap");
+  const txt=el("sp_nonbill_wm_text");
+  if(!wrap||!txt) return;
+  const h=wrap.offsetHeight||300;
+  txt.style.fontSize=Math.max(18,Math.floor(h*0.12))+"px";
+}
+
+function spApplyTransform(){
+  const img=el("sp_img"); if(!img) return;
+  img.style.transform=`rotate(${spRotation}deg) scale(${spZoom}) translate(${spPanX}px,${spPanY}px)`;
+  // Update zoom level indicator
+  if(el("sp_zoom_level")) el("sp_zoom_level").textContent=Math.round(spZoom*100)+"%";
+  // Update pan button active state
+  const panBtn=el("sp_pan_toggle");
+  if(panBtn) panBtn.classList.toggle("active", spPanMode);
+  // Update wrap cursor
+  const wrap=el("sp_img_wrap");
+  if(wrap) wrap.classList.toggle("panning", spPanMode);
+}
+
+function spFitToWindow(){
+  spZoom=1; spPanX=0; spPanY=0; spPanMode=false; spApplyTransform();
+}
+
+function spZoomIn(){ spZoom=Math.min(4,+(spZoom+0.25).toFixed(2)); spApplyTransform(); }
+function spZoomOut(){ spZoom=Math.max(0.25,+(spZoom-0.25).toFixed(2)); if(spZoom===1){spPanX=0;spPanY=0;} spApplyTransform(); }
+function spZoomReset(){ spZoom=1; spPanX=0; spPanY=0; spApplyTransform(); }
+function spTogglePan(){ spPanMode=!spPanMode; spApplyTransform(); }
+
+function spRotateImg(){
+  spRotation=(spRotation+90)%360;
+  // Persist rotation on the entry so it survives panel reloads
+  if(spEditingEntryId){
+    const entry=flEntries.find(e=>e.id===spEditingEntryId);
+    if(entry) entry._rotation=spRotation;
+  }
+  spApplyTransform();
+}
+
+function spResetTransform(){ spZoom=1; spRotation=0; spPanX=0; spPanY=0; spPanMode=false; spApplyTransform(); }
+
+// ── UNDO LAST STATUS CHANGE ──
+let _lastStatusChange=null; // {entryId, prevStatus, prevNonBillReason}
+let _undoTimer=null;
+
+function recordStatusChange(entryId, prevStatus, prevNonBillReason){
+  _lastStatusChange={entryId, prevStatus, prevNonBillReason};
+  showUndoBtn();
+}
+
+function showUndoBtn(){
+  let btn=el("undoBtn");
+  if(!btn){
+    btn=document.createElement("button");
+    btn.id="undoBtn";
+    btn.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 20px;border-radius:20px;cursor:pointer;z-index:300;box-shadow:0 4px 12px rgba(0,0,0,.4);transition:opacity .3s";
+    btn.textContent="↩ Undo";
+    btn.addEventListener("click",undoStatusChange);
+    document.body.appendChild(btn);
+  }
+  btn.style.opacity="1";
+  btn.style.display="block";
+  if(_undoTimer) clearTimeout(_undoTimer);
+  _undoTimer=setTimeout(()=>{
+    if(btn){ btn.style.opacity="0"; setTimeout(()=>{btn.style.display="none";},300); }
+  },5000);
+}
+
+function undoStatusChange(){
+  if(!_lastStatusChange) return;
+  const {entryId,prevStatus,prevNonBillReason}=_lastStatusChange;
+  const entry=flEntries.find(e=>e.id===entryId); if(!entry) return;
+  entry.status=prevStatus;
+  entry.nonBillReason=prevNonBillReason||null;
+  spUpdateNonBillBtn(entry.status==="nonbillable");
+  _lastStatusChange=null;
+  renderFlTable(); updateSrcBar();
+  const btn=el("undoBtn");
+  if(btn){btn.style.display="none";}
+  showToast("Undone","info");
+}
+
+let spReextracting=false;
+let spDirty=false;
+
+function spUpdateNonBillBtn(isNonBill){
+  const btn=el("sp_nonbill_toggle"); if(!btn) return;
+  if(isNonBill){
+    btn.textContent="● Non-Billable";
+    btn.classList.add("active");
+  } else {
+    btn.textContent="○ Non-Billable";
+    btn.classList.remove("active");
+    const wm=el("sp_nonbill_watermark"); if(wm) wm.style.display="none";
+  }
+} // tracks unsaved changes in side panel
+
+// Mark panel dirty when any field changes
+function spMarkDirty(){
+  spDirty=true;
+  const saveBtn=el("sp_save");
+  if(saveBtn){ saveBtn.disabled=false; saveBtn.style.cursor="pointer"; saveBtn.style.opacity="1"; saveBtn.style.background="rgba(65,209,255,.12)"; saveBtn.style.borderColor="var(--cyan)"; saveBtn.style.color="var(--cyan)"; }
+}
+function spClearDirty(){
+  spDirty=false;
+  const saveBtn=el("sp_save");
+  if(saveBtn){ saveBtn.disabled=true; saveBtn.style.cursor="not-allowed"; saveBtn.style.opacity="0.4"; saveBtn.style.background="rgba(65,209,255,.04)"; saveBtn.style.borderColor="var(--dim2)"; saveBtn.style.color="var(--dim2)"; }
+}
+
+// Aircraft cascade — filters operators and multiplier to valid values for selected aircraft
+function spCascadeAircraftDropdowns(matricula){
+  const opSel=el("sp_operador");
+  const multSel=el("sp_mult_sel");
+  const multInp=el("sp_mult");
+  if(!opSel) return;
+  const ac=AIRCRAFT.find(a=>a.matricula===matricula);
+  const currentOp=opSel.value;
+  opSel.innerHTML="";
+  if(ac&&ac.rates&&ac.rates.length){
+    ac.rates.forEach(r=>{
+      const opt=document.createElement("option");
+      opt.value=r.operador; opt.textContent=r.operador;
+      opSel.appendChild(opt);
+    });
+    if(ac.rates.find(r=>r.operador===currentOp)) opSel.value=currentOp;
+    else opSel.value=ac.rates[0].operador;
+  } else {
+    ["FM","MAG"].forEach(op=>{
+      const opt=document.createElement("option");
+      opt.value=op; opt.textContent=op;
+      opSel.appendChild(opt);
+    });
+  }
+  // Populate mult dropdown with all rates for this aircraft + Custom
+  if(multSel&&ac&&ac.rates){
+    multSel.innerHTML="";
+    ac.rates.forEach(r=>{
+      const opt=document.createElement("option");
+      opt.value=r.multiplicador;
+      opt.textContent=r.operador+" — "+r.multiplicador.toFixed(3);
+      multSel.appendChild(opt);
+    });
+    const customOpt=document.createElement("option");
+    customOpt.value="custom"; customOpt.textContent="Custom…";
+    multSel.appendChild(customOpt);
+    multSel.value=ac.rates.find(r=>r.operador===opSel.value)?.multiplicador||ac.rates[0].multiplicador;
+    if(multInp) multInp.style.display="none";
+  }
+  spLiveCalc();
+}
+
+// Unsaved changes guard — call before navigating away from current entry
+async function spGuardDirty(proceedFn){
+  if(!spDirty){ proceedFn(); return; }
+  const confirmed=confirm("Save changes before you go?");
+  if(confirmed) await saveSpEntry();
+  spDirty=false;
+  proceedFn();
+}
+
+async function spReextract(){
+  if(!spEditingEntryId) return;
+  if(spReextracting){showToast("Re-extraction already in progress","warn");return;}
+  if(isExtracting){showToast("Batch extraction in progress — please wait","warn");return;}
+  const apiKey=getApiKey();
+  if(!apiKey){showToast("API key not configured","err");return;}
+  const entry=flEntries.find(e=>e.id===spEditingEntryId); if(!entry||!entry.imageUrl) return;
+
+  // Guard + spinner
+  spReextracting=true;
+  const reBtn=el("sp_reextract");
+  if(reBtn){reBtn.disabled=true;reBtn.textContent="↺ Extracting…";}
+  const wrap=el("sp_img_wrap");
+  const spinner=document.createElement("div");
+  spinner.id="sp_spinner";
+  spinner.style.cssText="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:10;border-radius:2px";
+  spinner.innerHTML='<div style="width:36px;height:36px;border:3px solid var(--border2);border-top-color:var(--cyan);border-radius:50%;animation:spin 0.7s linear infinite"></div>';
+  if(wrap) wrap.appendChild(spinner);
+
+  try {
+    const resp=await fetch(entry.imageUrl);
+    const blob=await resp.blob();
+    const img=new Image();
+    await new Promise(r=>{img.onload=r;img.src=URL.createObjectURL(blob);});
+    const natW=img.naturalWidth||img.width;
+    const natH=img.naturalHeight||img.height;
+    const canvas=document.createElement("canvas");
+    const swap=spRotation===90||spRotation===270;
+    canvas.width=swap?natH:natW;
+    canvas.height=swap?natW:natH;
+    const ctx=canvas.getContext("2d");
+    ctx.save();
+    ctx.translate(canvas.width/2,canvas.height/2);
+    ctx.rotate(spRotation*Math.PI/180);
+    ctx.drawImage(img,-natW/2,-natH/2,natW,natH);
+    ctx.restore();
+    const rotatedBlob=await new Promise(r=>canvas.toBlob(r,"image/jpeg",0.9));
+    const rotatedFile=new File([rotatedBlob],"reextract.jpg",{type:"image/jpeg"});
+    const results=await extractImageFile(rotatedFile,apiKey);
+    if(!results||!results.length){showToast("No log data found on this page","warn");return;}
+    const r=results[0];
+    // Populate side panel fields
+    if(el("sp_bnum")) el("sp_bnum").value=r.bnum||"";
+    if(el("sp_fecha")) el("sp_fecha").value=r.fecha||"";
+    if(el("sp_piloto")) el("sp_piloto").value=r.piloto||"";
+    if(el("sp_instructor")) el("sp_instructor").value=r.instructor||"";
+    if(el("sp_motorOut")) el("sp_motorOut").value=r.motorOut||"";
+    if(el("sp_motorIn")) el("sp_motorIn").value=r.motorIn||"";
+    if(el("sp_vueloOut")) el("sp_vueloOut").value=r.vueloOut||"";
+    if(el("sp_vueloIn")) el("sp_vueloIn").value=r.vueloIn||"";
+    if(el("sp_obs")) el("sp_obs").value=r.obs||"";
+    spLiveCalc();
+    showToast("Re-extraction complete — review and save");
+    // Upload corrected image — update src BEFORE resetting rotation so no spin-back
+    const compressed=await compressImage(rotatedBlob,800,0.7);
+    const newUrl=await uploadImageToStorage(compressed,"reextract_"+Date.now()+".jpg");
+    if(newUrl){
+      entry.imageUrl=newUrl;
+      entry._rotation=0;
+      spRotation=0;
+      // Set new src first, reset transform only after image loads
+      const imgEl=el("sp_img");
+      if(imgEl){
+        imgEl.onload=()=>{ spApplyTransform(); imgEl.onload=null; };
+        imgEl.src=newUrl;
+      } else { spApplyTransform(); }
+    }
+    // Reset entry status to pending so row color updates
+    entry.status="pending";
+    renderFlTable();
+  } catch(err){
+    showToast("Re-extract error: "+err.message,"err");
+    dbg("Re-extract error: "+err.message,"err");
+  } finally {
+    spReextracting=false;
+    if(reBtn){
+      reBtn.disabled=false;
+      reBtn.innerHTML='<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/></svg> OCR';
+    }
+    const sp=document.getElementById("sp_spinner");
+    if(sp) sp.remove();
+  }
+}
+let _namePropData=null; // {field, oldVal, newVal, matches, currentEntryId}
+
+function checkNamePropagation(entryId, field, oldVal, newVal, onConfirm){
+  if(!oldVal||!newVal||oldVal===newVal) { onConfirm([]); return; }
+  const matches=flEntries.filter(e=>
+    e.id!==entryId &&
+    String(e[field]||"").trim().toLowerCase()===oldVal.trim().toLowerCase()
+  );
+  if(!matches.length){ onConfirm([]); return; }
+  // Show propagation dialog
+  _namePropData={field,oldVal,newVal,matches,currentEntryId:entryId,onConfirm};
+  el("namePropTitle").textContent=field==="piloto"?"Pilot Name Correction":"Instructor Name Correction";
+  el("namePropMsg").textContent=
+    '"'+oldVal+'" → "'+newVal+'" — This name appears in '+matches.length+' other entr'+(matches.length===1?"y":"ies")+'. Apply correction?';
+  const list=el("namePropList");
+  list.innerHTML=matches.map((e,i)=>
+    '<label style="display:flex;align-items:center;gap:8px;padding:6px;background:var(--s3);border-radius:2px;cursor:pointer">'+
+    '<input type="checkbox" checked data-prop-idx="'+i+'" style="accent-color:var(--cyan)">'+
+    '<span style="font-family:var(--mono);font-size:10px">Entry #'+(flEntries.indexOf(e)+1)+" — "+e.fecha+" | "+e.aeronave+"</span>"+
+    "</label>"
+  ).join("");
+  openModal("namePropMbd");
+}
+
+function applyNameProp(mode){
+  if(!_namePropData) return;
+  const{field,newVal,matches,onConfirm}=_namePropData;
+  let toUpdate=[];
+  if(mode==="all") toUpdate=matches;
+  else if(mode==="selected"){
+    const checks=el("namePropList").querySelectorAll("input[type=checkbox]");
+    toUpdate=matches.filter((_,i)=>checks[i]&&checks[i].checked);
+  }
+  toUpdate.forEach(e=>{ e[field]=newVal; });
+  if(toUpdate.length){
+    addFlAudit("✏️",currentUser.name,"name correction: "+field,
+      '"'+_namePropData.oldVal+'" → "'+newVal+'" applied to '+toUpdate.length+" entries");
+  }
+  closeModal("namePropMbd");
+  onConfirm(toUpdate);
+  _namePropData=null;
+  renderFlTable();
+}
+async function saveBatchToDB(){
+  try {
+    const meta=window._pendingBatchMeta||{};
+    const logNums=flEntries.map(e=>e.bnum).filter(Boolean).sort();
+    const batchData={
+      source_file:JSON.stringify(Array.isArray(batchSourceFile)?batchSourceFile:[batchSourceFile]),
+      status:batchStatus,
+      submitted_by:currentUser.name,
+      aircraft:meta.aircraft||"",
+      operador:meta.operador||"",
+      period_from:meta.periodFrom||null,
+      period_to:meta.periodTo||null,
+      log_from:meta.logFrom||logNums[0]||null,
+      log_to:meta.logTo||logNums[logNums.length-1]||null
+    };
+    if(!currentBatchId){
+      // Create new batch
+      const rows=await sbPost("batches",batchData);
+      currentBatchId=rows[0].id;
+      dbg("Batch created in DB — id: "+currentBatchId,"ok");
+    } else {
+      // Update existing batch
+      const _batchPatch={
+        status:batchStatus,
+        cycle:reviewCycle,
+        submitted_by:currentUser.name,
+        submitted_at:batchStatus==="SUBMITTED"?new Date().toISOString():undefined
+      };
+      if(batchStatus==="APPROVED"){
+        _batchPatch.approved_by=currentUser.name;
+        _batchPatch.approved_at=new Date().toISOString();
+      }
+      await sbPatch("batches","id=eq."+currentBatchId,_batchPatch);
+      dbg("Batch updated in DB — status: "+batchStatus,"ok");
+    }
+    // Save entries
+    await sbDelete("entries","batch_id=eq."+currentBatchId);
+    if(flEntries.length){
+      const entryRows=flEntries.map((e,i)=>({
+        batch_id:currentBatchId,
+        bnum:e.bnum||null,
+        fecha:e.fecha, aeronave:e.aeronave, operador:e.operador,
+        piloto:e.piloto, instructor:e.instructor||"",
+        horo_in:e.horoIn||0,
+        motor_out:String(e.motorOut||""), motor_in:String(e.motorIn||""),
+        vuelo_out:String(e.vueloOut||""), vuelo_in:String(e.vueloIn||""),
+        direct_tm:e._directTm||null, direct_tv:e._directTv||null,
+        mult_override:e.multOverride||null,
+        obs:e.obs||"", flag_note:e.flagNote||"",
+        review_thread:JSON.stringify(e.reviewThread||[]),
+        status:e.status||"pending", sort_order:i,
+        image_url:e.imageUrl||null,
+        non_bill_reason:e.nonBillReason||null
+      }));
+      await sbPost("entries",entryRows);
+      dbg("Entries saved to DB — "+entryRows.length+" rows","ok");
+    }
+    // Save audit log
+    await sbDelete("audit_log","batch_id=eq."+currentBatchId);
+    if(flAuditLog.length){
+      const auditRows=flAuditLog.map(a=>({
+        batch_id:currentBatchId,
+        icon:a.icon, actor:a.actor, action:a.action,
+        detail:a.detail, ts:a.ts instanceof Date?a.ts.toISOString():a.ts
+      }));
+      await sbPost("audit_log",auditRows);
+    }
+  } catch(err){ dbg("DB save error: "+err.message,"err"); showToast("DB save error: "+err.message,"err"); }
+}
+
+async function clearBatchFromDB(){
+  // Never delete batches — just clear the local reference
+  // Batches are permanent records (billing cycle history)
+  currentBatchId=null;
+  dbg("Batch deselected — record preserved in DB","info");
+}
+
+// ── SUPABASE SEED (first-run) ──
+async function seedIfEmpty(){
+  try {
+    const users=await sbGet("users","limit=1");
+    if(users&&users.length){ dbg("DB already seeded","info"); return; }
+    dbg("Seeding database with defaults…","info");
+    await sbPost("users",USERS.map(u=>({
+      id:u.id, name:u.name, email:u.email, pwd:u.pwd,
+      role:u.role, phone:u.phone||"", companies:u.companies,
+      status:u.status, created:u.created, last_login:null
+    })));
+    await sbPost("companies",COMPANIES.map(c=>({
+      id:c.id, name:c.name, code:c.code, multiplier:c.multiplier,
+      status:c.status, notes:c.notes||"", billing_rules:JSON.stringify(c.billingRules||[])
+    })));
+    await sbPost("aircraft",AIRCRAFT.map(a=>({
+      id:a.id, matricula:a.matricula, make_model:a.makeModel,
+      operador:a.operador, multiplicador:a.multiplicador, tipo:a.tipo,
+      asientos:a.asientos, motor_id:a.motorId,
+      consumo_gal_hr:a.consumoGalHr, diff_threshold:a.diffThreshold
+    })));
+    dbg("Seed complete","ok");
+  } catch(err){ dbg("Seed error: "+err.message,"err"); }
+}
+
+// ── LOAD MASTER DATA FROM DB ──
+async function loadMasterData(){
+  try {
+    const [users,companies,aircraft]=await Promise.all([
+      sbGet("users"),
+      sbGet("companies"),
+      sbGet("aircraft")
+    ]);
+    if(users&&users.length) USERS.splice(0,USERS.length,...users);
+    if(companies&&companies.length) COMPANIES.splice(0,COMPANIES.length,...companies.map(c=>({
+      ...c,
+      address:c.address||"",
+      phone:c.phone||"",
+      inv_show_address:c.inv_show_address!==false,
+      inv_show_phone:c.inv_show_phone!==false,
+      inv_show_notes:c.inv_show_notes===true,
+      inv_show_rate:c.inv_show_rate!==false,
+      adminContact:c.admin_contact||c.adminContact||"",
+      acctContact:c.acct_contact||c.acctContact||"",
+      contacts:typeof c.contacts==="string"?JSON.parse(c.contacts):c.contacts||[],
+      billingRules:typeof c.billing_rules==="string"?JSON.parse(c.billing_rules):c.billing_rules||[]
+    })));
+    if(aircraft&&aircraft.length) AIRCRAFT.splice(0,AIRCRAFT.length,...aircraft.map(a=>({
+      id:a.id, matricula:a.matricula, makeModel:a.make_model||"",
+      operador:a.operador, multiplicador:parseFloat(a.multiplicador)||1, tipo:a.tipo||"",
+      asientos:a.asientos||2, motorId:a.motor_id||"",
+      consumoGalHr:a.consumo_gal_hr||0, diffThreshold:parseFloat(a.diff_threshold)||0.2,
+      diffWarn:parseFloat(a.diff_warn)||0.3, diffAlert:parseFloat(a.diff_alert)||0.4,
+      owner:a.owner||"", ownerAddress:a.owner_address||"",
+      photoUrl:a.photo_url||null,
+      rates:Array.isArray(a.rates)?a.rates.map(r=>({operador:r.operador,multiplicador:parseFloat(r.multiplicador)||1,tarifaHr:parseFloat(r.tarifaHr||r.tarifa_hr)||0})):(typeof a.rates==="string"&&a.rates?JSON.parse(a.rates).map(r=>({operador:r.operador,multiplicador:parseFloat(r.multiplicador)||1,tarifaHr:parseFloat(r.tarifaHr||r.tarifa_hr)||0})):[])
+    })));
+    AIRCRAFT.forEach(ac=>dbg("Aircraft loaded: "+ac.matricula+" rates: "+JSON.stringify(ac.rates),"info"));
+    dbg("Master data loaded — "+USERS.length+" users, "+COMPANIES.length+" companies, "+AIRCRAFT.length+" aircraft","ok");
+  } catch(err){ dbg("Master data load error: "+err.message,"err"); }
+}
+// ── SOURCE IMAGE SIDE PANEL ──
+let spEditingEntryId=null;
+let spCurrentIndex=-1; // index in flEntries for navigation
+
+function openSidePanel(entryIdOrFileIdx, isEntryId=false){
+  const panel=el("sidePanel");
+  const editSection=el("spEditSection");
+  const navBar=el("spNav");
+  if(isEntryId){
+    const entry=flEntries.find(e=>e.id===entryIdOrFileIdx);
+    if(!entry) return;
+    spEditingEntryId=entry.id;
+    spCurrentIndex=flEntries.indexOf(entry);
+    _loadSpEntry(entry);
+    if(navBar) navBar.style.display="flex";
+    _updateSpNav();
+    if(editSection) editSection.style.display="flex";
+  } else {
+    const f=fileQueue[entryIdOrFileIdx];
+    if(!f||!f._preview) return;
+    spEditingEntryId=null; spCurrentIndex=-1;
+    el("sp_img").src=f._preview;
+    el("sp_title").textContent="Source: "+f.name;
+    el("sp_meta").textContent=f.name+" · "+(f.size/1024).toFixed(1)+" KB · "+
+      (f._entryCount||0)+" "+(f._entryCount===1?"entry":"entries")+" extracted";
+    if(navBar) navBar.style.display="none";
+    if(editSection) editSection.style.display="none";
+  }
+  panel.classList.add("open");
+  el("spOverlay").classList.add("open");
+  
+  // Sync toggle button label
+  if(el("spToggleLabel")) el("spToggleLabel").textContent="Panel Open";
+  if(el("spTableToggle")) el("spTableToggle").style.color="var(--cyan)";
+  // Push page content left by padding appShell — panel is fixed, this yields the space
+  const savedW=localStorage.getItem("hpfleet_sp_width");
+  const maxW=Math.floor(window.innerWidth*0.5);
+  if(savedW){
+    const clamped=Math.min(parseInt(savedW),maxW);
+    panel.style.width=clamped+"px";
+  }
+  const panelW=panel.offsetWidth||420;
+  const shell=el("appShell");
+  if(shell) shell.style.paddingRight=panelW+"px";
+  // Highlight active row — clear all first, then set one and scroll into view
+  if(isEntryId){
+    const rows=el("flTbody")?el("flTbody").querySelectorAll("tr[data-entry-id]"):[];
+    let activeRow=null;
+    rows.forEach(r=>{
+      r.classList.remove("sp-active-row","sp-dim-row");
+      if(parseInt(r.dataset.entryId)===entryIdOrFileIdx){
+        r.classList.add("sp-active-row");
+        activeRow=r;
+      }
+    });
+    if(activeRow) activeRow.scrollIntoView({block:"nearest",behavior:"smooth"});
+  }
+}
+
+function _loadSpEntry(entry){
+  spZoom=1; spPanX=0; spPanY=0; spPanMode=false;
+  spRotation=entry._rotation||0;
+  spClearDirty();
+  spApplyTransform();
+  // Clear/load reviewer comment field
+  if(el("sp_comment")) el("sp_comment").value=entry.flagNote||"";
+  renderSpThread(entry);
+  spUpdateNonBillBtn(entry.status==="nonbillable");
+  // Non-billable watermark
+  const wm=el("sp_nonbill_watermark"); const wmTxt=el("sp_nonbill_wm_text");
+  if(wm&&wmTxt){
+    if(entry.status==="nonbillable"){
+      wmTxt.textContent=(entry.nonBillReason||"Non-Billable").split(" — ")[0];
+      wm.style.display="flex";
+    } else { wm.style.display="none"; }
+  }
+  const imgEl=el("sp_img");
+  if(entry.imageUrl){ imgEl.src=entry.imageUrl; }
+  else { imgEl.src=""; imgEl.alt="No source image available"; }
+  el("sp_title").textContent="Log Entry #"+(flEntries.indexOf(entry)+1);
+  el("sp_meta").textContent=(entry.fecha||"—")+" | "+(entry.bnum?"Log #"+entry.bnum+" | ":"")+(entry.piloto||"—")+" | "+(entry.aeronave||"—");
+  populateSpEditFields(entry);
+  // Cascade aircraft dropdowns
+  if(entry.aeronave){
+    spCascadeAircraftDropdowns(entry.aeronave);
+    if(el("sp_operador")&&entry.operador) el("sp_operador").value=entry.operador;
+  }
+  // Auto-size: set image area height so data section fits fully on screen
+  requestAnimationFrame(()=>{
+    const panel=el("sidePanel");
+    const imgWrap=el("sp_img_wrap");
+    const editSec=el("spEditSection");
+    const toolbar=el("sp_img_toolbar");
+    const vresize=el("spVResize");
+    const header=document.querySelector(".sp-header");
+    const nav=el("spNav");
+    const meta=el("sp_meta");
+    if(!panel||!imgWrap||!editSec) return;
+    // Measure fixed-height elements
+    const fixedH=(header?header.offsetHeight:0)+
+                 (nav&&nav.style.display!=="none"?nav.offsetHeight:0)+
+                 (meta?meta.offsetHeight:0)+
+                 (toolbar?toolbar.offsetHeight:0)+
+                 (vresize?vresize.offsetHeight:6);
+    // Measure data section natural height
+    editSec.style.flex="0 0 auto";
+    editSec.style.height="auto";
+    const dataH=editSec.scrollHeight;
+    // Image area gets the remainder, minimum 150px
+    const availH=panel.offsetHeight-fixedH-dataH;
+    imgWrap.style.height=Math.max(150,availH)+"px";
+    _scaleNonBillWatermark();
+    // Restore flex on edit section
+    editSec.style.flex="1";
+    editSec.style.height="";
+  });
+  // Role-aware mode
+  const role=effectiveRole();
+  const isReviewer=role==="REVIEWER";
+  const isReadOnly=role==="READONLY";
+  const editTitle=el("spEditTitle");
+  const commentRow=el("spCommentRow");
+  const saveBtn=el("sp_save");
+  // Make fields readonly for non-editors
+  ["sp_bnum","sp_fecha","sp_piloto","sp_instructor","sp_horoIn",
+   "sp_motorOut","sp_motorIn","sp_vueloOut","sp_vueloIn","sp_mult","sp_obs"].forEach(id=>{
+    const f=el(id); if(!f) return;
+    f.readOnly=isReviewer||isReadOnly;
+    f.style.opacity=(isReviewer||isReadOnly)?"0.7":"1";
+  });
+  ["sp_aeronave","sp_operador"].forEach(id=>{
+    const f=el(id); if(!f) return;
+    f.disabled=isReviewer||isReadOnly;
+  });
+  if(isReviewer){
+    if(editTitle) editTitle.textContent="👁 Review Entry";
+    if(commentRow) commentRow.style.display="block";
+    if(saveBtn) saveBtn.style.display="none";
+  } else if(isReadOnly){
+    if(editTitle) editTitle.textContent="👁 View Entry";
+    // Show thread panel if entry has history, hide otherwise
+    if(commentRow) commentRow.style.display=(entry.reviewThread&&entry.reviewThread.length)?"block":"none";
+    if(saveBtn) saveBtn.style.display="none";
+  } else {
+    if(editTitle) editTitle.textContent="✎ Data Entry";
+    // Show thread panel if entry has history (operator needs to see + respond)
+    if(commentRow) commentRow.style.display=(entry.reviewThread&&entry.reviewThread.length)?"block":"none";
+    if(saveBtn){ saveBtn.innerHTML='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg> Save'; saveBtn.style.display=""; saveBtn.style.background="rgba(65,209,255,.04)"; saveBtn.style.borderColor="var(--dim2)"; saveBtn.style.color="var(--dim2)"; saveBtn.disabled=true; saveBtn.style.cursor="not-allowed"; saveBtn.style.opacity="0.4"; }
+  }
+}
+
+function _updateSpNav(){
+  const pos=el("spNavPos");
+  if(pos) pos.textContent="Entry "+(spCurrentIndex+1)+" of "+flEntries.length;
+}
+
+function spNavigate(dir){
+  spGuardDirty(()=>_spNavigate(dir));
+}
+function _spNavigate(dir){
+  const newIdx=spCurrentIndex+dir;
+  if(newIdx<0||newIdx>=flEntries.length) return;
+  spCurrentIndex=newIdx;
+  const entry=flEntries[newIdx];
+  spEditingEntryId=entry.id;
+  _loadSpEntry(entry);
+  _updateSpNav();
+  // Update row highlight — clear all first, then set one and scroll into view
+  const rows=el("flTbody")?el("flTbody").querySelectorAll("tr[data-entry-id]"):[];
+  let activeRow=null;
+  rows.forEach(r=>{
+    r.classList.remove("sp-active-row","sp-dim-row");
+    if(parseInt(r.dataset.entryId)===entry.id){
+      r.classList.add("sp-active-row");
+      activeRow=r;
+    }
+  });
+  if(activeRow) activeRow.scrollIntoView({block:"nearest",behavior:"smooth"});
+}
+
+function populateSpEditFields(e){
+  if(!e) return;
+  const acSel=el("sp_aeronave");
+  if(acSel) acSel.innerHTML=AIRCRAFT.map(a=>'<option value="'+a.matricula+'"'+(a.matricula===e.aeronave?" selected":"")+'>'+a.matricula+"</option>").join("");
+  if(el("sp_operador")) el("sp_operador").value=e.operador||"FM";
+  if(el("sp_bnum")) el("sp_bnum").value=e.bnum||"";
+  if(el("sp_fecha")) el("sp_fecha").value=e.fecha||"";
+  if(el("sp_piloto")) el("sp_piloto").value=e.piloto||"";
+  if(el("sp_instructor")) el("sp_instructor").value=e.instructor||"";
+  if(el("sp_horoIn")) el("sp_horoIn").value=e.horoIn||"";
+  if(el("sp_motorOut")) el("sp_motorOut").value=e.motorOut||"";
+  if(el("sp_motorIn")) el("sp_motorIn").value=e.motorIn||"";
+  if(el("sp_vueloOut")) el("sp_vueloOut").value=e.vueloOut||"";
+  if(el("sp_vueloIn")) el("sp_vueloIn").value=e.vueloIn||"";
+  if(el("sp_mult_sel")&&el("sp_mult")){
+    const acRate=AIRCRAFT.find(a=>a.matricula===e.aeronave)?.rates?.find(r=>r.operador===(e.operador||"FM"));
+    const defaultRate=acRate?acRate.multiplicador:null;
+    if(e.multOverride&&(!defaultRate||Math.abs(e.multOverride-defaultRate)>0.001)){
+      // Custom override — show custom input
+      el("sp_mult_sel").value="custom";
+      el("sp_mult").style.display="";
+      el("sp_mult").value=e.multOverride;
+    } else {
+      // Use default rate from dropdown
+      const rateVal=e.multOverride||defaultRate;
+      if(rateVal) el("sp_mult_sel").value=rateVal;
+      el("sp_mult").style.display="none";
+      el("sp_mult").value="";
+    }
+  }
+  if(el("sp_obs")) el("sp_obs").value=e.obs||"";
+  spLiveCalc();
+  // Diff alert
+  const ac=AIRCRAFT.find(a=>a.matricula===e.aeronave);
+  const threshold=ac?ac.diffThreshold:0.2;
+  const tm=Math.abs(t2h(e.motorIn)-t2h(e.motorOut));
+  const tv=Math.abs(t2h(e.vueloIn)-t2h(e.vueloOut));
+  const diff=Math.abs(tm-tv);
+  const da=el("spDiffAlert");
+  if(da){
+    if(e.motorOut&&e.motorIn&&diff>threshold){
+      if(el("spDiffMsg")) el("spDiffMsg").textContent="T.Motor="+fmt(tm)+" vs T.Flight="+fmt(tv)+" — gap: "+diff.toFixed(2)+" hrs";
+      da.classList.add("on");
+    } else da.classList.remove("on");
+  }
+}
+
+function spLiveCalc(){
+  const fake={
+    aeronave:el("sp_aeronave")?el("sp_aeronave").value:"",
+    operador:el("sp_operador")?el("sp_operador").value:"",
+    motorOut:el("sp_motorOut")?el("sp_motorOut").value:"",
+    motorIn:el("sp_motorIn")?el("sp_motorIn").value:"",
+    vueloOut:el("sp_vueloOut")?el("sp_vueloOut").value:"",
+    vueloIn:el("sp_vueloIn")?el("sp_vueloIn").value:"",
+    multOverride:parseFloat(el("sp_mult")?el("sp_mult").value:"")||null
+  };
+  const{tm,tv,mult,tbp}=calcEntry(fake);
+  if(el("sp_tmotor")) el("sp_tmotor").value=tm>0?tm.toFixed(2):"";
+  if(el("sp_tvuelo")) el("sp_tvuelo").value=tv>0?tv.toFixed(2):"";
+  if(el("sp_pv_tm")) el("sp_pv_tm").textContent=tm>0?fmt(tm)+" hrs":"—";
+  if(el("sp_pv_tf")) el("sp_pv_tf").textContent=tv>0?fmt(tv)+" hrs":"—";
+  if(el("sp_pv_mult")) el("sp_pv_mult").textContent=mult+"×";
+  if(el("sp_pv_tbp")) el("sp_pv_tbp").textContent=tm>0?fmt(tbp)+" hrs":"—";
+  // Gap indicator
+  if(el("sp_pv_gap")&&tm>0&&tv>0){
+    const gap=Math.abs(tm-tv);
+    const ac=AIRCRAFT.find(a=>a.matricula===fake.aeronave);
+    const thr=ac?ac.diffThreshold:0.2;
+    const warn=ac?ac.diffWarn:0.3;
+    const alert=ac?ac.diffAlert:0.4;
+    let col="var(--green)", tri="";
+    if(gap>warn){col="var(--red)";tri=" ▲";}
+    else if(gap>thr){col="var(--yellow)";}
+    el("sp_pv_gap").textContent="Gap: "+gap.toFixed(2)+" hrs"+tri;
+    el("sp_pv_gap").style.color=col;
+  }
+}
+
+async function saveSpEntry(){
+  if(!spEditingEntryId) return;
+  const e=flEntries.find(x=>x.id===spEditingEntryId); if(!e) return;
+  const role=effectiveRole();
+  // APPROVED lock — intercept and confirm reopen before first write
+  if(batchStatus==="APPROVED" && role!=="REVIEWER"){
+    const msg=lang==="es"
+      ?"Este lote está APROBADO. ¿Reabrir a BORRADOR para editar?"
+      :"This batch is APPROVED. Reopen to DRAFT to allow edits?";
+    if(!confirm(msg)) return;
+    batchStatus="DRAFT";
+    await saveBatchToDB();
+    addFlAudit("↩",currentUser.name,"batch reopened via edit","Auto-reopened to DRAFT on entry edit");
+    addAudit("↩",currentUser.name,"batch auto-reopened",currentBatchId);
+    renderWfBar(); setupFlRoleUI();
+    showToast("Batch reopened to DRAFT","warn");
+  }
+  if(role==="REVIEWER"){
+    // Save review comment to thread
+    const ta=el("spThreadTextarea");
+    const comment=ta&&ta.value.trim()?ta.value.trim():"";
+    if(!comment){showToast(lang==="es"?"Ingrese un comentario":"Please enter a review comment","err");return;}
+    addThreadComment(e,"REVIEWER",comment);
+    e.flagNote=comment; // keep flagNote in sync for backwards compat
+    e.status="flagged";
+    closeSpThreadInput();
+    renderSpThread(e);
+    addFlAudit("🚩",currentUser.name,"review comment on entry #"+(flEntries.indexOf(e)+1),comment);
+  } else {
+    // Full edit — check name propagation
+    const multSel=el("sp_mult_sel");
+    const multInp=el("sp_mult");
+    let multRaw=null;
+    if(multSel&&multSel.value==="custom"&&multInp&&multInp.value.trim()){
+      multRaw=parseFloat(multInp.value);
+    } else if(multSel&&multSel.value!=="custom"){
+      multRaw=parseFloat(multSel.value);
+    }
+    const defaultRate=getAircraftMult(el("sp_aeronave").value,el("sp_operador").value);
+    const isDefaultVal=multRaw!==null&&Math.abs(multRaw-defaultRate)<0.001;
+    const multOverrideVal=(multRaw===null||isNaN(multRaw)||isDefaultVal)?null:multRaw;
+    const oldPiloto=e.piloto, oldInstructor=e.instructor;
+    const newPiloto=el("sp_piloto").value.trim();
+    const newInstructor=el("sp_instructor").value.trim();
+    Object.assign(e,{
+      bnum:el("sp_bnum")?el("sp_bnum").value.trim():"",
+      fecha:el("sp_fecha").value.trim(),
+      aeronave:el("sp_aeronave").value,
+      operador:el("sp_operador").value,
+      piloto:newPiloto,
+      instructor:newInstructor,
+      horoIn:parseFloat(el("sp_horoIn").value)||0,
+      motorOut:el("sp_motorOut").value.trim(),
+      motorIn:el("sp_motorIn").value.trim(),
+      vueloOut:el("sp_vueloOut").value.trim(),
+      vueloIn:el("sp_vueloIn").value.trim(),
+      multOverride:multOverrideVal,
+      obs:el("sp_obs").value.trim()
+    });
+    // Auto-promote skipped/void → pending when real data is now present
+    if((e.status==="skipped"||e.status==="void")&&e.aeronave&&e.fecha&&e.motorOut&&e.motorIn){
+      e.status="pending";
+      addFlAudit("↑",currentUser.name,"entry promoted from "+e.status+" to pending","#"+(flEntries.indexOf(e)+1));
+    }
+    checkDiff(e);
+    // Clear stale diff flag from obs before rechecking
+    if(e.obs) e.obs=e.obs.replace(/△\s*Dif\s*Motor\/Vuelo[^|]*/g,"").replace(/\|\s*△\s*$/,"").trim();
+    addFlAudit("✏️",currentUser.name,"edited entry via panel","#"+(flEntries.indexOf(e)+1));
+    await saveBatchToDB();
+    renderFlTable();
+    showToast("Entry updated");
+    spClearDirty();
+    // Refresh meta only — do NOT call _loadSpEntry which resets transform
+    if(el("sp_title")) el("sp_title").textContent="Log Entry #"+(flEntries.indexOf(e)+1);
+    if(el("sp_meta")) el("sp_meta").textContent=(e.fecha||"—")+" | "+(e.bnum?"Log #"+e.bnum+" | ":"")+(e.piloto||"—")+" | "+(e.aeronave||"—");
+    // Check name propagation
+    if(newPiloto!==oldPiloto){
+      checkNamePropagation(e.id,"piloto",oldPiloto,newPiloto,async(updated)=>{
+        if(updated.length) await saveBatchToDB();
+      });
+    } else if(newInstructor!==oldInstructor){
+      checkNamePropagation(e.id,"instructor",oldInstructor,newInstructor,async(updated)=>{
+        if(updated.length) await saveBatchToDB();
+      });
+    }
+    return; // already saved above
+  }
+  // Reviewer comment path
+  await saveBatchToDB();
+  renderFlTable();
+  showToast(role==="REVIEWER"?"Comment saved":"Entry updated");
+  if(el("sp_title")) el("sp_title").textContent="Log Entry #"+(flEntries.indexOf(e)+1);
+  if(el("sp_meta")) el("sp_meta").textContent=(e.fecha||"—")+" | "+(e.bnum?"Log #"+e.bnum+" | ":"")+(e.piloto||"—")+" | "+(e.aeronave||"—");
+}
+
+function closeSidePanel(){
+  const panel=el("sidePanel");
+  panel.classList.remove("open");
+  el("spOverlay").classList.remove("open");
+  
+  // Clear padding after panel slide-out completes (300ms matches CSS transition)
+  setTimeout(()=>{ el("appShell").style.paddingRight=""; }, 320);
+  const tabContent=document.querySelector(".tab-content");
+  if(tabContent){ tabContent.classList.remove("sp-open-shift"); tabContent.style.maxWidth=""; }
+  if(el("spTableToggle")) el("spTableToggle").style.color="var(--dim2)";
+  if(el("spToggleLabel")) el("spToggleLabel").textContent="Source Panel";
+  if(el("flTbody")) el("flTbody").querySelectorAll("tr").forEach(r=>{
+    r.classList.remove("sp-active-row");
+    r.style.outline="";
+  });
+}
+async function resetBatch(){
+  // Archive current batch — DO NOT delete
+  flEntries=[]; flAuditLog=[]; fileQueue=[]; batchStatus="DRAFT";
+  batchSourceFile=[]; editingEntryId=null; nextEntryId=1;
+  currentBatchId=null; // deselect, preserve in DB
+  piAdditionalCharges=[]; piSignedBy=null; piSignedAt=null; piInvNum=null; piRulesSeeded=false;
+  if(el("pi_signed_badge")){ el("pi_signed_badge").style.display="none"; el("pi_signed_badge").textContent=""; }
+  if(el("pi_signoff_btn")) el("pi_signoff_btn").style.display="";
+  el("srcBar").style.display="none";
+  el("reviewSection").style.display="none";
+  if(el("resultBanner")) el("resultBanner").style.display="none";
+  el("horoAlert").classList.remove("on");
+  renderQueue(); renderWfBar(); setupFlRoleUI(); renderPreInvoice();
+  await loadAllBatches(); // refresh selector
+  dbg("New billing cycle started — previous batch preserved","ok");
+}
+
+// ── NEW BATCH MODAL ──
+function openNewBatchModal(){
+  // Populate aircraft dropdown
+  const acSel=el("nb_aircraft");
+  if(acSel){
+    acSel.innerHTML='<option value="">Auto-detect</option>'+AIRCRAFT.map(a=>'<option value="'+a.matricula+'">'+a.matricula+"</option>").join("");
+    acSel.dispatchEvent(new Event("change"));
+  }
+  // Set default period to current month
+  const now=new Date();
+  const firstDay=new Date(now.getFullYear(),now.getMonth(),1).toISOString().split("T")[0];
+  const lastDay=new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().split("T")[0];
+  if(el("nb_period_from")) el("nb_period_from").value=firstDay;
+  if(el("nb_period_to")) el("nb_period_to").value=lastDay;
+  if(el("nb_log_from")) el("nb_log_from").value="";
+  if(el("nb_log_to")) el("nb_log_to").value="";
+  // Show previous batch label if one exists
+  const prevLabel=el("nb_prev_label");
+  if(prevLabel){
+    if(currentBatchId&&flEntries.length){
+      const prev=allBatches.find(b=>b.id===currentBatchId);
+      const label=prev?batchLabel(prev):"current batch";
+      prevLabel.style.display="block";
+      prevLabel.textContent="This will begin a new billing cycle. Previous work has been saved as: "+label;
+    } else {
+      prevLabel.style.display="none";
+    }
+  }
+  openModal("newBatchMbd");
+}
+
+async function confirmNewBatch(){
+  const aircraft=el("nb_aircraft")?el("nb_aircraft").value:"";
+  const operador=el("nb_operator")?el("nb_operator").value:"";
+  const periodFrom=el("nb_period_from")?el("nb_period_from").value:"";
+  const periodTo=el("nb_period_to")?el("nb_period_to").value:"";
+  const logFrom=el("nb_log_from")?el("nb_log_from").value.trim():"";
+  const logTo=el("nb_log_to")?el("nb_log_to").value.trim():"";
+  if(!nbFiles.length){showToast("Please add at least one file","warn");return;}
+  closeModal("newBatchMbd");
+  await resetBatch();
+  window._pendingBatchMeta={aircraft,operador,periodFrom,periodTo,logFrom,logTo};
+  addAudit("🆕",currentUser.name,"new billing cycle",aircraft+" / "+operador+" / "+periodFrom+" → "+periodTo);
+  // Add files to main queue and trigger extraction
+  nbFiles.forEach(f=>fileQueue.push({file:f,name:sanitizeFilename(f.name),size:f.size,type:f.type,status:"waiting",progress:0,_preview:null}));
+  nbFiles=[];
+  openUploadStatusWindow();
+  extractAll();
+}
+
+// ── ADD MORE FILES ──
+let afFiles=[];
+
+function openAddFilesDialog(){
+  afFiles=[];
+  afRenderQueue();
+  const acSel=el("af_aircraft"); const opSel=el("af_operator");
+  if(acSel){
+    acSel.innerHTML='<option value="">Auto-detect</option>'+AIRCRAFT.map(a=>'<option value="'+a.matricula+'">'+a.matricula+'</option>').join("");
+  }
+  if(opSel){
+    opSel.innerHTML='<option value="">Auto-detect</option>'+COMPANIES.map(c=>'<option value="'+c.code+'">'+c.code+'</option>').join("");
+  }
+  const dlg=el("addFilesMbd"); if(dlg) dlg.style.display="flex";
+}
+
+function closeAddFilesDialog(){
+  const dlg=el("addFilesMbd"); if(dlg) dlg.style.display="none";
+  afFiles=[];
+}
+
+function afRenderQueue(){
+  const wrap=el("af_fileQueue"); if(!wrap) return;
+  const confirmBtn=el("af_confirm");
+  wrap.innerHTML=afFiles.map((f,i)=>
+    '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--s2);border:1px solid var(--border2);padding:6px 10px;border-radius:2px;font-family:var(--mono);font-size:10px;color:var(--dim2)">'+
+    '<span>'+f.name+' <span style="color:var(--dim)">('+( f.size/1024).toFixed(1)+' KB)</span></span>'+
+    '<button data-af-del="'+i+'" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0 4px">✕</button>'+
+    '</div>'
+  ).join("");
+  wrap.querySelectorAll("[data-af-del]").forEach(btn=>{
+    btn.addEventListener("click",()=>{afFiles.splice(+btn.dataset.afDel,1);afRenderQueue();});
+  });
+  if(confirmBtn) confirmBtn.disabled=afFiles.length===0;
+}
+
+function initAfDropZone(){
+  const zone=el("af_uploadZone");
+  const input=el("af_fileInput");
+  if(!zone||!input) return;
+  zone.addEventListener("click",()=>input.click());
+  zone.addEventListener("dragover",e=>{e.preventDefault();zone.classList.add("dragover");});
+  zone.addEventListener("dragleave",()=>zone.classList.remove("dragover"));
+  zone.addEventListener("drop",e=>{
+    e.preventDefault(); zone.classList.remove("dragover");
+    const files=Array.from(e.dataTransfer.files).filter(f=>/\.(pdf|jpg|jpeg|png)$/i.test(f.name));
+    files.forEach(f=>{
+      if(afFiles.find(q=>q.name===f.name&&q.size===f.size)){
+        if(!confirm("\""+f.name+"\" has already been added.\nIf you continue, you may duplicate records.\n\nContinue anyway?")) return;
+      }
+      afFiles.push(f);
+    });
+    afRenderQueue();
+  });
+  input.addEventListener("change",()=>{
+    Array.from(input.files).forEach(f=>{
+      if(afFiles.find(q=>q.name===f.name&&q.size===f.size)){
+        if(!confirm("\""+f.name+"\" has already been added.\nIf you continue, you may duplicate records.\n\nContinue anyway?")) return;
+      }
+      afFiles.push(f);
+    });
+    input.value=""; afRenderQueue();
+  });
+}
+
+async function confirmAddFiles(){
+  if(!afFiles.length){showToast("Please add at least one file","warn");return;}
+  const apiKey=getApiKey();
+  if(!apiKey){showToast(t("noApiKey"),"err");return;}
+  const aircraft=el("af_aircraft")?el("af_aircraft").value:"";
+  const operador=el("af_operator")?el("af_operator").value:"";
+  // Build isolated queue — bypasses fileQueue duplicate check entirely
+  const afQueue=afFiles.map(f=>({
+    file:f, name:sanitizeFilename(f.name), size:f.size, type:f.type,
+    status:"waiting", progress:0, _preview:null,
+    _afContext:{aircraft, operador}
+  }));
+  afFiles=[];
+  closeAddFilesDialog();
+  await saveBatchToDB();
+  openUploadStatusWindow(true);
+  await extractAllAppend(afQueue);
+}
+
+async function extractAllAppend(appendQueue){
+  // Append mode — uses isolated queue, does NOT touch fileQueue, does NOT reset flEntries
+  if(isExtracting){ showToast("Extraction already running","warn"); return; }
+  const apiKey=getApiKey();
+  if(!apiKey) return;
+  if(!appendQueue||!appendQueue.length){ uploadLog("No files to process."); return; }
+  isExtracting=true;
+  extractionAbort=new AbortController();
+  let allExtracted=[]; let hasErrors=false;
+  const total=appendQueue.length;
+
+  if(typeof pdfjsLib!=="undefined"){
+    pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+
+  for(let i=0;i<appendQueue.length;i++){
+    const fq=appendQueue[i];
+    const isPdf=fq.type==="application/pdf"||fq.name.endsWith(".pdf");
+    fq.status="processing";
+
+    try {
+      if(isPdf && typeof pdfjsLib!=="undefined"){
+        uploadLog("Loading PDF: "+fq.name);
+        const arrayBuf=await fq.file.arrayBuffer();
+        const pdfDoc=await pdfjsLib.getDocument({data:arrayBuf}).promise;
+        const numPages=pdfDoc.numPages;
+        uploadLog("PDF loaded — "+numPages+" pages");
+        let pdfExtracted=[];
+        for(let p=1;p<=numPages;p++){
+          fq._label="[Page "+p+"/"+numPages+"] "+fq.name+" — Extracting…";
+          fq.progress=Math.round((p/numPages)*100);
+          try {
+            const pageBlob=await pdfPageToBlob(pdfDoc,p);
+            const pageFile=new File([pageBlob],"page_"+p+".jpg",{type:"image/jpeg"});
+            const pageEntries=await extractImageFile(pageFile,apiKey);
+            pageEntries.forEach(e=>checkDiff(e));
+            const compressed=await compressImage(pageBlob);
+            const filename="pg"+String(p).padStart(3,"0")+"_"+Date.now()+".jpg";
+            const imageUrl=await uploadImageToStorage(compressed,filename);
+            pageEntries.forEach(e=>{e._imageUrl=imageUrl;e._sourcePage=p;});
+            pdfExtracted=[...pdfExtracted,...pageEntries];
+            uploadLog("Page "+p+"/"+numPages+": "+pageEntries.length+" entr"+(pageEntries.length===1?"y":"ies")+" extracted");
+          } catch(pageErr){
+            if(pageErr.name==="AbortError"){ uploadLog("⚠ Aborted at page "+p); break; }
+            else if(pageErr.message.startsWith("NO_BITACORA")){
+              try {
+                const pageBlob=await pdfPageToBlob(pdfDoc,p);
+                const compressed=await compressImage(pageBlob);
+                const filename="pg"+String(p).padStart(3,"0")+"_skip_"+Date.now()+".jpg";
+                const imageUrl=await uploadImageToStorage(compressed,filename);
+                pdfExtracted.push({_imageUrl:imageUrl,_sourcePage:p,_isStub:true,
+                  bnum:"",fecha:"",aeronave:"",operador:"",piloto:"",instructor:"",horoIn:0,
+                  motorOut:"",motorIn:"",vueloOut:"",vueloIn:"",multOverride:null,
+                  obs:"Skipped — no log data on page "+p,status:"skipped"});
+                uploadLog("Page "+p+": skipped — no log data");
+              } catch(e){ uploadLog("Page "+p+": skipped — image upload failed"); }
+            } else { uploadLog("✕ Page "+p+" error: "+pageErr.message); hasErrors=true; }
+          }
+        }
+        allExtracted=[...allExtracted,...pdfExtracted];
+        fq.status="done"; fq._entryCount=pdfExtracted.length;
+        uploadLog("✓ Done — "+pdfExtracted.length+" entries from "+numPages+" pages");
+        addFlAudit("🤖",currentUser.name,"appended PDF",pdfExtracted.length+" entries from "+fq.name);
+      } else {
+        fq._label="["+(i+1)+"/"+total+"] "+fq.name+" — Extracting…";
+        fq.progress=10;
+        const fixedFile=await fixImageRotation(fq.file);
+        const rawBlob=await fetch(URL.createObjectURL(fixedFile)).then(r=>r.blob());
+        const compressedBlob=await compressImage(rawBlob,1200,0.85);
+        const compressedFile=new File([compressedBlob],fixedFile.name,{type:"image/jpeg"});
+        fq.progress=30;
+        const extracted=await extractImageFile(compressedFile,apiKey);
+        extracted.forEach(e=>checkDiff(e));
+        fq.progress=70;
+        const storageBlob=await compressImage(rawBlob,800,0.7);
+        const filename="img_"+Date.now()+"_"+i+".jpg";
+        const imageUrl=await uploadImageToStorage(storageBlob,filename);
+        extracted.forEach(e=>{e._imageUrl=imageUrl;});
+        fq._preview=URL.createObjectURL(storageBlob);
+        allExtracted=[...allExtracted,...extracted];
+        fq.status="done"; fq._entryCount=extracted.length; fq.progress=100;
+        addFlAudit("🤖",currentUser.name,"appended image",extracted.length+" from "+fq.name);
+      }
+    } catch(err){
+      fq.status="error"; fq._error=translateFetchError(err.message); hasErrors=true;
+      uploadLog("✕ Error on "+fq.name+": "+err.message);
+    }
+  }
+
+  isExtracting=false; extractionAbort=null;
+
+  // APPEND to existing flEntries — do not reset
+  const newEntries=allExtracted.map(e=>({
+    id:nextEntryId++,status:"pending",multOverride:null,...e,
+    horoIn:parseFloat(e.horoIn)||0,
+    imageUrl:e._imageUrl||null
+  }));
+  flEntries=[...flEntries,...newEntries];
+
+  // Update source file array — append new file names
+  const newNames=appendQueue.map(f=>f.name);
+  batchSourceFile=[...batchSourceFile,...newNames];
+
+  const msg=hasErrors?"⚠ "+newEntries.length+" entries appended (with errors)":"✓ "+newEntries.length+" entries appended — "+newNames.join(", ");
+  uploadLog(msg);
+  uploadLog("Append complete — ready for review");
+
+  updateSrcBar();
+  await saveBatchToDB();
+  renderWfBar(); setupFlRoleUI(); renderFlTable();
+}
+
+// ── NB MODAL FILE QUEUE ──
+let nbFiles=[];
+function nbRenderQueue(){
+  const wrap=el("nb_fileQueue"); if(!wrap) return;
+  const confirmBtn=el("nb_confirm");
+  wrap.innerHTML=nbFiles.map((f,i)=>
+    '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--s2);border:1px solid var(--border2);padding:6px 10px;border-radius:2px;font-family:var(--mono);font-size:10px;color:var(--dim2)">'+
+    '<span>'+f.name+' <span style="color:var(--dim)">('+( f.size/1024).toFixed(1)+' KB)</span></span>'+
+    '<button data-nb-del="'+i+'" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0 4px">✕</button>'+
+    '</div>'
+  ).join("");
+  wrap.querySelectorAll("[data-nb-del]").forEach(btn=>{
+    btn.addEventListener("click",()=>{nbFiles.splice(+btn.dataset.nbDel,1);nbRenderQueue();});
+  });
+  if(confirmBtn) confirmBtn.disabled=nbFiles.length===0;
+}
+
+function initNbDropZone(){
+  const zone=el("nb_uploadZone");
+  const input=el("nb_fileInput");
+  if(!zone||!input) return;
+  zone.addEventListener("click",()=>input.click());
+  zone.addEventListener("dragover",e=>{e.preventDefault();zone.classList.add("dragover");});
+  zone.addEventListener("dragleave",()=>zone.classList.remove("dragover"));
+  zone.addEventListener("drop",e=>{
+    e.preventDefault(); zone.classList.remove("dragover");
+    const files=Array.from(e.dataTransfer.files).filter(f=>/\.(pdf|jpg|jpeg|png)$/i.test(f.name));
+    files.forEach(f=>nbFiles.push(f)); nbRenderQueue();
+  });
+  input.addEventListener("change",()=>{
+    Array.from(input.files).forEach(f=>nbFiles.push(f));
+    input.value=""; nbRenderQueue();
+  });
+}
+
+// ── UPLOAD STATUS WINDOW ──
+let uploadLogLines=[];
+let _isAppendMode=false;
+function openUploadStatusWindow(appendMode){
+  _isAppendMode=!!appendMode;
+  uploadLogLines=[];
+  const body=el("uploadLogBody"); if(body) body.innerHTML="";
+  const mbd=el("uploadStatusMbd"); if(mbd) mbd.style.display="flex";
+}
+function uploadLog(msg){
+  const ts=new Date().toLocaleTimeString("en-US",{hour12:false});
+  const line="["+ts+"] "+msg;
+  uploadLogLines.push(line);
+  const body=el("uploadLogBody");
+  if(body){
+    const div=document.createElement("div");
+    div.textContent=line;
+    body.appendChild(div);
+    body.scrollTop=body.scrollHeight;
+  }
+}
+function closeUploadStatusWindow(){
+  const mbd=el("uploadStatusMbd"); if(mbd) mbd.style.display="none";
+  if(!_isAppendMode) showExtractionSummary();
+  _isAppendMode=false;
+}
+function saveUploadLog(){
+  const txt=uploadLogLines.join("\n");
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([txt],{type:"text/plain"}));
+  const srcName=Array.isArray(batchSourceFile)?batchSourceFile[0]:(batchSourceFile||"extraction");
+  const baseName=srcName.trim().replace(/\.[^.]+$/,"").replace(/[^a-zA-Z0-9_\-]/g,"_");
+  a.download=baseName+"_log.txt";
+  a.click();
+}
+
+// ── EXTRACTION SUMMARY MODAL ──
+function showExtractionSummary(){
+  const total=flEntries.length;
+  const read=flEntries.filter(e=>e.status!=="skipped"&&e.status!=="void"&&e.aeronave&&e.fecha).length;
+  const notRead=total-read;
+  const seqAlerts=flEntries.filter(e=>{
+    const idx=flEntries.indexOf(e);
+    return horoCheck(e,idx)&&!horoCheck(e,idx).ok;
+  }).length;
+  const threshAlerts=flEntries.filter(e=>e.status==="flagged").length;
+  const sourceFile=el("srcFile")?el("srcFile").textContent:"—";
+  const rows=[
+    {label:"File Source",val:sourceFile,color:"var(--text)"},
+    {label:"Total Records",val:total,color:"var(--cyan)"},
+    {label:"Read",val:read,color:"var(--green)"},
+    {label:"Not Read",val:notRead,color:notRead>0?"var(--yellow)":"var(--dim2)"},
+    {label:"Sequence Alerts",val:seqAlerts,color:seqAlerts>0?"var(--yellow)":"var(--dim2)"},
+    {label:"Threshold Alerts",val:threshAlerts,color:threshAlerts>0?"var(--red)":"var(--dim2)"},
+  ];
+  const wrap=el("extractSummaryRows");
+  if(wrap) wrap.innerHTML=rows.map(r=>
+    '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border2)">'+
+    '<span style="font-family:var(--mono);font-size:11px;color:var(--dim2);letter-spacing:.5px">'+r.label.toUpperCase()+'</span>'+
+    '<span style="font-family:var(--mono);font-size:13px;font-weight:700;color:'+r.color+'">'+r.val+'</span>'+
+    '</div>'
+  ).join("");
+  openModal("extractSummaryMbd");
+}
+
+// ── BILLING CYCLE HISTORY SELECTOR ──
+let allBatches=[];
+async function loadAllBatches(){
+  try {
+    const batches=await sbGet("batches","order=created_at.desc&limit=50");
+    allBatches=batches||[];
+    renderBatchSelector();
+  } catch(e){ dbg("Batch history load error: "+e.message,"err"); }
+}
+
+// ── DB MAINTENANCE ──
+async function deleteTestBatches(){
+  if(!confirm("Delete all batches with no aircraft/operator metadata? This cannot be undone.")) return;
+  try {
+    const batches=await sbGet("batches","aircraft=is.null&operador=is.null");
+    if(!batches||!batches.length){showToast("No test batches found","info");return;}
+    for(const b of batches){
+      await sbDelete("entries","batch_id=eq."+b.id);
+      await sbDelete("audit_log","batch_id=eq."+b.id);
+      await sbDelete("batches","id=eq."+b.id);
+    }
+    addAudit("🗑",currentUser.name,"deleted test batches",batches.length+" batches removed");
+    await loadAllBatches();
+    showToast(batches.length+" test batch(es) deleted","warn");
+    dbg("Deleted "+batches.length+" test batches","ok");
+  } catch(err){ showToast("Error: "+err.message,"err"); dbg("Delete test batches error: "+err.message,"err"); }
+}
+
+async function deleteBatchesByStatus(status){
+  if(!confirm("Delete ALL "+status+" batches? This cannot be undone.")) return;
+  try {
+    const batches=await sbGet("batches","status=eq."+status);
+    if(!batches||!batches.length){showToast("No "+status+" batches found","info");return;}
+    for(const b of batches){
+      await sbDelete("entries","batch_id=eq."+b.id);
+      await sbDelete("audit_log","batch_id=eq."+b.id);
+      await sbDelete("batches","id=eq."+b.id);
+    }
+    addAudit("🗑",currentUser.name,"deleted batches by status",batches.length+" "+status+" batches removed");
+    await loadAllBatches();
+    showToast(batches.length+" "+status+" batch(es) deleted","warn");
+    dbg("Deleted "+batches.length+" "+status+" batches","ok");
+  } catch(err){ showToast("Error: "+err.message,"err"); dbg("Delete by status error: "+err.message,"err"); }
+}
+
+async function clearAuditLogDB(){
+  if(!confirm("Clear all app audit log entries? This cannot be undone.")) return;
+  try {
+    await sbDelete("audit_log_app","id=gt.0");
+    auditLog=[];
+    renderAudit();
+    showToast("Audit log cleared","warn");
+    dbg("Audit log cleared from DB","ok");
+  } catch(err){ showToast("Error: "+err.message,"err"); dbg("Clear audit error: "+err.message,"err"); }
+}
+
+
+function batchLabel(b){
+  const hasData=b.aircraft||b.operador||b.period_from;
+  if(!hasData){
+    const created=b.created_at?b.created_at.slice(0,10):"—";
+    return created+" · "+b.status+" · (no metadata)";
+  }
+  const ac=b.aircraft||"?";
+  const op=b.operador||"?";
+  const pf=b.period_from?b.period_from.slice(0,7):"";
+  const lf=b.log_from?"#"+b.log_from:"";
+  const lt=b.log_to?"–#"+b.log_to:"";
+  return ac+" · "+op+(pf?" · "+pf:"")+(lf?" · "+lf+lt:"")+" · "+b.status;
+}
+
+function populateBatchSelect(selEl, approvedOnly=false){
+  if(!selEl) return;
+  selEl.innerHTML='<option value="">— '+(lang==="es"?"Seleccionar ciclo":"Select Billing Cycle")+' —</option>';
+  const list=approvedOnly?allBatches.filter(b=>b.status==="APPROVED"):allBatches;
+  list.forEach(b=>{
+    const opt=document.createElement("option");
+    opt.value=b.id;
+    opt.textContent=batchLabel(b);
+    if(b.id===currentBatchId) opt.selected=true;
+    selEl.appendChild(opt);
+  });
+}
+
+function renderBatchSelector(){
+  populateBatchSelect(el("batchSelector"), false);
+}
+
+async function loadBatchFromDB(id){
+  try {
+    let batch=null;
+    if(id){
+      // Load specific batch by ID
+      const rows=await sbGet("batches","id=eq."+id);
+      if(rows&&rows.length) batch=rows[0];
+    }
+    if(!batch){
+      // On login: prefer most recent non-CLOSED batch
+      let rows=await sbGet("batches","status=neq.CLOSED&order=created_at.desc&limit=1");
+      if(!rows||!rows.length) rows=await sbGet("batches","order=created_at.desc&limit=1");
+      if(rows&&rows.length) batch=rows[0];
+    }
+    if(!batch){ dbg("No batch found in DB","info"); return false; }
+    currentBatchId=batch.id;
+    batchStatus=batch.status;
+    try{ batchSourceFile=JSON.parse(batch.source_file||"[]"); }
+    catch(e){ batchSourceFile=batch.source_file?batch.source_file.split(/,\s*/).filter(Boolean):[]; }
+    reviewCycle=batch.cycle||1;
+    // Restore billing sign-off state
+    if(batch.approved_by){
+      piSignedBy=batch.approved_by;
+      piSignedAt=batch.approved_at?new Date(batch.approved_at).toLocaleString("es-PA"):null;
+    } else {
+      piSignedBy=null; piSignedAt=null;
+    }
+    dbg("Batch loaded — id: "+currentBatchId+" status: "+batchStatus+" cycle: "+reviewCycle,"ok");
+    const entries=await sbGet("entries","batch_id=eq."+currentBatchId+"&order=sort_order.asc");
+    flEntries=(entries||[]).map((e,i)=>{
+      let reviewThread=[];
+      try{ reviewThread=JSON.parse(e.review_thread||"[]"); }
+      catch(err){ reviewThread=[]; }
+      const entry={
+        id:i+1, bnum:e.bnum||"", fecha:e.fecha, aeronave:e.aeronave, operador:e.operador,
+        piloto:e.piloto, instructor:e.instructor||"",
+        horoIn:e.horo_in||0,
+        motorOut:e.motor_out, motorIn:e.motor_in,
+        vueloOut:e.vuelo_out, vueloIn:e.vuelo_in,
+        _directTm:e.direct_tm||null, _directTv:e.direct_tv||null,
+        multOverride:e.mult_override||null,
+        obs:e.obs||"", flagNote:e.flag_note||"",
+        reviewThread,
+        status:e.status||"pending",
+        imageUrl:e.image_url||null,
+        nonBillReason:e.non_bill_reason||null
+      };
+      migrateFlagnoteToThread(entry);
+      return entry;
+    });
+    nextEntryId=flEntries.length+1;
+    const audit=await sbGet("audit_log","batch_id=eq."+currentBatchId+"&order=ts.desc");
+    flAuditLog=(audit||[]).map(a=>({...a,ts:new Date(a.ts)}));
+    dbg("Loaded "+flEntries.length+" entries, "+flAuditLog.length+" audit rows","ok");
+    return true;
+  } catch(err){ dbg("DB load error: "+err.message,"err"); return false; }
+}
+
+async function switchToBatch(batchId){
+  if(!batchId) return;
+  if(batchId===currentBatchId) return;
+  if(currentBatchId&&flEntries.length) await saveBatchToDB();
+  await loadBatchFromDB(batchId);
+  renderBatchSelector();
+  if(el("srcBar")) el("srcBar").style.display="flex";
+  if(el("reviewSection")) el("reviewSection").style.display="block";
+  updateSrcBar();
+  renderWfBar(); setupFlRoleUI(); renderFlTable(); renderFlAudit();
+  piAdditionalCharges=[]; piSignedBy=null; piSignedAt=null; piInvNum=null; piRulesSeeded=false;
+  if(el("pi_signed_badge")){ el("pi_signed_badge").style.display="none"; el("pi_signed_badge").textContent=""; }
+  if(el("pi_signoff_btn")) el("pi_signoff_btn").style.display="";
+  renderPreInvoice();
+  showToast("Billing cycle loaded","info");
+}
+
+// ── RENDER ALL ──
+function renderAll(){
+  renderUsers(); renderCompanies(); renderAudit();
+  renderWfBar(); setupFlRoleUI(); setupSettingsUI();
+  if(flEntries.length) renderFlTable();
+  renderFlAudit();
+  updateApiStatus();
+  renderFleetSettings();
+  renderAircraftTab();
+  renderPreInvoice();
+}
+
+// ── XLSX IMPORTER ──
+async function importFromXLSX(file){
+  if(typeof XLSX==="undefined"){showToast("XLSX library not loaded","err");return;}
+  dbg("Starting XLSX import: "+file.name,"info");
+  const reader=new FileReader();
+  reader.onload=async function(e){
+    try {
+      const wb=XLSX.read(e.target.result,{type:"array"});
+      dbg("Workbook loaded — sheets: "+wb.SheetNames.join(", "),"info");
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+      dbg("Total rows in sheet: "+rows.length,"info");
+      // Find header row
+      let hdrIdx=-1;
+      for(let i=0;i<rows.length;i++){
+        if(rows[i].some(c=>String(c||"").includes("Nº Bit."))){hdrIdx=i;break;}
+      }
+      if(hdrIdx===-1){dbg("Header row not found — expected 'Nº Bit.' in any cell","err");showToast("Header row not found in Excel file","err");return;}
+      dbg("Header row found at row "+(hdrIdx+1),"ok");
+      const dataRows=rows.slice(hdrIdx+1);
+      dbg("Data rows to process: "+dataRows.length,"info");
+      let imported=0, skipped=0;
+      dataRows.forEach((row,ri)=>{
+        if(!row||row[0]==="TOTALES"||row[1]===null||row[1]===undefined){skipped++;return;}
+        const piloto=String(row[3]||"").trim();
+        if(piloto==="—"||piloto===""){skipped++;return;}
+        const obsRaw=String(row[14]||"").trim();
+        const flagRaw=String(row[16]||"").trim();
+        const obs=obsRaw+(flagRaw?(obsRaw?" | ":"")+flagRaw:"");
+        const acVal=(window._pendingBatchMeta?.aircraft)||"HP-1861";
+        const opVal=(window._pendingBatchMeta?.operador)||"FM";
+        const entry={
+          fecha:String(row[2]||"").trim(),
+          aeronave:acVal, operador:opVal,
+          piloto:piloto,
+          instructor:String(row[4]||"").trim(),
+          horoIn:parseFloat(row[13])||0,
+          motorOut:String(row[5]||"").trim(),
+          motorIn:String(row[6]||"").trim(),
+          vueloOut:String(row[8]||"").trim(),
+          vueloIn:String(row[9]||"").trim(),
+          multOverride:parseFloat(row[11])||null,
+          obs:obs, status:"pending"
+        };
+        if(!flagRaw.includes("Dif Motor/Vuelo")) checkDiff(entry);
+        flEntries.push({id:nextEntryId++,...entry});
+        imported++;
+      });
+      dbg("Import complete — "+imported+" imported, "+skipped+" skipped","ok");
+      if(!imported){showToast("No valid entries found in Excel","err");return;}
+      batchSourceFile=[file.name];
+      if(el("srcFile")) el("srcFile").textContent="1. "+file.name;
+      if(el("srcTs")) el("srcTs").textContent=new Date().toLocaleString(lang==="es"?"es-PA":"en-US");
+      el("srcBar").style.display="flex";
+      el("reviewSection").style.display="block";
+      batchStatus="DRAFT";
+      await saveBatchToDB();
+      addFlAudit("📊",currentUser.name,"imported from Excel",imported+" entries from "+file.name);
+      renderWfBar(); setupFlRoleUI(); renderFlTable();
+      showToast("✓ "+imported+" "+t("xlsxImported"));
+      showResultBanner("ok","✓ "+imported+" "+t("xlsxImported")+" — "+file.name);
+    } catch(err){
+      dbg("XLSX parse error: "+err.message,"err");
+      showToast("Excel import error: "+err.message,"err");
+      showResultBanner("err","✗ Excel import failed: "+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── AIRCRAFT TAB RENDER ──
+function renderAircraftTab(){
+  const grid=el("aircraftTabGrid"); if(!grid) return;
+  grid.innerHTML="";
+  AIRCRAFT.forEach(ac=>{
+    const card=document.createElement("div");
+    card.style.cssText="background:var(--s2);border:1px solid var(--border2);border-top:3px solid var(--cyan);padding:18px;";
+    const ratesHtml=(ac.rates||[]).map(r=>
+      '<div style="display:grid;grid-template-columns:60px 80px 80px 1fr;align-items:center;gap:6px;padding:6px 10px;background:var(--s3);border-radius:2px;margin-bottom:4px">'+
+      '<span style="color:var(--green);font-weight:600;font-family:var(--mono);font-size:11px">'+r.operador+'</span>'+
+      '<span style="color:var(--dim2);font-family:var(--mono);font-size:11px;text-align:center">×'+r.multiplicador.toFixed(3)+'</span>'+
+      '<span style="color:var(--yellow);font-family:var(--mono);font-size:11px;text-align:center">$'+(r.tarifaHr||0).toFixed(2)+'/hr</span>'+
+      '<span style="color:var(--cyan);font-size:10px;font-family:var(--mono);text-align:right">TBH: $'+((r.tarifaHr||0)*r.multiplicador).toFixed(2)+'/hr</span>'+
+      '</div>'
+    ).join("");
+    card.innerHTML=
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'+
+      '<div style="font-family:var(--display);font-weight:700;font-size:20px;color:var(--cyan)">'+ac.matricula+'</div>'+
+      '<div style="display:flex;gap:6px">'+
+      '<button class="btn-sm" data-edit-ac="'+ac.id+'">Edit</button>'+
+      '<button class="btn-sm del" data-del-ac="'+ac.id+'">Delete</button>'+
+      '</div></div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-family:var(--mono);font-size:10px;margin-bottom:14px">'+
+      '<div><span style="color:var(--dim)">Make/Model</span><br><span>'+( ac.makeModel||"—")+'</span></div>'+
+      '<div><span style="color:var(--dim)">Engine</span><br><span>'+(ac.motorId||"—")+'</span></div>'+
+      '<div><span style="color:var(--dim)">Fuel (gal/hr)</span><br><span>'+(ac.consumoGalHr||"—")+'</span></div>'+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-end">'+
+        '<div><span style="color:var(--dim)">Diff Threshold</span><br><span style="color:'+(ac.diffThreshold<=0.2?"var(--green)":"var(--yellow)")+'">'+ac.diffThreshold.toFixed(1)+' hrs</span></div>'+
+        (ac.photoUrl?'<img src="'+ac.photoUrl+'" alt="'+ac.matricula+'" style="width:90px;height:62px;object-fit:cover;border-radius:2px;border:1px solid var(--border2);flex-shrink:0">':"")+
+      '</div>'+
+      '</div>'+
+      '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Operator Rates</div>'+
+      (ratesHtml||'<div style="color:var(--dim);font-size:10px;font-family:var(--mono)">No rates configured</div>');
+    grid.appendChild(card);
+  });
+  grid.querySelectorAll("[data-edit-ac]").forEach(btn=>btn.addEventListener("click",()=>openEditAircraft(btn.dataset.editAc)));
+  grid.querySelectorAll("[data-del-ac]").forEach(btn=>btn.addEventListener("click",()=>openDeleteAircraft(btn.dataset.delAc)));
+}
+
+// ── FLEET SETTINGS — FULL CRUD ──
+let tempRates=[];
+let _stagedAcPhoto=null; // blob staged before aircraft save — cleared on modal open
+
+function renderAcRates(){
+  const wrap=el("acRatesList"); if(!wrap) return;
+  wrap.innerHTML="";
+  tempRates.forEach((r,i)=>{
+    const row=document.createElement("div");
+    row.style.cssText="display:grid;grid-template-columns:80px 110px 110px 32px;gap:6px;align-items:center";
+    row.innerHTML=
+      '<select style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:6px;font-family:var(--mono);font-size:11px;border-radius:2px">'+
+        COMPANIES.map(c=>'<option value="'+c.code+'"'+(c.code===r.operador?" selected":"")+'>'+c.code+'</option>').join("")+
+      '</select>'+
+      '<input type="number" step="0.001" placeholder="Mult e.g. 1.275" value="'+(r.multiplicador||"")+'" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:6px;font-size:11px;border-radius:2px;width:100%">'+
+      '<input type="number" step="0.01" placeholder="$/hr e.g. 165" value="'+(r.tarifaHr||"")+'" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:6px;font-size:11px;border-radius:2px;width:100%">'+
+      '<button style="background:none;border:1px solid var(--border2);color:var(--red);cursor:pointer;padding:4px 6px;border-radius:2px">✕</button>';
+    const [opSel,multInp,tarifaInp,delBtn]=row.children;
+    opSel.addEventListener("change",()=>{tempRates[i].operador=opSel.value;});
+    multInp.addEventListener("input",()=>{tempRates[i].multiplicador=parseFloat(multInp.value)||0;});
+    tarifaInp.addEventListener("input",()=>{tempRates[i].tarifaHr=parseFloat(tarifaInp.value)||0;});
+    delBtn.addEventListener("click",()=>{tempRates.splice(i,1);renderAcRates();});
+    wrap.appendChild(row);
+  });
+}
+
+function addAcRate(){
+  tempRates.push({operador:COMPANIES[0]?.code||"FM",multiplicador:1.275,tarifaHr:0});
+  renderAcRates();
+}
+
+function renderFleetSettings(){
+  const grid=el("fleetGrid"); if(!grid) return;
+  grid.innerHTML="";
+  AIRCRAFT.forEach(ac=>{
+    const card=document.createElement("div");
+    card.style.cssText="background:var(--s2);border:1px solid var(--border2);border-top:3px solid var(--cyan);padding:14px;";
+    card.innerHTML=
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'+
+      '<div style="font-family:var(--display);font-weight:700;font-size:16px;color:var(--cyan)">'+ac.matricula+"</div>"+
+      '<div style="display:flex;gap:6px">'+
+      '<button class="btn-sm" data-edit-ac="'+ac.id+'">Edit</button>'+
+      '<button class="btn-sm del" data-del-ac="'+ac.id+'">Delete</button>'+
+      "</div></div>"+
+      '<div style="display:grid;gap:5px;font-family:var(--mono);font-size:10px">'+
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Make/Model</span><span>'+ac.makeModel+"</span></div>"+
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Operator</span><span style="color:var(--green)">'+ac.operador+"</span></div>"+
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Multiplier</span><span style="color:var(--yellow)">'+ac.multiplicador.toFixed(3)+"×</span></div>"+
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Engine</span><span>'+ac.motorId+"</span></div>"+
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Fuel (gal/hr)</span><span>'+ac.consumoGalHr+"</span></div>"+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">'+
+      '<div><span style="color:var(--dim)">Diff Threshold</span><br><span style="color:'+(ac.diffThreshold<=0.2?"var(--green)":"var(--yellow)")+'">'+ac.diffThreshold.toFixed(1)+" hrs</span></div>"+
+      (ac.photoUrl?'<img src="'+ac.photoUrl+'" alt="'+ac.matricula+'" style="width:90px;height:62px;object-fit:cover;border-radius:2px;border:1px solid var(--border2);flex-shrink:0">':"")+
+      "</div>"+
+      "</div>";
+    grid.appendChild(card);
+  });
+  // Wire edit/delete buttons
+  grid.querySelectorAll("[data-edit-ac]").forEach(btn=>btn.addEventListener("click",()=>openEditAircraft(btn.dataset.editAc)));
+  grid.querySelectorAll("[data-del-ac]").forEach(btn=>btn.addEventListener("click",()=>openDeleteAircraft(btn.dataset.delAc)));
+}
+
+// ── AIRCRAFT PHOTO UI HELPERS ──
+function _resetAcPhotoUI(){
+  _stagedAcPhoto=null;
+  const empty=el("ac_photo_empty"); const present=el("ac_photo_present");
+  if(empty) empty.style.display="flex";
+  if(present) present.style.display="none";
+}
+function _showAcPhotoThumb(src, label){
+  const empty=el("ac_photo_empty"); const present=el("ac_photo_present");
+  const thumb=el("ac_photo_thumb"); const fname=el("ac_photo_filename");
+  if(empty) empty.style.display="none";
+  if(present) present.style.display="flex";
+  if(thumb) thumb.src=src;
+  if(fname) fname.textContent=label||"";
+}
+function openAcPhotoModal(){
+  // Reset photo modal state
+  const inp=el("ac_photo_input"); const nameSpan=el("ac_photo_input_name");
+  const previewImg=el("ac_photo_preview_img"); const previewEmpty=el("ac_photo_preview_empty");
+  if(inp) inp.value="";
+  if(nameSpan) nameSpan.textContent="No file chosen";
+  if(previewImg){previewImg.style.display="none"; previewImg.src="";}
+  if(previewEmpty) previewEmpty.style.display="block";
+  openModal("acPhotoMbd");
+}
+
+function openCreateAircraft(){
+  editingAcId=null;
+  el("acModalTitle").textContent="New Aircraft";
+  el("ac_matricula").value=""; el("ac_makeModel").value="";
+  el("ac_tipo").value="Single Engine";
+  if(el("ac_horoTolerance")) el("ac_horoTolerance").value="0.01";
+  if(el("ac_diffThreshold")) el("ac_diffThreshold").value="0.2";
+  if(el("ac_diffWarn")) el("ac_diffWarn").value="0.3";
+  if(el("ac_diffAlert")) el("ac_diffAlert").value="0.4";
+  el("ac_motorId").value=""; el("ac_consumoGalHr").value="";
+  el("ac_asientos").value="2";
+  if(el("ac_owner")) el("ac_owner").value="";
+  if(el("ac_owner_address")) el("ac_owner_address").value="";
+  _resetAcPhotoUI();
+  tempRates=[]; renderAcRates();
+  openModal("acMbd");
+}
+
+function openEditAircraft(id){
+  const ac=AIRCRAFT.find(a=>a.id===id); if(!ac) return;
+  editingAcId=id;
+  el("acModalTitle").textContent="Edit Aircraft: "+ac.matricula;
+  el("ac_matricula").value=ac.matricula;
+  el("ac_makeModel").value=ac.makeModel||"";
+  el("ac_tipo").value=ac.tipo||"";
+  if(el("ac_horoTolerance")) el("ac_horoTolerance").value=ac.horoTolerance||0.01;
+  if(el("ac_diffThreshold")) el("ac_diffThreshold").value=ac.diffThreshold||0.2;
+  if(el("ac_diffWarn")) el("ac_diffWarn").value=ac.diffWarn||0.3;
+  if(el("ac_diffAlert")) el("ac_diffAlert").value=ac.diffAlert||0.4;
+  el("ac_motorId").value=ac.motorId||"";
+  el("ac_consumoGalHr").value=ac.consumoGalHr||"";
+  el("ac_asientos").value=ac.asientos||"";
+  if(el("ac_owner")) el("ac_owner").value=ac.owner||"";
+  if(el("ac_owner_address")) el("ac_owner_address").value=ac.ownerAddress||"";
+  _stagedAcPhoto=null; // always reset staged on edit open
+  if(ac.photoUrl){ _showAcPhotoThumb(ac.photoUrl, ac.matricula+".jpg"); }
+  else { _resetAcPhotoUI(); }
+  tempRates=JSON.parse(JSON.stringify(ac.rates||[]));
+  renderAcRates();
+  openModal("acMbd");
+}
+
+function openDeleteAircraft(id){
+  const ac=AIRCRAFT.find(a=>a.id===id); if(!ac) return;
+  deletingId=id; deleteType="aircraft";
+  el("delWarn").innerHTML="Delete aircraft <strong>"+ac.matricula+"</strong>? This cannot be undone.";
+  el("del_confirm").textContent="Delete Aircraft";
+  openModal("delMbd");
+}
+
+async function saveAircraft(){
+  const matricula=el("ac_matricula").value.trim().toUpperCase();
+  if(!matricula){showToast("Registration required","err");return;}
+  if(!tempRates.length){showToast("Add at least one operator rate","err");return;}
+  const data={
+    matricula, makeModel:el("ac_makeModel").value.trim(),
+    tipo:el("ac_tipo").value.trim(),
+    horoTolerance:parseFloat(el("ac_horoTolerance")?el("ac_horoTolerance").value:0.01)||0.01,
+    // Use first rate's multiplier as the aircraft-level fallback
+    multiplicador:tempRates[0]?parseFloat(tempRates[0].multiplicador)||1:1,
+    diffThreshold:parseFloat(el("ac_diffThreshold")?el("ac_diffThreshold").value:0.2)||0.2,
+    diffWarn:parseFloat(el("ac_diffWarn")?el("ac_diffWarn").value:0.3)||0.3,
+    diffAlert:parseFloat(el("ac_diffAlert")?el("ac_diffAlert").value:0.4)||0.4,
+    motorId:el("ac_motorId").value.trim(),
+    consumoGalHr:parseFloat(el("ac_consumoGalHr").value)||0,
+    asientos:parseInt(el("ac_asientos").value)||2,
+    owner:el("ac_owner")?el("ac_owner").value.trim():"",
+    ownerAddress:el("ac_owner_address")?el("ac_owner_address").value.trim():"",
+    rates:tempRates
+  };
+  // Upload staged photo if present — failure does NOT block save
+  let photoUrl=editingAcId?(AIRCRAFT.find(a=>a.id===editingAcId)?.photoUrl||null):null;
+  if(_stagedAcPhoto){
+    const compressed=await compressImage(_stagedAcPhoto,800,0.78);
+    const url=await uploadAircraftPhoto(compressed,data.matricula);
+    if(url) photoUrl=url;
+    else dbg("Photo upload failed — aircraft saves without new photo","warn");
+  }
+  data.photoUrl=photoUrl;
+  if(editingAcId){
+    const ac=AIRCRAFT.find(a=>a.id===editingAcId); Object.assign(ac,data);
+    sbPatch("aircraft","id=eq."+editingAcId,{
+      matricula:data.matricula, make_model:data.makeModel||"",
+      tipo:data.tipo||"", multiplicador:data.multiplicador,
+      diff_threshold:data.diffThreshold, diff_warn:data.diffWarn, diff_alert:data.diffAlert,
+      motor_id:data.motorId||"", consumo_gal_hr:data.consumoGalHr||0,
+      asientos:data.asientos||2, rates:data.rates,
+      owner:data.owner||"", owner_address:data.ownerAddress||"",
+      photo_url:photoUrl
+    }).then(()=>dbg("Aircraft updated in DB: "+data.matricula,"ok"))
+      .catch(e=>dbg("Aircraft update error: "+e.message,"err"));
+    showToast("Aircraft updated");
+  } else {
+    const newAc={id:"ac"+Date.now(),...data};
+    AIRCRAFT.push(newAc);
+    sbPost("aircraft",{
+      id:newAc.id, matricula:data.matricula, make_model:data.makeModel||"",
+      tipo:data.tipo||"", multiplicador:data.multiplicador,
+      diff_threshold:data.diffThreshold, diff_warn:data.diffWarn, diff_alert:data.diffAlert,
+      motor_id:data.motorId||"", consumo_gal_hr:data.consumoGalHr||0,
+      asientos:data.asientos||2, rates:data.rates,
+      owner:data.owner||"", owner_address:data.ownerAddress||"",
+      photo_url:photoUrl
+    }).then(()=>dbg("Aircraft created in DB: "+data.matricula,"ok"))
+      .catch(e=>dbg("Aircraft create error: "+e.message,"err"));
+    showToast("Aircraft added");
+  }
+  _stagedAcPhoto=null;
+  closeModal("acMbd");
+  renderFleetSettings();
+  renderAircraftTab();
+  initBatchConstants(); // refresh dropdowns
+}
+
+// ── EVENT WIRING (all addEventListener, no inline handlers) ──
+function wireEvents(){
+  // Login
+  el("btnEN").addEventListener("click",()=>setLang("en"));
+  el("btnES").addEventListener("click",()=>setLang("es"));
+  el("appEN").addEventListener("click",()=>setLang("en"));
+  el("appES").addEventListener("click",()=>setLang("es"));
+  // Login — remember username
+  const savedEmail=localStorage.getItem("hpfleet_remember_email");
+  if(savedEmail){ el("li_user").value=savedEmail; el("rememberMe").checked=true; }
+  el("loginBtn").addEventListener("click",doLogin);
+  el("li_pass").addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
+  if(el("li_pass_toggle")) el("li_pass_toggle").addEventListener("click",()=>{
+    const inp=el("li_pass");
+    const isHidden=inp.type==="password";
+    inp.type=isHidden?"text":"password";
+    if(el("li_eye_open")) el("li_eye_open").style.display=isHidden?"none":"";
+    if(el("li_eye_shut")) el("li_eye_shut").style.display=isHidden?"":"none";
+  });
+  el("btnSignOut").addEventListener("click",doLogout);
+
+  // Users tab
+  el("ut_add").addEventListener("click",openCreateUser);
+  el("ut_export").addEventListener("click",exportUsersJSON);
+  el("ut_clearLog").addEventListener("click",clearAudit);
+  el("userSearch").addEventListener("input",renderUsers);
+  el("filterRole").addEventListener("change",renderUsers);
+  el("filterCompany").addEventListener("change",renderUsers);
+  el("filterStatus").addEventListener("change",renderUsers);
+  // User table sort
+  document.querySelectorAll("[data-sort-user]").forEach(th=>{
+    th.addEventListener("click",()=>{
+      const col=th.dataset.sortUser;
+      if(userSortCol===col){ userSortDir*=-1; } else { userSortCol=col; userSortDir=1; }
+      renderUsers();
+    });
+  });
+
+  // User modal
+  el("um_close").addEventListener("click",()=>closeModal("userMbd"));
+  el("um_cancel").addEventListener("click",()=>closeModal("userMbd"));
+  el("um_save").addEventListener("click",saveUser);
+  el("um_role").addEventListener("change",updateRoleDesc);
+  // userMbd: backdrop click disabled — prevents accidental loss of unsaved user data
+
+  // User table delegation
+  el("userTbody").addEventListener("click",function(e){
+    const editBtn=e.target.closest("[data-edit-user]");
+    const delBtn=e.target.closest("[data-del-user]");
+    const stBtn=e.target.closest("[data-uid]");
+    if(editBtn) openEditUser(editBtn.dataset.editUser);
+    else if(delBtn) openDeleteUser(delBtn.dataset.delUser);
+    else if(stBtn) toggleUserStatus(stBtn.dataset.uid);
+  });
+
+  // Companies tab
+  el("ct_add").addEventListener("click",openCreateCompany);
+
+  // Company modal
+  if(el("co_addContact")) el("co_addContact").addEventListener("click",addContact);
+  el("co_close").addEventListener("click",()=>closeModal("coMbd"));
+  el("co_cancel").addEventListener("click",()=>closeModal("coMbd"));
+  el("co_save").addEventListener("click",saveCompany);
+  ["co_inv_addr","co_inv_phone","co_inv_notes","co_inv_rate"].forEach(id=>{
+    if(el(id)) el(id).addEventListener("change",_syncInvChkStyles);
+  });
+  el("co_addRule").addEventListener("click",addBillingRuleRow);
+  // coMbd: backdrop click disabled — prevents accidental loss of unsaved company/billing rule data
+
+  // Company grid delegation
+  el("coGrid").addEventListener("click",function(e){
+    const editBtn=e.target.closest("[data-edit-co]");
+    const toggleBtn=e.target.closest("[data-toggle-co]");
+    const delBtn=e.target.closest("[data-del-co]");
+    if(editBtn) openEditCompany(editBtn.dataset.editCo);
+    else if(toggleBtn) toggleCompanyStatus(toggleBtn.dataset.toggleCo);
+    else if(delBtn) openDeleteCompany(delBtn.dataset.delCo);
+  });
+
+  // Delete modal
+  el("del_close").addEventListener("click",()=>closeModal("delMbd"));
+  el("del_cancel").addEventListener("click",()=>closeModal("delMbd"));
+  el("del_confirm").addEventListener("click",confirmDelete);
+  el("delMbd").addEventListener("click",e=>{ if(e.target===el("delMbd")) closeModal("delMbd"); });
+
+  // Flight Log tab
+  el("apiWarnLink").addEventListener("click",()=>switchTab("settings"));
+  el("sb_dlcsv").addEventListener("click",exportFlCSV);
+  el("btn_approveAll").addEventListener("click",()=>setAllFlStatus("approved"));
+  el("btn_resetAll").addEventListener("click",()=>setAllFlStatus("pending"));
+  el("btn_newEntry").addEventListener("click",()=>openEditEntry(null));
+  el("filterOp").addEventListener("change",renderFlTable);
+  el("ptab_entries").addEventListener("click",()=>switchFlPanel("entries"));
+  el("ptab_audit").addEventListener("click",()=>switchFlPanel("audit"));
+  el("btn_csv").addEventListener("click",exportFlCSV);
+  el("btn_xlsx").addEventListener("click",exportFlXLSX);
+  el("btn_saveDraft").addEventListener("click",saveDraft);
+  el("btn_submit").addEventListener("click",handleSubmit);
+  el("btn_approve").addEventListener("click",handleApprove);
+  if(el("btn_returnForReview")) el("btn_returnForReview").addEventListener("click",openRfr);
+  if(el("rfrMbd")) el("rfrMbd").addEventListener("click",e=>{ if(e.target===el("rfrMbd")) closeRfr(); });
+  // btn_reqChanges removed — replaced by per-row flag system
+
+  // FL entry modal
+  el("fl_close").addEventListener("click",()=>{ closeModal("flMbd"); el("flMbd").style.display="none"; });
+  el("fl_cancel").addEventListener("click",()=>{ closeModal("flMbd"); el("flMbd").style.display="none"; });
+  el("fl_save").addEventListener("click",()=>{ if(el("fl_soft_warn")) el("fl_soft_warn").style.display="none"; saveEntryForm(); });
+  if(el("fl_soft_proceed")) el("fl_soft_proceed").addEventListener("click",()=>{
+    el("fl_soft_warn").style.display="none";
+    proceedSaveEntry();
+  });
+  if(el("fl_soft_cancel")) el("fl_soft_cancel").addEventListener("click",()=>{
+    el("fl_soft_warn").style.display="none";
+  });
+  // flMbd is now floating — no overlay click to close
+  // Make flMbd draggable
+  (()=>{
+    const dlg=el("flMbd"); const hdr=dlg?dlg.querySelector(".float-dialog-hdr"):null;
+    if(!dlg||!hdr) return;
+    let ox=0,oy=0,startX=0,startY=0,dragging=false;
+    hdr.addEventListener("mousedown",e=>{dragging=true;startX=e.clientX;startY=e.clientY;
+      const r=dlg.getBoundingClientRect();ox=r.left;oy=r.top;e.preventDefault();});
+    document.addEventListener("mousemove",e=>{if(!dragging)return;
+      dlg.style.left=(ox+e.clientX-startX)+"px";dlg.style.top=(oy+e.clientY-startY)+"px";
+      dlg.style.transform="none";});
+    document.addEventListener("mouseup",()=>{dragging=false;});
+  })();
+  // Auto-set default mult when aircraft/operator changes in entry modal
+  function updateEntryMult(){
+    const aeronave=el("f_aeronave").value;
+    const operador=el("f_operador").value;
+    const mult=getAircraftMult(aeronave,operador);
+    if(mult&&mult!==1) el("f_mult").value=mult;
+    liveCalcEntry();
+  }
+  el("f_aeronave").addEventListener("change",function(){
+    const ac=AIRCRAFT.find(a=>a.matricula===this.value);
+    if(ac) el("f_operador").value=ac.operador;
+    updateEntryMult();
+  });
+  el("f_operador").addEventListener("change",updateEntryMult);
+  ["f_motorOut","f_motorIn","f_vueloOut","f_vueloIn","f_mult","f_tmotor","f_tvuelo"].forEach(id=>{
+    el(id).addEventListener("input",liveCalcEntry);
+    el(id).addEventListener("change",liveCalcEntry);
+  });
+
+  // Confirm modal
+  el("confirm_close").addEventListener("click",()=>closeModal("confirmMbd"));
+  el("confirm_cancel").addEventListener("click",()=>closeModal("confirmMbd"));
+  el("confirm_ok").addEventListener("click",executeConfirm);
+  el("confirmMbd").addEventListener("click",e=>{ if(e.target===el("confirmMbd")) closeModal("confirmMbd"); });
+
+  // Exception modal
+  el("exc_close").addEventListener("click",()=>closeModal("excMbd"));
+  el("exc_back").addEventListener("click",()=>closeModal("excMbd"));
+  el("exc_proceed").addEventListener("click",proceedAnyway);
+  el("excMbd").addEventListener("click",e=>{ if(e.target===el("excMbd")) closeModal("excMbd"); });
+
+  // Req changes modal
+  // req changes removed — replaced by per-row flag system (flagMbd)
+
+  // Settings
+  el("btn_saveApiKey").addEventListener("click",saveApiKey);
+  el("btn_clearApiKey").addEventListener("click",clearApiKey);
+  if(el("btn_delTestBatches")) el("btn_delTestBatches").addEventListener("click",deleteTestBatches);
+  if(el("btn_delByStatus")) el("btn_delByStatus").addEventListener("click",()=>{
+    const status=el("del_batch_status").value;
+    deleteBatchesByStatus(status);
+  });
+  if(el("btn_clearAuditDB")) el("btn_clearAuditDB").addEventListener("click",clearAuditLogDB);
+
+  // View As toggle (Admin only)
+  if(el("viewAsRole")) el("viewAsRole").addEventListener("change",function(){
+    viewRole=this.value==="ADMIN"?null:this.value;
+    renderWfBar(); setupFlRoleUI(); setupSettingsUI(); renderFlTable(); renderTabs(); updateActionBar();
+    showToast("View As: "+(viewRole||"Admin"));
+  });
+
+  // Side panel image toolbar
+  if(el("sp_zoom_in")) el("sp_zoom_in").addEventListener("click",spZoomIn);
+  if(el("sp_zoom_out")) el("sp_zoom_out").addEventListener("click",spZoomOut);
+  if(el("sp_fit")) el("sp_fit").addEventListener("click",spFitToWindow);
+  // pan toggle removed — drag is always on
+  if(el("sp_rotate")) el("sp_rotate").addEventListener("click",spRotateImg);
+  if(el("sp_reextract")) el("sp_reextract").addEventListener("click",spReextract);
+
+  // Non-Billable toggle
+  if(el("sp_nonbill_toggle")) el("sp_nonbill_toggle").addEventListener("click",()=>{
+    if(!spEditingEntryId) return;
+    const entry=flEntries.find(e=>e.id===spEditingEntryId); if(!entry) return;
+    if(entry.status==="nonbillable"){
+      entry.status="pending";
+      entry.nonBillReason=null;
+      spUpdateNonBillBtn(false);
+      spMarkDirty();
+      renderFlTable();
+      updateSrcBar();
+    } else {
+      if(el("nonBill_reason")) el("nonBill_reason").value="Maintenance";
+      if(el("nonBill_comment")) el("nonBill_comment").value="";
+      // Position near the toolbar
+      const toolbar=el("sp_img_toolbar");
+      const rect=toolbar?toolbar.getBoundingClientRect():{bottom:300,left:920};
+      const dlg=el("nonBillMbd");
+      if(dlg){
+        dlg.style.top=(rect.bottom+8)+"px";
+        dlg.style.left=rect.left+"px";
+        dlg.classList.add("open");
+      }
+    }
+  });
+  makeDraggable("nonBillMbd","nonBillMbdHdr");
+  if(el("nonBill_close")) el("nonBill_close").addEventListener("click",()=>el("nonBillMbd").classList.remove("open"));
+  if(el("nonBill_cancel")) el("nonBill_cancel").addEventListener("click",()=>el("nonBillMbd").classList.remove("open"));
+  if(el("nonBill_confirm")) el("nonBill_confirm").addEventListener("click",()=>{
+    const entry=flEntries.find(e=>e.id===spEditingEntryId); if(!entry) return;
+    const prevStatus=entry.status;
+    const prevNonBillReason=entry.nonBillReason;
+    const reason=el("nonBill_reason").value;
+    const comment=el("nonBill_comment").value.trim();
+    entry.nonBillReason=reason+(comment?" — "+comment:"");
+    entry.status="nonbillable";
+    if(el("sp_obs")) el("sp_obs").value="⊘ "+entry.nonBillReason;
+    spUpdateNonBillBtn(true);
+    spMarkDirty();
+    recordStatusChange(entry.id,prevStatus,prevNonBillReason);
+    renderFlTable();
+    updateSrcBar();
+    el("nonBillMbd").classList.remove("open");
+  });
+
+  // Floating dialog wiring — srcBar clickable links
+  function openFloatDialog(dlgId,title,lines,color,entryIds){
+    const dlg=el(dlgId); if(!dlg) return;
+    const body=dlg.querySelector(".float-dialog-body");
+    if(body){
+      if(!lines.length){
+        body.innerHTML="<div style='color:var(--dim)'>No items.</div>";
+      } else {
+        body.innerHTML=lines.map((l,i)=>{
+          const eid=entryIds?entryIds[i]:null;
+          if(eid!=null){
+            return '<div style="padding:3px 0;border-bottom:1px solid var(--border2)">'+
+              '<a href="#" data-open-entry="'+eid+'" style="color:var(--cyan);text-decoration:none;font-weight:600;margin-right:6px">→</a>'+
+              '<span>'+l+'</span></div>';
+          }
+          return '<div style="padding:3px 0;border-bottom:1px solid var(--border2)">'+l+"</div>";
+        }).join("");
+        // Wire entry links
+        body.querySelectorAll("[data-open-entry]").forEach(a=>{
+          a.addEventListener("click",ev=>{
+            ev.preventDefault();
+            const eid=parseInt(a.dataset.openEntry);
+            openSidePanel(eid,true);
+          });
+        });
+      }
+    }
+    const bar=el("srcBar");
+    const hdr=dlg.querySelector(".float-dialog-hdr");
+    if(hdr) hdr.style.background=color||"var(--cyan)";
+    const titleEl=dlg.querySelector(".float-dialog-title");
+    if(titleEl) titleEl.style.color="#000";
+    dlg.style.border="1.5px solid "+(color||"var(--border2)");
+    dlg.style.top="";
+    dlg.style.left="";
+    dlg.classList.add("open");
+  }
+  function makeDraggable(dlgId,hdrId){
+    const dlg=el(dlgId); const hdr=el(hdrId); if(!dlg||!hdr) return;
+    let ox,oy,sx,sy,dragging=false;
+    hdr.addEventListener("mousedown",e=>{
+      dragging=true; sx=e.clientX; sy=e.clientY;
+      ox=dlg.offsetLeft; oy=dlg.offsetTop; e.preventDefault();
+    });
+    document.addEventListener("mousemove",e=>{
+      if(!dragging) return;
+      dlg.style.left=(ox+(e.clientX-sx))+"px";
+      dlg.style.top=(oy+(e.clientY-sy))+"px";
+    });
+    document.addEventListener("mouseup",()=>{ dragging=false; });
+  }
+  makeDraggable("dlgDups","dlgDupsHdr");
+  makeDraggable("dlgNotRead","dlgNotReadHdr");
+  makeDraggable("dlgNonBill","dlgNonBillHdr");
+  makeDraggable("dlgLogBreaks","dlgLogBreaksHdr");
+  makeDraggable("dlgSeqAlerts","dlgSeqAlertsHdr");
+
+  if(el("dlgDupsClose")) el("dlgDupsClose").addEventListener("click",()=>el("dlgDups").classList.remove("open"));
+  if(el("dlgNotReadClose")) el("dlgNotReadClose").addEventListener("click",()=>el("dlgNotRead").classList.remove("open"));
+  if(el("dlgNonBillClose")) el("dlgNonBillClose").addEventListener("click",()=>el("dlgNonBill").classList.remove("open"));
+  if(el("dlgLogBreaksClose")) el("dlgLogBreaksClose").addEventListener("click",()=>el("dlgLogBreaks").classList.remove("open"));
+  if(el("dlgSeqAlertsClose")) el("dlgSeqAlertsClose").addEventListener("click",()=>el("dlgSeqAlerts").classList.remove("open"));
+
+  if(el("srcNotRead")) el("srcNotRead").addEventListener("click",()=>{
+    const entries=flEntries.filter(e=>e.status==="skipped"||e.status==="void"||!e.aeronave||!e.fecha);
+    const lines=entries.map(e=>{
+      const idx=flEntries.indexOf(e)+1;
+      const reason=e.status==="skipped"?"Skipped":e.status==="void"?"Void":!e.aeronave?"No aircraft":!e.fecha?"No date":"Unknown";
+      return "Entry #"+idx+" | Log "+(e.bnum||"—")+" | "+reason;
+    });
+    openFloatDialog("dlgNotRead","Not Read Entries",lines,"var(--yellow)",entries.map(e=>e.id));
+  });
+  if(el("srcNonBill")) el("srcNonBill").addEventListener("click",()=>{
+    const entries=flEntries.filter(e=>e.status==="nonbillable");
+    const lines=entries.map(e=>{
+      const idx=flEntries.indexOf(e)+1;
+      return "Entry #"+idx+" | Log "+(e.bnum||"—")+" | "+(e.fecha||"—")+" | "+(e.nonBillReason||"No reason given");
+    });
+    openFloatDialog("dlgNonBill","Non-Billable Entries",lines,"var(--red)",entries.map(e=>e.id));
+  });
+  if(el("srcDups")) el("srcDups").addEventListener("click",()=>{
+    const dups=duplicateCheck();
+    const lines=dups.map(d=>"Entry #"+(d.idx+1)+" | Log "+d.bnum+" | "+(d.entry.fecha||"—")+" | "+d.entry.aeronave);
+    openFloatDialog("dlgDups","Duplicate Log Entries",lines,"orange",dups.map(d=>d.entry.id));
+  });
+  if(el("srcLogBreaks")) el("srcLogBreaks").addEventListener("click",()=>{
+    const breaks=logCheck();
+    const lines=breaks.map(b=>"Entry #"+(b.idx+1)+" | "+b.msg);
+    openFloatDialog("dlgLogBreaks","Log # Breaks",lines,"var(--red)",breaks.map(b=>b.entry.id));
+  });
+  if(el("srcHoro")) el("srcHoro").addEventListener("click",()=>{
+    const alerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; });
+    const lines=alerts.map(e=>{
+      const idx=flEntries.indexOf(e);
+      const h=horoCheck(e,idx);
+      return "Entry #"+(idx+1)+" | Log "+(e.bnum||"—")+" | "+e.aeronave+" | Prev.In "+h.prevIn+" → Curr.Out "+h.currOut+" (Δ"+h.diff+")";
+    });
+    openFloatDialog("dlgSeqAlerts","Sequence Alerts",lines,"var(--yellow)",alerts.map(e=>e.id));
+  });
+  if(el("dlgSentBackClose")) el("dlgSentBackClose").addEventListener("click",()=>el("dlgSentBack").classList.remove("open"));
+  if(el("srcSentBack")) el("srcSentBack").addEventListener("click",()=>{
+    const flagged=flEntries.filter(e=>e.flagNote&&e.flagNote.trim()!=="");
+    const lines=flagged.map(e=>{
+      const idx=flEntries.indexOf(e);
+      return "Entry #"+(idx+1)+" | Log "+(e.bnum||"—")+" | "+e.aeronave+" | "+(e.flagNote||"");
+    });
+    const title=lang==="es"?"Devuelto para Corrección":"Sent Back for Review";
+    openFloatDialog("dlgSentBack",title,lines,"var(--yellow)",flagged.map(e=>e.id));
+  });
+  if(el("dlgSentBackHdr")) makeDraggable("dlgSentBack","dlgSentBackHdr");
+  // Pan/drag — always on (left click + drag), double click = zoom in
+  const spImgWrap=el("sp_img_wrap");
+  if(spImgWrap){
+    let isDragging=false, dragStartX=0, dragStartY=0, panStartX=0, panStartY=0, didDrag=false;
+    spImgWrap.addEventListener("mousedown",e=>{
+      if(e.button!==0) return;
+      isDragging=true; didDrag=false;
+      dragStartX=e.clientX; dragStartY=e.clientY;
+      panStartX=spPanX; panStartY=spPanY;
+      spImgWrap.style.cursor="grabbing";
+      e.preventDefault();
+    });
+    spImgWrap.addEventListener("mousemove",e=>{
+      if(!isDragging) return;
+      const dx=e.clientX-dragStartX; const dy=e.clientY-dragStartY;
+      if(Math.abs(dx)>3||Math.abs(dy)>3) didDrag=true;
+      spPanX=panStartX+dx/spZoom;
+      spPanY=panStartY+dy/spZoom;
+      spApplyTransform();
+    });
+    spImgWrap.addEventListener("mouseleave",()=>{
+      if(!isDragging) return;
+      isDragging=false; spImgWrap.style.cursor="";
+    });
+    spImgWrap.addEventListener("mouseup",()=>{
+      if(!isDragging) return;
+      isDragging=false; spImgWrap.style.cursor="";
+    });
+    spImgWrap.addEventListener("dblclick",e=>{
+      e.preventDefault();
+      spZoomIn();
+    });
+    // Scroll wheel zoom — throttled to prevent over-sensitivity on trackpad
+    let _wheelThrottle=null;
+    spImgWrap.addEventListener("wheel",e=>{
+      if(!el("sidePanel").classList.contains("open")) return;
+      e.preventDefault();
+      if(_wheelThrottle) return;
+      _wheelThrottle=setTimeout(()=>{ _wheelThrottle=null; },150);
+      if(e.deltaY<0) spZoomIn(); else spZoomOut();
+    },{passive:false});
+  }
+
+  // Pre-invoice add charge and sign-off
+  const addCharge=()=>{piAdditionalCharges.push({desc:"Additional Charge",amount:0});renderPreInvoice();};
+  if(el("pi_add_charge2")) el("pi_add_charge2").addEventListener("click",addCharge);
+  if(el("pi_signoff_btn")) el("pi_signoff_btn").addEventListener("click",async()=>{
+    piSignedBy=currentUser.name;
+    piSignedAt=new Date().toLocaleString("es-PA");
+    addFlAudit("✍️",currentUser.name,"signed off billing",piInvNum);
+    renderPreInvoice();
+    await saveBatchToDB();
+    showToast("Billing signed off");
+  });
+  // Sort headers
+  if(el("pi_th_bnum")) el("pi_th_bnum").addEventListener("click",()=>{
+    if(piSortCol==="bnum") piSortDir=piSortDir==="asc"?"desc":"asc";
+    else{ piSortCol="bnum"; piSortDir="asc"; }
+    renderPreInvoice();
+  });
+  if(el("pi_th_fecha")) el("pi_th_fecha").addEventListener("click",()=>{
+    if(piSortCol==="fecha") piSortDir=piSortDir==="asc"?"desc":"asc";
+    else{ piSortCol="fecha"; piSortDir="asc"; }
+    renderPreInvoice();
+  });
+  // Export PDF
+  if(el("pi_export_pdf")) el("pi_export_pdf").addEventListener("click",()=>window.print());
+
+  if(el("btn_resetTestData")) el("btn_resetTestData").addEventListener("click",()=>{
+    if(confirm(lang==="es"?"Resetear datos de revision del lote actual? No se puede deshacer.":"Reset all review data for current batch? This cannot be undone.")) resetTestData();
+  });
+  if(el("btn_reopen")) el("btn_reopen").addEventListener("click",()=>{
+    if(el("reopen_reason")) el("reopen_reason").value="";
+    if(el("reopen_title")) el("reopen_title").textContent=t("reopenTitle");
+    if(el("reopen_subtitle")) el("reopen_subtitle").textContent=t("reopenSubtitle");
+    if(el("reopen_reason_label")) el("reopen_reason_label").textContent=t("reopenReasonLabel");
+    if(el("reopen_confirm")) el("reopen_confirm").textContent=t("reopenConfirm");
+    if(el("reopen_cancel")) el("reopen_cancel").textContent=t("rfrCancel");
+    openModal("reopenMbd");
+  });
+  if(el("reopen_close")) el("reopen_close").addEventListener("click",()=>closeModal("reopenMbd"));
+  if(el("reopen_cancel")) el("reopen_cancel").addEventListener("click",()=>closeModal("reopenMbd"));
+  if(el("reopen_confirm")) el("reopen_confirm").addEventListener("click",reopenBatch);
+  if(el("reopenMbd")) el("reopenMbd").addEventListener("click",e=>{ if(e.target===el("reopenMbd")) closeModal("reopenMbd"); });
+  if(el("pi_load_cycle_btn")) el("pi_load_cycle_btn").addEventListener("click",openPiLoadModal);
+  if(el("piLoad_close")) el("piLoad_close").addEventListener("click",()=>closeModal("piLoadMbd"));
+  if(el("piLoad_cancel")) el("piLoad_cancel").addEventListener("click",()=>closeModal("piLoadMbd"));
+  if(el("piLoadMbd")) el("piLoadMbd").addEventListener("click",e=>{ if(e.target===el("piLoadMbd")) closeModal("piLoadMbd"); });
+  if(el("piLoad_current")) el("piLoad_current").addEventListener("click",()=>{
+    if(batchStatus!=="APPROVED"){
+      showToast(t("piNoApproved"),"warn");
+      closeModal("piLoadMbd"); return;
+    }
+    closeModal("piLoadMbd");
+    renderPreInvoice();
+    showToast("Current batch loaded into Billing","info");
+  });
+  if(el("piLoad_historic")) el("piLoad_historic").addEventListener("click",()=>{
+    const sel=el("piLoad_historicSel");
+    if(sel) sel.style.display=sel.style.display==="none"?"block":"none";
+  });
+  if(el("piLoad_confirm")) el("piLoad_confirm").addEventListener("click",async()=>{
+    const batchId=el("piLoad_batchSel").value;
+    if(!batchId){showToast("Select a billing cycle","warn");return;}
+    closeModal("piLoadMbd");
+    await switchToBatch(batchId);
+    if(batchStatus!=="APPROVED"){
+      showToast("Selected batch is not APPROVED — cannot load into Billing","warn"); return;
+    }
+    renderPreInvoice();
+    switchTab("preinvoice");
+  });
+
+  // Debug panel toggle — update sp bottom
+  if(el("debugToggle")) el("debugToggle").addEventListener("click",()=>{
+    const body=el("debugBody"); const btn=el("debugToggle");
+    body.classList.toggle("collapsed");
+    btn.textContent=body.classList.contains("collapsed")?"▲":"▼";
+    _updateSpBottom();
+  });
+  if(el("debugClose")) el("debugClose").addEventListener("click",()=>{
+    el("debugPanel").classList.remove("on");
+    _updateSpBottom();
+  });
+  if(el("debugCopy")) el("debugCopy").addEventListener("click",()=>{
+    const lines=Array.from(el("debugBody").querySelectorAll(".debug-line")).map(l=>l.textContent).join("\n");
+    navigator.clipboard.writeText(lines).then(()=>showToast("Debug log copied"));
+  });
+
+  // Horo alert toggle
+  if(el("horoAlertHdr")) el("horoAlertHdr").addEventListener("click",()=>{
+    const body=el("horoAlertBody"); const btn=el("horoToggle");
+    body.classList.toggle("collapsed");
+    btn.textContent=body.classList.contains("collapsed")?"▼":"▲";
+  });
+
+  // New Batch modal
+  if(el("fl_newBatch")) el("fl_newBatch").addEventListener("click",openNewBatchModal);
+  if(el("nb_close")) el("nb_close").addEventListener("click",()=>{ closeModal("newBatchMbd"); nbFiles=[]; nbRenderQueue(); });
+  if(el("nb_cancel")) el("nb_cancel").addEventListener("click",()=>{ closeModal("newBatchMbd"); nbFiles=[]; nbRenderQueue(); });
+  if(el("nb_confirm")) el("nb_confirm").addEventListener("click",confirmNewBatch);
+  // newBatchMbd: backdrop click disabled — prevents accidental loss of queued file uploads
+  if(el("newBatchMbd")) el("newBatchMbd").addEventListener("click",e=>{ e.stopPropagation(); });
+  initNbDropZone();
+  // Add More Files dialog
+  if(el("btn_addMoreFiles")) el("btn_addMoreFiles").addEventListener("click",openAddFilesDialog);
+  if(el("af_close")) el("af_close").addEventListener("click",closeAddFilesDialog);
+  if(el("af_cancel")) el("af_cancel").addEventListener("click",closeAddFilesDialog);
+  if(el("af_confirm")) el("af_confirm").addEventListener("click",confirmAddFiles);
+  if(el("af_aircraft")) el("af_aircraft").addEventListener("change",function(){
+    const ac=AIRCRAFT.find(a=>a.matricula===this.value);
+    const opSel=el("af_operator"); if(!opSel) return;
+    opSel.innerHTML='<option value="">Auto-detect</option>';
+    if(ac&&ac.rates) ac.rates.forEach(r=>{
+      const opt=document.createElement("option");
+      opt.value=r.operador; opt.textContent=r.operador;
+      opSel.appendChild(opt);
+    });
+  });
+  initAfDropZone();
+  // Make addFilesMbd draggable
+  (()=>{
+    const dlg=el("addFilesMbd"); const hdr=dlg?dlg.querySelector(".float-dialog-hdr"):null;
+    if(!dlg||!hdr) return;
+    let ox=0,oy=0,startX=0,startY=0,dragging=false;
+    hdr.addEventListener("mousedown",e=>{dragging=true;startX=e.clientX;startY=e.clientY;
+      const r=dlg.getBoundingClientRect();ox=r.left;oy=r.top;e.preventDefault();});
+    document.addEventListener("mousemove",e=>{if(!dragging)return;
+      dlg.style.left=(ox+e.clientX-startX)+"px";dlg.style.top=(oy+e.clientY-startY)+"px";dlg.style.right="auto";});
+    document.addEventListener("mouseup",()=>{dragging=false;});
+  })();
+  // Upload status window
+  if(el("uploadLog_close")) el("uploadLog_close").addEventListener("click",closeUploadStatusWindow);
+  if(el("uploadLog_save")) el("uploadLog_save").addEventListener("click",saveUploadLog);
+  // Make Extraction Log draggable
+  (()=>{
+    const dlg=el("uploadStatusMbd");
+    const hdr=dlg?dlg.querySelector("[data-drag-hdr]"):null;
+    if(!dlg||!hdr) return;
+    let ox=0,oy=0,startX=0,startY=0,dragging=false;
+    hdr.addEventListener("mousedown",e=>{dragging=true;startX=e.clientX;startY=e.clientY;
+      const r=dlg.getBoundingClientRect();ox=r.left;oy=r.top;e.preventDefault();});
+    document.addEventListener("mousemove",e=>{if(!dragging)return;
+      dlg.style.left=(ox+e.clientX-startX)+"px";dlg.style.top=(oy+e.clientY-startY)+"px";
+      dlg.style.transform="none";});
+    document.addEventListener("mouseup",()=>{dragging=false;});
+  })();
+  // Extraction summary modal — Go to Review applies Needs Review filter
+  if(el("extractSummary_go")) el("extractSummary_go").addEventListener("click",()=>{
+    closeModal("extractSummaryMbd");
+    if(el("filterOp")) el("filterOp").value="problems";
+    renderFlTable();
+  });
+  // nb_aircraft cascade to nb_operator
+  if(el("nb_aircraft")) el("nb_aircraft").addEventListener("change",function(){
+    const ac=AIRCRAFT.find(a=>a.matricula===this.value);
+    const opSel=el("nb_operator");
+    if(!opSel) return;
+    opSel.innerHTML='<option value="">Auto-detect</option>';
+    if(ac&&ac.rates) ac.rates.forEach(r=>{
+      const opt=document.createElement("option");
+      opt.value=r.operador; opt.textContent=r.operador;
+      opSel.appendChild(opt);
+    });
+  });
+
+  // Batch selector
+  if(el("batchSelector")) el("batchSelector").addEventListener("change",async function(){
+    const newId=this.value; if(!newId||newId===currentBatchId) return;
+    if(flEntries.length){
+      const msg=lang==="es"?"¿Guardar el lote actual antes de cambiar?":"Save current batch before switching?";
+      if(confirm(msg)) await saveBatchToDB();
+    }
+    await switchToBatch(newId);
+  });
+
+  // Swap buttons in side panel
+  if(el("sp_swap_motor")) el("sp_swap_motor").addEventListener("click",()=>{
+    const a=el("sp_motorOut").value, b=el("sp_motorIn").value;
+    el("sp_motorOut").value=b; el("sp_motorIn").value=a; spLiveCalc();
+  });
+  if(el("sp_swap_vuelo")) el("sp_swap_vuelo").addEventListener("click",()=>{
+    const a=el("sp_vueloOut").value, b=el("sp_vueloIn").value;
+    el("sp_vueloOut").value=b; el("sp_vueloIn").value=a; spLiveCalc();
+  });
+  if(el("nameProp_close")) el("nameProp_close").addEventListener("click",()=>{closeModal("namePropMbd");if(_namePropData){_namePropData.onConfirm([]);_namePropData=null;}});
+  if(el("nameProp_this")) el("nameProp_this").addEventListener("click",()=>{closeModal("namePropMbd");if(_namePropData){_namePropData.onConfirm([]);_namePropData=null;}});
+  if(el("nameProp_selected")) el("nameProp_selected").addEventListener("click",()=>applyNameProp("selected"));
+  if(el("nameProp_all")) el("nameProp_all").addEventListener("click",()=>applyNameProp("all"));
+
+  // WhatsApp confirmation modal
+  if(el("wa_close")) el("wa_close").addEventListener("click",skipWhatsApp);
+  if(el("wa_skip")) el("wa_skip").addEventListener("click",skipWhatsApp);
+  if(el("wa_send")) el("wa_send").addEventListener("click",sendWhatsApp);
+  if(el("waMbd")) el("waMbd").addEventListener("click",e=>{ if(e.target===el("waMbd")) skipWhatsApp(); });
+
+  // Side panel — next/prev navigation
+  if(el("spPrev")) el("spPrev").addEventListener("click",()=>spNavigate(-1));
+  if(el("spNext")) el("spNext").addEventListener("click",()=>spNavigate(1));
+  // Keyboard navigation when panel open
+  document.addEventListener("keydown",e=>{
+    const panel=el("sidePanel");
+    if(!panel||!panel.classList.contains("open")) return;
+    // Don't intercept arrow keys when user is typing in a field
+    const tag=document.activeElement?.tagName;
+    if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT") return;
+    if(e.key==="ArrowLeft") spNavigate(-1);
+    else if(e.key==="ArrowRight") spNavigate(1);
+    else if(e.key==="Escape") closeSidePanel();
+    else if((e.ctrlKey||e.metaKey)&&e.key==="z"){ e.preventDefault(); undoStatusChange(); }
+  });
+
+  // Global Ctrl+Z / Cmd+Z — works from anywhere, not just side panel
+  document.addEventListener("keydown",e=>{
+    if((e.ctrlKey||e.metaKey)&&e.key==="z"){
+      const tag=document.activeElement?.tagName;
+      if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT") return; // let browser handle native undo in fields
+      e.preventDefault();
+      undoStatusChange();
+    }
+  });
+
+  // Side panel collapse button
+  if(el("spCollapseBtn")) el("spCollapseBtn").addEventListener("click",closeSidePanel);
+
+  // Table sidebar toggle button — always reads live panel state, no memory
+  if(el("spTableToggle")) el("spTableToggle").addEventListener("click",()=>{
+    const panel=el("sidePanel");
+    const isOpen=panel.classList.contains("open");
+    if(isOpen){
+      closeSidePanel();
+    } else {
+      // Open to last active entry, or first entry as fallback
+      const activeEntry=flEntries.find(e=>e.id===spEditingEntryId)||flEntries[0];
+      if(activeEntry) openSidePanel(activeEntry.id, true);
+    }
+  });
+
+  // Side panel resize handle — dynamically updates table width
+  const handle=el("spResizeHandle");
+  const panel=el("sidePanel");
+  function spSyncTableWidth(){
+    const shell=el("appShell");
+    if(!shell||!panel.classList.contains("open")) return;
+    shell.style.paddingRight=panel.offsetWidth+"px";
+  }
+  if(handle&&panel){
+    let startX, startW;
+    handle.addEventListener("mousedown",e=>{
+      startX=e.clientX; startW=panel.offsetWidth;
+      document.addEventListener("mousemove",onResize);
+      document.addEventListener("mouseup",stopResize);
+      e.preventDefault();
+    });
+    function onResize(e){
+      const newW=Math.max(340,Math.min(Math.floor(window.innerWidth*0.5),startW-(e.clientX-startX)));
+      panel.style.width=newW+"px";
+      spSyncTableWidth();
+    }
+    function stopResize(){
+      const w=Math.min(parseInt(panel.style.width)||420,Math.floor(window.innerWidth*0.5));
+      saveUserPreference("sidepanel_width", w);
+      document.removeEventListener("mousemove",onResize);
+      document.removeEventListener("mouseup",stopResize);
+    }
+  }
+
+  // spEditHdr — collapse only on toggle button, not full header
+  if(el("spEditToggle")) el("spEditToggle").addEventListener("click",e=>{
+    e.stopPropagation();
+    const body=el("spEditBody"); const btn=el("spEditToggle");
+    body.classList.toggle("collapsed");
+    btn.textContent=body.classList.contains("collapsed")?"▼":"▲";
+  });
+  if(el("spEditHdr")) el("spEditHdr").onclick=null;
+  if(el("sp_save")) el("sp_save").addEventListener("click",saveSpEntry);
+  // sp_cancel removed — close panel via X button
+
+  // Vertical resize handle — image/data divider
+  const vHandle=el("spVResize");
+  if(vHandle){
+    let vStartY, vStartH;
+    vHandle.addEventListener("mousedown",e=>{
+      vStartY=e.clientY;
+      vStartH=el("sp_img_wrap").offsetHeight;
+      vHandle.classList.add("dragging");
+      document.addEventListener("mousemove",onVResize);
+      document.addEventListener("mouseup",stopVResize);
+      e.preventDefault();
+    });
+    function onVResize(e){
+      const panel=el("sidePanel");
+      const minImgH=150;
+      // Min data height: enough to show all fields (~360px)
+      const minDataH=360;
+      const maxImgH=panel.offsetHeight-minDataH-vHandle.offsetHeight;
+      const newH=Math.max(minImgH,Math.min(maxImgH,vStartH+(e.clientY-vStartY)));
+      el("sp_img_wrap").style.height=newH+"px";
+      _scaleNonBillWatermark();
+    }
+    function stopVResize(){
+      vHandle.classList.remove("dragging");
+      document.removeEventListener("mousemove",onVResize);
+      document.removeEventListener("mouseup",stopVResize);
+    }
+  }
+
+  // Aircraft cascade in side panel
+  if(el("sp_aeronave")) el("sp_aeronave").addEventListener("change",function(){
+    spCascadeAircraftDropdowns(this.value);
+  });
+  // Mult dropdown custom option toggle
+  if(el("sp_mult_sel")) el("sp_mult_sel").addEventListener("change",function(){
+    const multInp=el("sp_mult");
+    if(this.value==="custom"){
+      if(multInp){ multInp.style.display=""; multInp.focus(); }
+    } else {
+      if(multInp){ multInp.style.display="none"; multInp.value=""; }
+      spLiveCalc();
+    }
+  });
+
+  ["sp_motorOut","sp_motorIn","sp_vueloOut","sp_vueloIn","sp_mult","sp_operador"].forEach(id=>{
+    if(el(id)) el(id).addEventListener("input",spLiveCalc);
+  });
+  // Dirty tracking — any field change marks panel dirty
+  ["sp_bnum","sp_fecha","sp_piloto","sp_instructor","sp_horoIn",
+   "sp_motorOut","sp_motorIn","sp_vueloOut","sp_vueloIn","sp_mult","sp_mult_sel","sp_obs",
+   "sp_aeronave","sp_operador"].forEach(id=>{
+    if(el(id)) el(id).addEventListener("input",spMarkDirty);
+    if(el(id)) el(id).addEventListener("change",spMarkDirty);
+  });
+
+  // Aircraft modal (both buttons)
+  if(el("btn_addAircraft")) el("btn_addAircraft").addEventListener("click",openCreateAircraft);
+  if(el("btn_addAircraft2")) el("btn_addAircraft2").addEventListener("click",openCreateAircraft);
+  if(el("btn_addRate")) el("btn_addRate").addEventListener("click",addAcRate);
+  if(el("ac_close")) el("ac_close").addEventListener("click",()=>closeModal("acMbd"));
+  if(el("ac_cancel")) el("ac_cancel").addEventListener("click",()=>closeModal("acMbd"));
+  if(el("ac_save")) el("ac_save").addEventListener("click",saveAircraft);
+  // acMbd: backdrop click disabled — prevents accidental loss of unsaved aircraft data
+  // Aircraft photo modal
+  if(el("ac_photo_add")) el("ac_photo_add").addEventListener("click",openAcPhotoModal);
+  if(el("ac_photo_replace")) el("ac_photo_replace").addEventListener("click",openAcPhotoModal);
+  if(el("acPhoto_close")) el("acPhoto_close").addEventListener("click",()=>closeModal("acPhotoMbd"));
+  if(el("acPhoto_cancel")) el("acPhoto_cancel").addEventListener("click",()=>closeModal("acPhotoMbd"));
+  if(el("ac_photo_input")) el("ac_photo_input").addEventListener("change",function(){
+    const file=this.files[0]; if(!file) return;
+    const nameSpan=el("ac_photo_input_name");
+    const previewImg=el("ac_photo_preview_img");
+    const previewEmpty=el("ac_photo_preview_empty");
+    if(nameSpan) nameSpan.textContent=file.name;
+    const url=URL.createObjectURL(file);
+    if(previewImg){previewImg.src=url; previewImg.style.display="block"; previewImg.onload=()=>URL.revokeObjectURL(url);}
+    if(previewEmpty) previewEmpty.style.display="none";
+  });
+  if(el("acPhoto_ok")) el("acPhoto_ok").addEventListener("click",async function(){
+    const inp=el("ac_photo_input"); if(!inp||!inp.files[0]) return;
+    const file=inp.files[0];
+    const compressed=await compressImage(file,800,0.78);
+    _stagedAcPhoto=compressed;
+    const thumbUrl=URL.createObjectURL(compressed);
+    _showAcPhotoThumb(thumbUrl, file.name);
+    closeModal("acPhotoMbd");
+  });
+
+  // Flag modal
+  el("flag_close").addEventListener("click",()=>closeModal("flagMbd"));
+  el("flag_cancel").addEventListener("click",()=>closeModal("flagMbd"));
+  el("flag_save").addEventListener("click",saveFlagEntry);
+  el("flagMbd").addEventListener("click",e=>{ if(e.target===el("flagMbd")) closeModal("flagMbd"); });
+
+  // Side panel
+  el("sp_close").addEventListener("click", closeSidePanel);
+  el("spOverlay").addEventListener("click", closeSidePanel);
+
+  // Entry table click for side panel (click row # to view source)
+  el("flTbody").addEventListener("click", function(e){
+    const editBtn=e.target.closest("[data-edit-entry]");
+    const stBtn=e.target.closest("[data-st-entry]");
+    const tr=e.target.closest("tr[data-entry-id]");
+    if(editBtn) openEditEntry(parseInt(editBtn.dataset.editEntry));
+    else if(stBtn) setEntrySt(parseInt(stBtn.dataset.stEntry),stBtn.dataset.st);
+    else if(tr){
+      const entryId=parseInt(tr.dataset.entryId);
+      openSidePanel(entryId,true);
+    }
+  });
+  // Flight log table sort
+  document.querySelectorAll("[data-sort-fl]").forEach(th=>{
+    th.addEventListener("click",()=>{
+      const col=th.dataset.sortFl;
+      if(flSortCol===col){ flSortDir*=-1; } else { flSortCol=col; flSortDir=1; }
+      renderFlTable();
+    });
+  });
+}
+
+// ── BOOT ──
+async function init(){
+  applyI18n();
+  wireEvents();
+  dbg("HP Fleet "+APP_VERSION+" — initializing…","info");
+  document.title="HP Fleet "+APP_VERSION;
+  if(el("versionBadge")) el("versionBadge").textContent=APP_VERSION;
+  if(el("versionBadgeNav")) el("versionBadgeNav").textContent=APP_VERSION;
+  // Sanitize stale panel width — clamp to 50% viewport on load
+  const _savedPW=localStorage.getItem("hpfleet_sp_width");
+  if(_savedPW){
+    const _maxPW=Math.floor(window.innerWidth*0.5);
+    const _clamped=Math.min(parseInt(_savedPW)||420,_maxPW);
+    if(_clamped!==parseInt(_savedPW)) localStorage.setItem("hpfleet_sp_width",_clamped+"px");
+  }
+  await seedIfEmpty();
+  await loadMasterData();
+  if(el("viewAsRole")) el("viewAsRole").value="ADMIN";
+}
+
+init();
