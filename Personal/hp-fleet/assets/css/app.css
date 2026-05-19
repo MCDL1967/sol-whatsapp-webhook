@@ -511,9 +511,9 @@ table.fl-tbl td:last-child{border-right:none}
   /* M9 — Sticky headers offset */
   .fl-tbl-wrap.sticky-active{max-height:calc(100vh - 240px)!important}
 
-  /* M10 — Float dialogs: full width, JS-centered and draggable */
-  .float-dialog{min-width:unset!important;max-width:100%!important;
-    width:calc(100vw - 24px)!important}
+  /* M10 — Float dialogs: touch-friendly, JS-centered and draggable */
+  .float-dialog{min-width:min(300px,calc(100vw - 56px))!important;
+    max-width:calc(100vw - 32px)!important;width:min(420px,calc(100vw - 56px))!important}
 
   /* M11 — Touch targets: minimum 44px height on action buttons */
   .btn-primary,.btn-ghost,.btn-success,.btn-warn,.btn-danger{min-height:44px}
@@ -879,7 +879,8 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 .float-dialog{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
   background:var(--s1);border:1px solid var(--border2);
   border-radius:4px;z-index:200;min-width:320px;max-width:480px;
-  box-shadow:0 8px 32px rgba(0,0,0,.5);display:none;flex-direction:column}
+  min-height:150px;max-height:calc(100vh - 24px);
+  box-shadow:0 8px 32px rgba(0,0,0,.5);display:none;flex-direction:column;overflow:hidden}
 .float-dialog.open{display:flex}
 .float-dialog-hdr{display:flex;align-items:center;justify-content:space-between;
   padding:10px 14px;background:var(--cyan);cursor:move;flex-shrink:0;border-radius:3px 3px 0 0;
@@ -888,8 +889,14 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -4px 
 .float-dialog-title{font-family:var(--mono);font-size:11px;letter-spacing:.5px;color:#000;font-weight:700}
 .float-dialog-close{background:none;border:none;color:#000;cursor:pointer;font-size:16px;padding:0 4px;opacity:.7}
 .float-dialog-close:hover{opacity:1}
-.float-dialog-body{padding:12px 14px;overflow-y:auto;max-height:320px;
+.float-dialog-body{padding:12px 14px 22px;overflow-y:auto;max-height:none;flex:1 1 auto;min-height:0;
   font-family:var(--mono);font-size:10px;color:var(--dim2);line-height:1.8}
+.float-dialog-resize{position:absolute;right:0;bottom:0;width:28px;height:28px;
+  cursor:nwse-resize;touch-action:none;z-index:3}
+.float-dialog-resize::after{content:'';position:absolute;right:6px;bottom:6px;
+  width:12px;height:12px;border-right:2px solid var(--cyan);border-bottom:2px solid var(--cyan);
+  opacity:.7}
+.float-dialog-resize.dragging::after{opacity:1}
 
 /* DEBUG TOGGLE SLIDER */
 .dbg-slider{position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0}

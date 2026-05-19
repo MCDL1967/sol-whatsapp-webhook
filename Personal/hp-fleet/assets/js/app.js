@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.5l";
+const APP_VERSION = "v8.5.5m";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -5247,6 +5247,18 @@ function wireEvents(){
       top:Math.min(Math.max(top,vp.top+margin),maxTop)
     };
   }
+  function clampFloatDialogSize(dlg,width,height){
+    const vp=getFloatViewport();
+    const margin=24;
+    const minW=Math.min(300,Math.max(220,vp.width-margin*2));
+    const minH=150;
+    const maxW=Math.max(minW,vp.width-margin*2);
+    const maxH=Math.max(minH,vp.height-margin*2);
+    return {
+      width:Math.min(Math.max(width,minW),maxW),
+      height:Math.min(Math.max(height,minH),maxH)
+    };
+  }
   function centerFloatDialog(dlg){
     const vp=getFloatViewport();
     dlg.style.transform="none";
@@ -5256,8 +5268,16 @@ function wireEvents(){
     dlg.style.left=pos.left+"px";
     dlg.style.top=pos.top+"px";
   }
+  function addFloatResizeHandle(dlg){
+    if(dlg.querySelector(".float-dialog-resize")) return;
+    const handle=document.createElement("div");
+    handle.className="float-dialog-resize";
+    handle.title="Resize";
+    dlg.appendChild(handle);
+  }
   function openFloatDialog(dlgId,title,lines,color,entryIds){
     const dlg=el(dlgId); if(!dlg) return;
+    addFloatResizeHandle(dlg);
     const body=dlg.querySelector(".float-dialog-body");
     if(body){
       if(!lines.length){
@@ -5294,6 +5314,7 @@ function wireEvents(){
   function makeDraggable(dlgId,hdrId){
     const dlg=el(dlgId); const hdr=el(hdrId); if(!dlg||!hdr) return;
     let ox,oy,sx,sy,dragging=false,pointerId=null;
+    addFloatResizeHandle(dlg);
     hdr.addEventListener("pointerdown",e=>{
       if(e.target.closest(".float-dialog-close")) return;
       dragging=true; pointerId=e.pointerId; sx=e.clientX; sy=e.clientY;
@@ -5317,6 +5338,36 @@ function wireEvents(){
     }
     document.addEventListener("pointerup",stopDrag);
     document.addEventListener("pointercancel",stopDrag);
+
+    const resizeHandle=dlg.querySelector(".float-dialog-resize");
+    if(resizeHandle){
+      let resizing=false,rsx=0,rsy=0,startW=0,startH=0,resizePointerId=null;
+      resizeHandle.addEventListener("pointerdown",e=>{
+        resizing=true; resizePointerId=e.pointerId; rsx=e.clientX; rsy=e.clientY;
+        const rect=dlg.getBoundingClientRect();
+        startW=rect.width; startH=rect.height;
+        dlg.style.transform="none";
+        resizeHandle.classList.add("dragging");
+        if(resizeHandle.setPointerCapture) resizeHandle.setPointerCapture(e.pointerId);
+        e.preventDefault();
+      });
+      document.addEventListener("pointermove",e=>{
+        if(!resizing) return;
+        const size=clampFloatDialogSize(dlg,startW+(e.clientX-rsx),startH+(e.clientY-rsy));
+        dlg.style.width=size.width+"px";
+        dlg.style.height=size.height+"px";
+        const pos=clampFloatDialog(dlg,dlg.offsetLeft,dlg.offsetTop);
+        dlg.style.left=pos.left+"px";
+        dlg.style.top=pos.top+"px";
+        e.preventDefault();
+      });
+      function stopResize(e){
+        if(resizePointerId!==null&&e&&e.pointerId!==resizePointerId) return;
+        resizing=false; resizePointerId=null; resizeHandle.classList.remove("dragging");
+      }
+      document.addEventListener("pointerup",stopResize);
+      document.addEventListener("pointercancel",stopResize);
+    }
   }
   makeDraggable("dlgDups","dlgDupsHdr");
   makeDraggable("dlgNotRead","dlgNotReadHdr");
