@@ -1,7 +1,7 @@
 /*
 File: fast_path_responder.js
-Version: v14.0.3
-Date: 2026-05-11
+Version: v14.0.4
+Date: 2026-05-19
 Role: Fast Path responder using property data
 Status: upgraded for restaurant continuation layer and loyalty branch population
 
@@ -86,7 +86,23 @@ function buildResponse({ result, session, propertyData }) {
   const { propertyMasterData, responseTemplates } = propertyData;
   const language = session.current_language || "en";
 
-  if (!result) return null;
+  if (!result) {
+    const stayMap = {
+      "loyalty_rewards_menu": "loyalty_stay_reprompt",
+      "loyalty_program_info_menu": "loyalty_program_stay_reprompt",
+      "loyalty_points_rewards_menu": "loyalty_points_stay_reprompt",
+      "shows_events_menu": "shows_stay_reprompt",
+      "casino_gaming_menu": "gaming_stay_reprompt",
+      "general_information_menu": "general_info_stay_reprompt",
+      "complaints_menu": "complaints_stay_reprompt"
+    };
+    const templateBase = stayMap[session.fast_path_context];
+    if (templateBase) {
+      const key = `${templateBase}_${language === "es" ? "es" : "en"}`;
+      return responseTemplates[key] || null;
+    }
+    return null;
+  }
 
   if (result.type === "menu_selection" && result.key === "restaurants") {
     session.fast_path_context = "restaurants_menu";
@@ -102,6 +118,34 @@ function buildResponse({ result, session, propertyData }) {
     return language === "es"
       ? responseTemplates.loyalty_intro_es
       : responseTemplates.loyalty_intro_en;
+  }
+
+  if (result.type === "menu_selection" && result.key === "shows_events") {
+    session.fast_path_context = "shows_events_menu";
+    return language === "es"
+      ? responseTemplates.shows_intro_es
+      : responseTemplates.shows_intro_en;
+  }
+
+  if (result.type === "menu_selection" && result.key === "casino_gaming") {
+    session.fast_path_context = "casino_gaming_menu";
+    return language === "es"
+      ? responseTemplates.gaming_intro_es
+      : responseTemplates.gaming_intro_en;
+  }
+
+  if (result.type === "menu_selection" && result.key === "general_information") {
+    session.fast_path_context = "general_information_menu";
+    return language === "es"
+      ? responseTemplates.general_info_intro_es
+      : responseTemplates.general_info_intro_en;
+  }
+
+  if (result.type === "menu_selection" && result.key === "complaints") {
+    session.fast_path_context = "complaints_menu";
+    return language === "es"
+      ? responseTemplates.complaints_intro_es
+      : responseTemplates.complaints_intro_en;
   }
 
   if (result.type === "restaurant_list") {
@@ -178,15 +222,17 @@ function buildResponse({ result, session, propertyData }) {
 
   if (result.type === "loyalty_selection") {
     if (result.key === "program_info") {
+      session.fast_path_context = "loyalty_program_info_menu";
       return language === "es"
-        ? responseTemplates.loyalty_program_info_es
-        : responseTemplates.loyalty_program_info_en;
+        ? responseTemplates.loyalty_program_info_intro_es
+        : responseTemplates.loyalty_program_info_intro_en;
     }
 
     if (result.key === "rewards_points_info") {
+      session.fast_path_context = "loyalty_points_rewards_menu";
       return language === "es"
-        ? responseTemplates.loyalty_rewards_points_info_es
-        : responseTemplates.loyalty_rewards_points_info_en;
+        ? responseTemplates.loyalty_points_rewards_intro_es
+        : responseTemplates.loyalty_points_rewards_intro_en;
     }
 
     if (result.key === "account_specific_issue") {
@@ -194,6 +240,186 @@ function buildResponse({ result, session, propertyData }) {
         ? responseTemplates.loyalty_account_issue_es
         : responseTemplates.loyalty_account_issue_en;
     }
+  }
+
+  if (result.type === "loyalty_program_selection") {
+    if (result.key === "program_name") {
+      return language === "es"
+        ? responseTemplates.loyalty_program_name_es
+        : responseTemplates.loyalty_program_name_en;
+    }
+    if (result.key === "enrollment") {
+      return language === "es"
+        ? responseTemplates.loyalty_enrollment_es
+        : responseTemplates.loyalty_enrollment_en;
+    }
+    if (result.key === "tier_levels") {
+      return language === "es"
+        ? responseTemplates.loyalty_tier_levels_es
+        : responseTemplates.loyalty_tier_levels_en;
+    }
+  }
+
+  if (result.type === "loyalty_points_selection") {
+    if (result.key === "earning") {
+      return language === "es"
+        ? responseTemplates.loyalty_points_earning_es
+        : responseTemplates.loyalty_points_earning_en;
+    }
+    if (result.key === "redeem") {
+      return language === "es"
+        ? responseTemplates.loyalty_points_redeem_es
+        : responseTemplates.loyalty_points_redeem_en;
+    }
+    if (result.key === "min_where") {
+      return language === "es"
+        ? responseTemplates.loyalty_points_min_where_es
+        : responseTemplates.loyalty_points_min_where_en;
+    }
+    if (result.key === "expiration") {
+      return language === "es"
+        ? responseTemplates.loyalty_points_expiration_es
+        : responseTemplates.loyalty_points_expiration_en;
+    }
+    if (result.key === "tiers") {
+      return language === "es"
+        ? responseTemplates.loyalty_points_tiers_overview_es
+        : responseTemplates.loyalty_points_tiers_overview_en;
+    }
+    if (result.key === "account_escalation") {
+      return language === "es"
+        ? responseTemplates.loyalty_points_account_escalation_es
+        : responseTemplates.loyalty_points_account_escalation_en;
+    }
+  }
+
+  if (result.type === "shows_selection") {
+    if (result.key === "what_we_host") {
+      return language === "es"
+        ? responseTemplates.shows_what_we_host_es
+        : responseTemplates.shows_what_we_host_en;
+    }
+    if (result.key === "where_shows_happen") {
+      return language === "es"
+        ? responseTemplates.shows_where_es
+        : responseTemplates.shows_where_en;
+    }
+    if (result.key === "tickets_arrival") {
+      return language === "es"
+        ? responseTemplates.shows_tickets_arrival_es
+        : responseTemplates.shows_tickets_arrival_en;
+    }
+    if (result.key === "tonight_specific") {
+      return language === "es"
+        ? responseTemplates.shows_tonight_specific_es
+        : responseTemplates.shows_tonight_specific_en;
+    }
+  }
+
+  if (result.type === "gaming_selection") {
+    if (result.key === "slots") {
+      return language === "es"
+        ? responseTemplates.gaming_slots_es
+        : responseTemplates.gaming_slots_en;
+    }
+    if (result.key === "tables") {
+      return language === "es"
+        ? responseTemplates.gaming_tables_es
+        : responseTemplates.gaming_tables_en;
+    }
+    if (result.key === "poker") {
+      return language === "es"
+        ? responseTemplates.gaming_poker_es
+        : responseTemplates.gaming_poker_en;
+    }
+    if (result.key === "sportsbook") {
+      return language === "es"
+        ? responseTemplates.gaming_sportsbook_es
+        : responseTemplates.gaming_sportsbook_en;
+    }
+    if (result.key === "entry_rules") {
+      return language === "es"
+        ? responseTemplates.gaming_entry_rules_es
+        : responseTemplates.gaming_entry_rules_en;
+    }
+    if (result.key === "gaming_escalation") {
+      return language === "es"
+        ? responseTemplates.gaming_escalation_es
+        : responseTemplates.gaming_escalation_en;
+    }
+  }
+
+  if (result.type === "general_info_selection") {
+    if (result.key === "overview_hours") {
+      return language === "es"
+        ? responseTemplates.general_property_overview_hours_es
+        : responseTemplates.general_property_overview_hours_en;
+    }
+    if (result.key === "rooms") {
+      return language === "es"
+        ? responseTemplates.general_rooms_es
+        : responseTemplates.general_rooms_en;
+    }
+    if (result.key === "spa_pool") {
+      return language === "es"
+        ? responseTemplates.general_spa_pool_es
+        : responseTemplates.general_spa_pool_en;
+    }
+    if (result.key === "transport_parking") {
+      return language === "es"
+        ? responseTemplates.general_transport_parking_es
+        : responseTemplates.general_transport_parking_en;
+    }
+    if (result.key === "accessibility_lost_found") {
+      return language === "es"
+        ? responseTemplates.general_accessibility_lostfound_es
+        : responseTemplates.general_accessibility_lostfound_en;
+    }
+    if (result.key === "contact") {
+      return language === "es"
+        ? responseTemplates.general_contact_es
+        : responseTemplates.general_contact_en;
+    }
+  }
+
+  if (result.type === "complaints_selection") {
+    if (result.key === "service_issue") {
+      return language === "es"
+        ? responseTemplates.complaints_service_issue_es
+        : responseTemplates.complaints_service_issue_en;
+    }
+    if (result.key === "billing") {
+      return language === "es"
+        ? responseTemplates.complaints_billing_es
+        : responseTemplates.complaints_billing_en;
+    }
+    if (result.key === "safety") {
+      return language === "es"
+        ? responseTemplates.complaints_safety_es
+        : responseTemplates.complaints_safety_en;
+    }
+    if (result.key === "responsible_gaming") {
+      return language === "es"
+        ? responseTemplates.complaints_responsible_gaming_es
+        : responseTemplates.complaints_responsible_gaming_en;
+    }
+    if (result.key === "lost_found") {
+      return language === "es"
+        ? responseTemplates.complaints_lost_found_es
+        : responseTemplates.complaints_lost_found_en;
+    }
+    if (result.key === "other") {
+      return language === "es"
+        ? responseTemplates.complaints_other_es
+        : responseTemplates.complaints_other_en;
+    }
+  }
+
+  if (result.type === "menu_back") {
+    session.fast_path_context = "main_menu";
+    return language === "es"
+      ? responseTemplates.main_menu_prompt_es
+      : responseTemplates.main_menu_prompt_en;
   }
 
   return null;
