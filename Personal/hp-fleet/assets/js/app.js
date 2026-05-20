@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.5p";
+const APP_VERSION = "v8.5.5o";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -3355,23 +3355,6 @@ function spZoomOut(){ spZoom=Math.max(0.25,+(spZoom-0.25).toFixed(2)); if(spZoom
 function spZoomReset(){ spZoom=1; spPanX=0; spPanY=0; spApplyTransform(); }
 function spTogglePan(){ spPanMode=!spPanMode; spApplyTransform(); }
 
-function spClampZoom(v){
-  return Math.min(4,Math.max(0.25,+v.toFixed(3)));
-}
-
-function spTouchDistance(touches){
-  const dx=touches[0].clientX-touches[1].clientX;
-  const dy=touches[0].clientY-touches[1].clientY;
-  return Math.hypot(dx,dy);
-}
-
-function spTouchMidpoint(touches){
-  return {
-    x:(touches[0].clientX+touches[1].clientX)/2,
-    y:(touches[0].clientY+touches[1].clientY)/2
-  };
-}
-
 function spRotateImg(){
   spRotation=(spRotation+90)%360;
   // Persist rotation on the entry so it survives panel reloads
@@ -5450,7 +5433,6 @@ function wireEvents(){
   if(spImgWrap){
     let isDragging=false, dragStartX=0, dragStartY=0, panStartX=0, panStartY=0, didDrag=false;
     let swipeStartX=0, swipeStartY=0, swipeStartT=0, swipeTracking=false, swipeHorizontal=false;
-    let pinchTracking=false, pinchStartDist=0, pinchStartZoom=1, pinchStartX=0, pinchStartY=0, pinchPanX=0, pinchPanY=0;
     spImgWrap.addEventListener("mousedown",e=>{
       if(e.button!==0) return;
       isDragging=true; didDrag=false;
@@ -5480,20 +5462,6 @@ function wireEvents(){
       spZoomIn();
     });
     spImgWrap.addEventListener("touchstart",e=>{
-      if(e.touches.length>=2){
-        pinchTracking=true;
-        swipeTracking=false;
-        swipeHorizontal=false;
-        pinchStartDist=spTouchDistance(e.touches);
-        pinchStartZoom=spZoom;
-        const mid=spTouchMidpoint(e.touches);
-        pinchStartX=mid.x;
-        pinchStartY=mid.y;
-        pinchPanX=spPanX;
-        pinchPanY=spPanY;
-        e.preventDefault();
-        return;
-      }
       if(e.touches.length!==1||!spEditingEntryId||spZoom!==1||spPanMode) return;
       const t=e.touches[0];
       swipeStartX=t.clientX;
@@ -5501,27 +5469,8 @@ function wireEvents(){
       swipeStartT=Date.now();
       swipeTracking=true;
       swipeHorizontal=false;
-    },{passive:false});
+    },{passive:true});
     spImgWrap.addEventListener("touchmove",e=>{
-      if(pinchTracking&&e.touches.length>=2){
-        const dist=spTouchDistance(e.touches);
-        if(pinchStartDist>0){
-          const mid=spTouchMidpoint(e.touches);
-          spZoom=spClampZoom(pinchStartZoom*(dist/pinchStartDist));
-          spPanX=pinchPanX+(mid.x-pinchStartX)/spZoom;
-          spPanY=pinchPanY+(mid.y-pinchStartY)/spZoom;
-          if(spZoom===1){ spPanX=0; spPanY=0; }
-          spApplyTransform();
-        }
-        e.preventDefault();
-        return;
-      }
-      if(e.touches.length>=2){
-        swipeTracking=false;
-        swipeHorizontal=false;
-        e.preventDefault();
-        return;
-      }
       if(!swipeTracking||e.touches.length!==1) return;
       const t=e.touches[0];
       const dx=t.clientX-swipeStartX;
@@ -5532,24 +5481,6 @@ function wireEvents(){
       }
     },{passive:false});
     spImgWrap.addEventListener("touchend",e=>{
-      if(pinchTracking){
-        if(e.touches.length>=2){
-          pinchStartDist=spTouchDistance(e.touches);
-          pinchStartZoom=spZoom;
-          const mid=spTouchMidpoint(e.touches);
-          pinchStartX=mid.x;
-          pinchStartY=mid.y;
-          pinchPanX=spPanX;
-          pinchPanY=spPanY;
-          e.preventDefault();
-          return;
-        }
-        pinchTracking=false;
-        swipeTracking=false;
-        swipeHorizontal=false;
-        e.preventDefault();
-        return;
-      }
       if(!swipeTracking) return;
       swipeTracking=false;
       const t=e.changedTouches[0];
@@ -5564,7 +5495,6 @@ function wireEvents(){
       }
     },{passive:false});
     spImgWrap.addEventListener("touchcancel",()=>{
-      pinchTracking=false;
       swipeTracking=false;
     },{passive:true});
     // Scroll wheel zoom — throttled to prevent over-sensitivity on trackpad
