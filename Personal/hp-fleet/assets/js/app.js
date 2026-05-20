@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.5q";
+const APP_VERSION = "v8.5.5o";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -5186,8 +5186,7 @@ function wireEvents(){
   if(el("sp_reextract")) el("sp_reextract").addEventListener("click",spReextract);
 
   // Non-Billable toggle
-  if(el("sp_nonbill_toggle")) el("sp_nonbill_toggle").addEventListener("click",e=>{
-    e.stopPropagation();
+  if(el("sp_nonbill_toggle")) el("sp_nonbill_toggle").addEventListener("click",()=>{
     if(!spEditingEntryId) return;
     const entry=flEntries.find(e=>e.id===spEditingEntryId); if(!entry) return;
     if(entry.status==="nonbillable"){
@@ -5200,9 +5199,9 @@ function wireEvents(){
     } else {
       if(el("nonBill_reason")) el("nonBill_reason").value="Maintenance";
       if(el("nonBill_comment")) el("nonBill_comment").value="";
-      // Position near the moved Non-Billable control.
-      const btn=el("sp_nonbill_toggle");
-      const rect=btn?btn.getBoundingClientRect():{bottom:300,left:920};
+      // Position near the toolbar
+      const toolbar=el("sp_img_toolbar");
+      const rect=toolbar?toolbar.getBoundingClientRect():{bottom:300,left:920};
       const dlg=el("nonBillMbd");
       if(dlg){
         dlg.style.top=(rect.bottom+8)+"px";

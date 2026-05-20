@@ -8,9 +8,6 @@
   --mono:'Syne Mono',monospace;--display:'Syne',sans-serif;--body:'DM Sans',sans-serif;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{user-select:none;-webkit-user-select:none}
-input,textarea,select,option,[contenteditable="true"],.selectable{
-  user-select:text;-webkit-user-select:text}
 body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh;
   background-image:radial-gradient(ellipse 70% 50% at 15% 50%,rgba(65,209,255,.05) 0%,transparent 60%),
     radial-gradient(ellipse 50% 40% at 85% 20%,rgba(123,156,255,.04) 0%,transparent 60%)}
@@ -687,12 +684,11 @@ table.fl-tbl td:last-child{border-right:none}
 
 /* SIDE PANEL EDIT FIELDS */
 .sp-edit-section{border-top:1px solid var(--border2);display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0}
-.sp-edit-hdr{display:flex;align-items:center;justify-content:space-between;gap:10px;
+.sp-edit-hdr{display:flex;align-items:center;justify-content:space-between;
   padding:10px 16px;cursor:pointer;background:var(--s2)}
 .sp-edit-hdr:hover{background:var(--s3)}
 .sp-edit-title{font-family:var(--mono);font-size:10px;letter-spacing:1px;
   text-transform:uppercase;color:var(--cyan)}
-.sp-edit-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .sp-edit-body{padding:14px 16px;overflow-y:auto;flex:1;min-height:0;
   transition:none}
 .sp-edit-body.collapsed{display:none}
@@ -879,14 +875,9 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -8px 
 .r-reviewed{background:rgba(255,192,67,0.18)!important}
 .r-reviewed td{color:inherit!important}
 
-button.sp-nonbill-btn{background:transparent;border:1px solid var(--red)!important;color:var(--red)!important;
-  font-family:var(--mono);font-size:10px;padding:4px 8px;cursor:pointer;border-radius:2px;
-  white-space:nowrap;line-height:1.2}
-button.sp-nonbill-btn.active{background:var(--red)!important;color:#000!important;font-weight:700}
-button.sp-nonbill-btn:hover{opacity:.85}
-@media (pointer:coarse){
-  button.sp-nonbill-btn{min-height:32px;padding:7px 10px}
-}
+.sp-img-toolbar button.sp-nonbill-btn{background:transparent;border:1px solid var(--red)!important;color:var(--red)!important}
+.sp-img-toolbar button.sp-nonbill-btn.active{background:var(--red)!important;color:#000!important;font-weight:700}
+.sp-img-toolbar button.sp-nonbill-btn:hover{opacity:.85}
 
 /* FLOATING DETAIL DIALOG */
 .float-dialog{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
