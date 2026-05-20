@@ -1,9 +1,23 @@
 /*
 File: fast_path_classifier.js
-Version: v14.0.4
-Date: 2026-05-12
+Version: v14.0.6
+Date: 2026-05-19
 Role: Fast Path classifier using menu_dictionary and context
-Status: additive cross-context loyalty re-entry guard for V14 mid-track
+Status: additive loyalty Program-information submenu for V14 mid-track
+
+This version changes (v14.0.5, additive only):
+- preserves all v14.0.4 main-menu, restaurants_menu, restaurant_followup_menu,
+  loyalty_rewards_menu, and cross-context textual fallback handling exactly
+- adds a new sub-context handler for `loyalty_program_info_menu` covering the
+  three KB-grounded sub-options: Club Card overview, Enrollment, Tier levels
+- accepts numeric (1/2/3), leading-digit, and word-form replies in EN and ES
+- returns a new result type `loyalty_program_info_selection` that webhook.js
+  maps to KB-grounded templates without invoking the responder
+- does NOT redesign the menu tree
+- does NOT change restaurant deterministic selection, follow-up submenu, or
+  reservation carry-forward
+- the sub-context lookup is intentionally local to the classifier to keep
+  menu_dictionary.json untouched (minimum patch surface)
 
 This version changes (v14.0.4, additive only):
 - preserves all v14.0.3 main-menu, restaurants_menu, restaurant_followup_menu,
@@ -167,6 +181,9 @@ function classifyFastPath({ input = "", session = {}, menuDictionary = {} }) {
 
   if (context === "loyalty_rewards_menu" && menus.loyalty_rewards_menu) {
     const lookup = menus.loyalty_rewards_menu.lookup || {};
+    if (lookup[text] === "__back") {
+      return { type: "menu_back" };
+    }
     if (lookup[text]) {
       return {
         type: "loyalty_selection",
@@ -183,6 +200,126 @@ function classifyFastPath({ input = "", session = {}, menuDictionary = {} }) {
         key: lookup[leadingChoice.choice],
         trailing_text: leadingChoice.remainder || null
       };
+    }
+  }
+
+  if (context === "loyalty_program_info_menu" && menus.loyalty_program_info_menu) {
+    const lookup = menus.loyalty_program_info_menu.lookup || {};
+    let resolvedKey = lookup[text] || null;
+
+    if (!resolvedKey) {
+      const choiceAliases = menus.loyalty_program_info_menu.choice_aliases || {};
+      const leadingChoice = extractLeadingChoice(text, choiceAliases);
+      if (leadingChoice?.choice && lookup[leadingChoice.choice]) {
+        resolvedKey = lookup[leadingChoice.choice];
+      }
+    }
+
+    if (resolvedKey === "__back") {
+      return { type: "menu_back" };
+    }
+    if (resolvedKey) {
+      return { type: "loyalty_program_selection", key: resolvedKey };
+    }
+  }
+
+  if (context === "loyalty_points_rewards_menu" && menus.loyalty_points_rewards_menu) {
+    const lookup = menus.loyalty_points_rewards_menu.lookup || {};
+    let resolvedKey = lookup[text] || null;
+
+    if (!resolvedKey) {
+      const choiceAliases = menus.loyalty_points_rewards_menu.choice_aliases || {};
+      const leadingChoice = extractLeadingChoice(text, choiceAliases);
+      if (leadingChoice?.choice && lookup[leadingChoice.choice]) {
+        resolvedKey = lookup[leadingChoice.choice];
+      }
+    }
+
+    if (resolvedKey === "__back") {
+      return { type: "menu_back" };
+    }
+    if (resolvedKey) {
+      return { type: "loyalty_points_selection", key: resolvedKey };
+    }
+  }
+
+  if (context === "shows_events_menu" && menus.shows_events_menu) {
+    const lookup = menus.shows_events_menu.lookup || {};
+    let resolvedKey = lookup[text] || null;
+
+    if (!resolvedKey) {
+      const choiceAliases = menus.shows_events_menu.choice_aliases || {};
+      const leadingChoice = extractLeadingChoice(text, choiceAliases);
+      if (leadingChoice?.choice && lookup[leadingChoice.choice]) {
+        resolvedKey = lookup[leadingChoice.choice];
+      }
+    }
+
+    if (resolvedKey === "__back") {
+      return { type: "menu_back" };
+    }
+    if (resolvedKey) {
+      return { type: "shows_selection", key: resolvedKey };
+    }
+  }
+
+  if (context === "casino_gaming_menu" && menus.casino_gaming_menu) {
+    const lookup = menus.casino_gaming_menu.lookup || {};
+    let resolvedKey = lookup[text] || null;
+
+    if (!resolvedKey) {
+      const choiceAliases = menus.casino_gaming_menu.choice_aliases || {};
+      const leadingChoice = extractLeadingChoice(text, choiceAliases);
+      if (leadingChoice?.choice && lookup[leadingChoice.choice]) {
+        resolvedKey = lookup[leadingChoice.choice];
+      }
+    }
+
+    if (resolvedKey === "__back") {
+      return { type: "menu_back" };
+    }
+    if (resolvedKey) {
+      return { type: "gaming_selection", key: resolvedKey };
+    }
+  }
+
+  if (context === "general_information_menu" && menus.general_information_menu) {
+    const lookup = menus.general_information_menu.lookup || {};
+    let resolvedKey = lookup[text] || null;
+
+    if (!resolvedKey) {
+      const choiceAliases = menus.general_information_menu.choice_aliases || {};
+      const leadingChoice = extractLeadingChoice(text, choiceAliases);
+      if (leadingChoice?.choice && lookup[leadingChoice.choice]) {
+        resolvedKey = lookup[leadingChoice.choice];
+      }
+    }
+
+    if (resolvedKey === "__back") {
+      return { type: "menu_back" };
+    }
+    if (resolvedKey) {
+      return { type: "general_info_selection", key: resolvedKey };
+    }
+  }
+
+  if (context === "complaints_menu" && menus.complaints_menu) {
+    const lookup = menus.complaints_menu.lookup || {};
+    let resolvedKey = lookup[text] || null;
+
+    if (!resolvedKey) {
+      const choiceAliases = menus.complaints_menu.choice_aliases || {};
+      const leadingChoice = extractLeadingChoice(text, choiceAliases);
+      if (leadingChoice?.choice && lookup[leadingChoice.choice]) {
+        resolvedKey = lookup[leadingChoice.choice];
+      }
+    }
+
+    if (resolvedKey === "__back") {
+      return { type: "menu_back" };
+    }
+    if (resolvedKey) {
+      return { type: "complaints_selection", key: resolvedKey };
     }
   }
 
