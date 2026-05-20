@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.5q";
+const APP_VERSION = "v8.5.5r";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -5792,18 +5792,23 @@ function wireEvents(){
   // Vertical resize handle — image/data divider
   const vHandle=el("spVResize");
   if(vHandle){
-    let vStartY, vStartH;
+    let vStartY, vStartH, vPointerId=null, vResizing=false;
     vHandle.addEventListener("pointerdown",e=>{
+      if(vResizing) stopVResize();
+      vResizing=true;
+      vPointerId=e.pointerId;
       vStartY=e.clientY;
       vStartH=el("sp_img_wrap").offsetHeight;
       vHandle.classList.add("dragging");
       if(vHandle.setPointerCapture) vHandle.setPointerCapture(e.pointerId);
-      document.addEventListener("pointermove",onVResize);
-      document.addEventListener("pointerup",stopVResize);
-      document.addEventListener("pointercancel",stopVResize);
+      vHandle.addEventListener("pointermove",onVResize);
+      vHandle.addEventListener("pointerup",stopVResize);
+      vHandle.addEventListener("pointercancel",stopVResize);
+      vHandle.addEventListener("lostpointercapture",stopVResize);
       e.preventDefault();
     });
     function onVResize(e){
+      if(!vResizing||e.pointerId!==vPointerId) return;
       const panel=el("sidePanel");
       const minImgH=150;
       // Min data height: enough to show all fields (~360px)
@@ -5812,14 +5817,24 @@ function wireEvents(){
       const newH=Math.max(minImgH,Math.min(maxImgH,vStartH+(e.clientY-vStartY)));
       el("sp_img_wrap").style.height=newH+"px";
       _scaleNonBillWatermark();
+      e.preventDefault();
     }
-    function stopVResize(){
+    function stopVResize(e){
+      if(!vResizing) return;
+      if(e&&e.pointerId!==undefined&&vPointerId!==null&&e.pointerId!==vPointerId) return;
+      const activePointer=vPointerId;
+      vResizing=false;
+      vPointerId=null;
       vHandle.classList.remove("dragging");
+      if(activePointer!==null&&vHandle.releasePointerCapture){
+        try{ vHandle.releasePointerCapture(activePointer); }catch(_e){}
+      }
       const imgWrap=el("sp_img_wrap");
       if(imgWrap) saveUserPreference("sidepanel_image_height", imgWrap.offsetHeight);
-      document.removeEventListener("pointermove",onVResize);
-      document.removeEventListener("pointerup",stopVResize);
-      document.removeEventListener("pointercancel",stopVResize);
+      vHandle.removeEventListener("pointermove",onVResize);
+      vHandle.removeEventListener("pointerup",stopVResize);
+      vHandle.removeEventListener("pointercancel",stopVResize);
+      vHandle.removeEventListener("lostpointercapture",stopVResize);
     }
   }
 
