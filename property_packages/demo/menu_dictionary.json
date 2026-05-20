@@ -1,7 +1,7 @@
 {
   "file": "menu_dictionary.json",
-  "version": "v14.0.5",
-  "date": "2026-05-11",
+  "version": "v14.0.6",
+  "date": "2026-05-19",
   "role": "Menu dictionary and lookup map for SOL V14 Fast Path trial",
   "status": "trial_demo_data_from_kb",
   "design_rule": "Menus use display_order arrays for presentation and lookup dictionaries for deterministic selection. Choice aliases remain menu-driven so the same parsing pattern can later be reused across other populated branches.",
@@ -67,7 +67,6 @@
         "dining": "restaurants",
         "restaurante": "restaurants",
         "restaurantes": "restaurants",
-
         "2": "loyalty_rewards",
         "loyalty": "loyalty_rewards",
         "points": "loyalty_rewards",
@@ -79,7 +78,6 @@
         "lealtad": "loyalty_rewards",
         "puntos": "loyalty_rewards",
         "recompensas": "loyalty_rewards",
-
         "3": "shows_events",
         "show": "shows_events",
         "shows": "shows_events",
@@ -87,20 +85,17 @@
         "evento": "shows_events",
         "eventos": "shows_events",
         "entretenimiento": "shows_events",
-
         "4": "casino_gaming",
         "gaming": "casino_gaming",
         "casino": "casino_gaming",
         "games": "casino_gaming",
         "juegos": "casino_gaming",
-
         "5": "general_information",
         "general information": "general_information",
         "hotel": "general_information",
         "property": "general_information",
         "informacion general": "general_information",
         "información general": "general_information",
-
         "6": "complaints",
         "complaint": "complaints",
         "complaints": "complaints",
@@ -108,7 +103,6 @@
         "quejas": "complaints"
       }
     },
-
     "restaurants_menu": {
       "context": "restaurants_menu",
       "display_order": [
@@ -175,55 +169,117 @@
         "1": "la_brasserie",
         "la brasserie": "la_brasserie",
         "brasserie": "la_brasserie",
-
         "2": "larrys_sports_bar_terrace",
         "larry's sports bar": "larrys_sports_bar_terrace",
         "larrys sports bar": "larrys_sports_bar_terrace",
         "sports bar": "larrys_sports_bar_terrace",
         "sports bar and terrace": "larrys_sports_bar_terrace",
-
         "3": "acua_pool_lounge_bar",
         "acua": "acua_pool_lounge_bar",
         "pool lounge": "acua_pool_lounge_bar",
         "pool bar": "acua_pool_lounge_bar",
-
         "4": "larrys_market",
         "larry's market": "larrys_market",
         "larrys market": "larrys_market",
         "market": "larrys_market",
         "coffee shop": "larrys_market",
-
         "5": "garden_lobby_bar",
         "the garden lobby bar": "garden_lobby_bar",
         "garden lobby bar": "garden_lobby_bar",
         "lobby bar": "garden_lobby_bar",
         "garden bar": "garden_lobby_bar",
-
         "6": "fenicia",
         "fenicia": "fenicia",
         "fenicia restaurant": "fenicia",
         "mediterranean restaurant": "fenicia",
         "lebanese restaurant": "fenicia",
-
         "7": "room_service",
         "room service": "room_service",
         "in-room dining": "room_service"
       },
       "list_triggers": {
-        "en": ["list", "show me", "all restaurants", "all dining", "options"],
-        "es": ["lista", "muéstrame", "mostrar", "todos", "opciones", "dame la lista"]
+        "en": [
+          "list",
+          "show me",
+          "all restaurants",
+          "all dining",
+          "options"
+        ],
+        "es": [
+          "lista",
+          "muéstrame",
+          "mostrar",
+          "todos",
+          "opciones",
+          "dame la lista"
+        ]
       },
       "choice_aliases": {
-        "1": ["1", "#1", "one", "uno", "option 1", "opcion 1", "opción 1"],
-        "2": ["2", "#2", "two", "dos", "option 2", "opcion 2", "opción 2"],
-        "3": ["3", "#3", "three", "tres", "option 3", "opcion 3", "opción 3"],
-        "4": ["4", "#4", "four", "cuatro", "option 4", "opcion 4", "opción 4"],
-        "5": ["5", "#5", "five", "cinco", "option 5", "opcion 5", "opción 5"],
-        "6": ["6", "#6", "six", "seis", "option 6", "opcion 6", "opción 6"],
-        "7": ["7", "#7", "seven", "siete", "option 7", "opcion 7", "opción 7"]
+        "1": [
+          "1",
+          "#1",
+          "one",
+          "uno",
+          "option 1",
+          "opcion 1",
+          "opción 1"
+        ],
+        "2": [
+          "2",
+          "#2",
+          "two",
+          "dos",
+          "option 2",
+          "opcion 2",
+          "opción 2"
+        ],
+        "3": [
+          "3",
+          "#3",
+          "three",
+          "tres",
+          "option 3",
+          "opcion 3",
+          "opción 3"
+        ],
+        "4": [
+          "4",
+          "#4",
+          "four",
+          "cuatro",
+          "option 4",
+          "opcion 4",
+          "opción 4"
+        ],
+        "5": [
+          "5",
+          "#5",
+          "five",
+          "cinco",
+          "option 5",
+          "opcion 5",
+          "opción 5"
+        ],
+        "6": [
+          "6",
+          "#6",
+          "six",
+          "seis",
+          "option 6",
+          "opcion 6",
+          "opción 6"
+        ],
+        "7": [
+          "7",
+          "#7",
+          "seven",
+          "siete",
+          "option 7",
+          "opcion 7",
+          "opción 7"
+        ]
       }
     },
-
     "restaurant_followup_menu": {
       "context": "restaurant_followup_menu",
       "display_order": [
@@ -262,7 +318,6 @@
         "horario": "venue_info",
         "ubicacion": "venue_info",
         "ubicación": "venue_info",
-
         "2": "new_reservation",
         "reservation": "new_reservation",
         "book": "new_reservation",
@@ -274,7 +329,6 @@
         "reservar": "new_reservation",
         "nueva reservacion": "new_reservation",
         "nueva reservación": "new_reservation",
-
         "3": "existing_change_vip_group",
         "change reservation": "existing_change_vip_group",
         "cancel reservation": "existing_change_vip_group",
@@ -294,12 +348,35 @@
         "solicitud especial": "existing_change_vip_group"
       },
       "choice_aliases": {
-        "1": ["1", "#1", "one", "uno", "option 1", "opcion 1", "opción 1"],
-        "2": ["2", "#2", "two", "dos", "option 2", "opcion 2", "opción 2"],
-        "3": ["3", "#3", "three", "tres", "option 3", "opcion 3", "opción 3"]
+        "1": [
+          "1",
+          "#1",
+          "one",
+          "uno",
+          "option 1",
+          "opcion 1",
+          "opción 1"
+        ],
+        "2": [
+          "2",
+          "#2",
+          "two",
+          "dos",
+          "option 2",
+          "opcion 2",
+          "opción 2"
+        ],
+        "3": [
+          "3",
+          "#3",
+          "three",
+          "tres",
+          "option 3",
+          "opcion 3",
+          "opción 3"
+        ]
       }
     },
-
     "loyalty_rewards_menu": {
       "context": "loyalty_rewards_menu",
       "display_order": [
@@ -336,14 +413,12 @@
         "informacion del programa": "program_info",
         "información del programa": "program_info",
         "programa": "program_info",
-
         "2": "rewards_points_info",
         "points": "rewards_points_info",
         "rewards": "rewards_points_info",
         "points and rewards": "rewards_points_info",
         "puntos": "rewards_points_info",
         "recompensas": "rewards_points_info",
-
         "3": "account_specific_issue",
         "account": "account_specific_issue",
         "account issue": "account_specific_issue",
@@ -356,12 +431,924 @@
         "puntos faltantes": "account_specific_issue",
         "saldo de puntos": "account_specific_issue",
         "estatus de nivel": "account_specific_issue",
-        "estado de nivel": "account_specific_issue"
+        "estado de nivel": "account_specific_issue",
+        "0": "__back",
+        "back": "__back",
+        "main menu": "__back",
+        "home": "__back",
+        "volver": "__back",
+        "menú": "__back",
+        "menu principal": "__back",
+        "menú principal": "__back"
       },
       "choice_aliases": {
-        "1": ["1", "#1", "one", "uno", "option 1", "opcion 1", "opción 1"],
-        "2": ["2", "#2", "two", "dos", "option 2", "opcion 2", "opción 2"],
-        "3": ["3", "#3", "three", "tres", "option 3", "opcion 3", "opción 3"]
+        "1": [
+          "1",
+          "#1",
+          "one",
+          "uno",
+          "option 1",
+          "opcion 1",
+          "opción 1"
+        ],
+        "2": [
+          "2",
+          "#2",
+          "two",
+          "dos",
+          "option 2",
+          "opcion 2",
+          "opción 2"
+        ],
+        "3": [
+          "3",
+          "#3",
+          "three",
+          "tres",
+          "option 3",
+          "opcion 3",
+          "opción 3"
+        ]
+      }
+    },
+    "loyalty_program_info_menu": {
+      "context": "loyalty_program_info_menu",
+      "display_order": [
+        "program_name",
+        "enrollment",
+        "tier_levels"
+      ],
+      "options": {
+        "program_name": {
+          "number": 1,
+          "label_en": "Program name",
+          "label_es": "Nombre del programa"
+        },
+        "enrollment": {
+          "number": 2,
+          "label_en": "Enrollment",
+          "label_es": "Inscripción"
+        },
+        "tier_levels": {
+          "number": 3,
+          "label_en": "Tier levels",
+          "label_es": "Niveles"
+        }
+      },
+      "lookup": {
+        "1": "program_name",
+        "program name": "program_name",
+        "name": "program_name",
+        "club card": "program_name",
+        "your casino club card": "program_name",
+        "nombre": "program_name",
+        "nombre del programa": "program_name",
+        "2": "enrollment",
+        "enrollment": "enrollment",
+        "enroll": "enrollment",
+        "join": "enrollment",
+        "sign up": "enrollment",
+        "inscripcion": "enrollment",
+        "inscripción": "enrollment",
+        "inscribir": "enrollment",
+        "registrarse": "enrollment",
+        "3": "tier_levels",
+        "tier": "tier_levels",
+        "tiers": "tier_levels",
+        "tier levels": "tier_levels",
+        "levels": "tier_levels",
+        "silver": "tier_levels",
+        "gold": "tier_levels",
+        "black": "tier_levels",
+        "diamond": "tier_levels",
+        "niveles": "tier_levels",
+        "nivel": "tier_levels",
+        "0": "__back",
+        "back": "__back",
+        "menu": "__back",
+        "main menu": "__back",
+        "home": "__back",
+        "volver": "__back",
+        "menú": "__back",
+        "menu principal": "__back",
+        "menú principal": "__back"
+      },
+      "choice_aliases": {
+        "1": [
+          "1",
+          "#1",
+          "one",
+          "uno",
+          "option 1",
+          "opcion 1",
+          "opción 1"
+        ],
+        "2": [
+          "2",
+          "#2",
+          "two",
+          "dos",
+          "option 2",
+          "opcion 2",
+          "opción 2"
+        ],
+        "3": [
+          "3",
+          "#3",
+          "three",
+          "tres",
+          "option 3",
+          "opcion 3",
+          "opción 3"
+        ]
+      }
+    },
+    "loyalty_points_rewards_menu": {
+      "context": "loyalty_points_rewards_menu",
+      "display_order": [
+        "earning",
+        "redeem",
+        "min_where",
+        "expiration",
+        "tiers",
+        "account_escalation"
+      ],
+      "options": {
+        "earning": {
+          "number": 1,
+          "label_en": "How you earn points",
+          "label_es": "Cómo se ganan los puntos"
+        },
+        "redeem": {
+          "number": 2,
+          "label_en": "What you can redeem",
+          "label_es": "Qué puedes canjear"
+        },
+        "min_where": {
+          "number": 3,
+          "label_en": "Minimum redemption & where",
+          "label_es": "Canje mínimo y dónde"
+        },
+        "expiration": {
+          "number": 4,
+          "label_en": "When points expire",
+          "label_es": "Cuándo expiran los puntos"
+        },
+        "tiers": {
+          "number": 5,
+          "label_en": "Tier levels overview",
+          "label_es": "Resumen de niveles"
+        },
+        "account_escalation": {
+          "number": 6,
+          "label_en": "My balance / missing points (staff)",
+          "label_es": "Mi saldo / puntos faltantes (personal)"
+        }
+      },
+      "lookup": {
+        "1": "earning",
+        "earn": "earning",
+        "earning": "earning",
+        "how to earn": "earning",
+        "ganar": "earning",
+        "ganar puntos": "earning",
+        "como ganar": "earning",
+        "cómo ganar": "earning",
+        "2": "redeem",
+        "redeem": "redeem",
+        "redemption": "redeem",
+        "what i can redeem": "redeem",
+        "rewards": "redeem",
+        "canjear": "redeem",
+        "canje": "redeem",
+        "recompensas": "redeem",
+        "3": "min_where",
+        "minimum": "min_where",
+        "min": "min_where",
+        "100": "min_where",
+        "100 points": "min_where",
+        "where": "min_where",
+        "kiosk": "min_where",
+        "minimo": "min_where",
+        "mínimo": "min_where",
+        "donde": "min_where",
+        "dónde": "min_where",
+        "canje minimo": "min_where",
+        "canje mínimo": "min_where",
+        "4": "expiration",
+        "expire": "expiration",
+        "expires": "expiration",
+        "expiration": "expiration",
+        "expiry": "expiration",
+        "inactivity": "expiration",
+        "expirar": "expiration",
+        "expiracion": "expiration",
+        "expiración": "expiration",
+        "inactividad": "expiration",
+        "5": "tiers",
+        "tier": "tiers",
+        "tiers": "tiers",
+        "tier levels": "tiers",
+        "levels": "tiers",
+        "silver": "tiers",
+        "gold": "tiers",
+        "black": "tiers",
+        "diamond": "tiers",
+        "niveles": "tiers",
+        "nivel": "tiers",
+        "6": "account_escalation",
+        "balance": "account_escalation",
+        "my balance": "account_escalation",
+        "missing": "account_escalation",
+        "missing points": "account_escalation",
+        "account": "account_escalation",
+        "saldo": "account_escalation",
+        "mi saldo": "account_escalation",
+        "puntos faltantes": "account_escalation",
+        "cuenta": "account_escalation",
+        "0": "__back",
+        "back": "__back",
+        "menu": "__back",
+        "main menu": "__back",
+        "home": "__back",
+        "volver": "__back",
+        "menú": "__back",
+        "menu principal": "__back",
+        "menú principal": "__back"
+      },
+      "choice_aliases": {
+        "1": [
+          "1",
+          "#1",
+          "one",
+          "uno",
+          "option 1",
+          "opcion 1",
+          "opción 1"
+        ],
+        "2": [
+          "2",
+          "#2",
+          "two",
+          "dos",
+          "option 2",
+          "opcion 2",
+          "opción 2"
+        ],
+        "3": [
+          "3",
+          "#3",
+          "three",
+          "tres",
+          "option 3",
+          "opcion 3",
+          "opción 3"
+        ],
+        "4": [
+          "4",
+          "#4",
+          "four",
+          "cuatro",
+          "option 4",
+          "opcion 4",
+          "opción 4"
+        ],
+        "5": [
+          "5",
+          "#5",
+          "five",
+          "cinco",
+          "option 5",
+          "opcion 5",
+          "opción 5"
+        ],
+        "6": [
+          "6",
+          "#6",
+          "six",
+          "seis",
+          "option 6",
+          "opcion 6",
+          "opción 6"
+        ]
+      }
+    },
+    "shows_events_menu": {
+      "context": "shows_events_menu",
+      "display_order": [
+        "what_we_host",
+        "where_shows_happen",
+        "tickets_arrival",
+        "tonight_specific"
+      ],
+      "options": {
+        "what_we_host": {
+          "number": 1,
+          "label_en": "What we host",
+          "label_es": "Qué presentamos"
+        },
+        "where_shows_happen": {
+          "number": 2,
+          "label_en": "Where shows happen",
+          "label_es": "Dónde son los shows"
+        },
+        "tickets_arrival": {
+          "number": 3,
+          "label_en": "Tickets, reservations & arrival",
+          "label_es": "Boletos, reservas y llegada"
+        },
+        "tonight_specific": {
+          "number": 4,
+          "label_en": "Tonight's lineup / specific show 🎟️",
+          "label_es": "Cartelera de esta noche / show específico 🎟️"
+        }
+      },
+      "lookup": {
+        "1": "what_we_host",
+        "what shows": "what_we_host",
+        "what we host": "what_we_host",
+        "types": "what_we_host",
+        "entertainment": "what_we_host",
+        "que presentamos": "what_we_host",
+        "qué presentamos": "what_we_host",
+        "tipos": "what_we_host",
+        "2": "where_shows_happen",
+        "where": "where_shows_happen",
+        "venues": "where_shows_happen",
+        "theater": "where_shows_happen",
+        "ballroom": "where_shows_happen",
+        "venue": "where_shows_happen",
+        "donde": "where_shows_happen",
+        "dónde": "where_shows_happen",
+        "3": "tickets_arrival",
+        "tickets": "tickets_arrival",
+        "ticket": "tickets_arrival",
+        "reservation": "tickets_arrival",
+        "reservations": "tickets_arrival",
+        "arrival": "tickets_arrival",
+        "boletos": "tickets_arrival",
+        "boleto": "tickets_arrival",
+        "reservas": "tickets_arrival",
+        "llegada": "tickets_arrival",
+        "4": "tonight_specific",
+        "tonight": "tonight_specific",
+        "today": "tonight_specific",
+        "schedule": "tonight_specific",
+        "lineup": "tonight_specific",
+        "specific show": "tonight_specific",
+        "specific event": "tonight_specific",
+        "performer": "tonight_specific",
+        "esta noche": "tonight_specific",
+        "hoy": "tonight_specific",
+        "cartelera": "tonight_specific",
+        "horario": "tonight_specific",
+        "show especifico": "tonight_specific",
+        "show específico": "tonight_specific",
+        "0": "__back",
+        "back": "__back",
+        "menu": "__back",
+        "main menu": "__back",
+        "home": "__back",
+        "volver": "__back",
+        "menú": "__back",
+        "menu principal": "__back",
+        "menú principal": "__back"
+      },
+      "choice_aliases": {
+        "1": [
+          "1",
+          "#1",
+          "one",
+          "uno",
+          "option 1",
+          "opcion 1",
+          "opción 1"
+        ],
+        "2": [
+          "2",
+          "#2",
+          "two",
+          "dos",
+          "option 2",
+          "opcion 2",
+          "opción 2"
+        ],
+        "3": [
+          "3",
+          "#3",
+          "three",
+          "tres",
+          "option 3",
+          "opcion 3",
+          "opción 3"
+        ],
+        "4": [
+          "4",
+          "#4",
+          "four",
+          "cuatro",
+          "option 4",
+          "opcion 4",
+          "opción 4"
+        ]
+      }
+    },
+    "casino_gaming_menu": {
+      "context": "casino_gaming_menu",
+      "display_order": [
+        "slots",
+        "tables",
+        "poker",
+        "sportsbook",
+        "entry_rules",
+        "gaming_escalation"
+      ],
+      "options": {
+        "slots": {
+          "number": 1,
+          "label_en": "Slots",
+          "label_es": "Slots"
+        },
+        "tables": {
+          "number": 2,
+          "label_en": "Table games",
+          "label_es": "Juegos de mesa"
+        },
+        "poker": {
+          "number": 3,
+          "label_en": "Poker",
+          "label_es": "Poker"
+        },
+        "sportsbook": {
+          "number": 4,
+          "label_en": "Sports betting",
+          "label_es": "Apuestas deportivas"
+        },
+        "entry_rules": {
+          "number": 5,
+          "label_en": "Entry rules & responsible gaming",
+          "label_es": "Reglas de entrada y juego responsable"
+        },
+        "gaming_escalation": {
+          "number": 6,
+          "label_en": "Disputes / missing points / security",
+          "label_es": "Disputas / puntos faltantes / seguridad"
+        }
+      },
+      "lookup": {
+        "1": "slots",
+        "slot": "slots",
+        "slots": "slots",
+        "slot machine": "slots",
+        "slot machines": "slots",
+        "tragamoneda": "slots",
+        "tragamonedas": "slots",
+        "maquina": "slots",
+        "máquina": "slots",
+        "maquinas": "slots",
+        "máquinas": "slots",
+        "2": "tables",
+        "table": "tables",
+        "tables": "tables",
+        "table games": "tables",
+        "blackjack": "tables",
+        "roulette": "tables",
+        "baccarat": "tables",
+        "ultimate texas hold'em": "tables",
+        "juegos de mesa": "tables",
+        "mesa": "tables",
+        "ruleta": "tables",
+        "3": "poker",
+        "poker": "poker",
+        "hold'em": "poker",
+        "holdem": "poker",
+        "omaha": "poker",
+        "4": "sportsbook",
+        "sports": "sportsbook",
+        "sports betting": "sportsbook",
+        "sportsbook": "sportsbook",
+        "betting": "sportsbook",
+        "apuestas": "sportsbook",
+        "apuestas deportivas": "sportsbook",
+        "5": "entry_rules",
+        "entry": "entry_rules",
+        "entry rules": "entry_rules",
+        "age": "entry_rules",
+        "dress code": "entry_rules",
+        "responsible gaming": "entry_rules",
+        "responsible": "entry_rules",
+        "reglas": "entry_rules",
+        "reglas de entrada": "entry_rules",
+        "edad": "entry_rules",
+        "juego responsable": "entry_rules",
+        "6": "gaming_escalation",
+        "dispute": "gaming_escalation",
+        "disputes": "gaming_escalation",
+        "missing points": "gaming_escalation",
+        "security": "gaming_escalation",
+        "disputas": "gaming_escalation",
+        "puntos faltantes": "gaming_escalation",
+        "seguridad": "gaming_escalation",
+        "0": "__back",
+        "back": "__back",
+        "menu": "__back",
+        "main menu": "__back",
+        "home": "__back",
+        "volver": "__back",
+        "menú": "__back",
+        "menu principal": "__back",
+        "menú principal": "__back"
+      },
+      "choice_aliases": {
+        "1": [
+          "1",
+          "#1",
+          "one",
+          "uno",
+          "option 1",
+          "opcion 1",
+          "opción 1"
+        ],
+        "2": [
+          "2",
+          "#2",
+          "two",
+          "dos",
+          "option 2",
+          "opcion 2",
+          "opción 2"
+        ],
+        "3": [
+          "3",
+          "#3",
+          "three",
+          "tres",
+          "option 3",
+          "opcion 3",
+          "opción 3"
+        ],
+        "4": [
+          "4",
+          "#4",
+          "four",
+          "cuatro",
+          "option 4",
+          "opcion 4",
+          "opción 4"
+        ],
+        "5": [
+          "5",
+          "#5",
+          "five",
+          "cinco",
+          "option 5",
+          "opcion 5",
+          "opción 5"
+        ],
+        "6": [
+          "6",
+          "#6",
+          "six",
+          "seis",
+          "option 6",
+          "opcion 6",
+          "opción 6"
+        ]
+      }
+    },
+    "general_information_menu": {
+      "context": "general_information_menu",
+      "display_order": [
+        "overview_hours",
+        "rooms",
+        "spa_pool",
+        "transport_parking",
+        "accessibility_lost_found",
+        "contact"
+      ],
+      "options": {
+        "overview_hours": {
+          "number": 1,
+          "label_en": "Property overview & hours",
+          "label_es": "Resumen de la propiedad y horarios"
+        },
+        "rooms": {
+          "number": 2,
+          "label_en": "Hotel rooms & in-room amenities",
+          "label_es": "Habitaciones y comodidades"
+        },
+        "spa_pool": {
+          "number": 3,
+          "label_en": "Spa, fitness & pool",
+          "label_es": "Spa, fitness y piscina"
+        },
+        "transport_parking": {
+          "number": 4,
+          "label_en": "Transportation & parking",
+          "label_es": "Transporte y estacionamiento"
+        },
+        "accessibility_lost_found": {
+          "number": 5,
+          "label_en": "Accessibility & lost and found",
+          "label_es": "Accesibilidad y objetos perdidos"
+        },
+        "contact": {
+          "number": 6,
+          "label_en": "Contact & location",
+          "label_es": "Contacto y ubicación"
+        }
+      },
+      "lookup": {
+        "1": "overview_hours",
+        "overview": "overview_hours",
+        "property": "overview_hours",
+        "hours": "overview_hours",
+        "hour": "overview_hours",
+        "open": "overview_hours",
+        "horarios": "overview_hours",
+        "horario": "overview_hours",
+        "resumen": "overview_hours",
+        "2": "rooms",
+        "room": "rooms",
+        "rooms": "rooms",
+        "hotel rooms": "rooms",
+        "amenities": "rooms",
+        "in-room": "rooms",
+        "habitacion": "rooms",
+        "habitación": "rooms",
+        "habitaciones": "rooms",
+        "comodidades": "rooms",
+        "3": "spa_pool",
+        "spa": "spa_pool",
+        "pool": "spa_pool",
+        "gym": "spa_pool",
+        "fitness": "spa_pool",
+        "natura": "spa_pool",
+        "piscina": "spa_pool",
+        "4": "transport_parking",
+        "transport": "transport_parking",
+        "transportation": "transport_parking",
+        "airport": "transport_parking",
+        "parking": "transport_parking",
+        "valet": "transport_parking",
+        "shuttle": "transport_parking",
+        "pty": "transport_parking",
+        "tocumen": "transport_parking",
+        "transporte": "transport_parking",
+        "estacionamiento": "transport_parking",
+        "aeropuerto": "transport_parking",
+        "5": "accessibility_lost_found",
+        "accessibility": "accessibility_lost_found",
+        "accessible": "accessibility_lost_found",
+        "wheelchair": "accessibility_lost_found",
+        "ada": "accessibility_lost_found",
+        "lost": "accessibility_lost_found",
+        "lost and found": "accessibility_lost_found",
+        "found": "accessibility_lost_found",
+        "accesibilidad": "accessibility_lost_found",
+        "perdido": "accessibility_lost_found",
+        "objetos perdidos": "accessibility_lost_found",
+        "6": "contact",
+        "contact": "contact",
+        "phone": "contact",
+        "address": "contact",
+        "location": "contact",
+        "where are you": "contact",
+        "contacto": "contact",
+        "telefono": "contact",
+        "teléfono": "contact",
+        "direccion": "contact",
+        "dirección": "contact",
+        "ubicacion": "contact",
+        "ubicación": "contact",
+        "0": "__back",
+        "back": "__back",
+        "menu": "__back",
+        "main menu": "__back",
+        "home": "__back",
+        "volver": "__back",
+        "menú": "__back",
+        "menu principal": "__back",
+        "menú principal": "__back"
+      },
+      "choice_aliases": {
+        "1": [
+          "1",
+          "#1",
+          "one",
+          "uno",
+          "option 1",
+          "opcion 1",
+          "opción 1"
+        ],
+        "2": [
+          "2",
+          "#2",
+          "two",
+          "dos",
+          "option 2",
+          "opcion 2",
+          "opción 2"
+        ],
+        "3": [
+          "3",
+          "#3",
+          "three",
+          "tres",
+          "option 3",
+          "opcion 3",
+          "opción 3"
+        ],
+        "4": [
+          "4",
+          "#4",
+          "four",
+          "cuatro",
+          "option 4",
+          "opcion 4",
+          "opción 4"
+        ],
+        "5": [
+          "5",
+          "#5",
+          "five",
+          "cinco",
+          "option 5",
+          "opcion 5",
+          "opción 5"
+        ],
+        "6": [
+          "6",
+          "#6",
+          "six",
+          "seis",
+          "option 6",
+          "opcion 6",
+          "opción 6"
+        ]
+      }
+    },
+    "complaints_menu": {
+      "context": "complaints_menu",
+      "display_order": [
+        "service_issue",
+        "billing",
+        "safety",
+        "responsible_gaming",
+        "lost_found",
+        "other"
+      ],
+      "options": {
+        "service_issue": {
+          "number": 1,
+          "label_en": "Hotel / dining / casino service issue",
+          "label_es": "Problema de servicio en hotel / restaurante / casino"
+        },
+        "billing": {
+          "number": 2,
+          "label_en": "Billing or charge dispute",
+          "label_es": "Disputa de cargos o factura"
+        },
+        "safety": {
+          "number": 3,
+          "label_en": "Safety or security concern",
+          "label_es": "Preocupación de seguridad"
+        },
+        "responsible_gaming": {
+          "number": 4,
+          "label_en": "Responsible gaming support",
+          "label_es": "Soporte de juego responsable"
+        },
+        "lost_found": {
+          "number": 5,
+          "label_en": "Lost & found",
+          "label_es": "Objetos perdidos"
+        },
+        "other": {
+          "number": 6,
+          "label_en": "Something else",
+          "label_es": "Otra cosa"
+        }
+      },
+      "lookup": {
+        "1": "service_issue",
+        "service": "service_issue",
+        "service issue": "service_issue",
+        "complaint": "service_issue",
+        "bad service": "service_issue",
+        "problema de servicio": "service_issue",
+        "mal servicio": "service_issue",
+        "queja": "service_issue",
+        "2": "billing",
+        "billing": "billing",
+        "charge": "billing",
+        "charges": "billing",
+        "bill": "billing",
+        "overcharge": "billing",
+        "wrong charge": "billing",
+        "factura": "billing",
+        "cargo": "billing",
+        "cargos": "billing",
+        "cobro": "billing",
+        "3": "safety",
+        "safety": "safety",
+        "security": "safety",
+        "unsafe": "safety",
+        "urgent": "safety",
+        "harassment": "safety",
+        "seguridad": "safety",
+        "inseguro": "safety",
+        "urgente": "safety",
+        "acoso": "safety",
+        "4": "responsible_gaming",
+        "responsible": "responsible_gaming",
+        "responsible gaming": "responsible_gaming",
+        "gambling help": "responsible_gaming",
+        "gambling": "responsible_gaming",
+        "juego responsable": "responsible_gaming",
+        "ayuda con juego": "responsible_gaming",
+        "5": "lost_found",
+        "lost": "lost_found",
+        "lost and found": "lost_found",
+        "found": "lost_found",
+        "lost item": "lost_found",
+        "missing item": "lost_found",
+        "perdido": "lost_found",
+        "objeto perdido": "lost_found",
+        "objetos perdidos": "lost_found",
+        "6": "other",
+        "other": "other",
+        "something else": "other",
+        "not sure": "other",
+        "otro": "other",
+        "otra cosa": "other",
+        "no se": "other",
+        "no sé": "other",
+        "0": "__back",
+        "back": "__back",
+        "menu": "__back",
+        "main menu": "__back",
+        "home": "__back",
+        "volver": "__back",
+        "menú": "__back",
+        "menu principal": "__back",
+        "menú principal": "__back"
+      },
+      "choice_aliases": {
+        "1": [
+          "1",
+          "#1",
+          "one",
+          "uno",
+          "option 1",
+          "opcion 1",
+          "opción 1"
+        ],
+        "2": [
+          "2",
+          "#2",
+          "two",
+          "dos",
+          "option 2",
+          "opcion 2",
+          "opción 2"
+        ],
+        "3": [
+          "3",
+          "#3",
+          "three",
+          "tres",
+          "option 3",
+          "opcion 3",
+          "opción 3"
+        ],
+        "4": [
+          "4",
+          "#4",
+          "four",
+          "cuatro",
+          "option 4",
+          "opcion 4",
+          "opción 4"
+        ],
+        "5": [
+          "5",
+          "#5",
+          "five",
+          "cinco",
+          "option 5",
+          "opcion 5",
+          "opción 5"
+        ],
+        "6": [
+          "6",
+          "#6",
+          "six",
+          "seis",
+          "option 6",
+          "opcion 6",
+          "opción 6"
+        ]
       }
     }
   }
