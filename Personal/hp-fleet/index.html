@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.5o — built 2026-05-19 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.5q — built 2026-05-19 — ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1144,8 +1144,6 @@
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/></svg>
       OCR
     </button>
-    <div class="sp-toolbar-sep"></div>
-    <button class="sp-nonbill-btn" id="sp_nonbill_toggle" title="Toggle Non-Billable">○ Non-Billable</button>
     <div class="sp-toolbar-right">
       <button id="sp_save" title="Save entry" style="background:rgba(65,209,255,.12);border-color:var(--cyan);color:var(--cyan)">
         <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
@@ -1159,7 +1157,10 @@
   <div class="sp-edit-section" id="spEditSection" style="display:none">
     <div class="sp-edit-hdr" id="spEditHdr">
       <span class="sp-edit-title" id="spEditTitle">✎ Data Entry</span>
-      <button id="spEditToggle" style="background:none;border:none;color:var(--dim2);cursor:pointer;font-size:14px">▲</button>
+      <div class="sp-edit-actions">
+        <button class="sp-nonbill-btn" id="sp_nonbill_toggle" title="Toggle Non-Billable">○ Non-Billable</button>
+        <button id="spEditToggle" style="background:none;border:none;color:var(--dim2);cursor:pointer;font-size:14px">▲</button>
+      </div>
     </div>
     <div class="sp-edit-body" id="spEditBody">
       <div class="diff-alert" id="spDiffAlert">⚠ Motor/Vuelo gap: <span id="spDiffMsg"></span></div>
