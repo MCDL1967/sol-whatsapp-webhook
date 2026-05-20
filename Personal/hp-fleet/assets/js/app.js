@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.5p";
+const APP_VERSION = "v8.5.5q";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -5801,6 +5801,10 @@ function wireEvents(){
       document.addEventListener("pointermove",onVResize);
       document.addEventListener("pointerup",stopVResize);
       document.addEventListener("pointercancel",stopVResize);
+      vHandle.addEventListener("pointermove",onVResize);
+      vHandle.addEventListener("pointerup",stopVResize);
+      vHandle.addEventListener("pointercancel",stopVResize);
+      document.body.classList.add("sp-resizing");
       e.preventDefault();
     });
     function onVResize(e){
@@ -5815,11 +5819,15 @@ function wireEvents(){
     }
     function stopVResize(){
       vHandle.classList.remove("dragging");
+      document.body.classList.remove("sp-resizing");
       const imgWrap=el("sp_img_wrap");
       if(imgWrap) saveUserPreference("sidepanel_image_height", imgWrap.offsetHeight);
       document.removeEventListener("pointermove",onVResize);
       document.removeEventListener("pointerup",stopVResize);
       document.removeEventListener("pointercancel",stopVResize);
+      vHandle.removeEventListener("pointermove",onVResize);
+      vHandle.removeEventListener("pointerup",stopVResize);
+      vHandle.removeEventListener("pointercancel",stopVResize);
     }
   }
 
