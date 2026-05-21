@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7g";
+const APP_VERSION = "v8.5.7h";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.7g",
-  es: "./assets/i18n/es.json?v=8.5.7g"
+  en: "./assets/i18n/en.json?v=8.5.7h",
+  es: "./assets/i18n/es.json?v=8.5.7h"
 };
 
 async function loadI18nDictionaries(){
@@ -315,6 +315,7 @@ const LS_MAP = {
 
 let _userPrefs = {};         // in-memory cache
 let _prefSaveTimer = null;   // debounce handle
+let _loginLanguageOverride = null;
 
 // Read users.preferences from DB into cache; returns true if prefs existed
 async function loadUserPreferences(){
@@ -409,7 +410,20 @@ function applyUserPreferences(){
 }
 
 // Write-through: update cache → localStorage → debounced PATCH to DB
-function saveUserPreference(key, value){
+async function persistUserPreferencesNow(){
+  if(!currentUser) return;
+  if(_prefSaveTimer){
+    clearTimeout(_prefSaveTimer);
+    _prefSaveTimer = null;
+  }
+  try {
+    await sbPatch("users","id=eq."+currentUser.id,{preferences: _userPrefs});
+    dbg("Preferences saved to DB", "info");
+  } catch(err){
+    dbg("Preference PATCH failed: "+err.message, "warn");
+  }
+}
+function saveUserPreference(key, value, immediate=false){
   if(!(key in PREF_DEFAULTS)) return;
   _userPrefs[key] = value;
   // Sync localStorage
@@ -423,6 +437,10 @@ function saveUserPreference(key, value){
   }
   // No PATCH if not logged in
   if(!currentUser) return;
+  if(immediate){
+    persistUserPreferencesNow();
+    return;
+  }
   // Debounced PATCH — 400ms window collapses rapid changes (e.g. panel drag)
   if(_prefSaveTimer) clearTimeout(_prefSaveTimer);
   _prefSaveTimer = setTimeout(async ()=>{
@@ -705,8 +723,9 @@ function syncLanguageButtons(){
 }
 function setLang(l){
   lang=l;
+  _loginLanguageOverride=l;
   localStorage.setItem("hpfleet_lang",l);
-  if(currentUser) saveUserPreference("language",l);
+  if(currentUser) saveUserPreference("language",l,true);
   syncLanguageButtons();
   applyI18n();
   if(currentUser){ renderAll(); }
@@ -956,6 +975,17 @@ function localizeAircraftUi(){
 }
 
 // ── AUTH ──
+function restoreRememberedUsername(){
+  const savedEmail=localStorage.getItem("hpfleet_remember_email");
+  if(savedEmail){
+    el("li_user").value=savedEmail;
+    if(el("rememberMe")) el("rememberMe").checked=true;
+  } else {
+    el("li_user").value="";
+    if(el("rememberMe")) el("rememberMe").checked=false;
+  }
+}
+
 function doLogin(){
   const email=el("li_user").value.trim();
   const pwd=el("li_pass").value;
@@ -985,7 +1015,7 @@ function doLogin(){
       currentUser=user;
       USERS.forEach(u=>{ delete u.pwd; });
       addAudit("🔑",user.name,lang==="es"?"inició sesión":"logged in","—");
-      await bootApp();
+      await bootApp(_loginLanguageOverride);
     } catch(err){
       errEl.textContent="Login error: "+err.message;
       errEl.classList.add("on"); btn.textContent=t("signIn");
@@ -999,15 +1029,21 @@ function doLogout(){
   currentUser=null;
   el("appShell").style.display="none";
   el("loginScreen").style.display="flex";
-  el("li_user").value=""; el("li_pass").value="";
+  el("li_pass").value="";
+  restoreRememberedUsername();
   el("loginErr").classList.remove("on");
   el("loginBtnTxt").textContent=t("signIn");
 }
 
-async function bootApp(){
+async function bootApp(loginLanguageOverride=null){
   el("loginScreen").style.display="none";
   el("appShell").style.display="flex";
   await loadUserPreferences();
+  if(loginLanguageOverride==="en"||loginLanguageOverride==="es"){
+    _userPrefs.language=loginLanguageOverride;
+    localStorage.setItem("hpfleet_lang",loginLanguageOverride);
+    await persistUserPreferencesNow();
+  }
   applyUserPreferences();
   const r=ROLES[currentUser.role];
   el("tbName").textContent=currentUser.name;
@@ -5163,8 +5199,7 @@ function wireEvents(){
   el("appEN").addEventListener("click",()=>setLang("en"));
   el("appES").addEventListener("click",()=>setLang("es"));
   // Login — remember username
-  const savedEmail=localStorage.getItem("hpfleet_remember_email");
-  if(savedEmail){ el("li_user").value=savedEmail; el("rememberMe").checked=true; }
+  restoreRememberedUsername();
   el("loginBtn").addEventListener("click",doLogin);
   el("li_pass").addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
   if(el("li_pass_toggle")) el("li_pass_toggle").addEventListener("click",()=>{
@@ -6087,7 +6122,10 @@ function wireEvents(){
 // ── BOOT ──
 async function init(){
   const savedLang=localStorage.getItem("hpfleet_lang");
-  if(savedLang==="en"||savedLang==="es") lang=savedLang;
+  if(savedLang==="en"||savedLang==="es"){
+    lang=savedLang;
+    _loginLanguageOverride=savedLang;
+  }
   syncLanguageButtons();
   await loadI18nDictionaries();
   applyI18n();
