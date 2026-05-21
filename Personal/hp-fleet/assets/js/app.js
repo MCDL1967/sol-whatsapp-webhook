@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7u";
+const APP_VERSION = "v8.5.7v";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -290,6 +290,9 @@ const PREF_DEFAULTS = {
   tooltip_text:    "#dce6f5",
   tooltip_bg:      "#1a2030",
   tooltip_border:  "#41d1ff",
+  tooltip_offset_px: 8,
+  tooltip_max_width_px: 280,
+  tooltip_text_size_px: 11,
   toast_duration_sec: 5,
   sidepanel_width: 420,
   sidepanel_image_height: null,
@@ -308,6 +311,9 @@ const LS_MAP = {
   tooltip_text:    "hpfleet_tooltip_text",
   tooltip_bg:      "hpfleet_tooltip_bg",
   tooltip_border:  "hpfleet_tooltip_border",
+  tooltip_offset_px: "hpfleet_tooltip_offset_px",
+  tooltip_max_width_px: "hpfleet_tooltip_max_width_px",
+  tooltip_text_size_px: "hpfleet_tooltip_text_size_px",
   toast_duration_sec: "hpfleet_toast_duration_sec",
   sidepanel_width: "hpfleet_sp_width",
   sidepanel_image_height: "hpfleet_sp_img_h",
@@ -798,6 +804,7 @@ function applyI18n(){
     st_deleteStatusLabel:"stDeleteStatusLabel",st_deleteStatusHint:"stDeleteStatusHint",st_clearAuditLabel:"stClearAuditLabel",st_clearAuditHint:"stClearAuditHint",
     st_tooltipsLabel:"stTooltipsLabel",st_tooltipsHint:"stTooltipsHint",
     st_tooltipTextColorLabel:"stTooltipTextColor",st_tooltipBoxColorLabel:"stTooltipBoxColor",st_tooltipBorderColorLabel:"stTooltipBorderColor",
+    st_tooltipOffsetLabel:"stTooltipOffset",st_tooltipMaxWidthLabel:"stTooltipMaxWidth",st_tooltipTextSizeLabel:"stTooltipTextSize",st_tooltipResetLabel:"stTooltipReset",
     st_toastDurationLabel:"stToastDurationLabel",st_toastDurationHint:"stToastDurationHint",st_toastDurationUnit:"stToastDurationUnit",
     st_viewAsLabel:"stViewAsLabel",st_viewAsHint:"stViewAsHint",
     st_title:"stTitle",st_apiTitle:"stApiTitle",st_apiLabel:"stApiLabel",st_apiHint:"stApiHint",
@@ -859,6 +866,11 @@ function setText(id,key){ if(el(id)) el(id).textContent=t(key); }
 function setPh(id,key){ if(el(id)) el(id).placeholder=t(key); }
 function setTitle(id,key){ if(el(id)) el(id).title=t(key); }
 function setAlt(id,key){ if(el(id)) el(id).alt=t(key); }
+function clampPrefNumber(value,min,max,fallback){
+  const parsed=parseFloat(value);
+  const safe=Number.isFinite(parsed)?parsed:fallback;
+  return Math.min(max,Math.max(min,safe));
+}
 function setHoverTip(id,key,level=""){
   const node=el(id);
   if(!node) return;
@@ -866,6 +878,7 @@ function setHoverTip(id,key,level=""){
   node.removeAttribute("title");
   node.classList.add("hpf-hover-tip");
   node.dataset.tip=t(key);
+  node.setAttribute("aria-label",t(key));
   if(level) node.dataset.tipLevel=level;
   else delete node.dataset.tipLevel;
   node.tabIndex=node.tabIndex>=0?node.tabIndex:0;
@@ -913,6 +926,9 @@ function localizeSidePanelUi(){
   ].forEach(([id,key])=>setPh(id,key));
   [
     ["spCollapseBtn","spClosePanelTip"],
+    ["sp_close","close"],
+    ["spPrev","spPreviousTip"],
+    ["spNext","spNextTip"],
     ["sp_fit","spFitTip"],
     ["sp_zoom_out","spZoomOutTip"],
     ["sp_zoom_in","spZoomInTip"],
@@ -923,7 +939,7 @@ function localizeSidePanelUi(){
     ["sp_nonbill_toggle","spToggleNonBillTip"],
     ["sp_swap_motor","spSwapMotorTip"],
     ["sp_swap_vuelo","spSwapFlightTip"]
-  ].forEach(([id,key])=>setTitle(id,key));
+  ].forEach(([id,key])=>setHoverTip(id,key));
   setAlt("sp_img","spSourceAlt");
   const diffAlert=el("spDiffAlert");
   if(diffAlert&&diffAlert.firstChild) diffAlert.firstChild.nodeValue=t("spDiffAlert")+" ";
@@ -1066,11 +1082,12 @@ function hideTipPopover(tip=null){
 function positionTipPopover(tip){
   if(!_tipPopover || !tip) return;
   const margin=12;
-  const gap=8;
+  const gap=clampPrefNumber(getTooltipPref("tooltip_offset_px"),2,24,PREF_DEFAULTS.tooltip_offset_px);
+  const maxWidth=clampPrefNumber(getTooltipPref("tooltip_max_width_px"),180,420,PREF_DEFAULTS.tooltip_max_width_px);
   const tipRect=tip.getBoundingClientRect();
   const vpW=window.innerWidth;
   const vpH=window.innerHeight;
-  _tipPopover.style.maxWidth=Math.min(280,Math.max(180,vpW-(margin*2)))+"px";
+  _tipPopover.style.maxWidth=Math.min(maxWidth,Math.max(180,vpW-(margin*2)))+"px";
   const popRect=_tipPopover.getBoundingClientRect();
   const tipCenter=tipRect.left+(tipRect.width/2);
   const openRight=tipCenter < vpW/2;
@@ -1955,9 +1972,15 @@ function applyTooltipPreferences(){
   const text=getTooltipPref("tooltip_text")||PREF_DEFAULTS.tooltip_text;
   const bg=getTooltipPref("tooltip_bg")||PREF_DEFAULTS.tooltip_bg;
   const border=getTooltipPref("tooltip_border")||PREF_DEFAULTS.tooltip_border;
+  const offset=clampPrefNumber(getTooltipPref("tooltip_offset_px"),2,24,PREF_DEFAULTS.tooltip_offset_px);
+  const maxWidth=clampPrefNumber(getTooltipPref("tooltip_max_width_px"),180,420,PREF_DEFAULTS.tooltip_max_width_px);
+  const textSize=clampPrefNumber(getTooltipPref("tooltip_text_size_px"),10,16,PREF_DEFAULTS.tooltip_text_size_px);
   document.documentElement.style.setProperty("--tip-text",text);
   document.documentElement.style.setProperty("--tip-bg",bg);
   document.documentElement.style.setProperty("--tip-border",border);
+  document.documentElement.style.setProperty("--tip-offset",offset+"px");
+  document.documentElement.style.setProperty("--tip-max-width",maxWidth+"px");
+  document.documentElement.style.setProperty("--tip-font-size",textSize+"px");
   if(document.body) document.body.classList.toggle("hpf-tooltips-off",!enabled);
   if(!enabled) hideTipPopover();
   document.querySelectorAll(".hpf-tip").forEach(orientTip);
@@ -1987,6 +2010,10 @@ function initTooltipPreferences(){
   const textInp=el("tooltipTextColor");
   const boxInp=el("tooltipBoxColor");
   const borderInp=el("tooltipBorderColor");
+  const offsetInp=el("tooltipOffsetPx");
+  const maxWidthInp=el("tooltipMaxWidthPx");
+  const textSizeInp=el("tooltipTextSizePx");
+  const resetBtn=el("tooltipResetBtn");
   const toastInp=el("toastDurationSec");
   if(!check) return;
   const enabled=getTooltipPref("tooltips_enabled");
@@ -1995,6 +2022,9 @@ function initTooltipPreferences(){
   if(textInp) textInp.value=getTooltipPref("tooltip_text")||PREF_DEFAULTS.tooltip_text;
   if(boxInp) boxInp.value=getTooltipPref("tooltip_bg")||PREF_DEFAULTS.tooltip_bg;
   if(borderInp) borderInp.value=getTooltipPref("tooltip_border")||PREF_DEFAULTS.tooltip_border;
+  if(offsetInp) offsetInp.value=clampPrefNumber(getTooltipPref("tooltip_offset_px"),2,24,PREF_DEFAULTS.tooltip_offset_px);
+  if(maxWidthInp) maxWidthInp.value=clampPrefNumber(getTooltipPref("tooltip_max_width_px"),180,420,PREF_DEFAULTS.tooltip_max_width_px);
+  if(textSizeInp) textSizeInp.value=clampPrefNumber(getTooltipPref("tooltip_text_size_px"),10,16,PREF_DEFAULTS.tooltip_text_size_px);
   if(toastInp){
     const prefSec=parseInt(getTooltipPref("toast_duration_sec")||PREF_DEFAULTS.toast_duration_sec,10);
     toastInp.value=Math.min(12,Math.max(2,Number.isFinite(prefSec)?prefSec:PREF_DEFAULTS.toast_duration_sec));
@@ -2012,6 +2042,39 @@ function initTooltipPreferences(){
       applyTooltipPreferences();
     });
   });
+  [
+    [offsetInp,"tooltip_offset_px",2,24],
+    [maxWidthInp,"tooltip_max_width_px",180,420],
+    [textSizeInp,"tooltip_text_size_px",10,16]
+  ].forEach(([inp,key,min,max])=>{
+    if(!inp) return;
+    inp.addEventListener("change",function(){
+      const value=clampPrefNumber(this.value,min,max,PREF_DEFAULTS[key]);
+      this.value=value;
+      saveUserPreference(key,value);
+      applyTooltipPreferences();
+    });
+  });
+  if(resetBtn){
+    resetBtn.addEventListener("click",()=>{
+      [
+        "tooltip_text",
+        "tooltip_bg",
+        "tooltip_border",
+        "tooltip_offset_px",
+        "tooltip_max_width_px",
+        "tooltip_text_size_px"
+      ].forEach(key=>saveUserPreference(key,PREF_DEFAULTS[key]));
+      if(textInp) textInp.value=PREF_DEFAULTS.tooltip_text;
+      if(boxInp) boxInp.value=PREF_DEFAULTS.tooltip_bg;
+      if(borderInp) borderInp.value=PREF_DEFAULTS.tooltip_border;
+      if(offsetInp) offsetInp.value=PREF_DEFAULTS.tooltip_offset_px;
+      if(maxWidthInp) maxWidthInp.value=PREF_DEFAULTS.tooltip_max_width_px;
+      if(textSizeInp) textSizeInp.value=PREF_DEFAULTS.tooltip_text_size_px;
+      applyTooltipPreferences();
+      showToast(t("stTooltipResetToast"));
+    });
+  }
   if(toastInp){
     toastInp.addEventListener("change",function(){
       const parsed=parseInt(this.value||PREF_DEFAULTS.toast_duration_sec,10);
