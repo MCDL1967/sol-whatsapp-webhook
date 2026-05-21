@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7f";
+const APP_VERSION = "v8.5.7g";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.7f",
-  es: "./assets/i18n/es.json?v=8.5.7f"
+  en: "./assets/i18n/en.json?v=8.5.7g",
+  es: "./assets/i18n/es.json?v=8.5.7g"
 };
 
 async function loadI18nDictionaries(){
@@ -6088,6 +6088,7 @@ function wireEvents(){
 async function init(){
   const savedLang=localStorage.getItem("hpfleet_lang");
   if(savedLang==="en"||savedLang==="es") lang=savedLang;
+  syncLanguageButtons();
   await loadI18nDictionaries();
   applyI18n();
   wireEvents();
