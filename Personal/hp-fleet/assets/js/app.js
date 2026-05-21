@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7k";
+const APP_VERSION = "v8.5.7l";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -770,15 +770,16 @@ function applyI18n(){
     apiWarnMsg:"apiWarnMsg",apiWarnLink:"apiWarnLink",
     sb_file:"sbFile",sb_horo:"sbHoro",sb_csv:"sbCsv",sb_ts:"sbTs",sb_batch:"sbBatch",sb_dlcsv:"sbDlCsv",
     al_horoTitle:"horoAlert",tb_entries:"tbEntries",
-    fo_allop:"allOp",
+    fo_allop:"allOp",fo_problems:"needsReview",fo_hideNonBill:"hideNonBill",fo_showNonBill:"showNonBill",
     btn_approveAll:"approveAll",btn_resetAll:"resetAll",btn_newEntry:"newEntry",
     pt_entries:"ptEntries",pt_audit:"ptAudit",
-    th_date:"thDate",th_ac:"thAc",th_op:"thOp",th_pilot:"thPilot",th_instructor:"thInstructor",
+    th_log:"thLog",th_date:"thDate",th_ac:"thAc",th_op:"thOp",th_pilot:"thPilot",th_instructor:"thInstructor",
     th_motor:"thMotor",th_flight:"thFlight",th_billing:"thBilling",
     th_mout:"thMout",th_min:"thMin",th_tm:"thTm",th_fout:"thFout",th_fin:"thFin",th_tf:"thTf",
     th_mult:"thMult",th_tbp:"thTbp",th_horo:"thHoro",th_obs:"thObs",th_status:"thStatus2",
     btn_csv:"btnCsv",btn_xlsx:"btnXlsx",btn_saveDraft:"btnDraft",
-    btn_submit:"btnSubmit",btn_approve:"btnApprove",btn_reqChanges:"btnReqChanges",btn_returnForReview:"btnReturnForReview",
+    btn_submit:"btnSubmit",btn_approve:"btnApprove",btn_reqChanges:"btnReqChanges",btn_returnForReview:"btnReturnForReview",btn_reopen:"btnReopen",
+    spToggleLabel:"sourcePanel",
     fo_reviewerComments:"rfrColComment",
     st_adminCcLabel:"stAdminCcLabel",st_adminCcHint:"stAdminCcHint",
     st_displayTitle:"stDisplayTitle",st_roleBannerLabel:"stRoleBannerLabel",st_roleBannerHint:"stRoleBannerHint",
@@ -4015,7 +4016,7 @@ function openSidePanel(entryIdOrFileIdx, isEntryId=false){
   el("spOverlay").classList.add("open");
   
   // Sync toggle button label
-  if(el("spToggleLabel")) el("spToggleLabel").textContent="Panel Open";
+  if(el("spToggleLabel")) el("spToggleLabel").textContent=t("panelOpen");
   if(el("spTableToggle")) el("spTableToggle").style.color="var(--cyan)";
   // Push page content left by padding appShell — panel is fixed, this yields the space
   const savedW=localStorage.getItem("hpfleet_sp_width");
@@ -4366,7 +4367,7 @@ function closeSidePanel(){
   const tabContent=document.querySelector(".tab-content");
   if(tabContent){ tabContent.classList.remove("sp-open-shift"); tabContent.style.maxWidth=""; }
   if(el("spTableToggle")) el("spTableToggle").style.color="var(--dim2)";
-  if(el("spToggleLabel")) el("spToggleLabel").textContent="Source Panel";
+  if(el("spToggleLabel")) el("spToggleLabel").textContent=t("sourcePanel");
   if(el("flTbody")) el("flTbody").querySelectorAll("tr").forEach(r=>{
     r.classList.remove("sp-active-row");
     r.style.outline="";

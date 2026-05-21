@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.7k - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.7l - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +7,7 @@
 <title>HP Fleet</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7k">
+<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7l">
 </head>
 <body>
 
@@ -232,8 +232,8 @@
               <option value="FM">FM</option>
               <option value="MAG">MAG</option>
               <option value="problems" id="fo_problems">Needs Review</option>
-              <option value="hide_nonbill">Hide Non-Billable</option>
-              <option value="show_nonbill">Show Non-Billable</option>
+              <option value="hide_nonbill" id="fo_hideNonBill">Hide Non-Billable</option>
+              <option value="show_nonbill" id="fo_showNonBill">Show Non-Billable</option>
               <option value="reviewer_comments" id="fo_reviewerComments">Reviewer Comments</option>
             </select></div>
             <button class="btn-ghost" id="btn_approveAll">Approve All</button>
@@ -261,7 +261,7 @@
                 <thead>
                   <tr>
                     <th rowspan="2" style="vertical-align:bottom;color:var(--dim2);font-family:var(--mono);font-size:10px">#</th>
-                    <th rowspan="2" style="vertical-align:bottom;font-family:var(--mono);color:var(--violet);cursor:pointer" data-sort-fl="bnum">Log #</th>
+                    <th rowspan="2" style="vertical-align:bottom;font-family:var(--mono);color:var(--violet);cursor:pointer" id="th_log" data-sort-fl="bnum">Log #</th>
                     <th rowspan="2" style="vertical-align:bottom;cursor:pointer" id="th_date" data-sort-fl="fecha">Date</th>
                     <th rowspan="2" style="vertical-align:bottom;cursor:pointer" id="th_ac" data-sort-fl="aeronave">Aircraft</th>
                     <th rowspan="2" style="vertical-align:bottom;cursor:pointer" id="th_op" data-sort-fl="operador">Operator</th>
@@ -1317,6 +1317,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="./assets/js/app.js?v=8.5.7k"></script>
+<script src="./assets/js/app.js?v=8.5.7l"></script>
 </body>
 </html>
