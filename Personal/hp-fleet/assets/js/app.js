@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.6b";
+const APP_VERSION = "v8.5.7";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -326,6 +326,15 @@ const I18N = {
     codeExists:"Code already in use.",multInvalid:"Must be > 0.",
     companySaved:"Company saved.",companyDeleted:"Company deleted.",
     ctAdmin:"Admin",ctAccounting:"Accounting",ctOperations:"Operations",ctShop:"Shop",ctOther:"Other",
+    coNewTitle:"New Company",coEditTitle:"Edit Company: ",
+    coName:"Company Name *",coNamePh:"Flightmax Advanced Training",coCode:"Short Code *",coCodePh:"FM",
+    coStatus:"Status",coNotes:"Notes",coNotesPh:"Contact info, notes...",coAddress:"Address",coAddressPh:"Hangar 15B, Albrook",
+    coPhone:"Phone",coPhonePh:"+507 XXX-XXXX",coContacts:"Contacts",coContactsMax:"(max 5)",coAddContact:"+ Add Contact",
+    coBillingRules:"Billing Rules",coAddBillingRule:"+ Add Billing Rule",coSave:"Save Company",
+    coContactNamePh:"Name",coContactPhonePh:"Phone",coContactEmailPh:"Email",coMaxContactsToast:"Maximum 5 contacts per company",
+    coCardTotal:"Total",coCardActive:"active",coCardStatus:"Status",coCardAddress:"Address",coCardPhone:"Phone",coCardContact:"Contact",
+    coCardNotes:"Notes",coCardBillingRules:"Billing Rules",coRuleNamePh:"Rule name",coRuleOn:"ON",coRuleOff:"OFF",coUnitTbh:"/ TBH",coUnitFlight:"/ Flight",
+    coUnitFlat:"Flat",coUnitDiscount:"Disc.",coDiscount:"Discount",coActivate:"Activate",coDeactivate:"Deactivate",
     deleteUser:"Delete User",deleteCompany:"Delete Company",
     delUserWarn:"Permanently delete",delUserWarn2:"? This cannot be undone.",
     delCoWarn:"Permanently delete company",delCoWarn2:"? Billing rules will also be removed.",
@@ -448,6 +457,15 @@ const I18N = {
     codeExists:"Código ya en uso.",multInvalid:"Debe ser mayor a 0.",
     companySaved:"Compañía guardada.",companyDeleted:"Compañía eliminada.",
     ctAdmin:"Administración",ctAccounting:"Contabilidad",ctOperations:"Operaciones",ctShop:"Hangar",ctOther:"Otro",
+    coNewTitle:"Nueva Compañía",coEditTitle:"Editar Compañía: ",
+    coName:"Nombre de Compañía *",coNamePh:"Flightmax Advanced Training",coCode:"Código Corto *",coCodePh:"FM",
+    coStatus:"Estado",coNotes:"Notas",coNotesPh:"Información de contacto, notas...",coAddress:"Dirección",coAddressPh:"Hangar 15B, Albrook",
+    coPhone:"Teléfono",coPhonePh:"+507 XXX-XXXX",coContacts:"Contactos",coContactsMax:"(máx. 5)",coAddContact:"+ Agregar Contacto",
+    coBillingRules:"Reglas de Facturación",coAddBillingRule:"+ Agregar Regla de Facturación",coSave:"Guardar Compañía",
+    coContactNamePh:"Nombre",coContactPhonePh:"Teléfono",coContactEmailPh:"Email",coMaxContactsToast:"Máximo 5 contactos por compañía",
+    coCardTotal:"Total",coCardActive:"activas",coCardStatus:"Estado",coCardAddress:"Dirección",coCardPhone:"Teléfono",coCardContact:"Contacto",
+    coCardNotes:"Notas",coCardBillingRules:"Reglas de Facturación",coRuleNamePh:"Nombre de regla",coRuleOn:"ON",coRuleOff:"OFF",coUnitTbh:"/ TBH",coUnitFlight:"/ Vuelo",
+    coUnitFlat:"Fijo",coUnitDiscount:"Desc.",coDiscount:"Descuento",coActivate:"Activar",coDeactivate:"Desactivar",
     deleteUser:"Eliminar Usuario",deleteCompany:"Eliminar Compañía",
     delUserWarn:"¿Eliminar permanentemente a",delUserWarn2:"? Esta acción no se puede deshacer.",
     delCoWarn:"¿Eliminar permanentemente la compañía",delCoWarn2:"? Las reglas de facturación también serán eliminadas.",
@@ -664,8 +682,10 @@ let editingUserId=null, editingCoId=null, deletingId=null, deleteType=null;
 let nextUserId=200, nextCoId=300, nextRuleId=400, tempRules=[], tempContacts=[];
 
 function contactTypeOptions(selected){
-  const types=["Admin","Accounting","Operations","Shop","Other"];
-  return types.map(tp=>'<option value="'+tp+'"'+(selected===tp?" selected":"")+'>'+tp+'</option>').join("");
+  const types=[
+    ["Admin","ctAdmin"],["Accounting","ctAccounting"],["Operations","ctOperations"],["Shop","ctShop"],["Other","ctOther"]
+  ];
+  return types.map(([value,key])=>'<option value="'+value+'"'+(selected===value?" selected":"")+'>'+t(key)+'</option>').join("");
 }
 
 function renderTempContacts(){
@@ -686,7 +706,7 @@ function renderTempContacts(){
     typeSel.style.cssText="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:10px;padding:6px 8px;border-radius:2px;outline:none;width:100%";
     typeSel.innerHTML=contactTypeOptions(c.type);
     const nameInp=document.createElement("input");
-    nameInp.type="text"; nameInp.value=c.name||""; nameInp.placeholder="Name";
+    nameInp.type="text"; nameInp.value=c.name||""; nameInp.placeholder=t("coContactNamePh");
     nameInp.style.cssText="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-size:12px;padding:6px 8px;border-radius:2px;outline:none;width:100%;box-sizing:border-box";
     // Invoice toggle
     const invLbl=document.createElement("label");
@@ -703,10 +723,10 @@ function renderTempContacts(){
     const row2=document.createElement("div");
     row2.style.cssText="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-right:32px";
     const phoneInp=document.createElement("input");
-    phoneInp.type="text"; phoneInp.value=c.phone||""; phoneInp.placeholder="Phone";
+    phoneInp.type="text"; phoneInp.value=c.phone||""; phoneInp.placeholder=t("coContactPhonePh");
     phoneInp.style.cssText="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-size:12px;padding:6px 8px;border-radius:2px;outline:none;width:100%;box-sizing:border-box";
     const emailInp=document.createElement("input");
-    emailInp.type="text"; emailInp.value=c.email||""; emailInp.placeholder="Email";
+    emailInp.type="text"; emailInp.value=c.email||""; emailInp.placeholder=t("coContactEmailPh");
     emailInp.style.cssText="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-size:12px;padding:6px 8px;border-radius:2px;outline:none;width:100%;box-sizing:border-box";
     row2.appendChild(phoneInp); row2.appendChild(emailInp);
     // Wire events — use data-index attribute to avoid closure-over-loop-index
@@ -723,7 +743,7 @@ function renderTempContacts(){
 }
 
 function addContact(){
-  if(tempContacts.length>=5){showToast("Maximum 5 contacts per company","warn");return;}
+  if(tempContacts.length>=5){showToast(t("coMaxContactsToast"),"warn");return;}
   tempContacts.push({type:"Admin",name:"",phone:"",email:""});
   renderTempContacts();
 }
@@ -946,6 +966,11 @@ function applyI18n(){
     th_created:"thCreated",th_last:"thLast",th_actions:"thActions",
     fo_op:"",fo_rev:"",fo_ro:"",fo_active:"activeOnly",fo_inactive:"inactiveOnly",fo_allco:"allCompanies",
     ct_title:"ctTitle",ct_add:"ctAdd",
+    co_lbl_name:"coName",co_lbl_code:"coCode",co_lbl_status:"coStatus",co_lbl_notes:"coNotes",
+    co_lbl_address:"coAddress",co_lbl_phone:"coPhone",co_status_active:"active",co_status_inactive:"inactive",
+    co_inv_title:"invHeader",co_inv_hint:"invHeaderHint",co_contactsTitle:"coContacts",co_contactsMax:"coContactsMax",
+    co_addContact:"coAddContact",co_rulesTitle:"coBillingRules",co_addRule:"coAddBillingRule",
+    co_cancel:"rfrCancel",co_save:"coSave",
     fl_title:"flTitle",fl_newBatch:"flNewBatch",
     apiWarnMsg:"apiWarnMsg",apiWarnLink:"apiWarnLink",
     sb_file:"sbFile",sb_horo:"sbHoro",sb_csv:"sbCsv",sb_ts:"sbTs",sb_batch:"sbBatch",sb_dlcsv:"sbDlCsv",
@@ -983,6 +1008,7 @@ function applyI18n(){
     orientTip(el("tooltipPreviewTip"));
   }
   if(el("tooltipsToggleLabel")&&el("tooltipsToggleCheck")) setToggleLabel(el("tooltipsToggleLabel"),el("tooltipsToggleCheck").checked);
+  localizeCompanyUi();
   localizeAircraftUi();
   renderTabs();
   updateApiStatus();
@@ -991,6 +1017,14 @@ function applyI18n(){
 function setText(id,key){ if(el(id)) el(id).textContent=t(key); }
 function setPh(id,key){ if(el(id)) el(id).placeholder=t(key); }
 function setTitle(id,key){ if(el(id)) el(id).title=t(key); }
+function localizeCompanyUi(){
+  setPh("co_name","coNamePh"); setPh("co_code","coCodePh"); setPh("co_notes","coNotesPh");
+  setPh("co_address","coAddressPh"); setPh("co_phone","coPhonePh");
+  document.querySelectorAll("[data-i18n]").forEach(node=>{
+    const key=node.dataset.i18n;
+    if(key) node.textContent=t(key);
+  });
+}
 function orientTip(tip){
   if(!tip) return;
   tip.classList.remove("tip-open-left","tip-open-right");
@@ -1570,10 +1604,16 @@ function setFerr(errId,inputId,msg){
 }
 
 // ── COMPANIES ──
+function billingUnitLabel(unit){
+  if(unit==="per Flight Hour"||unit==="/ TBH") return t("coUnitTbh");
+  if(unit==="per Flight"||unit==="/ Flight") return t("coUnitFlight");
+  if(unit==="flat") return t("coUnitFlat");
+  return unit||"";
+}
 function renderCompanies(){
   const active=COMPANIES.filter(c=>c.status==="active").length;
-  el("coStats").innerHTML='<div class="scard sc-tot"><div class="sc-l">Total</div><div class="sc-v">'+COMPANIES.length+"</div>"+
-    '<div class="sc-s">'+active+" "+(lang==="es"?"activas":"active")+"</div></div>";
+  el("coStats").innerHTML='<div class="scard sc-tot"><div class="sc-l">'+t("coCardTotal")+'</div><div class="sc-v">'+COMPANIES.length+"</div>"+
+    '<div class="sc-s">'+active+" "+t("coCardActive")+"</div></div>";
   el("coGrid").innerHTML="";
   COMPANIES.forEach(co=>{
     const color=coColor(co.code);
@@ -1582,7 +1622,7 @@ function renderCompanies(){
     const rulesHtml=co.billingRules&&co.billingRules.length
       ?co.billingRules.map(r=>'<div class="br-item"><span class="br-name">'+r.name+"</span>"+
         '<span class="br-val">'+(r.type==="discount"&&r.discountMode==="pct"?r.amount+"%":"$"+r.amount.toFixed(2))+"</span>"+
-        '<span class="br-unit">'+(r.type==="discount"?(lang==="es"?"Descuento":"Discount"):(r.unit||""))+"</span>"+
+        '<span class="br-unit">'+(r.type==="discount"?t("coDiscount"):billingUnitLabel(r.unit))+"</span>"+
         '<span style="color:'+( r.active?"var(--green)":"var(--dim)")+';font-size:8px">●</span></div>').join("")
       :'<div class="br-empty">'+t("noRules")+"</div>";
     card.innerHTML='<div class="co-stripe" style="background:'+color+'"></div>'+
@@ -1591,20 +1631,20 @@ function renderCompanies(){
       '<span class="co-card-code" style="color:'+color+';border-color:'+color+'50;background:'+color+'15">'+co.code+"</span>"+
       "</div>"+
       '<div class="co-card-body">'+
-      '<div class="co-row"><span class="co-row-label">Status</span>'+
-      '<span class="co-row-val">'+(co.status==="active"?(lang==="es"?"activa":"active"):(lang==="es"?"inactiva":"inactive"))+"</span></div>"+
-      (co.address?'<div class="co-row"><span class="co-row-label">Address</span><span class="co-row-val" style="color:var(--dim2);font-size:10px">'+co.address+"</span></div>":"")+
-      (co.phone?'<div class="co-row"><span class="co-row-label">Phone</span><span class="co-row-val">'+co.phone+"</span></div>":"")+
-      (co.adminContact?'<div class="co-row"><span class="co-row-label">Contact</span><span class="co-row-val" style="color:var(--cyan);font-size:10px">'+co.adminContact+"</span></div>":"")+
-      (co.notes?'<div class="co-row"><span class="co-row-label">'+(lang==="es"?"Notas":"Notes")+"</span>"+
+      '<div class="co-row"><span class="co-row-label">'+t("coCardStatus")+'</span>'+
+      '<span class="co-row-val">'+(co.status==="active"?t("active").toLowerCase():t("inactive").toLowerCase())+"</span></div>"+
+      (co.address?'<div class="co-row"><span class="co-row-label">'+t("coCardAddress")+'</span><span class="co-row-val" style="color:var(--dim2);font-size:10px">'+co.address+"</span></div>":"")+
+      (co.phone?'<div class="co-row"><span class="co-row-label">'+t("coCardPhone")+'</span><span class="co-row-val">'+co.phone+"</span></div>":"")+
+      (co.adminContact?'<div class="co-row"><span class="co-row-label">'+t("coCardContact")+'</span><span class="co-row-val" style="color:var(--cyan);font-size:10px">'+co.adminContact+"</span></div>":"")+
+      (co.notes?'<div class="co-row"><span class="co-row-label">'+t("coCardNotes")+"</span>"+
       '<span class="co-row-val" style="color:var(--dim2);font-size:10px">'+co.notes+"</span></div>":"")+
       '<div style="margin-top:10px">'+
-      '<div class="co-row-label" style="margin-bottom:6px">'+(lang==="es"?"Reglas de Facturación":"Billing Rules")+"</div>"+
+      '<div class="co-row-label" style="margin-bottom:6px">'+t("coCardBillingRules")+"</div>"+
       '<div class="br-list">'+rulesHtml+"</div></div></div>"+
       '<div class="co-card-footer">'+
-      '<button class="btn-sm" data-edit-co="'+co.id+'">'+(lang==="es"?"Editar":"Edit")+"</button>"+
-      '<button class="btn-sm" data-toggle-co="'+co.id+'">'+(co.status==="active"?(lang==="es"?"Desactivar":"Deactivate"):(lang==="es"?"Activar":"Activate"))+"</button>"+
-      '<button class="btn-sm del" data-del-co="'+co.id+'">'+(lang==="es"?"Eliminar":"Delete")+"</button>"+
+      '<button class="btn-sm" data-edit-co="'+co.id+'">'+t("edit")+"</button>"+
+      '<button class="btn-sm" data-toggle-co="'+co.id+'">'+(co.status==="active"?t("coDeactivate"):t("coActivate"))+"</button>"+
+      '<button class="btn-sm del" data-del-co="'+co.id+'">'+t("del")+"</button>"+
       "</div>";
     el("coGrid").appendChild(card);
   });
@@ -1635,7 +1675,7 @@ function _syncInvChkStyles(){
 
 function openCreateCompany(){
   editingCoId=null; tempRules=[]; clearCoErrors();
-  el("coModalTitle").textContent=lang==="es"?"Nueva Compañía":"New Company";
+  el("coModalTitle").textContent=t("coNewTitle");
   el("co_name").value=""; el("co_code").value="";
   el("co_status").value="active"; el("co_notes").value="";
   if(el("co_address")) el("co_address").value="";
@@ -1652,7 +1692,7 @@ function openCreateCompany(){
 function openEditCompany(id){
   const co=COMPANIES.find(x=>x.id===id); if(!co) return;
   editingCoId=id; tempRules=JSON.parse(JSON.stringify(co.billingRules||[])); clearCoErrors();
-  el("coModalTitle").textContent=(lang==="es"?"Editar Compañía: ":"Edit Company: ")+co.name;
+  el("coModalTitle").textContent=t("coEditTitle")+co.name;
   el("co_name").value=co.name; el("co_code").value=co.code;
   el("co_status").value=co.status; el("co_notes").value=co.notes||"";
   if(el("co_address")) el("co_address").value=co.address||"";
@@ -1687,18 +1727,18 @@ function renderTempRules(){
     const modeOpts=isDisc?'<option value="pct"'+(r.discountMode==="pct"?" selected":"")+'>%</option><option value="fixed"'+(r.discountMode==="fixed"?" selected":"")+'>$</option>':"";
     const baseOpts=isDisc?'<option value="subtotal"'+((!r.discountBase||r.discountBase==="subtotal")?" selected":"")+'>'+t("discOfSubtotal")+'</option><option value="total"'+(r.discountBase==="total"?" selected":"")+'>'+t("discOfTotal")+'</option>':"";
     row.innerHTML=
-      '<input style="'+INP+';font-size:11px;padding:6px 8px;width:100%" value="'+r.name+'" placeholder="Rule name">'+
+      '<input style="'+INP+';font-size:11px;padding:6px 8px;width:100%" value="'+r.name+'" placeholder="'+t("coRuleNamePh")+'">'+
       '<input type="number" style="'+INP+';font-size:11px;padding:4px 6px;width:'+(isDisc?"52":"80")+'px;text-align:right" value="'+r.amount+'" step="'+(isDisc?"1":"0.01")+'" min="0">'+
       (isDisc?'<select style="'+SEL+';color:var(--violet)">'+modeOpts+'</select>':"")+
       (isDisc?'<select style="'+SEL+';color:var(--dim2)">'+baseOpts+'</select>':"")+
       '<select style="'+SEL+';color:'+(isDisc?"var(--violet)":"var(--text)")+'">'+
-        '<option value="per Flight Hour"'+((!r.type||r.type==="charge")&&(r.unit==="per Flight Hour"||r.unit==="/ TBH")?" selected":"")+'>/ TBH</option>'+
-        '<option value="per Flight"'+((!r.type||r.type==="charge")&&(r.unit==="per Flight"||r.unit==="/ Flight")?" selected":"")+'>/ Flight</option>'+
-        '<option value="flat"'+((!r.type||r.type==="charge")&&r.unit==="flat"?" selected":"")+'>Flat</option>'+
-        '<option value="discount"'+(isDisc?" selected":"")+'>Disc.</option>'+
+        '<option value="per Flight Hour"'+((!r.type||r.type==="charge")&&(r.unit==="per Flight Hour"||r.unit==="/ TBH")?" selected":"")+'>'+t("coUnitTbh")+'</option>'+
+        '<option value="per Flight"'+((!r.type||r.type==="charge")&&(r.unit==="per Flight"||r.unit==="/ Flight")?" selected":"")+'>'+t("coUnitFlight")+'</option>'+
+        '<option value="flat"'+((!r.type||r.type==="charge")&&r.unit==="flat"?" selected":"")+'>'+t("coUnitFlat")+'</option>'+
+        '<option value="discount"'+(isDisc?" selected":"")+'>'+t("coUnitDiscount")+'</option>'+
       '</select>'+
       // Charge rules keep ON/OFF and ✕ on Row 1
-      (!isDisc?'<button style="'+BTN+';border:1px solid '+(r.active?"rgba(61,220,132,.4)":"var(--border2)")+';color:'+(r.active?"var(--green)":"var(--dim)")+'">'+(r.active?"ON":"OFF")+'</button>':"")+
+      (!isDisc?'<button style="'+BTN+';border:1px solid '+(r.active?"rgba(61,220,132,.4)":"var(--border2)")+';color:'+(r.active?"var(--green)":"var(--dim)")+'">'+(r.active?t("coRuleOn"):t("coRuleOff"))+'</button>':"")+
       (!isDisc?'<button style="'+BTN+';border:1px solid var(--border2);color:var(--red)">✕</button>':"");
     // ── Row 2 — discount only ─────────────────────────────────────────────
     if(isDisc){
@@ -1712,7 +1752,7 @@ function renderTempRules(){
         '<span style="font-family:var(--mono);font-size:9px;color:var(--dim2);white-space:nowrap;flex-shrink:0">'+t("paymentDays")+'</span>'+
         '<input type="number" min="0" step="1" value="'+(r.paymentWindowDays||0)+'" style="'+INP+';font-size:10px;padding:3px 5px;width:44px;text-align:right;flex-shrink:0">'+
         '<span style="flex:1"></span>'+
-        '<button style="'+BTN+';border:1px solid '+(r.active?"rgba(61,220,132,.4)":"var(--border2)")+';color:'+(r.active?"var(--green)":"var(--dim)")+';flex-shrink:0">'+(r.active?"ON":"OFF")+'</button>'+
+        '<button style="'+BTN+';border:1px solid '+(r.active?"rgba(61,220,132,.4)":"var(--border2)")+';color:'+(r.active?"var(--green)":"var(--dim)")+';flex-shrink:0">'+(r.active?t("coRuleOn"):t("coRuleOff"))+'</button>'+
         '<button style="'+BTN+';border:1px solid var(--border2);color:var(--red);flex-shrink:0">✕</button>';
       sub.querySelector("input[type=checkbox]").addEventListener("change",function(){tempRules[i].showDiscountLine=this.checked;});
       sub.querySelector("input[type=number]").addEventListener("input",function(){tempRules[i].paymentWindowDays=parseInt(this.value)||0;});

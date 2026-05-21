@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.6b - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.7 - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +7,7 @@
 <title>HP Fleet</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="./assets/css/app.css?v=8.5.6b">
+<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7">
 </head>
 <body>
 
@@ -643,19 +643,19 @@
     <div class="mhdr"><div class="mhdr-t cy" id="coModalTitle">New Company</div><button class="m-x" id="co_close">✕</button></div>
     <div class="mbody">
       <div class="frow fc2">
-        <div class="field"><label>Company Name *</label><input type="text" id="co_name" placeholder="Flightmax Advanced Training"><span class="ferr" id="coe_name"></span></div>
-        <div class="field"><label>Short Code *</label><input type="text" id="co_code" placeholder="FM"><span class="ferr" id="coe_code"></span></div>
+        <div class="field"><label id="co_lbl_name">Company Name *</label><input type="text" id="co_name" placeholder="Flightmax Advanced Training"><span class="ferr" id="coe_name"></span></div>
+        <div class="field"><label id="co_lbl_code">Short Code *</label><input type="text" id="co_code" placeholder="FM"><span class="ferr" id="coe_code"></span></div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>Status</label><select id="co_status"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
-        <div class="field"><label>Notes</label><textarea id="co_notes" placeholder="Contact info, notes…"></textarea></div>
+        <div class="field"><label id="co_lbl_status">Status</label><select id="co_status"><option value="active" id="co_status_active">Active</option><option value="inactive" id="co_status_inactive">Inactive</option></select></div>
+        <div class="field"><label id="co_lbl_notes">Notes</label><textarea id="co_notes" placeholder="Contact info, notes..."></textarea></div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>Address</label><input type="text" id="co_address" placeholder="Hangar 15B, Albrook"></div>
-        <div class="field"><label>Phone</label><input type="text" id="co_phone" placeholder="+507 XXX-XXXX"></div>
+        <div class="field"><label id="co_lbl_address">Address</label><input type="text" id="co_address" placeholder="Hangar 15B, Albrook"></div>
+        <div class="field"><label id="co_lbl_phone">Phone</label><input type="text" id="co_phone" placeholder="+507 XXX-XXXX"></div>
       </div>
       <div style="background:var(--s2);border:1px solid var(--border);border-left:2px solid var(--cyan);padding:9px 11px;margin-bottom:11px">
-        <div style="font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--cyan);margin-bottom:4px">Invoice Header</div>
+        <div style="font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--cyan);margin-bottom:4px" id="co_inv_title">Invoice Header</div>
         <div style="font-family:var(--mono);font-size:9px;color:var(--dim2);margin-bottom:7px" id="co_inv_hint">Controls what appears in the Bill To block</div>
         <div style="display:flex;gap:7px;flex-wrap:wrap">
           <label class="chk-item" id="co_inv_addr_lbl"><input type="checkbox" id="co_inv_addr"> <span data-i18n="invShowAddress">Show Address</span></label>
@@ -664,10 +664,10 @@
           <label class="chk-item" id="co_inv_rate_lbl"><input type="checkbox" id="co_inv_rate"> <span data-i18n="invShowRate">Show Rate</span></label>
         </div>
       </div>
-      <div class="section-divider">Contacts <span style="color:var(--dim);font-size:9px">(max 5)</span></div>
+      <div class="section-divider"><span id="co_contactsTitle">Contacts</span> <span style="color:var(--dim);font-size:9px" id="co_contactsMax">(max 5)</span></div>
       <div id="co_contacts_list" style="margin-bottom:8px"></div>
       <button class="btn-ghost" id="co_addContact" style="width:100%;font-size:11px;margin-bottom:12px">+ Add Contact</button>
-      <div class="section-divider">Billing Rules</div>
+      <div class="section-divider" id="co_rulesTitle">Billing Rules</div>
       <div id="co_rules_list" style="margin-bottom:12px"></div>
       <button class="btn-ghost" id="co_addRule" style="width:100%">+ Add Billing Rule</button>
     </div>
@@ -1288,6 +1288,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="./assets/js/app.js?v=8.5.6b"></script>
+<script src="./assets/js/app.js?v=8.5.7"></script>
 </body>
 </html>
