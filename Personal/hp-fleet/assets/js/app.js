@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7m";
+const APP_VERSION = "v8.5.7n";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2614,6 +2614,9 @@ function renderFlTable(){
   const role=effectiveRole();
   const canEdit=(role==="ADMIN"||role==="OPERATOR")&&batchStatus==="DRAFT";
   tbody.innerHTML="";
+  if(!visible.length){
+    tbody.innerHTML='<tr><td colspan="18" class="audit-empty" style="text-align:center;padding:18px">'+t("flNoEntries")+"</td></tr>";
+  }
   visible.forEach((e,rowIdx)=>{
     const gi=flEntries.indexOf(e);
     const{tm,tv,mult,tbp}=calcEntry(e);
@@ -2626,10 +2629,10 @@ function renderFlTable(){
     tr.style.cursor="pointer";
     tr.dataset.entryId=e.id;
     // Notes — show flag note or obs, plus red triangle if diff gap
-    const diffTriangle=hasDiffGap?'<span style="color:var(--red);margin-left:4px" title="Motor/Vuelo diff exceeds threshold">▲</span>':"";
-    const reviewedMarker=e.flagNote&&e.flagNote.trim()!==""?'<span style="color:var(--yellow);margin-left:4px;font-size:10px" title="'+e.flagNote+'">△</span>':"";
+    const diffTriangle=hasDiffGap?'<span style="color:var(--red);margin-left:4px" title="'+t("flDiffThresholdTip")+'">▲</span>':"";
+    const reviewedMarker=e.flagNote&&e.flagNote.trim()!==""?'<span style="color:var(--yellow);margin-left:4px;font-size:10px" title="'+t("flReviewerCommentTip")+': '+e.flagNote+'">△</span>':"";
     const notesDisplay=e.flagNote&&e.status==="flagged"
-      ?'<span style="color:var(--yellow);font-size:10px" title="'+e.flagNote+'">⚠ '+e.flagNote+"</span>"
+      ?'<span style="color:var(--yellow);font-size:10px" title="'+t("flReviewerCommentTip")+': '+e.flagNote+'">⚠ '+e.flagNote+"</span>"
       :(e.obs||"—");
     const motorOutCell='<td class="cb'+((!h.ok)?' horo-seq-gap':'')+'">'+(e.motorOut||"—")+"</td>";
     tr.innerHTML=
@@ -2713,9 +2716,9 @@ function updateFlSummary(){
   });
   const sg=el("sumGrid"); if(!sg) return;
   sg.innerHTML=
-    '<div class="scard sc-fm"><div class="sc-l">'+t("fmMotor")+"</div><div class=\"sc-v\">"+fmt(fmM)+"</div><div class=\"sc-s\">TBH: "+fmt(fmT)+" hrs</div></div>"+
-    '<div class="scard sc-mag"><div class="sc-l">'+t("magMotor")+"</div><div class=\"sc-v\">"+fmt(magM)+"</div><div class=\"sc-s\">TBH: "+fmt(magT)+" hrs</div></div>"+
-    '<div class="scard sc-tot"><div class="sc-l">'+t("totMotor")+"</div><div class=\"sc-v\">"+fmt(fmM+magM)+"</div><div class=\"sc-s\">"+t("tFlight")+": "+fmt(totV)+" hrs</div></div>"+
+    '<div class="scard sc-fm"><div class="sc-l">'+t("fmMotor")+"</div><div class=\"sc-v\">"+fmt(fmM)+"</div><div class=\"sc-s\">"+t("thTbp")+": "+fmt(fmT)+" "+t("hrs")+"</div></div>"+
+    '<div class="scard sc-mag"><div class="sc-l">'+t("magMotor")+"</div><div class=\"sc-v\">"+fmt(magM)+"</div><div class=\"sc-s\">"+t("thTbp")+": "+fmt(magT)+" "+t("hrs")+"</div></div>"+
+    '<div class="scard sc-tot"><div class="sc-l">'+t("totMotor")+"</div><div class=\"sc-v\">"+fmt(fmM+magM)+"</div><div class=\"sc-s\">"+t("tFlight")+": "+fmt(totV)+" "+t("hrs")+"</div></div>"+
     '<div class="scard sc-tbp"><div class="sc-l">'+t("totTbp")+"</div><div class=\"sc-v\">"+fmt(fmT+magT)+"</div><div class=\"sc-s\">"+t("tbpHours")+"</div></div>"+
     '<div class="scard sc-ent"><div class="sc-l">'+t("approved2")+"</div><div class=\"sc-v\">"+approved+"</div><div class=\"sc-s\">"+t("showing")+" "+getFilteredEntries().length+" "+t("of")+" "+flEntries.length+"</div></div>";
   updateActionBar();
@@ -2728,7 +2731,10 @@ function updateActionBar(){
   const canSubmit=(effectiveRole()==="ADMIN"||effectiveRole()==="OPERATOR")&&batchStatus==="DRAFT";
   if(canSubmit&&el("btn_submit")){
     el("btn_submit").disabled=approved===0;
-    el("actionNote").textContent=pending+" "+t("pending").toLowerCase()+" · "+approved+" "+t("approved2").toLowerCase()+" · "+rejected+" "+t("rejected").toLowerCase();
+    el("actionNote").textContent=t("flActionCounts")
+      .replace("{pending}",pending)
+      .replace("{approved}",approved)
+      .replace("{rejected}",rejected);
   }
 }
 
@@ -3424,9 +3430,7 @@ function executeConfirm(){ closeModal("confirmMbd"); if(confirmCb){confirmCb();c
 
 // ── EXPORTS ──
 function exportFlCSV(){
-  const hdrs=["#","Log#","Date","Aircraft","Operator","Pilot","Instructor","Horo.Start","Motor.Out","Motor.In","T.Motor",
-    "Flight.Out","Flight.In","T.Flight","Default.Mult","Override.Mult","Total.TBH","Notes","Review.Comment","Status",
-    "Batch.Status","Loaded.By","Source.File","Timestamp"];
+  const hdrs=flExportHeaders();
   const rows=flEntries.map((e,i)=>{
     const{tm,tv,tbp}=calcEntry(e);
     return [i+1,e.bnum||"",e.fecha,e.aeronave,e.operador,e.piloto,e.instructor||"",e.horoIn,
@@ -3438,14 +3442,12 @@ function exportFlCSV(){
   const ts=FL_LOAD_TS.toISOString().slice(0,16).replace(/[T:]/g,"-");
   dlFile("flightlog_audit_"+ts+".csv",[hdrs.join(","),...rows].join("\n"),"text/csv");
   if(el("srcCsv")) el("srcCsv").textContent=t("srcCsvDone")+" "+new Date().toLocaleTimeString();
-  showToast(lang==="es"?"↓ CSV descargado.":"↓ CSV downloaded.");
+  showToast(t("csvDl"));
 }
 
 function exportFlXLSX(){
-  if(typeof XLSX==="undefined"){showToast("XLSX library not loaded","err");return;}
-  const headers=["#","Log#","Date","Aircraft","Operator","Pilot","Instructor","Horo.Start","Motor Out","Motor In","T.Motor",
-    "Flight Out","Flight In","T.Flight","Default Mult","Override Mult","Total TBH","Notes","Review Comment","Status",
-    "Batch Status","Loaded By","Source File","Timestamp"];
+  if(typeof XLSX==="undefined"){showToast(t("xlsxLibMissing"),"err");return;}
+  const headers=flExportHeaders();
   const data=[headers,...flEntries.map((e,i)=>{
     const{tm,tv,tbp}=calcEntry(e);
     return [i+1,e.bnum||"",e.fecha,e.aeronave,e.operador,e.piloto,e.instructor||"",e.horoIn,
@@ -3474,7 +3476,16 @@ function exportFlXLSX(){
   XLSX.utils.book_append_sheet(wb,wsSum,"Summary");
   const ts=FL_LOAD_TS.toISOString().slice(0,16).replace(/[T:]/g,"-");
   XLSX.writeFile(wb,"flightlog_"+ts+".xlsx");
-  showToast(lang==="es"?"↓ XLSX exportado.":"↓ XLSX exported.");
+  showToast(t("xlsxDl"));
+}
+
+function flExportHeaders(){
+  return [
+    "#",t("thLog"),t("thDate"),t("thAc"),t("thOp"),t("thPilot"),t("thInstructor"),t("horoStart"),
+    t("motorOut"),t("motorIn"),t("thTm"),t("flightOut"),t("flightIn"),t("thTf"),t("defaultMult"),
+    t("overrideMult"),t("totalTbh"),t("thObs"),t("reviewComment"),t("thStatus2"),t("batchStatus"),
+    t("loadedBy"),t("sourceFile"),t("timestamp")
+  ];
 }
 
 function dlFile(name,content,type){
@@ -4926,7 +4937,7 @@ function renderAll(){
 
 // ── XLSX IMPORTER ──
 async function importFromXLSX(file){
-  if(typeof XLSX==="undefined"){showToast("XLSX library not loaded","err");return;}
+  if(typeof XLSX==="undefined"){showToast(t("xlsxLibMissing"),"err");return;}
   dbg("Starting XLSX import: "+file.name,"info");
   const reader=new FileReader();
   reader.onload=async function(e){
