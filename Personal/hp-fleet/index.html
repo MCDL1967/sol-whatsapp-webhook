@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.7j - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.7k - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +7,7 @@
 <title>HP Fleet</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7j">
+<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7k">
 </head>
 <body>
 
@@ -338,31 +338,31 @@
               <span id="pi_owner_detail" style="font-size:12px;color:var(--dim2)"></span>
             </div>
             <div class="pi-inv-meta">
-              <div>Billing # <strong id="pi_inv_num">—</strong></div>
-              <div>Date <strong id="pi_inv_date">—</strong></div>
-              <div>Aircraft <strong id="pi_inv_aircraft">—</strong></div>
+              <div><span id="pi_meta_billingNo">Billing #</span> <strong id="pi_inv_num">—</strong></div>
+              <div><span id="pi_meta_date">Date</span> <strong id="pi_inv_date">—</strong></div>
+              <div><span id="pi_meta_aircraft">Aircraft</span> <strong id="pi_inv_aircraft">—</strong></div>
             </div>
           </div>
           <!-- Bill To -->
           <div class="pi-bill-to">
-            <div class="pi-bill-label">Bill To</div>
+            <div class="pi-bill-label" id="pi_billToLabel">Bill To</div>
             <div class="pi-bill-name" id="pi_bill_name">—</div>
             <div class="pi-bill-detail" id="pi_bill_detail"></div>
           </div>
           <!-- Period -->
           <div class="pi-period">
-            <div>Period: <span id="pi_period">—</span></div>
-            <div>Logs: <span id="pi_log_range">—</span></div>
-            <div id="pi_rate_wrap">Rate: <span id="pi_rate_display" style="color:var(--yellow);font-family:var(--mono)">—</span></div>
+            <div><span id="pi_periodLabel">Period</span>: <span id="pi_period">—</span></div>
+            <div><span id="pi_logsLabel">Logs</span>: <span id="pi_log_range">—</span></div>
+            <div id="pi_rate_wrap"><span id="pi_rateLabel">Rate</span>: <span id="pi_rate_display" style="color:var(--yellow);font-family:var(--mono)">—</span></div>
           </div>
           <!-- Line items -->
           <table class="pi-tbl">
             <thead><tr>
               <th>#</th>
-              <th id="pi_th_bnum" style="cursor:pointer;user-select:none">Log # <span id="pi_sort_bnum"></span></th>
-              <th id="pi_th_fecha" style="cursor:pointer;user-select:none">Date <span id="pi_sort_fecha">↑</span></th>
-              <th>Pilot</th>
-              <th>TBH</th><th style="text-align:right">Amount</th>
+              <th id="pi_th_bnum" style="cursor:pointer;user-select:none"><span id="pi_th_log">Log #</span> <span id="pi_sort_bnum"></span></th>
+              <th id="pi_th_fecha" style="cursor:pointer;user-select:none"><span id="pi_th_date">Date</span> <span id="pi_sort_fecha">↑</span></th>
+              <th id="pi_th_pilot">Pilot</th>
+              <th id="pi_th_tbh">TBH</th><th id="pi_th_amount" style="text-align:right">Amount</th>
             </tr></thead>
             <tbody id="pi_line_items"></tbody>
           </table>
@@ -375,7 +375,7 @@
           <table class="pi-tbl" style="margin-bottom:0;border-top:2px solid var(--border2)">
             <tbody>
               <tr>
-                <td colspan="4" style="color:var(--dim2);font-family:var(--mono);font-size:11px">Subtotal</td>
+                <td colspan="4" style="color:var(--dim2);font-family:var(--mono);font-size:11px" id="pi_subtotalLabel">Subtotal</td>
                 <td style="font-family:var(--mono);font-size:11px;text-align:right" id="pi_sub_hrs">—</td>
                 <td style="font-family:var(--mono);font-size:11px;text-align:right;color:var(--green)" id="pi_sub_amt">—</td>
               </tr>
@@ -383,13 +383,13 @@
           </table>
           <!-- Additional charges -->
           <div class="pi-charges">
-            <div class="pi-charges-title">Additional Charges</div>
+            <div class="pi-charges-title" id="pi_additionalChargesTitle">Additional Charges</div>
             <div id="pi_charges_list"></div>
             <button class="btn-ghost" id="pi_add_charge2" style="font-size:11px;margin-top:6px">+ Add Charge</button>
           </div>
           <!-- Total -->
           <div class="pi-total">
-            <div class="pi-total-label">TOTAL AMOUNT DUE</div>
+            <div class="pi-total-label" id="pi_totalAmountDueLabel">TOTAL AMOUNT DUE</div>
             <div class="pi-total-amt" id="pi_total_amt">$0.00</div>
           </div>
           <!-- Discount / Net Total block -->
@@ -952,7 +952,7 @@
       </button>
       <button id="piLoad_historic" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--display);font-weight:700;font-size:13px;padding:16px;cursor:pointer;text-align:left;transition:all .15s;border-radius:2px">
         <div style="font-size:16px;margin-bottom:4px">🗂 <span id="piLoad_historicLabel">Historic</span></div>
-        <div style="font-family:var(--mono);font-size:10px;color:var(--dim2)">Select from billing cycle history</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--dim2)" id="piLoad_historicDesc">Select from billing cycle history</div>
       </button>
       <div id="piLoad_historicSel" style="display:none;margin-top:4px">
         <select id="piLoad_batchSel" style="width:100%;background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 10px;border-radius:2px;outline:none">
@@ -1317,6 +1317,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="./assets/js/app.js?v=8.5.7j"></script>
+<script src="./assets/js/app.js?v=8.5.7k"></script>
 </body>
 </html>

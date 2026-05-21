@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7j";
+const APP_VERSION = "v8.5.7k";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -796,6 +796,12 @@ function applyI18n(){
     btn_saveApiKey:"saveKey",btn_clearApiKey:"clearKey",
     cs_billing:"csBilling",st_fleetTitle:"stFleetTitle",
     pi_title:"tabBilling",pi_load_cycle_btn:"piLoadCycle",cs_billing:"csBilling",
+    pi_meta_billingNo:"piBillingNo",pi_meta_date:"piDate",pi_meta_aircraft:"piAircraft",
+    pi_billToLabel:"piBillTo",pi_periodLabel:"piPeriod",pi_logsLabel:"piLogs",pi_rateLabel:"piRate",
+    pi_th_log:"piLogNo",pi_th_date:"piDate",pi_th_pilot:"thPilot",pi_th_tbh:"thTbp",pi_th_amount:"piAmount",
+    pi_subtotalLabel:"piSubtotal",pi_additionalChargesTitle:"piAdditionalCharges",
+    pi_add_charge2:"piAddCharge",pi_totalAmountDueLabel:"piTotalAmountDue",pi_signoff_btn:"piSignOff",
+    piLoad_historicDesc:"piHistoricDesc",piLoad_confirm:"piLoadSelected",
     viewAsLabel:"viewAs",viewAsAdmin:"viewAsAdmin",viewAsOperator:"viewAsOperator",viewAsReviewer:"viewAsReviewer",viewAsReadonly:"viewAsReadonly",
     aircraftTitle:"aircraftTitle",btn_addAircraft2:"aircraftAdd",
   };
@@ -847,6 +853,9 @@ function localizeUserUi(){
     const u=editingUserId?USERS.find(x=>x.id===editingUserId):null;
     if(el("umTitle")) el("umTitle").textContent=u?t("umEditTitlePrefix")+u.name:t("umNewTitle");
     updateRoleDesc();
+  }
+  if(el("pi_coming_msg") && batchStatus!=="APPROVED"){
+    el("pi_coming_msg").textContent=batchStatus==="SUBMITTED"?t("piAwaitingApproval"):t("piApproveToUnlock");
   }
 }
 function localizeCompanyUi(){
@@ -3015,10 +3024,10 @@ async function openPiLoadModal(){
   if(desc){
     if(batchStatus==="APPROVED"){
       const approved=flEntries.filter(e=>e.status==="approved");
-      desc.textContent=approved.length+" approved entries · "+batchStatus;
+      desc.textContent=approved.length+" "+t("piApprovedEntries")+" · "+batchStatus;
       desc.style.color="var(--green)";
     } else {
-      desc.textContent=lang==="es"?"Estado actual: "+batchStatus:"Current status: "+batchStatus;
+      desc.textContent=t("piCurrentStatus")+": "+batchStatus;
       desc.style.color="var(--dim2)";
     }
   }
@@ -3149,7 +3158,7 @@ function renderPreInvoice(){
   } else {
     ready.style.display="none"; soon.style.display="block";
     const msg=el("pi_coming_msg");
-    if(msg) msg.textContent=batchStatus==="SUBMITTED"?"Batch under review — awaiting approval":"Approve a batch to unlock billing";
+    if(msg) msg.textContent=batchStatus==="SUBMITTED"?t("piAwaitingApproval"):t("piApproveToUnlock");
   }
 }
 
@@ -5731,7 +5740,7 @@ function wireEvents(){
   }
 
   // Pre-invoice add charge and sign-off
-  const addCharge=()=>{piAdditionalCharges.push({desc:"Additional Charge",amount:0});renderPreInvoice();};
+  const addCharge=()=>{piAdditionalCharges.push({desc:t("piAdditionalChargeDefault"),amount:0});renderPreInvoice();};
   if(el("pi_add_charge2")) el("pi_add_charge2").addEventListener("click",addCharge);
   if(el("pi_signoff_btn")) el("pi_signoff_btn").addEventListener("click",async()=>{
     piSignedBy=currentUser.name;
@@ -5739,7 +5748,7 @@ function wireEvents(){
     addFlAudit("✍️",currentUser.name,"signed off billing",piInvNum);
     renderPreInvoice();
     await saveBatchToDB("billing signoff");
-    showToast("Billing signed off");
+    showToast(t("piBillingSigned"));
   });
   // Sort headers
   if(el("pi_th_bnum")) el("pi_th_bnum").addEventListener("click",()=>{
@@ -5782,7 +5791,7 @@ function wireEvents(){
     }
     closeModal("piLoadMbd");
     renderPreInvoice();
-    showToast("Current batch loaded into Billing","info");
+    showToast(t("piCurrentLoaded"),"info");
   });
   if(el("piLoad_historic")) el("piLoad_historic").addEventListener("click",()=>{
     const sel=el("piLoad_historicSel");
@@ -5790,11 +5799,11 @@ function wireEvents(){
   });
   if(el("piLoad_confirm")) el("piLoad_confirm").addEventListener("click",async()=>{
     const batchId=el("piLoad_batchSel").value;
-    if(!batchId){showToast("Select a billing cycle","warn");return;}
+    if(!batchId){showToast(t("piSelectCycle"),"warn");return;}
     closeModal("piLoadMbd");
     await switchToBatch(batchId);
     if(batchStatus!=="APPROVED"){
-      showToast("Selected batch is not APPROVED — cannot load into Billing","warn"); return;
+      showToast(t("piSelectedNotApproved"),"warn"); return;
     }
     renderPreInvoice();
     switchTab("preinvoice");
