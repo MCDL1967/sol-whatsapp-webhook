@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.7l - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.7m - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +7,7 @@
 <title>HP Fleet</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7l">
+<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7m">
 </head>
 <body>
 
@@ -165,13 +165,13 @@
           <div><div class="sb-l" id="sb_file">Source File</div><div class="sb-v" id="srcFile" style="white-space:pre-line">—</div></div>
           <button class="btn-ghost" id="btn_addMoreFiles" style="font-size:10px;padding:5px 10px;border-color:var(--cyan);color:var(--cyan);align-self:flex-start">+ Add More Files</button>
         </div>
-        <div class="sb-item"><div class="sb-l">Records</div><div class="sb-v" id="srcTotalRecords">—</div></div>
-        <div class="sb-item"><div class="sb-l">Read</div><div class="sb-v ok" id="srcRead">—</div></div>
-        <div class="sb-item"><div class="sb-l">Not Read</div><div class="sb-v" id="srcNotRead" style="cursor:pointer" title="Click for details">—</div></div>
-        <div class="sb-item"><div class="sb-l">Non-Billable</div><div class="sb-v" id="srcNonBill" style="cursor:pointer" title="Click for details">—</div></div>
-        <div class="sb-item"><div class="sb-l">Duplicates</div><div class="sb-v" id="srcDups" style="cursor:pointer" title="Click for details">—</div></div>
-        <div class="sb-item"><div class="sb-l">Log Breaks</div><div class="sb-v" id="srcLogBreaks" style="cursor:pointer" title="Click for details">—</div></div>
-        <div class="sb-item"><div class="sb-l">Seq. Alerts</div><div class="sb-v" id="srcHoro" style="cursor:pointer" title="Click for details">—</div></div>
+        <div class="sb-item"><div class="sb-l" id="sb_records">Records</div><div class="sb-v" id="srcTotalRecords">—</div></div>
+        <div class="sb-item"><div class="sb-l" id="sb_read">Read</div><div class="sb-v ok" id="srcRead">—</div></div>
+        <div class="sb-item"><div class="sb-l" id="sb_notRead">Not Read</div><div class="sb-v" id="srcNotRead" style="cursor:pointer" title="Click for details">—</div></div>
+        <div class="sb-item"><div class="sb-l" id="sb_nonBill">Non-Billable</div><div class="sb-v" id="srcNonBill" style="cursor:pointer" title="Click for details">—</div></div>
+        <div class="sb-item"><div class="sb-l" id="sb_dups">Duplicates</div><div class="sb-v" id="srcDups" style="cursor:pointer" title="Click for details">—</div></div>
+        <div class="sb-item"><div class="sb-l" id="sb_logBreaks">Log Breaks</div><div class="sb-v" id="srcLogBreaks" style="cursor:pointer" title="Click for details">—</div></div>
+        <div class="sb-item"><div class="sb-l" id="sb_seqAlerts">Seq. Alerts</div><div class="sb-v" id="srcHoro" style="cursor:pointer" title="Click for details">—</div></div>
         <div class="sb-item"><div class="sb-l" id="sb_sentBack">Sent Back</div><div class="sb-v" id="srcSentBack" style="cursor:pointer" title="Click for details">—</div></div>
         <div class="sb-item"><div class="sb-l" id="sb_batch">Status</div><div class="sb-v" id="srcStatus">—</div></div>
         <div class="sb-item"><button class="sb-link" id="sb_dlcsv">↓ CSV</button></div>
@@ -180,35 +180,35 @@
       <!-- Floating detail dialogs -->
       <div class="float-dialog" id="dlgNotRead">
         <div class="float-dialog-hdr" id="dlgNotReadHdr">
-          <div class="float-dialog-title" style="color:var(--yellow)">⊘ NOT READ ENTRIES</div>
+          <div class="float-dialog-title" style="color:var(--yellow)" id="dlgNotReadTitle">⊘ NOT READ ENTRIES</div>
           <button class="float-dialog-close" id="dlgNotReadClose">✕</button>
         </div>
         <div class="float-dialog-body" id="dlgNotReadBody"></div>
       </div>
       <div class="float-dialog" id="dlgDups">
         <div class="float-dialog-hdr" id="dlgDupsHdr">
-          <div class="float-dialog-title" style="color:orange">◈ DUPLICATE LOG ENTRIES</div>
+          <div class="float-dialog-title" style="color:orange" id="dlgDupsTitle">◈ DUPLICATE LOG ENTRIES</div>
           <button class="float-dialog-close" id="dlgDupsClose">✕</button>
         </div>
         <div class="float-dialog-body" id="dlgDupsBody"></div>
       </div>
       <div class="float-dialog" id="dlgNonBill">
         <div class="float-dialog-hdr" id="dlgNonBillHdr">
-          <div class="float-dialog-title" style="color:var(--dim2)">⊘ NON-BILLABLE ENTRIES</div>
+          <div class="float-dialog-title" style="color:var(--dim2)" id="dlgNonBillTitle">⊘ NON-BILLABLE ENTRIES</div>
           <button class="float-dialog-close" id="dlgNonBillClose">✕</button>
         </div>
         <div class="float-dialog-body" id="dlgNonBillBody"></div>
       </div>
       <div class="float-dialog" id="dlgLogBreaks">
         <div class="float-dialog-hdr" id="dlgLogBreaksHdr">
-          <div class="float-dialog-title" style="color:var(--red)">⬤ LOG # BREAKS</div>
+          <div class="float-dialog-title" style="color:var(--red)" id="dlgLogBreaksTitle">⬤ LOG # BREAKS</div>
           <button class="float-dialog-close" id="dlgLogBreaksClose">✕</button>
         </div>
         <div class="float-dialog-body" id="dlgLogBreaksBody"></div>
       </div>
       <div class="float-dialog" id="dlgSeqAlerts">
         <div class="float-dialog-hdr" id="dlgSeqAlertsHdr">
-          <div class="float-dialog-title" style="color:var(--yellow)">⚠ SEQUENCE ALERTS</div>
+          <div class="float-dialog-title" style="color:var(--yellow)" id="dlgSeqAlertsTitle">⚠ SEQUENCE ALERTS</div>
           <button class="float-dialog-close" id="dlgSeqAlertsClose">✕</button>
         </div>
         <div class="float-dialog-body" id="dlgSeqAlertsBody"></div>
@@ -813,29 +813,29 @@
 <!-- NEW BATCH MODAL -->
 <div class="mbd" id="newBatchMbd">
   <div class="mbox" style="max-width:580px;width:100%">
-    <div class="mhdr"><div class="mhdr-t cy">New Billing Cycle</div><button class="m-x" id="nb_close">✕</button></div>
+    <div class="mhdr"><div class="mhdr-t cy" id="nb_title">New Billing Cycle</div><button class="m-x" id="nb_close">✕</button></div>
     <div class="mbody">
       <div class="frow fc2">
-        <div class="field"><label>Aircraft</label>
+        <div class="field"><label id="nb_aircraftLabel">Aircraft</label>
           <select id="nb_aircraft"></select>
         </div>
-        <div class="field"><label>Operator</label>
+        <div class="field"><label id="nb_operatorLabel">Operator</label>
           <select id="nb_operator"></select>
         </div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>Period From</label>
+        <div class="field"><label id="nb_periodFromLabel">Period From</label>
           <input type="date" id="nb_period_from">
         </div>
-        <div class="field"><label>Period To</label>
+        <div class="field"><label id="nb_periodToLabel">Period To</label>
           <input type="date" id="nb_period_to">
         </div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>Log # From</label>
+        <div class="field"><label id="nb_logFromLabel">Log # From</label>
           <input type="text" id="nb_log_from" placeholder="e.g. 00589">
         </div>
-        <div class="field"><label>Log # To</label>
+        <div class="field"><label id="nb_logToLabel">Log # To</label>
           <input type="text" id="nb_log_to" placeholder="e.g. 00660">
         </div>
       </div>
@@ -844,8 +844,8 @@
       <div style="margin-top:16px;border-top:1px solid var(--border2);padding-top:16px">
         <div class="upload-zone" id="nb_uploadZone" style="padding:20px;min-height:80px">
           <div class="uz-icon" style="font-size:24px">📂</div>
-          <div class="uz-title" style="font-size:13px">Drop flight log files here</div>
-          <div class="uz-sub">or click to browse</div>
+          <div class="uz-title" id="nb_uzTitle" style="font-size:13px">Drop flight log files here</div>
+          <div class="uz-sub" id="nb_uzSub">or click to browse</div>
           <div class="uz-types">
             <span class="uz-type ok">PDF</span>
             <span class="uz-type ok">JPG</span>
@@ -866,24 +866,24 @@
 <!-- ADD MORE FILES DIALOG -->
 <div class="float-dialog" id="addFilesMbd" style="display:none;z-index:300;width:560px;max-width:calc(100vw - 32px)">
   <div class="float-dialog-hdr">
-    <div class="float-dialog-title">📂 ADD MORE FILES TO BATCH</div>
+    <div class="float-dialog-title" id="af_title">📂 ADD MORE FILES TO BATCH</div>
     <button id="af_close" class="float-dialog-close">✕</button>
   </div>
   <div class="mbody">
-    <div style="font-family:var(--mono);font-size:9px;color:var(--dim2);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">Optional Context — helps OCR accuracy</div>
+    <div id="af_contextTitle" style="font-family:var(--mono);font-size:9px;color:var(--dim2);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">Optional Context — helps OCR accuracy</div>
     <div class="frow fc2" style="margin-bottom:14px">
-      <div class="field"><label>Aircraft</label>
+      <div class="field"><label id="af_aircraftLabel">Aircraft</label>
         <select id="af_aircraft" class="f-select" style="width:100%;min-width:unset"></select>
       </div>
-      <div class="field"><label>Operator</label>
+      <div class="field"><label id="af_operatorLabel">Operator</label>
         <select id="af_operator" class="f-select" style="width:100%;min-width:unset"></select>
       </div>
     </div>
     <div style="border-top:1px solid var(--border2);padding-top:14px">
       <div class="upload-zone" id="af_uploadZone" style="padding:20px;min-height:80px">
         <div class="uz-icon" style="font-size:24px">📂</div>
-        <div class="uz-title" style="font-size:13px">Drop flight log files here</div>
-        <div class="uz-sub">or click to browse</div>
+        <div class="uz-title" id="af_uzTitle" style="font-size:13px">Drop flight log files here</div>
+        <div class="uz-sub" id="af_uzSub">or click to browse</div>
         <div class="uz-types">
           <span class="uz-type ok">PDF</span>
           <span class="uz-type ok">JPG</span>
@@ -903,7 +903,7 @@
 <!-- UPLOAD STATUS WINDOW -->
 <div id="uploadStatusMbd" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:400;width:480px;max-width:calc(100vw - 40px);background:var(--s1);border:1px solid var(--border2);border-radius:4px;flex-direction:column;min-height:200px;max-height:80vh;box-shadow:0 8px 32px rgba(0,0,0,.5);resize:both;overflow:hidden">
   <div data-drag-hdr style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--cyan);border-radius:3px 3px 0 0;flex-shrink:0;cursor:move">
-    <div style="font-family:var(--mono);font-size:11px;color:#000;letter-spacing:1px;font-weight:700">⚙ EXTRACTION LOG</div>
+    <div id="uploadLog_title" style="font-family:var(--mono);font-size:11px;color:#000;letter-spacing:1px;font-weight:700">⚙ EXTRACTION LOG</div>
     <div style="display:flex;gap:8px">
       <button id="uploadLog_save" style="background:rgba(0,0,0,.15);border:1px solid rgba(0,0,0,.2);color:#000;font-family:var(--mono);font-size:10px;padding:4px 10px;cursor:pointer;border-radius:2px">↓ Save Log</button>
       <button id="uploadLog_close" style="background:rgba(0,0,0,.15);border:1px solid rgba(0,0,0,.2);color:#000;font-family:var(--mono);font-size:10px;padding:4px 10px;cursor:pointer;border-radius:2px">Close</button>
@@ -915,7 +915,7 @@
 <!-- EXTRACTION SUMMARY MODAL -->
 <div class="mbd" id="extractSummaryMbd">
   <div class="mbox" style="max-width:420px;width:100%;border-top:2px solid var(--cyan)">
-    <div class="mhdr"><div class="mhdr-t ct">Extraction Complete</div></div>
+    <div class="mhdr"><div class="mhdr-t ct" id="extractSummary_title">Extraction Complete</div></div>
     <div class="mbody" style="padding:20px 24px">
       <div id="extractSummaryRows" style="display:flex;flex-direction:column;gap:10px"></div>
     </div>
@@ -1317,6 +1317,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="./assets/js/app.js?v=8.5.7l"></script>
+<script src="./assets/js/app.js?v=8.5.7m"></script>
 </body>
 </html>

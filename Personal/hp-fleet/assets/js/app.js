@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7l";
+const APP_VERSION = "v8.5.7m";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -768,7 +768,11 @@ function applyI18n(){
     co_cancel:"rfrCancel",co_save:"coSave",
     fl_title:"flTitle",fl_newBatch:"flNewBatch",
     apiWarnMsg:"apiWarnMsg",apiWarnLink:"apiWarnLink",
-    sb_file:"sbFile",sb_horo:"sbHoro",sb_csv:"sbCsv",sb_ts:"sbTs",sb_batch:"sbBatch",sb_dlcsv:"sbDlCsv",
+    sb_file:"sbFile",btn_addMoreFiles:"addMoreFiles",sb_records:"sbRecords",sb_read:"sbRead",sb_notRead:"sbNotRead",
+    sb_nonBill:"sbNonBill",sb_dups:"sbDups",sb_logBreaks:"sbLogBreaks",sb_seqAlerts:"sbSeqAlerts",
+    sb_sentBack:"sbSentBack",sb_horo:"sbHoro",sb_csv:"sbCsv",sb_ts:"sbTs",sb_batch:"sbBatch",sb_dlcsv:"sbDlCsv",
+    dlgNotReadTitle:"dlgNotReadTitle",dlgDupsTitle:"dlgDupsTitle",dlgNonBillTitle:"dlgNonBillTitle",
+    dlgLogBreaksTitle:"dlgLogBreaksTitle",dlgSeqAlertsTitle:"dlgSeqAlertsTitle",dlgSentBackTitle:"dlgSentBackTitle",
     al_horoTitle:"horoAlert",tb_entries:"tbEntries",
     fo_allop:"allOp",fo_problems:"needsReview",fo_hideNonBill:"hideNonBill",fo_showNonBill:"showNonBill",
     btn_approveAll:"approveAll",btn_resetAll:"resetAll",btn_newEntry:"newEntry",
@@ -803,6 +807,12 @@ function applyI18n(){
     pi_subtotalLabel:"piSubtotal",pi_additionalChargesTitle:"piAdditionalCharges",
     pi_add_charge2:"piAddCharge",pi_totalAmountDueLabel:"piTotalAmountDue",pi_signoff_btn:"piSignOff",
     piLoad_historicDesc:"piHistoricDesc",piLoad_confirm:"piLoadSelected",
+    nb_title:"nbTitle",nb_aircraftLabel:"thAc",nb_operatorLabel:"thOp",nb_periodFromLabel:"nbPeriodFrom",nb_periodToLabel:"nbPeriodTo",
+    nb_logFromLabel:"nbLogFrom",nb_logToLabel:"nbLogTo",nb_uzTitle:"uzTitle",nb_uzSub:"uzSub",nb_cancel:"rfrCancel",nb_confirm:"nbStartExtract",
+    af_title:"afTitle",af_contextTitle:"afContextTitle",af_aircraftLabel:"thAc",af_operatorLabel:"thOp",
+    af_uzTitle:"uzTitle",af_uzSub:"uzSub",af_cancel:"rfrCancel",af_confirm:"afUploadLogs",
+    uploadLog_title:"uploadLogTitle",uploadLog_save:"uploadLogSave",uploadLog_close:"close",
+    extractSummary_title:"extractSummaryTitle",extractSummary_go:"extractSummaryGo",
     viewAsLabel:"viewAs",viewAsAdmin:"viewAsAdmin",viewAsOperator:"viewAsOperator",viewAsReviewer:"viewAsReviewer",viewAsReadonly:"viewAsReadonly",
     aircraftTitle:"aircraftTitle",btn_addAircraft2:"aircraftAdd",
   };
@@ -833,6 +843,7 @@ function applyI18n(){
     orientTip(el("userRoleHelpTip"));
   }
   refreshSettingsToggleLabels();
+  localizeLogStatusTitles();
   localizeCompanyUi();
   localizeAircraftUi();
   renderTabs();
@@ -842,6 +853,9 @@ function applyI18n(){
 function setText(id,key){ if(el(id)) el(id).textContent=t(key); }
 function setPh(id,key){ if(el(id)) el(id).placeholder=t(key); }
 function setTitle(id,key){ if(el(id)) el(id).title=t(key); }
+function localizeLogStatusTitles(){
+  ["srcNotRead","srcNonBill","srcDups","srcLogBreaks","srcHoro","srcSentBack"].forEach(id=>setTitle(id,"clickForDetails"));
+}
 function localizeUserUi(){
   setPh("userSearch","userSearchPh");
   setPh("um_name","umNamePh");
@@ -2095,7 +2109,7 @@ function checkDiff(entry){
 }
 
 async function extractAll(){
-  if(isExtracting){ showToast("Extraction already running","warn"); return; }
+  if(isExtracting){ showToast(t("extractionAlreadyRunning"),"warn"); return; }
   const apiKey=getApiKey();
   if(!apiKey){showToast(t("noApiKey"),"err");switchTab("settings");return;}
   if(!fileQueue.length){showToast(t("noFiles"),"err");return;}
@@ -2118,15 +2132,15 @@ async function extractAll(){
       if(isPdf && typeof pdfjsLib!=="undefined"){
         // PDF: render each page → extract → store image
         dbg("Loading PDF: "+fq.name,"info");
-        uploadLog("Loading PDF: "+fq.name);
+        uploadLog(t("uploadLogLoadingPdf")+" "+fq.name);
         const arrayBuf=await fq.file.arrayBuffer();
         const pdfDoc=await pdfjsLib.getDocument({data:arrayBuf}).promise;
         const numPages=pdfDoc.numPages;
         dbg("PDF loaded — "+numPages+" pages","ok");
-        uploadLog("PDF loaded — "+numPages+" pages");
+        uploadLog(t("uploadLogPdfLoaded").replace("{pages}",numPages));
         let pdfExtracted=[];
         for(let p=1;p<=numPages;p++){
-          fq._label="[Page "+p+"/"+numPages+"] "+fq.name+" — Extracting…";
+          fq._label="[Page "+p+"/"+numPages+"] "+fq.name+" — "+t("extracting");
           fq.progress=Math.round((p/numPages)*100);
           renderQueue();
           try {
@@ -2140,11 +2154,11 @@ async function extractAll(){
             pageEntries.forEach(e=>{e._imageUrl=imageUrl;e._sourcePage=p;});
             pdfExtracted=[...pdfExtracted,...pageEntries];
             dbg("Page "+p+"/"+numPages+": "+pageEntries.length+" entries","ok");
-            uploadLog("Page "+p+"/"+numPages+": "+pageEntries.length+" entr"+(pageEntries.length===1?"y":"ies")+" extracted");
+            uploadLog(t("uploadLogPageExtracted").replace("{page}",p).replace("{pages}",numPages).replace("{entries}",pageEntries.length));
           } catch(pageErr){
             if(pageErr.name==="AbortError"){
               dbg("Extraction aborted at page "+p,"warn");
-              uploadLog("⚠ Extraction aborted at page "+p);
+              uploadLog(t("uploadLogAbortedPage").replace("{page}",p));
               break;
             } else if(pageErr.message.startsWith("NO_BITACORA")){
               // Still upload image and create stub entry
@@ -2158,28 +2172,28 @@ async function extractAll(){
                   bnum:"", fecha:"", aeronave:"", operador:"",
                   piloto:"", instructor:"", horoIn:0,
                   motorOut:"", motorIn:"", vueloOut:"", vueloIn:"",
-                  multOverride:null, obs:"Skipped — no log data on page "+p,
+                  multOverride:null, obs:t("skippedNoLogDataOnPage").replace("{page}",p),
                   status:"skipped"
                 });
                 dbg("Page "+p+": skipped — image stored as stub","info");
-                uploadLog("Page "+p+": skipped — no log data");
+                uploadLog(t("uploadLogPageNoData").replace("{page}",p));
               } catch(imgErr){
                 dbg("Page "+p+": skipped — image upload failed","info");
-                uploadLog("Page "+p+": skipped — image upload failed");
+                uploadLog(t("uploadLogImageUploadFailed").replace("{page}",p));
               }
             } else {
               dbg("Page "+p+" error: "+pageErr.message,"err"); hasErrors=true;
-              uploadLog("✕ Page "+p+" error: "+pageErr.message);
+              uploadLog(t("uploadLogPageError").replace("{page}",p).replace("{error}",pageErr.message));
             }
           }
         }
         allExtracted=[...allExtracted,...pdfExtracted];
         fq.status="done"; fq._entryCount=pdfExtracted.length;
-        uploadLog("✓ Done — "+pdfExtracted.length+" entries from "+numPages+" pages");
+        uploadLog(t("uploadLogDone").replace("{entries}",pdfExtracted.length).replace("{pages}",numPages));
         addFlAudit("🤖",currentUser.name,"extracted PDF",pdfExtracted.length+" entries from "+numPages+" pages — "+fq.name);
       } else {
         // Image file: fix rotation, compress, extract, upload
-        fq._label="["+(i+1)+"/"+total+"] "+fq.name+" — Extracting…";
+        fq._label="["+(i+1)+"/"+total+"] "+fq.name+" — "+t("extracting");
         fq.progress=10; renderQueue();
         const fixedFile=await fixImageRotation(fq.file);
         // Compress BEFORE sending to Claude (fixes large/sideways image errors)
@@ -2204,13 +2218,14 @@ async function extractAll(){
       fq.status="error"; fq._error=translateFetchError(err.message); hasErrors=true;
       addFlAudit("⚠️",currentUser.name,"extraction error",fq.name+": "+err.message);
       dbg("Error on "+fq.name+": "+err.message,"err");
+      uploadLog(t("uploadLogFileError").replace("{file}",fq.name).replace("{error}",err.message));
     }
     renderQueue();
   }
 
   isExtracting=false; extractionAbort=null;
   if(!allExtracted.length&&hasErrors){
-    uploadLog("✕ Extraction failed — no entries extracted");
+    uploadLog(t("extractFailedNoEntries"));
     showResultBanner("err","✗ "+t("extractError"));return;
   }
   flEntries=[...flEntries,...allExtracted.map(e=>({
@@ -2223,7 +2238,7 @@ async function extractAll(){
   updateSrcBar();
   const msg=hasErrors?"⚠ "+allExtracted.length+" "+t("extractPartial"):"✓ "+allExtracted.length+" "+t("extractSuccess")+" "+batchSourceFile.join(", ");
   uploadLog(msg);
-  uploadLog("Extraction complete — ready for review");
+  uploadLog(t("extractReadyReview"));
   showResultBanner(hasErrors?"warn":"ok",msg);
   el("srcBar").style.display="flex";
   el("reviewSection").style.display="block";
@@ -2247,7 +2262,7 @@ function logCheck(){
         idx:origIdx,
         entry:entries[i],
         prev, curr,
-        msg:"Log gap: "+String(prev).padStart(5,"0")+" → "+String(curr).padStart(5,"0")+" (missing "+(curr-prev-1)+")"
+        msg:t("logGapMsg").replace("{prev}",String(prev).padStart(5,"0")).replace("{curr}",String(curr).padStart(5,"0")).replace("{missing}",curr-prev-1)
       });
     }
   }
@@ -2348,8 +2363,6 @@ function updateSrcBar(){
     el("srcSentBack").style.pointerEvents=sentBack.length>0?"auto":"none";
     el("srcSentBack")._data=sentBack;
   }
-  if(el("sb_sentBack")) el("sb_sentBack").textContent=lang==="es"?"Devuelto":"Sent Back";
-  if(el("dlgSentBackTitle")) el("dlgSentBackTitle").textContent=lang==="es"?"↩ DEVUELTO PARA CORRECCIÓN":"↩ SENT BACK FOR REVIEW";
   if(el("srcStatus")) el("srcStatus").textContent=batchStatus||"—";
 
   // Update row markers on table
@@ -2519,7 +2532,7 @@ function renderWfBar(){
     switchTab("preinvoice");
   });
   if(el("srcStatus")){
-    const labels={DRAFT:t("wfReview"),SUBMITTED:t("wfSubmit"),APPROVED:t("wfApproved"),CHANGES:lang==="es"?"Cambios Solicitados":"Changes Requested"};
+    const labels={DRAFT:t("wfReview"),SUBMITTED:t("wfSubmit"),APPROVED:t("wfApproved"),CHANGES:t("wfChanges")};
     el("srcStatus").textContent=labels[batchStatus]||batchStatus;
   }
 }
@@ -4395,7 +4408,7 @@ function openNewBatchModal(){
   // Populate aircraft dropdown
   const acSel=el("nb_aircraft");
   if(acSel){
-    acSel.innerHTML='<option value="">Auto-detect</option>'+AIRCRAFT.map(a=>'<option value="'+a.matricula+'">'+a.matricula+"</option>").join("");
+    acSel.innerHTML='<option value="">'+t("autoDetect")+"</option>"+AIRCRAFT.map(a=>'<option value="'+a.matricula+'">'+a.matricula+"</option>").join("");
     acSel.dispatchEvent(new Event("change"));
   }
   // Set default period to current month
@@ -4411,9 +4424,9 @@ function openNewBatchModal(){
   if(prevLabel){
     if(currentBatchId&&flEntries.length){
       const prev=allBatches.find(b=>b.id===currentBatchId);
-      const label=prev?batchLabel(prev):"current batch";
+      const label=prev?batchLabel(prev):t("currentBatchLower");
       prevLabel.style.display="block";
-      prevLabel.textContent="This will begin a new billing cycle. Previous work has been saved as: "+label;
+      prevLabel.textContent=t("nbPrevBatchPrefix")+" "+label;
     } else {
       prevLabel.style.display="none";
     }
@@ -4428,7 +4441,7 @@ async function confirmNewBatch(){
   const periodTo=el("nb_period_to")?el("nb_period_to").value:"";
   const logFrom=el("nb_log_from")?el("nb_log_from").value.trim():"";
   const logTo=el("nb_log_to")?el("nb_log_to").value.trim():"";
-  if(!nbFiles.length){showToast("Please add at least one file","warn");return;}
+  if(!nbFiles.length){showToast(t("pleaseAddFile"),"warn");return;}
   closeModal("newBatchMbd");
   await resetBatch();
   window._pendingBatchMeta={aircraft,operador,periodFrom,periodTo,logFrom,logTo};
@@ -4448,10 +4461,10 @@ function openAddFilesDialog(){
   afRenderQueue();
   const acSel=el("af_aircraft"); const opSel=el("af_operator");
   if(acSel){
-    acSel.innerHTML='<option value="">Auto-detect</option>'+AIRCRAFT.map(a=>'<option value="'+a.matricula+'">'+a.matricula+'</option>').join("");
+    acSel.innerHTML='<option value="">'+t("autoDetect")+'</option>'+AIRCRAFT.map(a=>'<option value="'+a.matricula+'">'+a.matricula+'</option>').join("");
   }
   if(opSel){
-    opSel.innerHTML='<option value="">Auto-detect</option>'+COMPANIES.map(c=>'<option value="'+c.code+'">'+c.code+'</option>').join("");
+    opSel.innerHTML='<option value="">'+t("autoDetect")+'</option>'+COMPANIES.map(c=>'<option value="'+c.code+'">'+c.code+'</option>').join("");
   }
   const dlg=el("addFilesMbd"); if(dlg) dlg.style.display="flex";
 }
@@ -4488,7 +4501,7 @@ function initAfDropZone(){
     const files=Array.from(e.dataTransfer.files).filter(f=>/\.(pdf|jpg|jpeg|png)$/i.test(f.name));
     files.forEach(f=>{
       if(afFiles.find(q=>q.name===f.name&&q.size===f.size)){
-        if(!confirm("\""+f.name+"\" has already been added.\nIf you continue, you may duplicate records.\n\nContinue anyway?")) return;
+        if(!confirm(t("duplicateFileConfirm").replace("{file}",f.name))) return;
       }
       afFiles.push(f);
     });
@@ -4497,7 +4510,7 @@ function initAfDropZone(){
   input.addEventListener("change",()=>{
     Array.from(input.files).forEach(f=>{
       if(afFiles.find(q=>q.name===f.name&&q.size===f.size)){
-        if(!confirm("\""+f.name+"\" has already been added.\nIf you continue, you may duplicate records.\n\nContinue anyway?")) return;
+        if(!confirm(t("duplicateFileConfirm").replace("{file}",f.name))) return;
       }
       afFiles.push(f);
     });
@@ -4506,7 +4519,7 @@ function initAfDropZone(){
 }
 
 async function confirmAddFiles(){
-  if(!afFiles.length){showToast("Please add at least one file","warn");return;}
+  if(!afFiles.length){showToast(t("pleaseAddFile"),"warn");return;}
   const apiKey=getApiKey();
   if(!apiKey){showToast(t("noApiKey"),"err");return;}
   const aircraft=el("af_aircraft")?el("af_aircraft").value:"";
@@ -4526,10 +4539,10 @@ async function confirmAddFiles(){
 
 async function extractAllAppend(appendQueue){
   // Append mode — uses isolated queue, does NOT touch fileQueue, does NOT reset flEntries
-  if(isExtracting){ showToast("Extraction already running","warn"); return; }
+  if(isExtracting){ showToast(t("extractionAlreadyRunning"),"warn"); return; }
   const apiKey=getApiKey();
   if(!apiKey) return;
-  if(!appendQueue||!appendQueue.length){ uploadLog("No files to process."); return; }
+  if(!appendQueue||!appendQueue.length){ uploadLog(t("uploadLogNoFiles")); return; }
   isExtracting=true;
   extractionAbort=new AbortController();
   let allExtracted=[]; let hasErrors=false;
@@ -4546,14 +4559,14 @@ async function extractAllAppend(appendQueue){
 
     try {
       if(isPdf && typeof pdfjsLib!=="undefined"){
-        uploadLog("Loading PDF: "+fq.name);
+        uploadLog(t("uploadLogLoadingPdf")+" "+fq.name);
         const arrayBuf=await fq.file.arrayBuffer();
         const pdfDoc=await pdfjsLib.getDocument({data:arrayBuf}).promise;
         const numPages=pdfDoc.numPages;
-        uploadLog("PDF loaded — "+numPages+" pages");
+        uploadLog(t("uploadLogPdfLoaded").replace("{pages}",numPages));
         let pdfExtracted=[];
         for(let p=1;p<=numPages;p++){
-          fq._label="[Page "+p+"/"+numPages+"] "+fq.name+" — Extracting…";
+          fq._label="[Page "+p+"/"+numPages+"] "+fq.name+" — "+t("extracting");
           fq.progress=Math.round((p/numPages)*100);
           try {
             const pageBlob=await pdfPageToBlob(pdfDoc,p);
@@ -4565,9 +4578,9 @@ async function extractAllAppend(appendQueue){
             const imageUrl=await uploadImageToStorage(compressed,filename);
             pageEntries.forEach(e=>{e._imageUrl=imageUrl;e._sourcePage=p;});
             pdfExtracted=[...pdfExtracted,...pageEntries];
-            uploadLog("Page "+p+"/"+numPages+": "+pageEntries.length+" entr"+(pageEntries.length===1?"y":"ies")+" extracted");
+            uploadLog(t("uploadLogPageExtracted").replace("{page}",p).replace("{pages}",numPages).replace("{entries}",pageEntries.length));
           } catch(pageErr){
-            if(pageErr.name==="AbortError"){ uploadLog("⚠ Aborted at page "+p); break; }
+            if(pageErr.name==="AbortError"){ uploadLog(t("uploadLogAbortedPage").replace("{page}",p)); break; }
             else if(pageErr.message.startsWith("NO_BITACORA")){
               try {
                 const pageBlob=await pdfPageToBlob(pdfDoc,p);
@@ -4577,18 +4590,18 @@ async function extractAllAppend(appendQueue){
                 pdfExtracted.push({_imageUrl:imageUrl,_sourcePage:p,_isStub:true,
                   bnum:"",fecha:"",aeronave:"",operador:"",piloto:"",instructor:"",horoIn:0,
                   motorOut:"",motorIn:"",vueloOut:"",vueloIn:"",multOverride:null,
-                  obs:"Skipped — no log data on page "+p,status:"skipped"});
-                uploadLog("Page "+p+": skipped — no log data");
-              } catch(e){ uploadLog("Page "+p+": skipped — image upload failed"); }
-            } else { uploadLog("✕ Page "+p+" error: "+pageErr.message); hasErrors=true; }
+                  obs:t("skippedNoLogDataOnPage").replace("{page}",p),status:"skipped"});
+                uploadLog(t("uploadLogPageNoData").replace("{page}",p));
+              } catch(e){ uploadLog(t("uploadLogImageUploadFailed").replace("{page}",p)); }
+            } else { uploadLog(t("uploadLogPageError").replace("{page}",p).replace("{error}",pageErr.message)); hasErrors=true; }
           }
         }
         allExtracted=[...allExtracted,...pdfExtracted];
         fq.status="done"; fq._entryCount=pdfExtracted.length;
-        uploadLog("✓ Done — "+pdfExtracted.length+" entries from "+numPages+" pages");
+        uploadLog(t("uploadLogDone").replace("{entries}",pdfExtracted.length).replace("{pages}",numPages));
         addFlAudit("🤖",currentUser.name,"appended PDF",pdfExtracted.length+" entries from "+fq.name);
       } else {
-        fq._label="["+(i+1)+"/"+total+"] "+fq.name+" — Extracting…";
+        fq._label="["+(i+1)+"/"+total+"] "+fq.name+" — "+t("extracting");
         fq.progress=10;
         const fixedFile=await fixImageRotation(fq.file);
         const rawBlob=await fetch(URL.createObjectURL(fixedFile)).then(r=>r.blob());
@@ -4609,7 +4622,7 @@ async function extractAllAppend(appendQueue){
       }
     } catch(err){
       fq.status="error"; fq._error=translateFetchError(err.message); hasErrors=true;
-      uploadLog("✕ Error on "+fq.name+": "+err.message);
+      uploadLog(t("uploadLogFileError").replace("{file}",fq.name).replace("{error}",err.message));
     }
   }
 
@@ -4627,9 +4640,9 @@ async function extractAllAppend(appendQueue){
   const newNames=appendQueue.map(f=>f.name);
   batchSourceFile=[...batchSourceFile,...newNames];
 
-  const msg=hasErrors?"⚠ "+newEntries.length+" entries appended (with errors)":"✓ "+newEntries.length+" entries appended — "+newNames.join(", ");
+  const msg=hasErrors?t("appendWithErrors").replace("{entries}",newEntries.length):t("appendCompleteMsg").replace("{entries}",newEntries.length).replace("{files}",newNames.join(", "));
   uploadLog(msg);
-  uploadLog("Append complete — ready for review");
+  uploadLog(t("appendReadyReview"));
 
   updateSrcBar();
   await saveBatchToDB("append extracted files");
@@ -4719,12 +4732,12 @@ function showExtractionSummary(){
   const threshAlerts=flEntries.filter(e=>e.status==="flagged").length;
   const sourceFile=el("srcFile")?el("srcFile").textContent:"—";
   const rows=[
-    {label:"File Source",val:sourceFile,color:"var(--text)"},
-    {label:"Total Records",val:total,color:"var(--cyan)"},
-    {label:"Read",val:read,color:"var(--green)"},
-    {label:"Not Read",val:notRead,color:notRead>0?"var(--yellow)":"var(--dim2)"},
-    {label:"Sequence Alerts",val:seqAlerts,color:seqAlerts>0?"var(--yellow)":"var(--dim2)"},
-    {label:"Threshold Alerts",val:threshAlerts,color:threshAlerts>0?"var(--red)":"var(--dim2)"},
+    {label:t("fileSource"),val:sourceFile,color:"var(--text)"},
+    {label:t("totalRecords"),val:total,color:"var(--cyan)"},
+    {label:t("sbRead"),val:read,color:"var(--green)"},
+    {label:t("sbNotRead"),val:notRead,color:notRead>0?"var(--yellow)":"var(--dim2)"},
+    {label:t("sequenceAlerts"),val:seqAlerts,color:seqAlerts>0?"var(--yellow)":"var(--dim2)"},
+    {label:t("thresholdAlerts"),val:threshAlerts,color:threshAlerts>0?"var(--red)":"var(--dim2)"},
   ];
   const wrap=el("extractSummaryRows");
   if(wrap) wrap.innerHTML=rows.map(r=>
@@ -5617,47 +5630,46 @@ function wireEvents(){
     const entries=flEntries.filter(e=>e.status==="skipped"||e.status==="void"||!e.aeronave||!e.fecha);
     const lines=entries.map(e=>{
       const idx=flEntries.indexOf(e)+1;
-      const reason=e.status==="skipped"?"Skipped":e.status==="void"?"Void":!e.aeronave?"No aircraft":!e.fecha?"No date":"Unknown";
-      return "Entry #"+idx+" | Log "+(e.bnum||"—")+" | "+reason;
+      const reason=e.status==="skipped"?t("reasonSkipped"):e.status==="void"?t("reasonVoid"):!e.aeronave?t("reasonNoAircraft"):!e.fecha?t("reasonNoDate"):t("reasonUnknown");
+      return t("entryShort")+" #"+idx+" | "+t("thLog")+" "+(e.bnum||"—")+" | "+reason;
     });
-    openFloatDialog("dlgNotRead","Not Read Entries",lines,"var(--yellow)",entries.map(e=>e.id));
+    openFloatDialog("dlgNotRead",t("notReadEntries"),lines,"var(--yellow)",entries.map(e=>e.id));
   });
   if(el("srcNonBill")) el("srcNonBill").addEventListener("click",()=>{
     const entries=flEntries.filter(e=>e.status==="nonbillable");
     const lines=entries.map(e=>{
       const idx=flEntries.indexOf(e)+1;
-      return "Entry #"+idx+" | Log "+(e.bnum||"—")+" | "+(e.fecha||"—")+" | "+(e.nonBillReason||"No reason given");
+      return t("entryShort")+" #"+idx+" | "+t("thLog")+" "+(e.bnum||"—")+" | "+(e.fecha||"—")+" | "+(e.nonBillReason||t("noReasonGiven"));
     });
-    openFloatDialog("dlgNonBill","Non-Billable Entries",lines,"var(--red)",entries.map(e=>e.id));
+    openFloatDialog("dlgNonBill",t("nonBillableEntries"),lines,"var(--red)",entries.map(e=>e.id));
   });
   if(el("srcDups")) el("srcDups").addEventListener("click",()=>{
     const dups=duplicateCheck();
-    const lines=dups.map(d=>"Entry #"+(d.idx+1)+" | Log "+d.bnum+" | "+(d.entry.fecha||"—")+" | "+d.entry.aeronave);
-    openFloatDialog("dlgDups","Duplicate Log Entries",lines,"orange",dups.map(d=>d.entry.id));
+    const lines=dups.map(d=>t("entryShort")+" #"+(d.idx+1)+" | "+t("thLog")+" "+d.bnum+" | "+(d.entry.fecha||"—")+" | "+d.entry.aeronave);
+    openFloatDialog("dlgDups",t("duplicateLogEntries"),lines,"orange",dups.map(d=>d.entry.id));
   });
   if(el("srcLogBreaks")) el("srcLogBreaks").addEventListener("click",()=>{
     const breaks=logCheck();
-    const lines=breaks.map(b=>"Entry #"+(b.idx+1)+" | "+b.msg);
-    openFloatDialog("dlgLogBreaks","Log # Breaks",lines,"var(--red)",breaks.map(b=>b.entry.id));
+    const lines=breaks.map(b=>t("entryShort")+" #"+(b.idx+1)+" | "+b.msg);
+    openFloatDialog("dlgLogBreaks",t("logBreaks"),lines,"var(--red)",breaks.map(b=>b.entry.id));
   });
   if(el("srcHoro")) el("srcHoro").addEventListener("click",()=>{
     const alerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; });
     const lines=alerts.map(e=>{
       const idx=flEntries.indexOf(e);
       const h=horoCheck(e,idx);
-      return "Entry #"+(idx+1)+" | Log "+(e.bnum||"—")+" | "+e.aeronave+" | Prev.In "+h.prevIn+" → Curr.Out "+h.currOut+" (Δ"+h.diff+")";
+      return t("entryShort")+" #"+(idx+1)+" | "+t("thLog")+" "+(e.bnum||"—")+" | "+e.aeronave+" | "+t("prevIn")+" "+h.prevIn+" → "+t("currOut")+" "+h.currOut+" (Δ"+h.diff+")";
     });
-    openFloatDialog("dlgSeqAlerts","Sequence Alerts",lines,"var(--yellow)",alerts.map(e=>e.id));
+    openFloatDialog("dlgSeqAlerts",t("sequenceAlerts"),lines,"var(--yellow)",alerts.map(e=>e.id));
   });
   if(el("dlgSentBackClose")) el("dlgSentBackClose").addEventListener("click",()=>el("dlgSentBack").classList.remove("open"));
   if(el("srcSentBack")) el("srcSentBack").addEventListener("click",()=>{
     const flagged=flEntries.filter(e=>e.flagNote&&e.flagNote.trim()!=="");
     const lines=flagged.map(e=>{
       const idx=flEntries.indexOf(e);
-      return "Entry #"+(idx+1)+" | Log "+(e.bnum||"—")+" | "+e.aeronave+" | "+(e.flagNote||"");
+      return t("entryShort")+" #"+(idx+1)+" | "+t("thLog")+" "+(e.bnum||"—")+" | "+e.aeronave+" | "+(e.flagNote||"");
     });
-    const title=lang==="es"?"Devuelto para Corrección":"Sent Back for Review";
-    openFloatDialog("dlgSentBack",title,lines,"var(--yellow)",flagged.map(e=>e.id));
+    openFloatDialog("dlgSentBack",t("sentBackForReview"),lines,"var(--yellow)",flagged.map(e=>e.id));
   });
   if(el("dlgSentBackHdr")) makeDraggable("dlgSentBack","dlgSentBackHdr");
   // Pan/drag — always on (left click + drag), double click = zoom in
