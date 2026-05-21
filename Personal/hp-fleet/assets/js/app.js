@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7r";
+const APP_VERSION = "v8.5.7s";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -857,13 +857,15 @@ function applyI18n(){
 function setText(id,key){ if(el(id)) el(id).textContent=t(key); }
 function setPh(id,key){ if(el(id)) el(id).placeholder=t(key); }
 function setTitle(id,key){ if(el(id)) el(id).title=t(key); }
-function setHoverTip(id,key){
+function setHoverTip(id,key,level=""){
   const node=el(id);
   if(!node) return;
   node.querySelectorAll(".hpf-tip").forEach(tip=>tip.remove());
   node.removeAttribute("title");
   node.classList.add("hpf-hover-tip");
   node.dataset.tip=t(key);
+  if(level) node.dataset.tipLevel=level;
+  else delete node.dataset.tipLevel;
   node.tabIndex=node.tabIndex>=0?node.tabIndex:0;
 }
 function localizeLogStatusTitles(){
@@ -884,7 +886,7 @@ function localizeLogTooltips(){
     ["tb_entries","logTipExtractedEntries"],
     ["pt_entries","logTipEntriesTab"],
     ["pt_audit","logTipAuditTab"],
-    ["spToggleLabel","logTipSourcePanel"],
+    ["spToggleLabel","logTipSourcePanel",""],
     ["btn_approveAll","logTipApproveAll"],
     ["btn_resetAll","logTipResetAll"],
     ["btn_newEntry","logTipNewEntry"],
@@ -896,27 +898,27 @@ function localizeLogTooltips(){
     ["btn_returnForReview","logTipReturnForReview"],
     ["btn_reqChanges","logTipRequestChanges"],
     ["btn_reopen","logTipReopen"],
-    ["th_log","logTipThLog"],
-    ["th_date","logTipThDate"],
-    ["th_ac","logTipThAircraft"],
-    ["th_op","logTipThOperator"],
-    ["th_pilot","logTipThPilot"],
-    ["th_instructor","logTipThInstructor"],
-    ["th_motor","logTipThMotor"],
-    ["th_mout","logTipThMotorOut"],
-    ["th_min","logTipThMotorIn"],
-    ["th_tm","logTipThMotorTotal"],
-    ["th_flight","logTipThFlight"],
-    ["th_fout","logTipThFlightOut"],
-    ["th_fin","logTipThFlightIn"],
-    ["th_tf","logTipThFlightTotal"],
-    ["th_billing","logTipThBilling"],
-    ["th_mult","logTipThMultiplier"],
-    ["th_tbp","logTipThTbh"],
-    ["th_horo","logTipThHoro"],
-    ["th_obs","logTipThNotes"],
-    ["th_status","logTipThStatus"]
-  ].forEach(([id,key])=>setHoverTip(id,key));
+    ["th_log","logTipThLog","fl-top"],
+    ["th_date","logTipThDate","fl-top"],
+    ["th_ac","logTipThAircraft","fl-top"],
+    ["th_op","logTipThOperator","fl-top"],
+    ["th_pilot","logTipThPilot","fl-top"],
+    ["th_instructor","logTipThInstructor","fl-top"],
+    ["th_motor","logTipThMotor","fl-top"],
+    ["th_mout","logTipThMotorOut","fl-bottom"],
+    ["th_min","logTipThMotorIn","fl-bottom"],
+    ["th_tm","logTipThMotorTotal","fl-bottom"],
+    ["th_flight","logTipThFlight","fl-top"],
+    ["th_fout","logTipThFlightOut","fl-bottom"],
+    ["th_fin","logTipThFlightIn","fl-bottom"],
+    ["th_tf","logTipThFlightTotal","fl-bottom"],
+    ["th_billing","logTipThBilling","fl-top"],
+    ["th_mult","logTipThMultiplier","fl-bottom"],
+    ["th_tbp","logTipThTbh","fl-bottom"],
+    ["th_horo","logTipThHoro","fl-top"],
+    ["th_obs","logTipThNotes","fl-top"],
+    ["th_status","logTipThStatus","fl-top"]
+  ].forEach(([id,key,level])=>setHoverTip(id,key,level));
 }
 function localizeUserUi(){
   setPh("userSearch","userSearchPh");
@@ -1011,6 +1013,15 @@ function positionTipPopover(tip){
   let left=openRight ? tipRect.left : tipRect.right-popRect.width;
   left=Math.max(margin,Math.min(left,vpW-popRect.width-margin));
   let top=tipRect.top-popRect.height-gap;
+  if(tip.dataset.tipLevel==="fl-top" || tip.dataset.tipLevel==="fl-bottom"){
+    const thead=tip.closest("thead");
+    const rows=thead?[...thead.querySelectorAll("tr")]:[];
+    const anchor=tip.dataset.tipLevel==="fl-bottom" && rows[1] ? rows[1] : rows[0];
+    if(anchor){
+      const anchorRect=anchor.getBoundingClientRect();
+      top=anchorRect.top-popRect.height-gap;
+    }
+  }
   if(top<margin) top=tipRect.bottom+gap;
   top=Math.max(margin,Math.min(top,vpH-popRect.height-margin));
   _tipPopover.style.left=left+"px";
