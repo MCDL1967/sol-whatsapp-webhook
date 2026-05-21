@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.7v - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.7x - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +7,7 @@
 <title>HP Fleet</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7v">
+<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7x">
 </head>
 <body>
 
@@ -1137,22 +1137,22 @@
 <!-- NON-BILLABLE FLOATING DIALOG -->
 <div class="float-dialog" id="nonBillMbd" style="min-width:340px;max-width:400px">
   <div class="float-dialog-hdr" id="nonBillMbdHdr">
-    <div class="float-dialog-title">⊘ Mark as Non-Billable</div>
+    <div class="float-dialog-title" id="nonBill_title">⊘ Mark as Non-Billable</div>
     <button class="float-dialog-close" id="nonBill_close">✕</button>
   </div>
   <div class="float-dialog-body" style="max-height:none;overflow:visible;padding:14px">
     <div class="field" style="margin-bottom:10px">
-      <label style="font-family:var(--mono);font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Reason</label>
+      <label id="nonBill_reasonLabel" style="font-family:var(--mono);font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Reason</label>
       <select id="nonBill_reason" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 8px;border-radius:2px;outline:none;width:100%">
-        <option value="Maintenance">Maintenance</option>
-        <option value="Aborted Flight">Aborted Flight</option>
-        <option value="Equipment Failure">Equipment Failure</option>
-        <option value="Duplicate">Duplicate</option>
-        <option value="Other">Other</option>
+        <option value="Maintenance" id="nonBill_reason_maintenance">Maintenance</option>
+        <option value="Aborted Flight" id="nonBill_reason_aborted">Aborted Flight</option>
+        <option value="Equipment Failure" id="nonBill_reason_equipment">Equipment Failure</option>
+        <option value="Duplicate" id="nonBill_reason_duplicate">Duplicate</option>
+        <option value="Other" id="nonBill_reason_other">Other</option>
       </select>
     </div>
     <div class="field" style="margin-bottom:12px">
-      <label style="font-family:var(--mono);font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Comment <span style="color:var(--dim2)">(optional)</span></label>
+      <label id="nonBill_commentLabel" style="font-family:var(--mono);font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Comment <span style="color:var(--dim2)" id="nonBill_optionalLabel">(optional)</span></label>
       <textarea id="nonBill_comment" rows="2" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--body);font-size:11px;padding:8px;width:100%;border-radius:2px;outline:none;resize:none;box-sizing:border-box" placeholder="Additional details…"></textarea>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -1332,6 +1332,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="./assets/js/app.js?v=8.5.7v"></script>
+<script src="./assets/js/app.js?v=8.5.7x"></script>
 </body>
 </html>

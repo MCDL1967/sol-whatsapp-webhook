@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7v";
+const APP_VERSION = "v8.5.7x";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -914,15 +914,27 @@ function localizeSidePanelUi(){
     ["spCalcTFlight","thTf"],
     ["spCalcMultiplier","spMultiplier"],
     ["spCalcTbh","thTbp"],
-    ["spCalcGap","spGap"]
+    ["spCalcGap","spGap"],
+    ["nonBill_title","nonBillTitle"],
+    ["nonBill_reasonLabel","nonBillReasonLabel"],
+    ["nonBill_reason_maintenance","nonBillReasonMaintenance"],
+    ["nonBill_reason_aborted","nonBillReasonAborted"],
+    ["nonBill_reason_equipment","nonBillReasonEquipment"],
+    ["nonBill_reason_duplicate","nonBillReasonDuplicate"],
+    ["nonBill_reason_other","nonBillReasonOther"],
+    ["nonBill_optionalLabel","nonBillOptional"],
+    ["nonBill_cancel","rfrCancel"],
+    ["nonBill_confirm","confirmOk"]
   ].forEach(([id,key])=>setText(id,key));
+  setLabelLeadingText("nonBill_commentLabel","nonBillCommentLabel");
   [
     ["sp_mult","spCustomValuePh"],
     ["sp_motorOut","spDecimalPh"],
     ["sp_motorIn","spDecimalPh"],
     ["sp_vueloOut","spDecimalPh"],
     ["sp_vueloIn","spDecimalPh"],
-    ["spThreadTextarea","spThreadCommentPh"]
+    ["spThreadTextarea","spThreadCommentPh"],
+    ["nonBill_comment","nonBillCommentPh"]
   ].forEach(([id,key])=>setPh(id,key));
   [
     ["spCollapseBtn","spClosePanelTip"],
@@ -935,7 +947,6 @@ function localizeSidePanelUi(){
     ["sp_rotate","spRotateTip"],
     ["sp_reextract","spOcrTip"],
     ["sp_save","spSaveTip"],
-    ["spVResize","spResizeTip"],
     ["sp_nonbill_toggle","spToggleNonBillTip"],
     ["sp_swap_motor","spSwapMotorTip"],
     ["sp_swap_vuelo","spSwapFlightTip"]
@@ -945,6 +956,14 @@ function localizeSidePanelUi(){
   if(diffAlert&&diffAlert.firstChild) diffAlert.firstChild.nodeValue=t("spDiffAlert")+" ";
   const wm=el("sp_nonbill_watermark");
   if(el("sp_nonbill_wm_text")&&(!wm||wm.style.display==="none")) el("sp_nonbill_wm_text").textContent=t("spNonBillable");
+  const resize=el("spVResize");
+  if(resize){
+    resize.removeAttribute("title");
+    resize.removeAttribute("aria-label");
+    resize.classList.remove("hpf-hover-tip");
+    delete resize.dataset.tip;
+    delete resize.dataset.tipLevel;
+  }
   const active=el("sp_nonbill_toggle")&&el("sp_nonbill_toggle").classList.contains("active");
   spUpdateNonBillBtn(!!active);
 }
@@ -2699,6 +2718,24 @@ function fmt(n){return isNaN(n)||n===0?"—":n.toFixed(1);}
 function fmtCurrency(n){
   return "$ "+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,",");
 }
+const NON_BILL_REASON_KEYS={
+  "Maintenance":"nonBillReasonMaintenance",
+  "Aborted Flight":"nonBillReasonAborted",
+  "Equipment Failure":"nonBillReasonEquipment",
+  "Duplicate":"nonBillReasonDuplicate",
+  "Other":"nonBillReasonOther"
+};
+function nonBillReasonLabel(reason){
+  return NON_BILL_REASON_KEYS[reason]?t(NON_BILL_REASON_KEYS[reason]):reason;
+}
+function formatNonBillReason(raw, includeComment=true){
+  if(!raw) return "";
+  const parts=String(raw).split(" — ");
+  const reason=parts.shift();
+  const label=nonBillReasonLabel(reason);
+  const comment=parts.join(" — ");
+  return includeComment&&comment?label+" — "+comment:label;
+}
 
 // ── FLIGHT LOG — HOROMETER ──
 function runHoroChecks(){ updateSrcBar(); } // delegated to updateSrcBar
@@ -4282,7 +4319,7 @@ function _loadSpEntry(entry){
   const wm=el("sp_nonbill_watermark"); const wmTxt=el("sp_nonbill_wm_text");
   if(wm&&wmTxt){
     if(entry.status==="nonbillable"){
-      wmTxt.textContent=(entry.nonBillReason||t("spNonBillable")).split(" — ")[0];
+      wmTxt.textContent=formatNonBillReason(entry.nonBillReason,false)||t("spNonBillable");
       wm.style.display="flex";
     } else { wm.style.display="none"; }
   }
@@ -4439,7 +4476,7 @@ function populateSpEditFields(e){
       el("sp_mult").value="";
     }
   }
-  if(el("sp_obs")) el("sp_obs").value=e.obs||"";
+  if(el("sp_obs")) el("sp_obs").value=(e.status==="nonbillable"&&e.nonBillReason)?"⊘ "+formatNonBillReason(e.nonBillReason):e.obs||"";
   spLiveCalc();
   // Diff alert
   const ac=AIRCRAFT.find(a=>a.matricula===e.aeronave);
@@ -5679,7 +5716,7 @@ function wireEvents(){
     const comment=el("nonBill_comment").value.trim();
     entry.nonBillReason=reason+(comment?" — "+comment:"");
     entry.status="nonbillable";
-    if(el("sp_obs")) el("sp_obs").value="⊘ "+entry.nonBillReason;
+    if(el("sp_obs")) el("sp_obs").value="⊘ "+formatNonBillReason(entry.nonBillReason);
     spUpdateNonBillBtn(true);
     spMarkDirty();
     recordStatusChange(entry.id,prevStatus,prevNonBillReason);
@@ -5852,7 +5889,7 @@ function wireEvents(){
     const entries=flEntries.filter(e=>e.status==="nonbillable");
     const lines=entries.map(e=>{
       const idx=flEntries.indexOf(e)+1;
-      return t("entryShort")+" #"+idx+" | "+t("thLog")+" "+(e.bnum||"—")+" | "+(e.fecha||"—")+" | "+(e.nonBillReason||t("noReasonGiven"));
+      return t("entryShort")+" #"+idx+" | "+t("thLog")+" "+(e.bnum||"—")+" | "+(e.fecha||"—")+" | "+(formatNonBillReason(e.nonBillReason)||t("noReasonGiven"));
     });
     openFloatDialog("dlgNonBill",t("nonBillableEntries"),lines,"var(--red)",entries.map(e=>e.id));
   });
