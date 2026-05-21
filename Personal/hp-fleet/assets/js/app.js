@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7b";
+const APP_VERSION = "v8.5.7c";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.7b",
-  es: "./assets/i18n/es.json?v=8.5.7b"
+  en: "./assets/i18n/en.json?v=8.5.7c",
+  es: "./assets/i18n/es.json?v=8.5.7c"
 };
 
 async function loadI18nDictionaries(){
@@ -292,6 +292,7 @@ const PREF_DEFAULTS = {
   tooltip_border:  "#41d1ff",
   sidepanel_width: 420,
   sidepanel_image_height: null,
+  language:       "en",
   active_tab:      null   // resolved per-role at boot if null
 };
 
@@ -308,6 +309,7 @@ const LS_MAP = {
   tooltip_border:  "hpfleet_tooltip_border",
   sidepanel_width: "hpfleet_sp_width",
   sidepanel_image_height: "hpfleet_sp_img_h",
+  language:       "hpfleet_lang",
   active_tab:      null   // no prior localStorage key for active tab
 };
 
@@ -381,6 +383,10 @@ async function migrateLocalPreferencesIfNeeded(){
 // Apply cached preferences to all UI elements.
 // Called once after load. Toggle inits will read from localStorage (now synced).
 function applyUserPreferences(){
+  if(_userPrefs.language==="en"||_userPrefs.language==="es"){
+    lang=_userPrefs.language;
+    localStorage.setItem("hpfleet_lang",lang);
+  }
   // Side panel width — clamp to 50% viewport
   const spw = _userPrefs.sidepanel_width;
   if(spw){
@@ -690,6 +696,8 @@ function showToast(msg,type=""){
 // ── LANG ──
 function setLang(l){
   lang=l;
+  localStorage.setItem("hpfleet_lang",l);
+  if(currentUser) saveUserPreference("language",l);
   ["EN","ES"].forEach(x=>{
     const b1=el("btn"+x); const b2=el("app"+x);
     if(b1) b1.className=l===x.toLowerCase()?"active":"";
@@ -737,7 +745,9 @@ function applyI18n(){
     fo_reviewerComments:"rfrColComment",
     st_adminCcLabel:"stAdminCcLabel",st_adminCcHint:"stAdminCcHint",
     st_displayTitle:"stDisplayTitle",st_roleBannerLabel:"stRoleBannerLabel",st_roleBannerHint:"stRoleBannerHint",
+    st_stickyTabsLabel:"stStickyTabsLabel",st_stickyTabsHint:"stStickyTabsHint",
     st_stickyHeadersLabel:"stStickyHeadersLabel",st_stickyHeadersHint:"stStickyHeadersHint",
+    st_workflowTitle:"stWorkflowTitle",st_resetTestLabel:"stResetTestLabel",st_resetTestHint:"stResetTestHint",
     st_devTitle:"stDevTitle",st_resetTestButton:"stResetTestButton",st_debugLabel:"stDebugLabel",st_debugHint:"stDebugHint",
     st_dbTitle:"stDbTitle",st_dbHint:"stDbHint",st_deleteTestLabel:"stDeleteTestLabel",st_deleteTestHint:"stDeleteTestHint",
     st_deleteStatusLabel:"stDeleteStatusLabel",st_deleteStatusHint:"stDeleteStatusHint",st_clearAuditLabel:"stClearAuditLabel",st_clearAuditHint:"stClearAuditHint",
@@ -900,6 +910,8 @@ function doLogout(){
 async function bootApp(){
   el("loginScreen").style.display="none";
   el("appShell").style.display="flex";
+  await loadUserPreferences();
+  applyUserPreferences();
   const r=ROLES[currentUser.role];
   el("tbName").textContent=currentUser.name;
   el("tbRoleLabel").textContent=r[lang].label;
@@ -916,10 +928,7 @@ async function bootApp(){
   // Load API key from DB (centralized for all devices)
   await loadApiKeyFromDB();
   await loadAdminCcFromDB();
-  // ── v8.5.1: load and apply user preferences before initing toggles ──
-  await loadUserPreferences();
-  applyUserPreferences();
-  // ───────────────────────────────────────────────────────────────────
+  // ── v8.5.1: preferences already loaded before shell render ──
   initDebugToggle();
   initAdminCcToggle();
   initViewAsToggle();
@@ -1751,6 +1760,7 @@ function initViewAsToggle(){
 function setupSettingsUI(){
   const isAdmin=effectiveRole()==="ADMIN";
   if(el("stSection_api")) el("stSection_api").style.display=isAdmin?"":"none";
+  if(el("stSection_workflow")) el("stSection_workflow").style.display=isAdmin?"":"none";
   if(el("stSection_dev")) el("stSection_dev").style.display=isAdmin?"":"none";
   if(el("stSection_db")) el("stSection_db").style.display=isAdmin?"":"none";
 }
@@ -5948,6 +5958,8 @@ function wireEvents(){
 
 // ── BOOT ──
 async function init(){
+  const savedLang=localStorage.getItem("hpfleet_lang");
+  if(savedLang==="en"||savedLang==="es") lang=savedLang;
   await loadI18nDictionaries();
   applyI18n();
   wireEvents();

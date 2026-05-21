@@ -361,5 +361,10 @@
   "stDeleteStatusHint": "Delete all batches with a specific status",
   "stClearAuditLabel": "Clear Audit Logs",
   "stClearAuditHint": "Clear all app-level audit log entries",
-  "coBillingRulesTip": "Create recurring charges or discounts for this company's billing previews."
+  "coBillingRulesTip": "Create recurring charges or discounts for this company's billing previews.",
+  "stStickyTabsLabel": "Fix Tabs to Title Bar",
+  "stStickyTabsHint": "Keep navigation tabs visible while scrolling",
+  "stWorkflowTitle": "Workflow Items",
+  "stResetTestLabel": "Reset Batch Entry Data",
+  "stResetTestHint": "Clears reviewer notes, review threads, and resets current batch entries to pending"
 }

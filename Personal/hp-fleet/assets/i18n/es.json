@@ -361,5 +361,10 @@
   "stDeleteStatusHint": "Elimina todos los lotes con un estado específico",
   "stClearAuditLabel": "Limpiar logs de auditoría",
   "stClearAuditHint": "Limpia todas las entradas del log de auditoría de la app",
-  "coBillingRulesTip": "Crear cargos o descuentos recurrentes en las pre-facturaciones de esta compañía."
+  "coBillingRulesTip": "Crear cargos o descuentos recurrentes en las pre-facturaciones de esta compañía.",
+  "stStickyTabsLabel": "Fijar pestañas a la barra de título",
+  "stStickyTabsHint": "Mantiene visibles las pestañas de navegación al desplazarse",
+  "stWorkflowTitle": "Elementos de Flujo",
+  "stResetTestLabel": "Resetear datos de entradas del lote",
+  "stResetTestHint": "Limpia notas del revisor, conversaciones de revisión y devuelve las entradas del lote actual a pendiente"
 }
