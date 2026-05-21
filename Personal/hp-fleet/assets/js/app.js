@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7t";
+const APP_VERSION = "v8.5.7u";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -565,7 +565,7 @@ function renderSpThread(entry){
 
   if(cycles.length===0){
     body.innerHTML="<div style='padding:10px 8px;font-size:10px;color:var(--dim2);text-align:center'>"+
-      (lang==="es"?"Sin comentarios aún":"No comments yet")+"</div>";
+      t("spThreadNoComments")+"</div>";
   } else {
     cycles.forEach(cyc=>{
       const reviewerComments=thread.filter(c=>c.cycle===cyc&&c.role==="REVIEWER");
@@ -594,7 +594,7 @@ function renderSpThread(entry){
   }
 
   // Show meta
-  if(el("spThreadMeta")) el("spThreadMeta").textContent="- "+thread.length+" "+(lang==="es"?"comentarios":"comments");
+  if(el("spThreadMeta")) el("spThreadMeta").textContent=t("spThreadMeta").replace("{count}",thread.length);
 
   // Show/hide action buttons based on role and batch state
   const canReviewerComment=(isReviewer)&&batchStatus==="SUBMITTED";
@@ -610,12 +610,12 @@ function openSpThreadInput(role){
   if(role==="REVIEWER"){
     ta.style.borderColor="rgba(255,196,59,0.4)";
     ta.style.color="var(--yellow)";
-    ta.placeholder=lang==="es"?"Agregar comentario…":"Add comment…";
+    ta.placeholder=t("spThreadCommentPh");
     if(el("spThreadSaveBtn")){ el("spThreadSaveBtn").style.background="var(--yellow)"; el("spThreadSaveBtn").style.color="#000"; }
   } else {
     ta.style.borderColor="rgba(34,211,238,0.4)";
     ta.style.color="var(--cyan)";
-    ta.placeholder=lang==="es"?"Agregar respuesta…":"Add response…";
+    ta.placeholder=t("spThreadResponsePh");
     if(el("spThreadSaveBtn")){ el("spThreadSaveBtn").style.background="var(--cyan)"; el("spThreadSaveBtn").style.color="#000"; }
   }
   el("spThreadInput").dataset.role=role;
@@ -848,6 +848,7 @@ function applyI18n(){
   refreshSettingsToggleLabels();
   localizeLogStatusTitles();
   localizeLogTooltips();
+  localizeSidePanelUi();
   localizeCompanyUi();
   localizeAircraftUi();
   renderTabs();
@@ -857,6 +858,7 @@ function applyI18n(){
 function setText(id,key){ if(el(id)) el(id).textContent=t(key); }
 function setPh(id,key){ if(el(id)) el(id).placeholder=t(key); }
 function setTitle(id,key){ if(el(id)) el(id).title=t(key); }
+function setAlt(id,key){ if(el(id)) el(id).alt=t(key); }
 function setHoverTip(id,key,level=""){
   const node=el(id);
   if(!node) return;
@@ -867,6 +869,68 @@ function setHoverTip(id,key,level=""){
   if(level) node.dataset.tipLevel=level;
   else delete node.dataset.tipLevel;
   node.tabIndex=node.tabIndex>=0?node.tabIndex:0;
+}
+function localizeSidePanelUi(){
+  [
+    ["spFitText","spFit"],
+    ["spOcrText","spOcr"],
+    ["spSaveText","spSave"],
+    ["spLblLog","thLog"],
+    ["spLblDate","thDate"],
+    ["spLblAircraft","thAc"],
+    ["spLblOperator","thOp"],
+    ["spLblHoroStart","spHoroStart"],
+    ["spLblMultOverride","spMultOverride"],
+    ["spLblPilot","thPilot"],
+    ["spLblInstructor","thInstructor"],
+    ["spLblMotorOut","spMotorOut"],
+    ["spLblMotorIn","spMotorIn"],
+    ["spLblTMotor","thTm"],
+    ["spLblFlightOut","spFlightOut"],
+    ["spLblFlightIn","spFlightIn"],
+    ["spLblTFlight","thTf"],
+    ["spLblNotes","thObs"],
+    ["spThreadTitle","spThreadTitle"],
+    ["spColReviewer","spThreadReviewer"],
+    ["spColOperator","spThreadOperator"],
+    ["spThreadCancelBtn","rfrCancel"],
+    ["spThreadSaveBtn","flagSave"],
+    ["spAddCommentBtn","spAddComment"],
+    ["spSaveResponseBtn","spReply"],
+    ["spCalcTMotor","thTm"],
+    ["spCalcTFlight","thTf"],
+    ["spCalcMultiplier","spMultiplier"],
+    ["spCalcTbh","thTbp"],
+    ["spCalcGap","spGap"]
+  ].forEach(([id,key])=>setText(id,key));
+  [
+    ["sp_mult","spCustomValuePh"],
+    ["sp_motorOut","spDecimalPh"],
+    ["sp_motorIn","spDecimalPh"],
+    ["sp_vueloOut","spDecimalPh"],
+    ["sp_vueloIn","spDecimalPh"],
+    ["spThreadTextarea","spThreadCommentPh"]
+  ].forEach(([id,key])=>setPh(id,key));
+  [
+    ["spCollapseBtn","spClosePanelTip"],
+    ["sp_fit","spFitTip"],
+    ["sp_zoom_out","spZoomOutTip"],
+    ["sp_zoom_in","spZoomInTip"],
+    ["sp_rotate","spRotateTip"],
+    ["sp_reextract","spOcrTip"],
+    ["sp_save","spSaveTip"],
+    ["spVResize","spResizeTip"],
+    ["sp_nonbill_toggle","spToggleNonBillTip"],
+    ["sp_swap_motor","spSwapMotorTip"],
+    ["sp_swap_vuelo","spSwapFlightTip"]
+  ].forEach(([id,key])=>setTitle(id,key));
+  setAlt("sp_img","spSourceAlt");
+  const diffAlert=el("spDiffAlert");
+  if(diffAlert&&diffAlert.firstChild) diffAlert.firstChild.nodeValue=t("spDiffAlert")+" ";
+  const wm=el("sp_nonbill_watermark");
+  if(el("sp_nonbill_wm_text")&&(!wm||wm.style.display==="none")) el("sp_nonbill_wm_text").textContent=t("spNonBillable");
+  const active=el("sp_nonbill_toggle")&&el("sp_nonbill_toggle").classList.contains("active");
+  spUpdateNonBillBtn(!!active);
 }
 function localizeLogStatusTitles(){
   ["srcNotRead","srcNonBill","srcDups","srcLogBreaks","srcHoro","srcSentBack"].forEach(id=>setTitle(id,"clickForDetails"));
@@ -3736,10 +3800,10 @@ let spDirty=false;
 function spUpdateNonBillBtn(isNonBill){
   const btn=el("sp_nonbill_toggle"); if(!btn) return;
   if(isNonBill){
-    btn.textContent="● Non-Billable";
+    btn.textContent="● "+t("spNonBillable");
     btn.classList.add("active");
   } else {
-    btn.textContent="○ Non-Billable";
+    btn.textContent="○ "+t("spNonBillable");
     btn.classList.remove("active");
     const wm=el("sp_nonbill_watermark"); if(wm) wm.style.display="none";
   }
@@ -3791,7 +3855,7 @@ function spCascadeAircraftDropdowns(matricula){
       multSel.appendChild(opt);
     });
     const customOpt=document.createElement("option");
-    customOpt.value="custom"; customOpt.textContent="Custom…";
+    customOpt.value="custom"; customOpt.textContent=t("spCustomOption");
     multSel.appendChild(customOpt);
     multSel.value=ac.rates.find(r=>r.operador===opSel.value)?.multiplicador||ac.rates[0].multiplicador;
     if(multInp) multInp.style.display="none";
@@ -3802,7 +3866,7 @@ function spCascadeAircraftDropdowns(matricula){
 // Unsaved changes guard — call before navigating away from current entry
 async function spGuardDirty(proceedFn){
   if(!spDirty){ proceedFn(); return; }
-  const confirmed=confirm("Save changes before you go?");
+  const confirmed=confirm(t("spSaveChangesConfirm"));
   if(confirmed) await saveSpEntry();
   spDirty=false;
   proceedFn();
@@ -4105,9 +4169,9 @@ function openSidePanel(entryIdOrFileIdx, isEntryId=false){
     if(!f||!f._preview) return;
     spEditingEntryId=null; spCurrentIndex=-1;
     el("sp_img").src=f._preview;
-    el("sp_title").textContent="Source: "+f.name;
+    el("sp_title").textContent=t("spSourceTitle").replace("{name}",f.name);
     el("sp_meta").textContent=f.name+" · "+(f.size/1024).toFixed(1)+" KB · "+
-      (f._entryCount||0)+" "+(f._entryCount===1?"entry":"entries")+" extracted";
+      t("spExtractedMeta").replace("{count}",f._entryCount||0);
     if(navBar) navBar.style.display="none";
     if(editSection) editSection.style.display="none";
   }
@@ -4155,15 +4219,15 @@ function _loadSpEntry(entry){
   const wm=el("sp_nonbill_watermark"); const wmTxt=el("sp_nonbill_wm_text");
   if(wm&&wmTxt){
     if(entry.status==="nonbillable"){
-      wmTxt.textContent=(entry.nonBillReason||"Non-Billable").split(" — ")[0];
+      wmTxt.textContent=(entry.nonBillReason||t("spNonBillable")).split(" — ")[0];
       wm.style.display="flex";
     } else { wm.style.display="none"; }
   }
   const imgEl=el("sp_img");
   if(entry.imageUrl){ imgEl.src=entry.imageUrl; }
-  else { imgEl.src=""; imgEl.alt="No source image available"; }
-  el("sp_title").textContent="Log Entry #"+(flEntries.indexOf(entry)+1);
-  el("sp_meta").textContent=(entry.fecha||"—")+" | "+(entry.bnum?"Log #"+entry.bnum+" | ":"")+(entry.piloto||"—")+" | "+(entry.aeronave||"—");
+  else { imgEl.src=""; imgEl.alt=t("spNoSourceAlt"); }
+  el("sp_title").textContent=t("spLogEntryTitle").replace("{num}",flEntries.indexOf(entry)+1);
+  el("sp_meta").textContent=(entry.fecha||"—")+" | "+(entry.bnum?t("spLogPrefix")+entry.bnum+" | ":"")+(entry.piloto||"—")+" | "+(entry.aeronave||"—");
   populateSpEditFields(entry);
   // Cascade aircraft dropdowns
   if(entry.aeronave){
@@ -4224,25 +4288,25 @@ function _loadSpEntry(entry){
     f.disabled=isReviewer||isReadOnly;
   });
   if(isReviewer){
-    if(editTitle) editTitle.textContent="👁 Review Entry";
+    if(editTitle) editTitle.textContent=t("spReviewEntryTitle");
     if(commentRow) commentRow.style.display="block";
     if(saveBtn) saveBtn.style.display="none";
   } else if(isReadOnly){
-    if(editTitle) editTitle.textContent="👁 View Entry";
+    if(editTitle) editTitle.textContent=t("spViewEntryTitle");
     // Show thread panel if entry has history, hide otherwise
     if(commentRow) commentRow.style.display=(entry.reviewThread&&entry.reviewThread.length)?"block":"none";
     if(saveBtn) saveBtn.style.display="none";
   } else {
-    if(editTitle) editTitle.textContent="✎ Data Entry";
+    if(editTitle) editTitle.textContent=t("spDataEntryTitle");
     // Show thread panel if entry has history (operator needs to see + respond)
     if(commentRow) commentRow.style.display=(entry.reviewThread&&entry.reviewThread.length)?"block":"none";
-    if(saveBtn){ saveBtn.innerHTML='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg> Save'; saveBtn.style.display=""; saveBtn.style.background="rgba(65,209,255,.04)"; saveBtn.style.borderColor="var(--dim2)"; saveBtn.style.color="var(--dim2)"; saveBtn.disabled=true; saveBtn.style.cursor="not-allowed"; saveBtn.style.opacity="0.4"; }
+    if(saveBtn){ saveBtn.innerHTML='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg> <span id="spSaveText">'+t("spSave")+'</span>'; saveBtn.style.display=""; saveBtn.style.background="rgba(65,209,255,.04)"; saveBtn.style.borderColor="var(--dim2)"; saveBtn.style.color="var(--dim2)"; saveBtn.disabled=true; saveBtn.style.cursor="not-allowed"; saveBtn.style.opacity="0.4"; }
   }
 }
 
 function _updateSpNav(){
   const pos=el("spNavPos");
-  if(pos) pos.textContent="Entry "+(spCurrentIndex+1)+" of "+flEntries.length;
+  if(pos) pos.textContent=t("spNavPos").replace("{current}",spCurrentIndex+1).replace("{total}",flEntries.length);
 }
 
 function spNavigate(dir, afterNav){
@@ -4323,7 +4387,7 @@ function populateSpEditFields(e){
   const da=el("spDiffAlert");
   if(da){
     if(e.motorOut&&e.motorIn&&diff>threshold){
-      if(el("spDiffMsg")) el("spDiffMsg").textContent="T.Motor="+fmt(tm)+" vs T.Flight="+fmt(tv)+" — gap: "+diff.toFixed(2)+" hrs";
+      if(el("spDiffMsg")) el("spDiffMsg").textContent=t("spDiffMsg").replace("{tm}",fmt(tm)).replace("{tf}",fmt(tv)).replace("{gap}",diff.toFixed(2));
       da.classList.add("on");
     } else da.classList.remove("on");
   }
@@ -4356,7 +4420,7 @@ function spLiveCalc(){
     let col="var(--green)", tri="";
     if(gap>warn){col="var(--red)";tri=" ▲";}
     else if(gap>thr){col="var(--yellow)";}
-    el("sp_pv_gap").textContent="Gap: "+gap.toFixed(2)+" hrs"+tri;
+    el("sp_pv_gap").textContent=t("spGapValue").replace("{gap}",gap.toFixed(2))+tri;
     el("sp_pv_gap").style.color=col;
   }
 }
@@ -4434,8 +4498,8 @@ async function saveSpEntry(){
     showToast("Entry updated");
     spClearDirty();
     // Refresh meta only — do NOT call _loadSpEntry which resets transform
-    if(el("sp_title")) el("sp_title").textContent="Log Entry #"+(flEntries.indexOf(e)+1);
-    if(el("sp_meta")) el("sp_meta").textContent=(e.fecha||"—")+" | "+(e.bnum?"Log #"+e.bnum+" | ":"")+(e.piloto||"—")+" | "+(e.aeronave||"—");
+    if(el("sp_title")) el("sp_title").textContent=t("spLogEntryTitle").replace("{num}",flEntries.indexOf(e)+1);
+    if(el("sp_meta")) el("sp_meta").textContent=(e.fecha||"—")+" | "+(e.bnum?t("spLogPrefix")+e.bnum+" | ":"")+(e.piloto||"—")+" | "+(e.aeronave||"—");
     // Check name propagation
     if(newPiloto!==oldPiloto){
       checkNamePropagation(e.id,"piloto",oldPiloto,newPiloto,async(updated)=>{
@@ -4452,8 +4516,8 @@ async function saveSpEntry(){
   await saveBatchToDB("reviewer comment");
   renderFlTable();
   showToast(role==="REVIEWER"?"Comment saved":"Entry updated");
-  if(el("sp_title")) el("sp_title").textContent="Log Entry #"+(flEntries.indexOf(e)+1);
-  if(el("sp_meta")) el("sp_meta").textContent=(e.fecha||"—")+" | "+(e.bnum?"Log #"+e.bnum+" | ":"")+(e.piloto||"—")+" | "+(e.aeronave||"—");
+  if(el("sp_title")) el("sp_title").textContent=t("spLogEntryTitle").replace("{num}",flEntries.indexOf(e)+1);
+  if(el("sp_meta")) el("sp_meta").textContent=(e.fecha||"—")+" | "+(e.bnum?t("spLogPrefix")+e.bnum+" | ":"")+(e.piloto||"—")+" | "+(e.aeronave||"—");
 }
 
 function closeSidePanel(){

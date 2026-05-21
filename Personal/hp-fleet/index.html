@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.7t - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.7u - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1187,7 +1187,7 @@
   <div class="sp-img-toolbar" id="sp_img_toolbar">
     <button id="sp_fit" title="Fit to window">
       <svg viewBox="0 0 24 24"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-      Fit
+      <span id="spFitText">Fit</span>
     </button>
     <div class="sp-toolbar-sep"></div>
     <button id="sp_zoom_out" title="Zoom out">
@@ -1204,12 +1204,12 @@
     <div class="sp-toolbar-sep"></div>
     <button id="sp_reextract" title="OCR Re-extract">
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/></svg>
-      OCR
+      <span id="spOcrText">OCR</span>
     </button>
     <div class="sp-toolbar-right">
       <button id="sp_save" title="Save entry" style="background:rgba(65,209,255,.12);border-color:var(--cyan);color:var(--cyan)">
         <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
-        Save
+        <span id="spSaveText">Save</span>
       </button>
     </div>
   </div>
@@ -1227,44 +1227,44 @@
     <div class="sp-edit-body" id="spEditBody">
       <div class="diff-alert" id="spDiffAlert">⚠ Motor/Vuelo gap: <span id="spDiffMsg"></span></div>
       <div class="sp-frow fc3">
-        <div class="sp-field"><label>Log #</label><input type="text" id="sp_bnum" placeholder="00000"></div>
-        <div class="sp-field"><label>Date</label><input type="text" id="sp_fecha" placeholder="DD/MM/YYYY"></div>
-        <div class="sp-field"><label>Aircraft</label><select id="sp_aeronave"></select></div>
+        <div class="sp-field"><label id="spLblLog">Log #</label><input type="text" id="sp_bnum" placeholder="00000"></div>
+        <div class="sp-field"><label id="spLblDate">Date</label><input type="text" id="sp_fecha" placeholder="DD/MM/YYYY"></div>
+        <div class="sp-field"><label id="spLblAircraft">Aircraft</label><select id="sp_aeronave"></select></div>
       </div>
       <div class="sp-frow fc3">
-        <div class="sp-field"><label>Operator</label><select id="sp_operador"><option>FM</option><option>MAG</option></select></div>
-        <div class="sp-field"><label>Horo. Start</label><input type="number" id="sp_horoIn" step="0.1"></div>
-        <div class="sp-field"><label>Mult. Override</label>
+        <div class="sp-field"><label id="spLblOperator">Operator</label><select id="sp_operador"><option>FM</option><option>MAG</option></select></div>
+        <div class="sp-field"><label id="spLblHoroStart">Horo. Start</label><input type="number" id="sp_horoIn" step="0.1"></div>
+        <div class="sp-field"><label id="spLblMultOverride">Mult. Override</label>
           <select id="sp_mult_sel" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 8px;border-radius:2px;outline:none;width:100%"></select>
           <input type="number" id="sp_mult" step="0.001" placeholder="Custom value" style="display:none;margin-top:4px;width:100%;box-sizing:border-box">
         </div>
       </div>
       <div class="sp-frow">
-        <div class="sp-field"><label>Pilot</label><input type="text" id="sp_piloto"></div>
-        <div class="sp-field"><label>Instructor</label><input type="text" id="sp_instructor"></div>
+        <div class="sp-field"><label id="spLblPilot">Pilot</label><input type="text" id="sp_piloto"></div>
+        <div class="sp-field"><label id="spLblInstructor">Instructor</label><input type="text" id="sp_instructor"></div>
       </div>
       <div class="sp-frow fc3">
-        <div class="sp-field"><label>Motor Out</label>
+        <div class="sp-field"><label id="spLblMotorOut">Motor Out</label>
           <div style="display:flex;align-items:center;gap:4px">
             <input type="text" id="sp_motorOut" placeholder="decimal" style="flex:1">
             <button type="button" id="sp_swap_motor" title="Swap Motor Out/In" style="background:none;border:1px solid var(--border2);color:var(--cyan);cursor:pointer;padding:4px 6px;border-radius:2px;font-size:12px;flex-shrink:0">⇄</button>
           </div>
         </div>
-        <div class="sp-field"><label>Motor In</label><input type="text" id="sp_motorIn" placeholder="decimal"></div>
-        <div class="sp-field"><label>T.Motor</label><input type="text" id="sp_tmotor" readonly></div>
+        <div class="sp-field"><label id="spLblMotorIn">Motor In</label><input type="text" id="sp_motorIn" placeholder="decimal"></div>
+        <div class="sp-field"><label id="spLblTMotor">T.Motor</label><input type="text" id="sp_tmotor" readonly></div>
       </div>
       <div class="sp-frow fc3">
-        <div class="sp-field"><label>Flight Out</label>
+        <div class="sp-field"><label id="spLblFlightOut">Flight Out</label>
           <div style="display:flex;align-items:center;gap:4px">
             <input type="text" id="sp_vueloOut" placeholder="decimal" style="flex:1">
             <button type="button" id="sp_swap_vuelo" title="Swap Flight Out/In" style="background:none;border:1px solid var(--border2);color:var(--cyan);cursor:pointer;padding:4px 6px;border-radius:2px;font-size:12px;flex-shrink:0">⇄</button>
           </div>
         </div>
-        <div class="sp-field"><label>Flight In</label><input type="text" id="sp_vueloIn" placeholder="decimal"></div>
-        <div class="sp-field"><label>T.Flight</label><input type="text" id="sp_tvuelo" readonly></div>
+        <div class="sp-field"><label id="spLblFlightIn">Flight In</label><input type="text" id="sp_vueloIn" placeholder="decimal"></div>
+        <div class="sp-field"><label id="spLblTFlight">T.Flight</label><input type="text" id="sp_tvuelo" readonly></div>
       </div>
       <div class="sp-frow fc1">
-        <div class="sp-field"><label>Notes</label><input type="text" id="sp_obs"></div>
+        <div class="sp-field"><label id="spLblNotes">Notes</label><input type="text" id="sp_obs"></div>
       </div>
       <div class="sp-frow fc1" id="spCommentRow" style="display:none">
         <div class="sp-field" style="padding:0">
@@ -1282,7 +1282,7 @@
             <div id="spThreadInput" style="display:none;padding:8px;border-top:1px solid rgba(255,255,255,0.06)">
               <textarea id="spThreadTextarea" rows="2" style="width:100%;background:var(--s3);border:1px solid rgba(255,196,59,0.4);color:var(--yellow);font-family:var(--mono);font-size:10px;padding:5px;border-radius:2px;outline:none;resize:none;box-sizing:border-box" placeholder="Add comment…"></textarea>
               <div style="display:flex;justify-content:flex-end;margin-top:4px;gap:6px">
-                <button class="btn-ghost" style="font-size:9px;padding:3px 8px" onclick="closeSpThreadInput()">Cancel</button>
+                <button class="btn-ghost" id="spThreadCancelBtn" style="font-size:9px;padding:3px 8px" onclick="closeSpThreadInput()">Cancel</button>
                 <button id="spThreadSaveBtn" style="font-size:9px;padding:3px 10px;font-weight:700;border:none;border-radius:2px;cursor:pointer" onclick="saveSpThreadComment()">Save</button>
               </div>
             </div>
@@ -1295,11 +1295,11 @@
         </div>
       </div>
       <div class="sp-calc">
-        <div class="sp-calc-item"><div class="sp-calc-l">T.Motor</div><div class="sp-calc-v cb" id="sp_pv_tm">—</div></div>
-        <div class="sp-calc-item"><div class="sp-calc-l">T.Flight</div><div class="sp-calc-v cx" id="sp_pv_tf">—</div></div>
-        <div class="sp-calc-item"><div class="sp-calc-l">Multiplier</div><div class="sp-calc-v" id="sp_pv_mult">—</div></div>
-        <div class="sp-calc-item"><div class="sp-calc-l">TBH</div><div class="sp-calc-v cg" id="sp_pv_tbp">—</div></div>
-        <div class="sp-calc-item" style="margin-left:auto"><div class="sp-calc-l">Gap</div><div class="sp-calc-v" id="sp_pv_gap" style="font-size:11px">—</div></div>
+        <div class="sp-calc-item"><div class="sp-calc-l" id="spCalcTMotor">T.Motor</div><div class="sp-calc-v cb" id="sp_pv_tm">—</div></div>
+        <div class="sp-calc-item"><div class="sp-calc-l" id="spCalcTFlight">T.Flight</div><div class="sp-calc-v cx" id="sp_pv_tf">—</div></div>
+        <div class="sp-calc-item"><div class="sp-calc-l" id="spCalcMultiplier">Multiplier</div><div class="sp-calc-v" id="sp_pv_mult">—</div></div>
+        <div class="sp-calc-item"><div class="sp-calc-l" id="spCalcTbh">TBH</div><div class="sp-calc-v cg" id="sp_pv_tbp">—</div></div>
+        <div class="sp-calc-item" style="margin-left:auto"><div class="sp-calc-l" id="spCalcGap">Gap</div><div class="sp-calc-v" id="sp_pv_gap" style="font-size:11px">—</div></div>
       </div>
     </div>
   </div>
@@ -1317,6 +1317,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="./assets/js/app.js?v=8.5.7t"></script>
+<script src="./assets/js/app.js?v=8.5.7u"></script>
 </body>
 </html>
