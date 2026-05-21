@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7d";
+const APP_VERSION = "v8.5.7e";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.7d",
-  es: "./assets/i18n/es.json?v=8.5.7d"
+  en: "./assets/i18n/en.json?v=8.5.7e",
+  es: "./assets/i18n/es.json?v=8.5.7e"
 };
 
 async function loadI18nDictionaries(){
@@ -722,7 +722,11 @@ function applyI18n(){
     ut_title:"utTitle",ut_export:"utExport",ut_add:"utAdd",ut_auditTitle:"utAudit",ut_clearLog:"utClear",
     th_user:"thUser",th_role:"thRole",th_companies:"thCompanies",th_status:"thStatus",
     th_created:"thCreated",th_last:"thLast",th_actions:"thActions",
-    fo_op:"",fo_rev:"",fo_ro:"",fo_active:"activeOnly",fo_inactive:"inactiveOnly",fo_allco:"allCompanies",
+    fo_allroles:"allRoles",fo_admin:"",fo_op:"",fo_rev:"",fo_ro:"",fo_allstatus:"allStatuses",
+    fo_active:"activeOnly",fo_inactive:"inactiveOnly",fo_allco:"allCompanies",
+    um_lbl_name:"umName",um_lbl_email:"umEmail",um_lbl_phone:"umPhone",um_lbl_status:"umStatus",
+    um_lbl_role:"umRole",um_lbl_companies:"umCompanies",um_save:"umSave",um_cancel:"rfrCancel",
+    um_status_active:"active",um_status_inactive:"inactive",um_roleRightsBtn:"viewRoleRights",
     ct_title:"ctTitle",ct_add:"ctAdd",
     co_lbl_name:"coName",co_lbl_code:"coCode",co_lbl_status:"coStatus",co_lbl_notes:"coNotes",
     co_lbl_address:"coAddress",co_lbl_phone:"coPhone",co_status_active:"active",co_status_inactive:"inactive",
@@ -761,11 +765,17 @@ function applyI18n(){
     viewAsLabel:"viewAs",viewAsAdmin:"viewAsAdmin",viewAsOperator:"viewAsOperator",viewAsReviewer:"viewAsReviewer",viewAsReadonly:"viewAsReadonly",
     aircraftTitle:"aircraftTitle",btn_addAircraft2:"aircraftAdd",
   };
-  const roleLabels={OPERATOR:ROLES.OPERATOR[lang].label,REVIEWER:ROLES.REVIEWER[lang].label,READONLY:ROLES.READONLY[lang].label};
+  const roleLabels={ADMIN:ROLES.ADMIN[lang].label,OPERATOR:ROLES.OPERATOR[lang].label,REVIEWER:ROLES.REVIEWER[lang].label,READONLY:ROLES.READONLY[lang].label};
+  if(el("fo_admin")) el("fo_admin").textContent=roleLabels.ADMIN;
   if(el("fo_op")) el("fo_op").textContent=roleLabels.OPERATOR;
   if(el("fo_rev")) el("fo_rev").textContent=roleLabels.REVIEWER;
   if(el("fo_ro")) el("fo_ro").textContent=roleLabels.READONLY;
+  if(el("um_role_admin")) el("um_role_admin").textContent=roleLabels.ADMIN;
+  if(el("um_role_operator")) el("um_role_operator").textContent=roleLabels.OPERATOR;
+  if(el("um_role_reviewer")) el("um_role_reviewer").textContent=roleLabels.REVIEWER;
+  if(el("um_role_readonly")) el("um_role_readonly").textContent=roleLabels.READONLY;
   Object.entries(ids).forEach(([id,key])=>{ if(key && el(id)) el(id).textContent=t(key); });
+  localizeUserUi();
   if(el("tooltipPreviewTip")){
     el("tooltipPreviewTip").dataset.tip=t("stTooltipsPreviewTip");
     el("tooltipPreviewTip").setAttribute("aria-label",t("stTooltipsPreviewTip"));
@@ -775,6 +785,11 @@ function applyI18n(){
     el("co_rulesTip").dataset.tip=t("coBillingRulesTip");
     el("co_rulesTip").setAttribute("aria-label",t("coBillingRulesTip"));
     orientTip(el("co_rulesTip"));
+  }
+  if(el("userRoleHelpTip")){
+    el("userRoleHelpTip").dataset.tip=t("roleChipTip");
+    el("userRoleHelpTip").setAttribute("aria-label",t("roleChipTip"));
+    orientTip(el("userRoleHelpTip"));
   }
   refreshSettingsToggleLabels();
   localizeCompanyUi();
@@ -786,6 +801,20 @@ function applyI18n(){
 function setText(id,key){ if(el(id)) el(id).textContent=t(key); }
 function setPh(id,key){ if(el(id)) el(id).placeholder=t(key); }
 function setTitle(id,key){ if(el(id)) el(id).title=t(key); }
+function localizeUserUi(){
+  setPh("userSearch","userSearchPh");
+  setPh("um_name","umNamePh");
+  setPh("um_email","umEmailPh");
+  setPh("um_phone","umPhonePh");
+  setPh("um_pwd","pwdShort");
+  setText("um_pwd_hint","pwdShort");
+  if(el("um_lbl_pwd")) el("um_lbl_pwd").textContent=editingUserId?t("umNewPassword"):t("umPassword");
+  if(el("userMbd")&&el("userMbd").classList.contains("open")){
+    const u=editingUserId?USERS.find(x=>x.id===editingUserId):null;
+    if(el("umTitle")) el("umTitle").textContent=u?t("umEditTitlePrefix")+u.name:t("umNewTitle");
+    updateRoleDesc();
+  }
+}
 function localizeCompanyUi(){
   setPh("co_name","coNamePh"); setPh("co_code","coCodePh"); setPh("co_notes","coNotesPh");
   setPh("co_address","coAddressPh"); setPh("co_phone","coPhonePh");
@@ -1293,12 +1322,13 @@ function toggleUserStatus(id){
 // ── CREATE/EDIT USER ──
 function openCreateUser(){
   editingUserId=null; clearUserErrors();
-  el("umTitle").textContent=lang==="es"?"Nuevo Usuario":"New User";
+  el("umTitle").textContent=t("umNewTitle");
   el("um_name").value=""; el("um_email").value="";
   if(el("um_phone")) el("um_phone").value="";
   el("um_role").value="OPERATOR"; el("um_status").value="active"; el("um_pwd").value="";
-  el("um_lbl_pwd").textContent=lang==="es"?"Contraseña *":"Password *";
+  el("um_lbl_pwd").textContent=t("umPassword");
   el("um_pwd_hint").style.display="block";
+  localizeUserUi();
   buildCompanyCheckboxes([]);
   updateRoleDesc();
   openModal("userMbd");
@@ -1307,12 +1337,13 @@ function openCreateUser(){
 function openEditUser(id){
   const u=USERS.find(x=>x.id===id); if(!u) return;
   editingUserId=id; clearUserErrors();
-  el("umTitle").textContent=(lang==="es"?"Editar Usuario: ":"Edit User: ")+u.name;
+  el("umTitle").textContent=t("umEditTitlePrefix")+u.name;
   el("um_name").value=u.name; el("um_email").value=u.email;
   if(el("um_phone")) el("um_phone").value=u.phone||"";
   el("um_role").value=u.role; el("um_status").value=u.status; el("um_pwd").value="";
-  el("um_lbl_pwd").textContent=lang==="es"?"Nueva Contraseña (dejar en blanco para mantener)":"New password (leave blank to keep)";
+  el("um_lbl_pwd").textContent=t("umNewPassword");
   el("um_pwd_hint").style.display="none";
+  localizeUserUi();
   buildCompanyCheckboxes(u.companies||[]);
   updateRoleDesc();
   openModal("userMbd");
@@ -5162,6 +5193,7 @@ function wireEvents(){
   el("um_cancel").addEventListener("click",()=>closeModal("userMbd"));
   el("um_save").addEventListener("click",saveUser);
   el("um_role").addEventListener("change",updateRoleDesc);
+  if(el("um_roleRightsBtn")) el("um_roleRightsBtn").addEventListener("click",()=>openRoleRights(el("um_role").value));
   if(el("rr_close")) el("rr_close").addEventListener("click",()=>closeModal("roleRightsMbd"));
   if(el("rr_done")) el("rr_done").addEventListener("click",()=>closeModal("roleRightsMbd"));
   if(el("roleRightsMbd")) el("roleRightsMbd").addEventListener("click",e=>{ if(e.target===el("roleRightsMbd")) closeModal("roleRightsMbd"); });

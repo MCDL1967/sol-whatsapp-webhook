@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.7d - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.7e - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +7,7 @@
 <title>HP Fleet</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7d">
+<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7e">
 </head>
 <body>
 
@@ -94,17 +94,18 @@
       <div class="filters">
         <input class="search-inp" id="userSearch" placeholder="Search…">
         <div class="f-wrap"><select class="f-select" id="filterRole">
-          <option value="ALL">All Roles</option>
-          <option value="ADMIN">Admin</option>
+          <option value="ALL" id="fo_allroles">All Roles</option>
+          <option value="ADMIN" id="fo_admin">Admin</option>
           <option value="OPERATOR" id="fo_op">Operator</option>
           <option value="REVIEWER" id="fo_rev">Reviewer</option>
           <option value="READONLY" id="fo_ro">Read Only</option>
         </select></div>
+        <span id="userRoleHelpTip" class="hpf-tip" tabindex="0" data-tip="Click a role chip to view rights">?</span>
         <div class="f-wrap"><select class="f-select" id="filterCompany">
           <option value="ALL" id="fo_allco">All Companies</option>
         </select></div>
         <div class="f-wrap"><select class="f-select" id="filterStatus">
-          <option value="ALL">All Statuses</option>
+          <option value="ALL" id="fo_allstatus">All Statuses</option>
           <option value="active" id="fo_active">Active Only</option>
           <option value="inactive" id="fo_inactive">Inactive Only</option>
         </select></div>
@@ -601,27 +602,27 @@
     <div class="mhdr"><div class="mhdr-t ct" id="umTitle">New User</div><button class="m-x" id="um_close">✕</button></div>
     <div class="mbody">
       <div class="frow fc2">
-        <div class="field"><label>Full Name *</label><input type="text" id="um_name" placeholder="Jane Smith"><span class="ferr" id="ume_name"></span></div>
-        <div class="field"><label>Email *</label><input type="text" id="um_email" placeholder="jane@company.com"><span class="ferr" id="ume_email"></span></div>
+        <div class="field"><label id="um_lbl_name">Full Name *</label><input type="text" id="um_name" placeholder="Jane Smith"><span class="ferr" id="ume_name"></span></div>
+        <div class="field"><label id="um_lbl_email">Email *</label><input type="text" id="um_email" placeholder="jane@company.com"><span class="ferr" id="ume_email"></span></div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>WhatsApp Phone</label><input type="text" id="um_phone" placeholder="+507XXXXXXXX"></div>
-        <div class="field"><label>Status</label>
-          <select id="um_status"><option value="active">Active</option><option value="inactive">Inactive</option></select>
+        <div class="field"><label id="um_lbl_phone">WhatsApp Phone</label><input type="text" id="um_phone" placeholder="+507XXXXXXXX"></div>
+        <div class="field"><label id="um_lbl_status">Status</label>
+          <select id="um_status"><option value="active" id="um_status_active">Active</option><option value="inactive" id="um_status_inactive">Inactive</option></select>
         </div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>Role *</label>
+        <div class="field"><label id="um_lbl_role">Role *</label>
           <select id="um_role">
-            <option value="ADMIN">Administrator</option>
-            <option value="OPERATOR" selected>Operator</option>
-            <option value="REVIEWER">Reviewer / Approver</option>
-            <option value="READONLY">Read Only</option>
+            <option value="ADMIN" id="um_role_admin">Administrator</option>
+            <option value="OPERATOR" id="um_role_operator" selected>Operator</option>
+            <option value="REVIEWER" id="um_role_reviewer">Reviewer / Approver</option>
+            <option value="READONLY" id="um_role_readonly">Read Only</option>
           </select>
         </div>
-        <div></div>
+        <div class="field"><label>&nbsp;</label><button class="btn-ghost" id="um_roleRightsBtn" type="button">View Role Rights</button></div>
       </div>
-      <div class="field"><label>Assigned Companies *</label>
+      <div class="field"><label id="um_lbl_companies">Assigned Companies *</label>
         <div class="chk-group" id="um_companies_chk"></div>
         <span class="ferr" id="ume_companies"></span>
       </div>
@@ -1306,6 +1307,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="./assets/js/app.js?v=8.5.7d"></script>
+<script src="./assets/js/app.js?v=8.5.7e"></script>
 </body>
 </html>
