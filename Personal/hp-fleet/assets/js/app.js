@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7e";
+const APP_VERSION = "v8.5.7f";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.7e",
-  es: "./assets/i18n/es.json?v=8.5.7e"
+  en: "./assets/i18n/en.json?v=8.5.7f",
+  es: "./assets/i18n/es.json?v=8.5.7f"
 };
 
 async function loadI18nDictionaries(){
@@ -386,6 +386,7 @@ function applyUserPreferences(){
   if(_userPrefs.language==="en"||_userPrefs.language==="es"){
     lang=_userPrefs.language;
     localStorage.setItem("hpfleet_lang",lang);
+    syncLanguageButtons();
   }
   // Side panel width — clamp to 50% viewport
   const spw = _userPrefs.sidepanel_width;
@@ -694,15 +695,19 @@ function showToast(msg,type=""){
 }
 
 // ── LANG ──
+function syncLanguageButtons(){
+  ["EN","ES"].forEach(x=>{
+    const isActive=lang===x.toLowerCase();
+    const b1=el("btn"+x); const b2=el("app"+x);
+    if(b1) b1.className=isActive?"active":"";
+    if(b2) b2.className=isActive?"active":"";
+  });
+}
 function setLang(l){
   lang=l;
   localStorage.setItem("hpfleet_lang",l);
   if(currentUser) saveUserPreference("language",l);
-  ["EN","ES"].forEach(x=>{
-    const b1=el("btn"+x); const b2=el("app"+x);
-    if(b1) b1.className=l===x.toLowerCase()?"active":"";
-    if(b2) b2.className=l===x.toLowerCase()?"active":"";
-  });
+  syncLanguageButtons();
   applyI18n();
   if(currentUser){ renderAll(); }
 }
