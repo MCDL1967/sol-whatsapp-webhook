@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7s";
+const APP_VERSION = "v8.5.7t";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -898,12 +898,12 @@ function localizeLogTooltips(){
     ["btn_returnForReview","logTipReturnForReview"],
     ["btn_reqChanges","logTipRequestChanges"],
     ["btn_reopen","logTipReopen"],
-    ["th_log","logTipThLog","fl-top"],
-    ["th_date","logTipThDate","fl-top"],
-    ["th_ac","logTipThAircraft","fl-top"],
-    ["th_op","logTipThOperator","fl-top"],
-    ["th_pilot","logTipThPilot","fl-top"],
-    ["th_instructor","logTipThInstructor","fl-top"],
+    ["th_log","logTipThLog","fl-bottom"],
+    ["th_date","logTipThDate","fl-bottom"],
+    ["th_ac","logTipThAircraft","fl-bottom"],
+    ["th_op","logTipThOperator","fl-bottom"],
+    ["th_pilot","logTipThPilot","fl-bottom"],
+    ["th_instructor","logTipThInstructor","fl-bottom"],
     ["th_motor","logTipThMotor","fl-top"],
     ["th_mout","logTipThMotorOut","fl-bottom"],
     ["th_min","logTipThMotorIn","fl-bottom"],
@@ -915,9 +915,9 @@ function localizeLogTooltips(){
     ["th_billing","logTipThBilling","fl-top"],
     ["th_mult","logTipThMultiplier","fl-bottom"],
     ["th_tbp","logTipThTbh","fl-bottom"],
-    ["th_horo","logTipThHoro","fl-top"],
-    ["th_obs","logTipThNotes","fl-top"],
-    ["th_status","logTipThStatus","fl-top"]
+    ["th_horo","logTipThHoro","fl-bottom"],
+    ["th_obs","logTipThNotes","fl-bottom"],
+    ["th_status","logTipThStatus","fl-bottom"]
   ].forEach(([id,key,level])=>setHoverTip(id,key,level));
 }
 function localizeUserUi(){
