@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7x";
+const APP_VERSION = "v8.5.7y";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -956,6 +956,7 @@ function localizeSidePanelUi(){
   if(diffAlert&&diffAlert.firstChild) diffAlert.firstChild.nodeValue=t("spDiffAlert")+" ";
   const wm=el("sp_nonbill_watermark");
   if(el("sp_nonbill_wm_text")&&(!wm||wm.style.display==="none")) el("sp_nonbill_wm_text").textContent=t("spNonBillable");
+  refreshSidePanelLocalizedEntryText();
   const resize=el("spVResize");
   if(resize){
     resize.removeAttribute("title");
@@ -3817,6 +3818,27 @@ function _scaleNonBillWatermark(){
   if(!wrap||!txt) return;
   const h=wrap.offsetHeight||300;
   txt.style.fontSize=Math.max(18,Math.floor(h*0.12))+"px";
+}
+
+function refreshSidePanelLocalizedEntryText(){
+  if(!spEditingEntryId) return;
+  const entry=flEntries.find(e=>e.id===spEditingEntryId);
+  if(!entry) return;
+  const wm=el("sp_nonbill_watermark");
+  const wmTxt=el("sp_nonbill_wm_text");
+  if(wm&&wmTxt){
+    if(entry.status==="nonbillable"){
+      wmTxt.textContent=formatNonBillReason(entry.nonBillReason,false)||t("spNonBillable");
+      wm.style.display="flex";
+      _scaleNonBillWatermark();
+    } else {
+      wm.style.display="none";
+    }
+  }
+  const obs=el("sp_obs");
+  if(obs&&entry.status==="nonbillable"&&entry.nonBillReason&&obs.value.trim().startsWith("⊘")){
+    obs.value="⊘ "+formatNonBillReason(entry.nonBillReason);
+  }
 }
 
 function spApplyTransform(){
