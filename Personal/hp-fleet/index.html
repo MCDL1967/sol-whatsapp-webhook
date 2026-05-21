@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.7n - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.7o - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +7,7 @@
 <title>HP Fleet</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7n">
+<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7o">
 </head>
 <body>
 
@@ -782,7 +782,7 @@
 <!-- EXCEPTION MODAL -->
 <div class="mbd" id="excMbd">
   <div class="mbox exc-box">
-    <div class="mhdr"><div class="mhdr-t cy">⚠ Pending Entries</div><button class="m-x" id="exc_close">✕</button></div>
+    <div class="mhdr"><div class="mhdr-t cy" id="exc_title">⚠ Pending Entries</div><button class="m-x" id="exc_close">✕</button></div>
     <div class="mbody">
       <div class="exc-warn" id="excWarn"></div>
       <div class="exc-detail" id="excDetail"></div>
@@ -797,10 +797,10 @@
 <!-- FLAG NOTE MODAL (Reviewer inline note per entry) -->
 <div class="mbd" id="flagMbd">
   <div class="mbox req-box">
-    <div class="mhdr"><div class="mhdr-t cy">🚩 Flag Entry</div><button class="m-x" id="flag_close">✕</button></div>
+    <div class="mhdr"><div class="mhdr-t cy" id="flag_title">🚩 Flag Entry</div><button class="m-x" id="flag_close">✕</button></div>
     <div class="mbody">
       <p style="font-family:var(--mono);font-size:10px;color:var(--dim2);margin-bottom:12px" id="flagEntryLabel"></p>
-      <label class="req-label">Note for Operator:</label>
+      <label class="req-label" id="flag_note_label">Note for Operator:</label>
       <textarea class="req-textarea" id="flag_comment" placeholder="e.g. Horometer doesn't match previous entry…"></textarea>
     </div>
     <div class="mftr">
@@ -987,7 +987,7 @@
 
 <div class="mbd" id="waMbd">
   <div class="mbox wa-confirm-box">
-    <div class="mhdr"><div class="mhdr-t" style="color:var(--green)">💬 Send WhatsApp</div><button class="m-x" id="wa_close">✕</button></div>
+    <div class="mhdr"><div class="mhdr-t" id="wa_title" style="color:var(--green)">💬 Send WhatsApp</div><button class="m-x" id="wa_close">✕</button></div>
     <div class="wa-confirm-body">
       <div id="wa_msg_preview"></div>
       <div class="wa-recipient" id="wa_recipient"></div>
@@ -1317,6 +1317,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="./assets/js/app.js?v=8.5.7n"></script>
+<script src="./assets/js/app.js?v=8.5.7o"></script>
 </body>
 </html>

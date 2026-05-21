@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7n";
+const APP_VERSION = "v8.5.7o";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -785,6 +785,9 @@ function applyI18n(){
     btn_submit:"btnSubmit",btn_approve:"btnApprove",btn_reqChanges:"btnReqChanges",btn_returnForReview:"btnReturnForReview",btn_reopen:"btnReopen",
     spToggleLabel:"sourcePanel",
     fo_reviewerComments:"rfrColComment",
+    confirm_cancel:"rfrCancel",confirm_ok:"confirmOk",exc_title:"excPendingTitle",exc_back:"excBack",exc_proceed:"excProceed",
+    flag_title:"flagTitle",flag_note_label:"flagNoteLabel",flag_cancel:"rfrCancel",flag_save:"flagSave",
+    wa_title:"waTitle",wa_skip:"waSkip",wa_send:"waSend",
     st_adminCcLabel:"stAdminCcLabel",st_adminCcHint:"stAdminCcHint",
     st_displayTitle:"stDisplayTitle",st_roleBannerLabel:"stRoleBannerLabel",st_roleBannerHint:"stRoleBannerHint",
     st_stickyTabsLabel:"stStickyTabsLabel",st_stickyTabsHint:"stStickyTabsHint",
@@ -2966,17 +2969,16 @@ function handleSubmit(){
   const pending=flEntries.filter(e=>e.status==="pending");
   const approved=flEntries.filter(e=>e.status==="approved");
   if(!approved.length){
-    showResultBanner("err","⚠ Please approve at least one entry before submitting for review.");
+    showResultBanner("err",t("submitNeedsApproved"));
     return;
   }
   if(reviewed.length){
     // Contextual message for reviewed entries
-    el("excWarn").textContent=reviewed.length+" "+(lang==="es"
-      ?`registro(s) marcados para revisión serán devueltos al Revisor.`
-      :`record(s) marked for review will be returned to the Reviewer.`);
-    el("excDetail").innerHTML=reviewed.map(e=>"• Entry "+(flEntries.indexOf(e)+1)+": "+e.fecha+" | "+e.aeronave+" | "+e.piloto+(e.flagNote?" — "+e.flagNote:"")).join("<br>");
-    if(el("exc_proceed")) el("exc_proceed").textContent=lang==="es"?"Reenviar":"Resend";
-    if(el("exc_back")) el("exc_back").textContent=lang==="es"?"Cancelar":"Cancel";
+    el("excWarn").textContent=t("submitReviewedWarn").replace("{count}",reviewed.length);
+    el("excDetail").innerHTML=reviewed.map(e=>"• "+t("entryShort")+" "+(flEntries.indexOf(e)+1)+": "+e.fecha+" | "+e.aeronave+" | "+e.piloto+(e.flagNote?" — "+e.flagNote:"")).join("<br>");
+    if(el("exc_title")) el("exc_title").textContent=t("excReviewedTitle");
+    if(el("exc_proceed")) el("exc_proceed").textContent=t("resend");
+    if(el("exc_back")) el("exc_back").textContent=t("rfrCancel");
     confirmCb=()=>{
       // Auto-approve all reviewed entries then submit
       reviewed.forEach(e=>e.status="approved");
@@ -2985,10 +2987,11 @@ function handleSubmit(){
     };
     openModal("excMbd");
   } else if(pending.length){
-    el("excWarn").textContent=pending.length+" "+(lang==="es"?"entradas pendientes. ¿Continuar?":"entries still pending. Proceed anyway?");
-    el("excDetail").innerHTML=pending.map(e=>"• Entry "+(flEntries.indexOf(e)+1)+": "+e.fecha+" | "+e.aeronave+" | "+e.piloto).join("<br>");
-    if(el("exc_proceed")) el("exc_proceed").textContent=lang==="es"?"Continuar":"Proceed Anyway";
-    if(el("exc_back")) el("exc_back").textContent=lang==="es"?"Volver":"Back to Review";
+    el("excWarn").textContent=t("submitPendingWarn").replace("{count}",pending.length);
+    el("excDetail").innerHTML=pending.map(e=>"• "+t("entryShort")+" "+(flEntries.indexOf(e)+1)+": "+e.fecha+" | "+e.aeronave+" | "+e.piloto).join("<br>");
+    if(el("exc_title")) el("exc_title").textContent=t("excPendingTitle");
+    if(el("exc_proceed")) el("exc_proceed").textContent=t("excProceed");
+    if(el("exc_back")) el("exc_back").textContent=t("excBack");
     confirmCb=()=>{closeModal("excMbd");doSubmit();};
     openModal("excMbd");
   } else {
@@ -3004,15 +3007,13 @@ async function doSubmit(){
   const flagged=flEntries.filter(e=>e.status==="flagged").length;
   const approved=flEntries.filter(e=>e.status==="approved").length;
   renderWfBar(); setupFlRoleUI();
-  showToast(lang==="es"?"Lote enviado para revisión.":"Batch submitted for review.");
+  showToast(t("submitted"));
   notifyWhatsApp("REVIEWER",
-    lang==="es"
-      ? "HP Fleet — Lote enviado para revisión por "+currentUser.name+".\n"+
-        approved+" entradas aprobadas"+(flagged?" | "+flagged+" marcadas":"")+"\n"+
-        "Fuente: "+batchSourceFile+"\nInicia sesión para revisar: https://sol-whatsapp-webhook.onrender.com"
-      : "HP Fleet — Batch submitted for review by "+currentUser.name+".\n"+
-        approved+" entries approved"+(flagged?" | "+flagged+" flagged":"")+"\n"+
-        "Source: "+batchSourceFile+"\nLog in to review: https://sol-whatsapp-webhook.onrender.com",
+    t("waSubmitMsg")
+      .replace("{user}",currentUser.name)
+      .replace("{approved}",approved)
+      .replace("{flaggedPart}",flagged?t("waFlaggedPart").replace("{flagged}",flagged):"")
+      .replace("{source}",batchSourceFile),
     true
   );
 }
@@ -3295,7 +3296,7 @@ function renderPiCharges(subtotal){
 
 async function reopenBatch(){
   const reason=el("reopen_reason")?el("reopen_reason").value.trim():"";
-  if(!reason){showToast("Reason required","err");return;}
+  if(!reason){showToast(t("reopenReasonRequired"),"err");return;}
   const prevStatus=batchStatus;
   batchStatus="DRAFT";
   await saveBatchToDB("manual reopen batch");
@@ -3304,7 +3305,7 @@ async function reopenBatch(){
   closeModal("reopenMbd");
   if(el("reopen_reason")) el("reopen_reason").value="";
   renderWfBar(); setupFlRoleUI(); renderFlTable();
-  showToast("Batch reopened — status set to DRAFT","warn");
+  showToast(t("reopenDone"),"warn");
 }
 
 async function doApprove(){
@@ -3314,15 +3315,12 @@ async function doApprove(){
   exportFlCSV();
   addFlAudit("✅",currentUser.name,"approved for invoicing",flEntries.filter(e=>e.status==="approved").length+" entries");
   renderWfBar(); setupFlRoleUI(); renderPreInvoice();
-  showToast(lang==="es"?"Lote aprobado para facturación.":"Batch approved for invoicing.");
+  showToast(t("approvedMsg"));
   notifyWhatsApp("OPERATOR",
-    lang==="es"
-      ? "HP Fleet — Lote APROBADO para facturación por "+currentUser.name+".\n"+
-        flEntries.filter(e=>e.status==="approved").length+" entradas aprobadas.\n"+
-        "Fuente: "+batchSourceFile+"\nInicia sesión para ver Facturación: https://sol-whatsapp-webhook.onrender.com"
-      : "HP Fleet — Batch APPROVED for invoicing by "+currentUser.name+".\n"+
-        flEntries.filter(e=>e.status==="approved").length+" entries approved.\n"+
-        "Source: "+batchSourceFile+"\nLog in to view Billing: https://sol-whatsapp-webhook.onrender.com",
+    t("waApproveMsg")
+      .replace("{user}",currentUser.name)
+      .replace("{approved}",flEntries.filter(e=>e.status==="approved").length)
+      .replace("{source}",batchSourceFile),
     true
   );
 }
@@ -3348,7 +3346,7 @@ function openRfr(){
   }
   // i18n labels
   if(el("rfr_title")) el("rfr_title").textContent=t("rfrTitle");
-  if(el("rfr_subtitle")) el("rfr_subtitle").textContent=flagged.length+" "+(lang==="es"?"entradas con comentarios":"entries with comments");
+  if(el("rfr_subtitle")) el("rfr_subtitle").textContent=t("rfrSubtitle").replace("{count}",flagged.length);
   if(el("rfr_colEntry")) el("rfr_colEntry").textContent=t("rfrColEntry");
   if(el("rfr_colLog")) el("rfr_colLog").textContent=t("rfrColLog");
   if(el("rfr_colComment")) el("rfr_colComment").textContent=t("rfrColComment");
@@ -3384,23 +3382,22 @@ async function doReturnForReview(){
   reviewCycle++;
   if(el("resultBanner")) el("resultBanner").style.display="none";
   await saveBatchToDB("return for review");
-  addFlAudit("↩",currentUser.name,lang==="es"?"devolvió lote para corrección":"returned batch for review",
-    flagged.length+(lang==="es"?" entradas marcadas":" flagged entries"));
+  addFlAudit("↩",currentUser.name,t("auditReturnedBatch"),flagged.length+" "+t("rfrWaFlagged"));
   renderWfBar(); setupFlRoleUI(); renderFlTable();
   // Pre-activate reviewer_comments filter for operator
   if(el("filterOp")){ el("filterOp").value="reviewer_comments"; renderFlTable(); }
-  showToast(lang==="es"?"Lote devuelto para corrección.":"Batch returned for review.");
+  showToast(t("returnedMsg"));
   // Build bilingual WA message
   const msg = lang==="es"
     ? t("rfrWaMsg")+" "+currentUser.name+".\n"+
       flagged.length+" "+t("rfrWaFlagged")+".\n"+
       t("rfrWaLogs")+" "+logNums+
-      (batchNote?"\nNota: "+batchNote:"")+"\n"+
+      (batchNote?"\n"+t("noteLabel")+": "+batchNote:"")+"\n"+
       t("rfrWaLogin")
     : t("rfrWaMsg")+" "+currentUser.name+".\n"+
       flagged.length+" "+t("rfrWaFlagged")+".\n"+
       t("rfrWaLogs")+" "+logNums+
-      (batchNote?"\nNote: "+batchNote:"")+"\n"+
+      (batchNote?"\n"+t("noteLabel")+": "+batchNote:"")+"\n"+
       t("rfrWaLogin");
   notifyWhatsApp("OPERATOR", msg, true);
 }
@@ -3408,7 +3405,7 @@ async function doReturnForReview(){
 async function saveDraft(){
   await saveBatchToDB("save draft");
   addFlAudit("💾",currentUser.name,"saved draft",flEntries.length+" entries");
-  showToast(lang==="es"?"Borrador guardado.":"Draft saved.");
+  showToast(t("draftSaved"));
 }
 
 function proceedAnyway(){ closeModal("excMbd"); if(confirmCb){confirmCb();confirmCb=null;} }
@@ -3418,10 +3415,10 @@ function showFlConfirm(title,body,approvedEntries,cb){
   let fmM=0,fmT=0,magM=0,magT=0;
   approvedEntries.forEach(e=>{ const{tm,tbp}=calcEntry(e); if(e.operador==="FM"){fmM+=tm;fmT+=tbp;}else{magM+=tm;magT+=tbp;} });
   el("confirmStats").innerHTML=
-    '<div class="cs-ok">FM — T.Motor: '+fmt(fmM)+" hrs | TBH: "+fmt(fmT)+" hrs</div>"+
-    '<div class="cs-w">MAG — T.Motor: '+fmt(magM)+" hrs | TBH: "+fmt(magT)+" hrs</div>"+
+    '<div class="cs-ok">FM — '+t("thTm")+": "+fmt(fmM)+" "+t("hrs")+" | "+t("thTbp")+": "+fmt(fmT)+" "+t("hrs")+"</div>"+
+    '<div class="cs-w">MAG — '+t("thTm")+": "+fmt(magM)+" "+t("hrs")+" | "+t("thTbp")+": "+fmt(magT)+" "+t("hrs")+"</div>"+
     '<div class="cs-c" style="margin-top:4px">'+t("totalApproved")+": "+approvedEntries.length+"</div>"+
-    '<div class="cs-c">Total TBH: '+fmt(fmT+magT)+" hrs</div>"+
+    '<div class="cs-c">'+t("totalTbh")+": "+fmt(fmT+magT)+" "+t("hrs")+"</div>"+
     '<div class="cs-d">'+t("csvNote")+"</div>";
   confirmCb=cb; openModal("confirmMbd");
 }
@@ -3500,14 +3497,19 @@ function dlFile(name,content,type){
 function openFlagEntry(id){
   const e=flEntries.find(x=>x.id===id); if(!e) return;
   flaggingEntryId=id;
-  el("flagEntryLabel").textContent="Entry #"+(flEntries.indexOf(e)+1)+" — "+e.fecha+" | "+e.piloto;
+  if(el("flag_title")) el("flag_title").textContent=t("flagTitle");
+  if(el("flag_note_label")) el("flag_note_label").textContent=t("flagNoteLabel");
+  if(el("flag_comment")) el("flag_comment").placeholder=t("flagNotePh");
+  if(el("flag_cancel")) el("flag_cancel").textContent=t("rfrCancel");
+  if(el("flag_save")) el("flag_save").textContent=t("flagSave");
+  el("flagEntryLabel").textContent=t("entryShort")+" #"+(flEntries.indexOf(e)+1)+" — "+e.fecha+" | "+e.piloto;
   el("flag_comment").value=e.flagNote||"";
   openModal("flagMbd");
 }
 
 async function saveFlagEntry(){
   const comment=el("flag_comment").value.trim();
-  if(!comment){showToast("Please describe the issue","err");return;}
+  if(!comment){showToast(t("flagIssueRequired"),"err");return;}
   const e=flEntries.find(x=>x.id===flaggingEntryId); if(!e) return;
   e.status="flagged";
   e.flagNote=comment;
@@ -3515,7 +3517,7 @@ async function saveFlagEntry(){
   closeModal("flagMbd");
   await saveBatchToDB("flag entry");
   renderFlTable();
-  showToast("Entry flagged");
+  showToast(t("entryFlagged"));
 }
 
 // ── WHATSAPP NOTIFY — with confirmation dialog ──
@@ -3535,6 +3537,9 @@ function notifyWhatsApp(toRole, message, ccAdmin=false){
   const showCc=_adminCcEnabled&&ccAdmin;
   if(el("wa_adminNotice")) el("wa_adminNotice").style.display=showCc?"":"none";
   if(el("wa_adminNoticeText")) el("wa_adminNoticeText").textContent=t("rfrAdminNotice");
+  if(el("wa_title")) el("wa_title").textContent=t("waTitle");
+  if(el("wa_skip")) el("wa_skip").textContent=t("waSkip");
+  if(el("wa_send")) el("wa_send").textContent=t("waSend");
   openModal("waMbd");
 }
 
@@ -3545,7 +3550,7 @@ function sendWhatsApp(){
     // Silent email CC to admin
     const admin=USERS.find(u=>u.role==="ADMIN"&&u.status==="active"&&u.email);
     if(admin&&admin.email){
-      const subject=encodeURIComponent("HP Fleet — Workflow Notification");
+      const subject=encodeURIComponent(t("waEmailSubject"));
       const body=encodeURIComponent(_waCcMessage);
       const a=document.createElement("a");
       a.href="mailto:"+admin.email+"?subject="+subject+"&body="+body;
@@ -5789,13 +5794,14 @@ function wireEvents(){
   if(el("pi_export_pdf")) el("pi_export_pdf").addEventListener("click",()=>window.print());
 
   if(el("btn_resetTestData")) el("btn_resetTestData").addEventListener("click",()=>{
-    if(confirm(lang==="es"?"Resetear datos de revision del lote actual? No se puede deshacer.":"Reset all review data for current batch? This cannot be undone.")) resetTestData();
+    if(confirm(t("resetReviewConfirm"))) resetTestData();
   });
   if(el("btn_reopen")) el("btn_reopen").addEventListener("click",()=>{
     if(el("reopen_reason")) el("reopen_reason").value="";
     if(el("reopen_title")) el("reopen_title").textContent=t("reopenTitle");
     if(el("reopen_subtitle")) el("reopen_subtitle").textContent=t("reopenSubtitle");
     if(el("reopen_reason_label")) el("reopen_reason_label").textContent=t("reopenReasonLabel");
+    if(el("reopen_reason")) el("reopen_reason").placeholder=t("reopenReasonPh");
     if(el("reopen_confirm")) el("reopen_confirm").textContent=t("reopenConfirm");
     if(el("reopen_cancel")) el("reopen_cancel").textContent=t("rfrCancel");
     openModal("reopenMbd");
@@ -5930,8 +5936,7 @@ function wireEvents(){
   if(el("batchSelector")) el("batchSelector").addEventListener("change",async function(){
     const newId=this.value; if(!newId||newId===currentBatchId) return;
     if(flEntries.length){
-      const msg=lang==="es"?"¿Guardar el lote actual antes de cambiar?":"Save current batch before switching?";
-      if(confirm(msg)) await saveBatchToDB("batch selector switch");
+      if(confirm(t("batchSwitchSaveConfirm"))) await saveBatchToDB("batch selector switch");
     }
     await switchToBatch(newId);
   });
