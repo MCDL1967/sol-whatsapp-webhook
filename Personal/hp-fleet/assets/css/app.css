@@ -81,6 +81,9 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
   font-size:11px;line-height:1.35;text-align:left;white-space:normal;text-transform:none;
   letter-spacing:0;opacity:0;pointer-events:none;transition:opacity .12s,transform .12s}
 .hpf-tip-popover.on{opacity:1}
+.hpf-hover-tip{transition:color .12s,border-color .12s}
+.hpf-hover-tip:hover,.hpf-hover-tip:focus{color:#fff!important}
+.hpf-tooltips-off .hpf-hover-tip{color:inherit!important}
 .chk-group{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
 .chk-item{display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 10px;
   border:1px solid var(--border2);border-radius:2px;transition:all .15s;

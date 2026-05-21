@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7q";
+const APP_VERSION = "v8.5.7r";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -861,8 +861,10 @@ function setHoverTip(id,key){
   const node=el(id);
   if(!node) return;
   node.querySelectorAll(".hpf-tip").forEach(tip=>tip.remove());
-  node.title=t(key);
-  node.setAttribute("aria-label",t(key));
+  node.removeAttribute("title");
+  node.classList.add("hpf-hover-tip");
+  node.dataset.tip=t(key);
+  node.tabIndex=node.tabIndex>=0?node.tabIndex:0;
 }
 function localizeLogStatusTitles(){
   ["srcNotRead","srcNonBill","srcDups","srcLogBreaks","srcHoro","srcSentBack"].forEach(id=>setTitle(id,"clickForDetails"));
@@ -962,19 +964,19 @@ function initTooltipLayer(){
     document.body.appendChild(_tipPopover);
   }
   document.addEventListener("pointerover",e=>{
-    const tip=e.target.closest(".hpf-tip");
+    const tip=e.target.closest(".hpf-tip,.hpf-hover-tip");
     if(tip) showTipPopover(tip);
   });
   document.addEventListener("focusin",e=>{
-    const tip=e.target.closest(".hpf-tip");
+    const tip=e.target.closest(".hpf-tip,.hpf-hover-tip");
     if(tip) showTipPopover(tip);
   });
   document.addEventListener("pointerout",e=>{
-    const tip=e.target.closest(".hpf-tip");
+    const tip=e.target.closest(".hpf-tip,.hpf-hover-tip");
     if(tip && !tip.contains(e.relatedTarget)) hideTipPopover(tip);
   });
   document.addEventListener("focusout",e=>{
-    const tip=e.target.closest(".hpf-tip");
+    const tip=e.target.closest(".hpf-tip,.hpf-hover-tip");
     if(tip) hideTipPopover(tip);
   });
   document.addEventListener("keydown",e=>{ if(e.key==="Escape") hideTipPopover(); });
