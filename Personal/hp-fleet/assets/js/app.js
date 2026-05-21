@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7a";
+const APP_VERSION = "v8.5.7b";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.7a",
-  es: "./assets/i18n/es.json?v=8.5.7a"
+  en: "./assets/i18n/en.json?v=8.5.7b",
+  es: "./assets/i18n/es.json?v=8.5.7b"
 };
 
 async function loadI18nDictionaries(){
@@ -736,9 +736,13 @@ function applyI18n(){
     btn_submit:"btnSubmit",btn_approve:"btnApprove",btn_reqChanges:"btnReqChanges",btn_returnForReview:"btnReturnForReview",
     fo_reviewerComments:"rfrColComment",
     st_adminCcLabel:"stAdminCcLabel",st_adminCcHint:"stAdminCcHint",
+    st_displayTitle:"stDisplayTitle",st_roleBannerLabel:"stRoleBannerLabel",st_roleBannerHint:"stRoleBannerHint",
+    st_stickyHeadersLabel:"stStickyHeadersLabel",st_stickyHeadersHint:"stStickyHeadersHint",
+    st_devTitle:"stDevTitle",st_resetTestButton:"stResetTestButton",st_debugLabel:"stDebugLabel",st_debugHint:"stDebugHint",
+    st_dbTitle:"stDbTitle",st_dbHint:"stDbHint",st_deleteTestLabel:"stDeleteTestLabel",st_deleteTestHint:"stDeleteTestHint",
+    st_deleteStatusLabel:"stDeleteStatusLabel",st_deleteStatusHint:"stDeleteStatusHint",st_clearAuditLabel:"stClearAuditLabel",st_clearAuditHint:"stClearAuditHint",
     st_tooltipsLabel:"stTooltipsLabel",st_tooltipsHint:"stTooltipsHint",
     st_tooltipTextColorLabel:"stTooltipTextColor",st_tooltipBoxColorLabel:"stTooltipBoxColor",st_tooltipBorderColorLabel:"stTooltipBorderColor",
-    st_tooltipsPreviewLabel:"stTooltipsPreviewLabel",st_tooltipsPreviewHint:"stTooltipsPreviewHint",
     st_viewAsLabel:"stViewAsLabel",st_viewAsHint:"stViewAsHint",
     st_title:"stTitle",st_apiTitle:"stApiTitle",st_apiLabel:"stApiLabel",st_apiHint:"stApiHint",
     btn_saveApiKey:"saveKey",btn_clearApiKey:"clearKey",
@@ -757,7 +761,12 @@ function applyI18n(){
     el("tooltipPreviewTip").setAttribute("aria-label",t("stTooltipsPreviewTip"));
     orientTip(el("tooltipPreviewTip"));
   }
-  if(el("tooltipsToggleLabel")&&el("tooltipsToggleCheck")) setToggleLabel(el("tooltipsToggleLabel"),el("tooltipsToggleCheck").checked);
+  if(el("co_rulesTip")){
+    el("co_rulesTip").dataset.tip=t("coBillingRulesTip");
+    el("co_rulesTip").setAttribute("aria-label",t("coBillingRulesTip"));
+    orientTip(el("co_rulesTip"));
+  }
+  refreshSettingsToggleLabels();
   localizeCompanyUi();
   localizeAircraftUi();
   renderTabs();
@@ -1030,7 +1039,7 @@ async function loadAdminCcFromDB(){
   const chk=el("adminCcToggleCheck");
   const lbl=el("adminCcToggleLabel");
   if(chk) chk.checked=_adminCcEnabled;
-  if(lbl) lbl.textContent=_adminCcEnabled?(lang==="es"?"Activo":"On"):(lang==="es"?"Inactivo":"Off");
+  setToggleLabel(lbl,_adminCcEnabled);
 }
 
 async function saveAdminCcToDB(val){
@@ -1059,7 +1068,7 @@ function updateApiStatus(){
   // Non-admin sees masked configured status only
   if(el("apiKeyInput")){
     if(!isAdmin){
-      el("apiKeyInput").value=key?"[Configured by Admin]":"";
+      el("apiKeyInput").value=key?t("apiConfiguredByAdmin"):"";
       el("apiKeyInput").readOnly=true;
       el("apiKeyInput").style.color="var(--dim2)";
     } else {
@@ -1077,7 +1086,7 @@ function updateApiStatus(){
 async function saveApiKey(){
   if(!currentUser||currentUser.role!=="ADMIN") return;
   const val=el("apiKeyInput").value.trim();
-  if(!val||val.startsWith("•")){ showToast("Enter a valid API key","err"); return; }
+  if(!val||val.startsWith("•")){ showToast(t("enterValidApiKey"),"err"); return; }
   _cachedApiKey=val;
   localStorage.setItem("hpfleet_apikey",val);
   // Save to DB settings table
@@ -1620,6 +1629,20 @@ function setToggleLabel(label,on){
   label.textContent=on?(lang==="es"?"Activo":"On"):(lang==="es"?"Inactivo":"Off");
   label.style.color=on?"var(--cyan)":"var(--dim2)";
 }
+function refreshSettingsToggleLabels(){
+  [
+    ["tooltipsToggleCheck","tooltipsToggleLabel"],
+    ["viewAsToggleCheck","viewAsToggleLabel"],
+    ["adminCcToggleCheck","adminCcToggleLabel"],
+    ["debugToggleCheck","debugToggleLabel"],
+    ["roleBannerToggleCheck","roleBannerToggleLabel"],
+    ["stickyTabsToggleCheck","stickyTabsToggleLabel"],
+    ["stickyHeadersToggleCheck","stickyHeadersToggleLabel"]
+  ].forEach(([checkId,labelId])=>{
+    const check=el(checkId);
+    if(check) setToggleLabel(el(labelId),check.checked);
+  });
+}
 function initTooltipPreferences(){
   const check=el("tooltipsToggleCheck");
   const label=el("tooltipsToggleLabel");
@@ -1680,12 +1703,12 @@ function initDebugToggle(){
   if(!check) return;
   const saved=localStorage.getItem("hpfleet_debug")==="1";
   check.checked=saved;
-  if(label){ label.textContent=saved?"On":"Off"; label.style.color=saved?"var(--cyan)":"var(--dim2)"; }
+  setToggleLabel(label,saved);
   if(saved) el("debugPanel").classList.add("on");
   check.addEventListener("change",function(){
     const on=this.checked;
     saveUserPreference("debug_mode", on);
-    if(label){ label.textContent=on?"On":"Off"; label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+    setToggleLabel(label,on);
     if(on){ el("debugPanel").classList.add("on"); _updateSpBottom(); }
     else{ el("debugPanel").classList.remove("on"); _updateSpBottom(); }
   });
@@ -1696,11 +1719,11 @@ function initAdminCcToggle(){
   const label=el("adminCcToggleLabel");
   if(!check) return;
   check.checked=_adminCcEnabled;
-  if(label){ label.textContent=_adminCcEnabled?(lang==="es"?"Activo":"On"):(lang==="es"?"Inactivo":"Off"); label.style.color=_adminCcEnabled?"var(--cyan)":"var(--dim2)"; }
+  setToggleLabel(label,_adminCcEnabled);
   check.addEventListener("change",async function(){
     const on=this.checked;
     _adminCcEnabled=on;
-    if(label){ label.textContent=on?(lang==="es"?"Activo":"On"):(lang==="es"?"Inactivo":"Off"); label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+    setToggleLabel(label,on);
     await saveAdminCcToDB(on);
   });
 }
@@ -1712,13 +1735,13 @@ function initViewAsToggle(){
   const saved=localStorage.getItem("hpfleet_viewas_visible");
   const on=saved===null?true:saved==="1";
   check.checked=on;
-  if(label){ label.textContent=on?(lang==="es"?"Activo":"On"):(lang==="es"?"Inactivo":"Off"); label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+  setToggleLabel(label,on);
   const vaw=el("viewAsWrap");
   if(vaw&&currentUser&&currentUser.role==="ADMIN") vaw.style.display=on?"flex":"none";
   check.addEventListener("change",function(){
     const on=this.checked;
     saveUserPreference("viewas_visible", on);
-    if(label){ label.textContent=on?(lang==="es"?"Activo":"On"):(lang==="es"?"Inactivo":"Off"); label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+    setToggleLabel(label,on);
     const vaw=el("viewAsWrap");
     if(vaw&&currentUser&&currentUser.role==="ADMIN") vaw.style.display=on?"flex":"none";
     if(!on){ viewRole=null; renderWfBar(); setupFlRoleUI(); renderFlTable(); renderTabs(); updateActionBar(); }
@@ -1740,12 +1763,12 @@ function initStickyHeadersToggle(){
   const saved=localStorage.getItem("hpfleet_stickyheaders");
   const on=saved===null?true:saved==="1";
   check.checked=on;
-  if(label){ label.textContent=on?"On":"Off"; label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+  setToggleLabel(label,on);
   _applyStickyHeaders(on);
   check.addEventListener("change",function(){
     const isOn=this.checked;
     saveUserPreference("sticky_headers", isOn);
-    if(label){ label.textContent=isOn?"On":"Off"; label.style.color=isOn?"var(--cyan)":"var(--dim2)"; }
+    setToggleLabel(label,isOn);
     _applyStickyHeaders(isOn);
   });
 }
@@ -1763,12 +1786,12 @@ function initStickyTabsToggle(){
   const saved=localStorage.getItem("hpfleet_stickytabs");
   const on=saved===null?true:saved==="1";
   check.checked=on;
-  if(label){ label.textContent=on?"On":"Off"; label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+  setToggleLabel(label,on);
   _applyStickyTabs(on);
   check.addEventListener("change",function(){
     const isOn=this.checked;
     saveUserPreference("sticky_tabs", isOn);
-    if(label){ label.textContent=isOn?"On":"Off"; label.style.color=isOn?"var(--cyan)":"var(--dim2)"; }
+    setToggleLabel(label,isOn);
     _applyStickyTabs(isOn);
   });
 }
@@ -1784,13 +1807,13 @@ function initRoleBannerToggle(){
   const saved=localStorage.getItem("hpfleet_rolebanner");
   const on=saved===null?true:saved==="1"; // default on
   check.checked=on;
-  if(label){ label.textContent=on?"On":"Off"; label.style.color=on?"var(--cyan)":"var(--dim2)"; }
+  setToggleLabel(label,on);
   const banner=el("roleBanner");
   if(banner) banner.style.display=on?"":"none";
   check.addEventListener("change",function(){
     const isOn=this.checked;
     saveUserPreference("role_banner", isOn);
-    if(label){ label.textContent=isOn?"On":"Off"; label.style.color=isOn?"var(--cyan)":"var(--dim2)"; }
+    setToggleLabel(label,isOn);
     const b=el("roleBanner");
     if(b) b.style.display=isOn?"":"none";
   });

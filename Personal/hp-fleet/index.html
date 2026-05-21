@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.7a - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.7b - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +7,7 @@
 <title>HP Fleet</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7a">
+<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7b">
 </head>
 <body>
 
@@ -430,10 +430,10 @@
       </div>
       <div class="settings-section">
         <div class="settings-card">
-          <div class="settings-card-title">🖥 Display</div>
+          <div class="settings-card-title">🖥 <span id="st_displayTitle">Display</span></div>
           <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:10px 0">
             <div>
-              <div style="font-size:13px;color:var(--text)" id="st_tooltipsLabel">Tooltips</div>
+              <div style="font-size:13px;color:var(--text)"><span id="st_tooltipsLabel">Tooltips</span> <span id="tooltipPreviewTip" class="hpf-tip" tabindex="0" data-tip="Tooltip preview">?</span></div>
               <div style="font-size:11px;color:var(--dim2);font-family:var(--mono)" id="st_tooltipsHint">Show contextual help markers across the app</div>
               <div id="tooltipColorControls" style="display:grid;grid-template-columns:repeat(3,minmax(92px,1fr));gap:8px;margin-top:10px">
                 <label style="font-family:var(--mono);font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:6px">
@@ -458,16 +458,10 @@
               <span style="font-family:var(--mono);font-size:11px;color:var(--dim2)" id="tooltipsToggleLabel">On</span>
             </label>
           </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border2);margin-top:8px">
-            <div>
-              <div style="font-size:13px;color:var(--text)" id="st_tooltipsPreviewLabel">Tooltip Preview <span id="tooltipPreviewTip" class="hpf-tip" tabindex="0" data-tip="Tooltip preview">?</span></div>
-              <div style="font-size:11px;color:var(--dim2);font-family:var(--mono)" id="st_tooltipsPreviewHint">Hover or focus the marker to preview the current style</div>
-            </div>
-          </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
             <div>
-              <div style="font-size:13px;color:var(--text)">Role Badge Bar</div>
-              <div style="font-size:11px;color:var(--dim2);font-family:var(--mono)">Show role and permission banner below navigation</div>
+              <div style="font-size:13px;color:var(--text)" id="st_roleBannerLabel">Role Badge Bar</div>
+              <div style="font-size:11px;color:var(--dim2);font-family:var(--mono)" id="st_roleBannerHint">Show role and permission banner below navigation</div>
             </div>
             <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
               <label class="dbg-slider">
@@ -492,8 +486,8 @@
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border2);margin-top:8px">
             <div>
-              <div style="font-size:13px;color:var(--text)">Fix Column Headers</div>
-              <div style="font-size:11px;color:var(--dim2);font-family:var(--mono)">Keep Flight Log column headers visible while scrolling</div>
+              <div style="font-size:13px;color:var(--text)" id="st_stickyHeadersLabel">Fix Column Headers</div>
+              <div style="font-size:11px;color:var(--dim2);font-family:var(--mono)" id="st_stickyHeadersHint">Keep Flight Log column headers visible while scrolling</div>
             </div>
             <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
               <label class="dbg-slider">
@@ -507,11 +501,11 @@
       </div>
       <div class="settings-section" id="stSection_dev">
         <div class="settings-card">
-          <div class="settings-card-title">🛠 Developer Options</div>
+          <div class="settings-card-title">🛠 <span id="st_devTitle">Developer Options</span></div>
           <div style="padding:10px 0;border-bottom:1px solid var(--border)">
             <div style="font-size:13px;color:var(--text);margin-bottom:4px" id="st_resetTestLabel">Reset Batch Entry Data</div>
             <div style="font-size:11px;color:var(--dim2);font-family:var(--mono);margin-bottom:10px" id="st_resetTestHint">Clears flag_note, review_thread and resets status to pending for all entries in current batch</div>
-            <button class="btn-danger" id="btn_resetTestData" style="font-size:11px;padding:6px 14px">🗑 Reset Entry Data</button>
+            <button class="btn-danger" id="btn_resetTestData" style="font-size:11px;padding:6px 14px">🗑 <span id="st_resetTestButton">Reset Entry Data</span></button>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
             <div>
@@ -541,8 +535,8 @@
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
             <div>
-              <div style="font-size:13px;color:var(--text)">Debug Console</div>
-              <div style="font-size:11px;color:var(--dim2);font-family:var(--mono)">Show real-time system log at bottom of screen</div>
+              <div style="font-size:13px;color:var(--text)" id="st_debugLabel">Debug Console</div>
+              <div style="font-size:11px;color:var(--dim2);font-family:var(--mono)" id="st_debugHint">Show real-time system log at bottom of screen</div>
             </div>
             <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
               <label class="dbg-slider">
@@ -556,20 +550,20 @@
       </div>
       <div class="settings-section" id="stSection_db">
         <div class="settings-card">
-          <div class="settings-card-title">🗄 Database Maintenance</div>
-          <div style="font-family:var(--mono);font-size:10px;color:var(--dim2);margin-bottom:16px">Admin only. These actions are permanent and cannot be undone.</div>
+          <div class="settings-card-title">🗄 <span id="st_dbTitle">Database Maintenance</span></div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--dim2);margin-bottom:16px" id="st_dbHint">Admin only. These actions are permanent and cannot be undone.</div>
           <div style="display:flex;flex-direction:column;gap:10px">
             <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
               <div>
-                <div style="font-size:13px;color:var(--text)">Delete Test Batches</div>
-                <div style="font-family:var(--mono);font-size:10px;color:var(--dim2)">Delete all batches with no aircraft/operator metadata</div>
+                <div style="font-size:13px;color:var(--text)" id="st_deleteTestLabel">Delete Test Batches</div>
+                <div style="font-family:var(--mono);font-size:10px;color:var(--dim2)" id="st_deleteTestHint">Delete all batches with no aircraft/operator metadata</div>
               </div>
-              <button class="btn-danger" id="btn_delTestBatches" style="font-size:11px;padding:6px 14px">Delete</button>
+              <button class="btn-danger" id="btn_delTestBatches" style="font-size:11px;padding:6px 14px" data-i18n="del">Delete</button>
             </div>
             <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
               <div>
-                <div style="font-size:13px;color:var(--text)">Delete Batches by Status</div>
-                <div style="font-family:var(--mono);font-size:10px;color:var(--dim2)">Delete all batches with a specific status</div>
+                <div style="font-size:13px;color:var(--text)" id="st_deleteStatusLabel">Delete Batches by Status</div>
+                <div style="font-family:var(--mono);font-size:10px;color:var(--dim2)" id="st_deleteStatusHint">Delete all batches with a specific status</div>
               </div>
               <div style="display:flex;gap:8px;align-items:center">
                 <select id="del_batch_status" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 10px;border-radius:2px">
@@ -578,15 +572,15 @@
                   <option value="APPROVED">APPROVED</option>
                   <option value="INVOICED">INVOICED</option>
                 </select>
-                <button class="btn-danger" id="btn_delByStatus" style="font-size:11px;padding:6px 14px">Delete</button>
+                <button class="btn-danger" id="btn_delByStatus" style="font-size:11px;padding:6px 14px" data-i18n="del">Delete</button>
               </div>
             </div>
             <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
               <div>
-                <div style="font-size:13px;color:var(--text)">Clear Audit Logs</div>
-                <div style="font-family:var(--mono);font-size:10px;color:var(--dim2)">Clear all app-level audit log entries</div>
+                <div style="font-size:13px;color:var(--text)" id="st_clearAuditLabel">Clear Audit Logs</div>
+                <div style="font-family:var(--mono);font-size:10px;color:var(--dim2)" id="st_clearAuditHint">Clear all app-level audit log entries</div>
               </div>
-              <button class="btn-danger" id="btn_clearAuditDB" style="font-size:11px;padding:6px 14px">Clear</button>
+              <button class="btn-danger" id="btn_clearAuditDB" style="font-size:11px;padding:6px 14px" data-i18n="clearKey">Clear</button>
             </div>
           </div>
         </div>
@@ -667,7 +661,7 @@
       <div class="section-divider"><span id="co_contactsTitle">Contacts</span> <span style="color:var(--dim);font-size:9px" id="co_contactsMax">(max 5)</span></div>
       <div id="co_contacts_list" style="margin-bottom:8px"></div>
       <button class="btn-ghost" id="co_addContact" style="width:100%;font-size:11px;margin-bottom:12px">+ Add Contact</button>
-      <div class="section-divider" id="co_rulesTitle">Billing Rules</div>
+      <div class="section-divider"><span id="co_rulesTitle">Billing Rules</span> <span id="co_rulesTip" class="hpf-tip" tabindex="0" data-tip="Billing rules help">?</span></div>
       <div id="co_rules_list" style="margin-bottom:12px"></div>
       <button class="btn-ghost" id="co_addRule" style="width:100%">+ Add Billing Rule</button>
     </div>
@@ -1288,6 +1282,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="./assets/js/app.js?v=8.5.7a"></script>
+<script src="./assets/js/app.js?v=8.5.7b"></script>
 </body>
 </html>
