@@ -366,5 +366,8 @@
   "stStickyTabsHint": "Mantiene visibles las pestañas de navegación al desplazarse",
   "stWorkflowTitle": "Elementos de Flujo",
   "stResetTestLabel": "Resetear datos de entradas del lote",
-  "stResetTestHint": "Limpia notas del revisor, conversaciones de revisión y devuelve las entradas del lote actual a pendiente"
+  "stResetTestHint": "Limpia notas del revisor, conversaciones de revisión y devuelve las entradas del lote actual a pendiente",
+  "roleRightsTitle": "Permisos del Rol",
+  "roleRightsIncluded": "Permisos incluidos",
+  "close": "Cerrar"
 }

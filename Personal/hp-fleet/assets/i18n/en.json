@@ -366,5 +366,8 @@
   "stStickyTabsHint": "Keep navigation tabs visible while scrolling",
   "stWorkflowTitle": "Workflow Items",
   "stResetTestLabel": "Reset Batch Entry Data",
-  "stResetTestHint": "Clears reviewer notes, review threads, and resets current batch entries to pending"
+  "stResetTestHint": "Clears reviewer notes, review threads, and resets current batch entries to pending",
+  "roleRightsTitle": "Role Rights",
+  "roleRightsIncluded": "Rights included",
+  "close": "Close"
 }

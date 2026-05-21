@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7c";
+const APP_VERSION = "v8.5.7d";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.7c",
-  es: "./assets/i18n/es.json?v=8.5.7c"
+  en: "./assets/i18n/en.json?v=8.5.7d",
+  es: "./assets/i18n/es.json?v=8.5.7d"
 };
 
 async function loadI18nDictionaries(){
@@ -804,6 +804,69 @@ function orientTip(tip){
   if(rect.left<center) tip.classList.add("tip-open-right");
   else tip.classList.add("tip-open-left");
 }
+let _tipPopover=null;
+let _activeTip=null;
+function initTooltipLayer(){
+  document.body.classList.add("hpf-js-tooltips");
+  if(!_tipPopover){
+    _tipPopover=document.createElement("div");
+    _tipPopover.className="hpf-tip-popover";
+    _tipPopover.setAttribute("role","tooltip");
+    document.body.appendChild(_tipPopover);
+  }
+  document.addEventListener("pointerover",e=>{
+    const tip=e.target.closest(".hpf-tip");
+    if(tip) showTipPopover(tip);
+  });
+  document.addEventListener("focusin",e=>{
+    const tip=e.target.closest(".hpf-tip");
+    if(tip) showTipPopover(tip);
+  });
+  document.addEventListener("pointerout",e=>{
+    const tip=e.target.closest(".hpf-tip");
+    if(tip && !tip.contains(e.relatedTarget)) hideTipPopover(tip);
+  });
+  document.addEventListener("focusout",e=>{
+    const tip=e.target.closest(".hpf-tip");
+    if(tip) hideTipPopover(tip);
+  });
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape") hideTipPopover(); });
+  window.addEventListener("resize",()=>{ if(_activeTip) positionTipPopover(_activeTip); });
+  document.addEventListener("scroll",()=>{ if(_activeTip) positionTipPopover(_activeTip); },true);
+}
+function showTipPopover(tip){
+  if(!_tipPopover || !tip || document.body.classList.contains("hpf-tooltips-off")) return;
+  const text=tip.dataset.tip||tip.getAttribute("aria-label")||"";
+  if(!text) return;
+  _activeTip=tip;
+  _tipPopover.textContent=text;
+  _tipPopover.classList.add("on");
+  positionTipPopover(tip);
+}
+function hideTipPopover(tip=null){
+  if(tip && _activeTip!==tip) return;
+  _activeTip=null;
+  if(_tipPopover) _tipPopover.classList.remove("on");
+}
+function positionTipPopover(tip){
+  if(!_tipPopover || !tip) return;
+  const margin=12;
+  const gap=8;
+  const tipRect=tip.getBoundingClientRect();
+  const vpW=window.innerWidth;
+  const vpH=window.innerHeight;
+  _tipPopover.style.maxWidth=Math.min(280,Math.max(180,vpW-(margin*2)))+"px";
+  const popRect=_tipPopover.getBoundingClientRect();
+  const tipCenter=tipRect.left+(tipRect.width/2);
+  const openRight=tipCenter < vpW/2;
+  let left=openRight ? tipRect.left : tipRect.right-popRect.width;
+  left=Math.max(margin,Math.min(left,vpW-popRect.width-margin));
+  let top=tipRect.top-popRect.height-gap;
+  if(top<margin) top=tipRect.bottom+gap;
+  top=Math.max(margin,Math.min(top,vpH-popRect.height-margin));
+  _tipPopover.style.left=left+"px";
+  _tipPopover.style.top=top+"px";
+}
 function ensureTip(labelId,key,forceLeft=false){
   const label=el(labelId);
   if(!label) return;
@@ -1200,7 +1263,7 @@ function renderUsers(){
       '<div class="u-email">'+u.email+"</div>"+
       '<div class="u-companies">'+coTagsHtml+"</div>"+
       "</div></div></td>"+
-      '<td><span class="role-chip '+r.chipClass+'">'+r[lang].label+"</span></td>"+
+      '<td><button type="button" class="role-chip role-chip-btn '+r.chipClass+'" data-role-rights="'+u.role+'">'+r[lang].label+"</button></td>"+
       '<td><div style="display:flex;gap:4px;flex-wrap:wrap">'+coTagsHtml+"</div></td>"+
       '<td><button class="sp '+(u.status==="active"?"sp-on":"sp-off")+'" data-uid="'+u.id+'" '+(isSelf?"disabled":"")+'>'+
       (u.status==="active"?t("active"):t("inactive"))+"</button></td>"+
@@ -1277,6 +1340,27 @@ function updateRoleDesc(){
   const role=el("um_role").value;
   const descs={ADMIN:t("roleDescAdmin"),OPERATOR:t("roleDescOperator"),REVIEWER:t("roleDescReviewer"),READONLY:t("roleDescReadonly")};
   el("roleDesc").textContent=descs[role]||"";
+}
+function openRoleRights(role){
+  const r=ROLES[role];
+  if(!r) return;
+  const rd=r[lang];
+  if(el("rrTitle")) el("rrTitle").textContent=t("roleRightsTitle");
+  if(el("rrSub")) el("rrSub").textContent=t("roleRightsIncluded");
+  if(el("rr_done")) el("rr_done").textContent=t("close");
+  if(el("rrIcon")) el("rrIcon").textContent=r.icon;
+  if(el("rrRole")) el("rrRole").textContent=rd.label;
+  if(el("rrDesc")) el("rrDesc").textContent=rd.desc;
+  const list=el("rrList");
+  if(list){
+    list.innerHTML="";
+    rd.perms.forEach(perm=>{
+      const li=document.createElement("li");
+      li.textContent=perm;
+      list.appendChild(li);
+    });
+  }
+  openModal("roleRightsMbd");
 }
 
 function saveUser(){
@@ -1631,6 +1715,7 @@ function applyTooltipPreferences(){
   document.documentElement.style.setProperty("--tip-bg",bg);
   document.documentElement.style.setProperty("--tip-border",border);
   if(document.body) document.body.classList.toggle("hpf-tooltips-off",!enabled);
+  if(!enabled) hideTipPopover();
   document.querySelectorAll(".hpf-tip").forEach(orientTip);
 }
 function setToggleLabel(label,on){
@@ -5035,6 +5120,7 @@ async function saveAircraft(){
 
 // ── EVENT WIRING (all addEventListener, no inline handlers) ──
 function wireEvents(){
+  initTooltipLayer();
   // Login
   el("btnEN").addEventListener("click",()=>setLang("en"));
   el("btnES").addEventListener("click",()=>setLang("es"));
@@ -5076,14 +5162,19 @@ function wireEvents(){
   el("um_cancel").addEventListener("click",()=>closeModal("userMbd"));
   el("um_save").addEventListener("click",saveUser);
   el("um_role").addEventListener("change",updateRoleDesc);
+  if(el("rr_close")) el("rr_close").addEventListener("click",()=>closeModal("roleRightsMbd"));
+  if(el("rr_done")) el("rr_done").addEventListener("click",()=>closeModal("roleRightsMbd"));
+  if(el("roleRightsMbd")) el("roleRightsMbd").addEventListener("click",e=>{ if(e.target===el("roleRightsMbd")) closeModal("roleRightsMbd"); });
   // userMbd: backdrop click disabled — prevents accidental loss of unsaved user data
 
   // User table delegation
   el("userTbody").addEventListener("click",function(e){
+    const roleBtn=e.target.closest("[data-role-rights]");
     const editBtn=e.target.closest("[data-edit-user]");
     const delBtn=e.target.closest("[data-del-user]");
     const stBtn=e.target.closest("[data-uid]");
-    if(editBtn) openEditUser(editBtn.dataset.editUser);
+    if(roleBtn) openRoleRights(roleBtn.dataset.roleRights);
+    else if(editBtn) openEditUser(editBtn.dataset.editUser);
     else if(delBtn) openDeleteUser(delBtn.dataset.delUser);
     else if(stBtn) toggleUserStatus(stBtn.dataset.uid);
   });

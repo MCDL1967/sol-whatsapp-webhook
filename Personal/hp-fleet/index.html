@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.7c - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.7d - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +7,7 @@
 <title>HP Fleet</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7c">
+<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7d">
 </head>
 <body>
 
@@ -633,6 +633,25 @@
       <div id="roleDesc" style="margin-top:12px;padding:10px 14px;background:var(--s2);border:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--dim2);line-height:1.6;border-radius:2px"></div>
     </div>
     <div class="mftr"><button class="btn-ghost" id="um_cancel">Cancel</button><button class="btn-primary" id="um_save">Save User</button></div>
+  </div>
+</div>
+
+<!-- ROLE RIGHTS MODAL -->
+<div class="mbd" id="roleRightsMbd">
+  <div class="mbox role-rights-box">
+    <div class="mhdr"><div class="mhdr-t cv" id="rrTitle">Role Rights</div><button class="m-x" id="rr_close">✕</button></div>
+    <div class="mbody">
+      <div class="role-rights-head">
+        <div class="role-rights-icon" id="rrIcon">🛡️</div>
+        <div>
+          <div class="role-rights-role" id="rrRole">Administrator</div>
+          <div class="role-rights-desc" id="rrDesc">Full system access.</div>
+        </div>
+      </div>
+      <div class="role-rights-sub" id="rrSub">Rights included</div>
+      <ul class="role-rights-list" id="rrList"></ul>
+    </div>
+    <div class="mftr"><button class="btn-ghost" id="rr_done">Close</button></div>
   </div>
 </div>
 
@@ -1287,6 +1306,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="./assets/js/app.js?v=8.5.7c"></script>
+<script src="./assets/js/app.js?v=8.5.7d"></script>
 </body>
 </html>
