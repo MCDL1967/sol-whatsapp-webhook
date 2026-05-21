@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.6a";
+const APP_VERSION = "v8.5.6b";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -375,6 +375,10 @@ const I18N = {
     aircraftPhotoCompressionHint:"Image will be compressed before staging",aircraftUsePhoto:"OK - Use Photo",
     aircraftRatesRequiredToast:"Add at least one operator rate",
     aircraftCardMakeModel:"Make/Model",aircraftCardEngine:"Engine",aircraftCardFuel:"Fuel (gal/hr)",aircraftCardDiffThreshold:"Diff Threshold",
+    stTooltipsLabel:"Tooltips",stTooltipsHint:"Show contextual help markers across the app",
+    stTooltipTextColor:"Text",stTooltipBoxColor:"Box",stTooltipBorderColor:"Border",
+    stTooltipsPreviewLabel:"Tooltip Preview",stTooltipsPreviewHint:"Hover or focus the marker to preview the current style",
+    stTooltipsPreviewTip:"Tooltips can explain fields without crowding the form.",
   },
   es:{
     signIn:"Iniciar Sesión",signingIn:"Verificando…",signOut:"↩ Salir",
@@ -493,6 +497,10 @@ const I18N = {
     aircraftPhotoCompressionHint:"La imagen será comprimida antes de prepararla",aircraftUsePhoto:"OK - Usar Foto",
     aircraftRatesRequiredToast:"Agrega al menos una tarifa de operador",
     aircraftCardMakeModel:"Marca/Modelo",aircraftCardEngine:"Motor",aircraftCardFuel:"Combustible (gal/hr)",aircraftCardDiffThreshold:"Umbral de diferencia",
+    stTooltipsLabel:"Tooltips",stTooltipsHint:"Muestra marcadores de ayuda contextual en la app",
+    stTooltipTextColor:"Texto",stTooltipBoxColor:"Caja",stTooltipBorderColor:"Borde",
+    stTooltipsPreviewLabel:"Vista previa de Tooltip",stTooltipsPreviewHint:"Pasa el cursor o enfoca el marcador para ver el estilo actual",
+    stTooltipsPreviewTip:"Los tooltips explican campos sin recargar el formulario.",
   }
 };
 
@@ -510,6 +518,10 @@ const PREF_DEFAULTS = {
   role_banner:     true,
   viewas_visible:  true,
   debug_mode:      false,
+  tooltips_enabled:true,
+  tooltip_text:    "#dce6f5",
+  tooltip_bg:      "#1a2030",
+  tooltip_border:  "#41d1ff",
   sidepanel_width: 420,
   sidepanel_image_height: null,
   active_tab:      null   // resolved per-role at boot if null
@@ -522,6 +534,10 @@ const LS_MAP = {
   role_banner:     "hpfleet_rolebanner",
   viewas_visible:  "hpfleet_viewas_visible",
   debug_mode:      "hpfleet_debug",
+  tooltips_enabled:"hpfleet_tooltips_enabled",
+  tooltip_text:    "hpfleet_tooltip_text",
+  tooltip_bg:      "hpfleet_tooltip_bg",
+  tooltip_border:  "hpfleet_tooltip_border",
   sidepanel_width: "hpfleet_sp_width",
   sidepanel_image_height: "hpfleet_sp_img_h",
   active_tab:      null   // no prior localStorage key for active tab
@@ -613,6 +629,7 @@ function applyUserPreferences(){
   }
   // All other prefs are read by the existing init* functions from localStorage
   // No need to apply them here — localStorage is now synced from DB above
+  applyTooltipPreferences();
   dbg("Preferences applied to UI", "info");
 }
 
@@ -944,6 +961,9 @@ function applyI18n(){
     btn_submit:"btnSubmit",btn_approve:"btnApprove",btn_reqChanges:"btnReqChanges",btn_returnForReview:"btnReturnForReview",
     fo_reviewerComments:"rfrColComment",
     st_adminCcLabel:"stAdminCcLabel",st_adminCcHint:"stAdminCcHint",
+    st_tooltipsLabel:"stTooltipsLabel",st_tooltipsHint:"stTooltipsHint",
+    st_tooltipTextColorLabel:"stTooltipTextColor",st_tooltipBoxColorLabel:"stTooltipBoxColor",st_tooltipBorderColorLabel:"stTooltipBorderColor",
+    st_tooltipsPreviewLabel:"stTooltipsPreviewLabel",st_tooltipsPreviewHint:"stTooltipsPreviewHint",
     st_viewAsLabel:"stViewAsLabel",st_viewAsHint:"stViewAsHint",
     st_title:"stTitle",st_apiTitle:"stApiTitle",st_apiLabel:"stApiLabel",st_apiHint:"stApiHint",
     btn_saveApiKey:"saveKey",btn_clearApiKey:"clearKey",
@@ -957,6 +977,12 @@ function applyI18n(){
   if(el("fo_rev")) el("fo_rev").textContent=roleLabels.REVIEWER;
   if(el("fo_ro")) el("fo_ro").textContent=roleLabels.READONLY;
   Object.entries(ids).forEach(([id,key])=>{ if(key && el(id)) el(id).textContent=t(key); });
+  if(el("tooltipPreviewTip")){
+    el("tooltipPreviewTip").dataset.tip=t("stTooltipsPreviewTip");
+    el("tooltipPreviewTip").setAttribute("aria-label",t("stTooltipsPreviewTip"));
+    orientTip(el("tooltipPreviewTip"));
+  }
+  if(el("tooltipsToggleLabel")&&el("tooltipsToggleCheck")) setToggleLabel(el("tooltipsToggleLabel"),el("tooltipsToggleCheck").checked);
   localizeAircraftUi();
   renderTabs();
   updateApiStatus();
@@ -965,13 +991,23 @@ function applyI18n(){
 function setText(id,key){ if(el(id)) el(id).textContent=t(key); }
 function setPh(id,key){ if(el(id)) el(id).placeholder=t(key); }
 function setTitle(id,key){ if(el(id)) el(id).title=t(key); }
-function ensureTip(labelId,key,alignRight=false){
+function orientTip(tip){
+  if(!tip) return;
+  tip.classList.remove("tip-open-left","tip-open-right");
+  const modal=tip.closest(".mbox");
+  const bounds=modal?modal.getBoundingClientRect():{left:0,width:window.innerWidth};
+  const center=bounds.left+bounds.width/2;
+  const rect=tip.getBoundingClientRect();
+  if(rect.left<center) tip.classList.add("tip-open-right");
+  else tip.classList.add("tip-open-left");
+}
+function ensureTip(labelId,key,forceLeft=false){
   const label=el(labelId);
   if(!label) return;
   let tip=label.querySelector(".hpf-tip");
   if(!tip){
     tip=document.createElement("span");
-    tip.className="hpf-tip"+(alignRight?" tip-right":"");
+    tip.className="hpf-tip";
     tip.tabIndex=0;
     tip.setAttribute("aria-label",t(key));
     tip.textContent="?";
@@ -979,6 +1015,9 @@ function ensureTip(labelId,key,alignRight=false){
   }
   tip.dataset.tip=t(key);
   tip.setAttribute("aria-label",t(key));
+  tip.classList.remove("tip-open-left","tip-open-right");
+  if(forceLeft) tip.classList.add("tip-open-left");
+  else requestAnimationFrame(()=>orientTip(tip));
 }
 function setLabelLeadingText(id,key){
   const node=el(id);
@@ -1091,6 +1130,7 @@ async function bootApp(){
   initDebugToggle();
   initAdminCcToggle();
   initViewAsToggle();
+  initTooltipPreferences();
   initRoleBannerToggle();
   initStickyHeadersToggle();
   initStickyTabsToggle();
@@ -1763,6 +1803,58 @@ function clearCoErrors(){
     const e=el("coe_"+f); const i=el("co_"+f);
     if(e){e.textContent="";e.classList.remove("on");}
     if(i&&i.classList) i.classList.remove("err");
+  });
+}
+
+function getTooltipPref(key){
+  if(_userPrefs && _userPrefs[key] !== undefined && _userPrefs[key] !== null) return _userPrefs[key];
+  const lsKey=LS_MAP[key];
+  const raw=lsKey?localStorage.getItem(lsKey):null;
+  if(raw===null) return PREF_DEFAULTS[key];
+  if(typeof PREF_DEFAULTS[key]==="boolean") return raw==="1";
+  return raw;
+}
+function applyTooltipPreferences(){
+  const enabled=getTooltipPref("tooltips_enabled");
+  const text=getTooltipPref("tooltip_text")||PREF_DEFAULTS.tooltip_text;
+  const bg=getTooltipPref("tooltip_bg")||PREF_DEFAULTS.tooltip_bg;
+  const border=getTooltipPref("tooltip_border")||PREF_DEFAULTS.tooltip_border;
+  document.documentElement.style.setProperty("--tip-text",text);
+  document.documentElement.style.setProperty("--tip-bg",bg);
+  document.documentElement.style.setProperty("--tip-border",border);
+  if(document.body) document.body.classList.toggle("hpf-tooltips-off",!enabled);
+  document.querySelectorAll(".hpf-tip").forEach(orientTip);
+}
+function setToggleLabel(label,on){
+  if(!label) return;
+  label.textContent=on?(lang==="es"?"Activo":"On"):(lang==="es"?"Inactivo":"Off");
+  label.style.color=on?"var(--cyan)":"var(--dim2)";
+}
+function initTooltipPreferences(){
+  const check=el("tooltipsToggleCheck");
+  const label=el("tooltipsToggleLabel");
+  const textInp=el("tooltipTextColor");
+  const boxInp=el("tooltipBoxColor");
+  const borderInp=el("tooltipBorderColor");
+  if(!check) return;
+  const enabled=getTooltipPref("tooltips_enabled");
+  check.checked=enabled;
+  setToggleLabel(label,enabled);
+  if(textInp) textInp.value=getTooltipPref("tooltip_text")||PREF_DEFAULTS.tooltip_text;
+  if(boxInp) boxInp.value=getTooltipPref("tooltip_bg")||PREF_DEFAULTS.tooltip_bg;
+  if(borderInp) borderInp.value=getTooltipPref("tooltip_border")||PREF_DEFAULTS.tooltip_border;
+  applyTooltipPreferences();
+  check.addEventListener("change",function(){
+    saveUserPreference("tooltips_enabled",this.checked);
+    setToggleLabel(label,this.checked);
+    applyTooltipPreferences();
+  });
+  [[textInp,"tooltip_text"],[boxInp,"tooltip_bg"],[borderInp,"tooltip_border"]].forEach(([inp,key])=>{
+    if(!inp) return;
+    inp.addEventListener("input",function(){
+      saveUserPreference(key,this.value);
+      applyTooltipPreferences();
+    });
   });
 }
 

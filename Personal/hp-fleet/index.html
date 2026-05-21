@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.6a - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.6b - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +7,7 @@
 <title>HP Fleet</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="./assets/css/app.css">
+<link rel="stylesheet" href="./assets/css/app.css?v=8.5.6b">
 </head>
 <body>
 
@@ -431,6 +431,39 @@
       <div class="settings-section">
         <div class="settings-card">
           <div class="settings-card-title">🖥 Display</div>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:10px 0">
+            <div>
+              <div style="font-size:13px;color:var(--text)" id="st_tooltipsLabel">Tooltips</div>
+              <div style="font-size:11px;color:var(--dim2);font-family:var(--mono)" id="st_tooltipsHint">Show contextual help markers across the app</div>
+              <div id="tooltipColorControls" style="display:grid;grid-template-columns:repeat(3,minmax(92px,1fr));gap:8px;margin-top:10px">
+                <label style="font-family:var(--mono);font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:6px">
+                  <span id="st_tooltipTextColorLabel">Text</span>
+                  <input type="color" id="tooltipTextColor" value="#dce6f5" style="width:34px;height:24px;background:transparent;border:1px solid var(--border2);padding:0;cursor:pointer">
+                </label>
+                <label style="font-family:var(--mono);font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:6px">
+                  <span id="st_tooltipBoxColorLabel">Box</span>
+                  <input type="color" id="tooltipBoxColor" value="#1a2030" style="width:34px;height:24px;background:transparent;border:1px solid var(--border2);padding:0;cursor:pointer">
+                </label>
+                <label style="font-family:var(--mono);font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:6px">
+                  <span id="st_tooltipBorderColorLabel">Border</span>
+                  <input type="color" id="tooltipBorderColor" value="#41d1ff" style="width:34px;height:24px;background:transparent;border:1px solid var(--border2);padding:0;cursor:pointer">
+                </label>
+              </div>
+            </div>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+              <label class="dbg-slider">
+                <input type="checkbox" id="tooltipsToggleCheck" checked>
+                <span class="dbg-slider-track"></span>
+              </label>
+              <span style="font-family:var(--mono);font-size:11px;color:var(--dim2)" id="tooltipsToggleLabel">On</span>
+            </label>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border2);margin-top:8px">
+            <div>
+              <div style="font-size:13px;color:var(--text)" id="st_tooltipsPreviewLabel">Tooltip Preview <span id="tooltipPreviewTip" class="hpf-tip" tabindex="0" data-tip="Tooltip preview">?</span></div>
+              <div style="font-size:11px;color:var(--dim2);font-family:var(--mono)" id="st_tooltipsPreviewHint">Hover or focus the marker to preview the current style</div>
+            </div>
+          </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
             <div>
               <div style="font-size:13px;color:var(--text)">Role Badge Bar</div>
@@ -1255,6 +1288,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="./assets/js/app.js"></script>
+<script src="./assets/js/app.js?v=8.5.6b"></script>
 </body>
 </html>
