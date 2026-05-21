@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.7i - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.7j - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +7,7 @@
 <title>HP Fleet</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7i">
+<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7j">
 </head>
 <body>
 
@@ -457,6 +457,16 @@
                 <span class="dbg-slider-track"></span>
               </label>
               <span style="font-family:var(--mono);font-size:11px;color:var(--dim2)" id="tooltipsToggleLabel">On</span>
+            </label>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border2);margin-top:8px">
+            <div>
+              <div style="font-size:13px;color:var(--text)" id="st_toastDurationLabel">Toast Duration</div>
+              <div style="font-size:11px;color:var(--dim2);font-family:var(--mono)" id="st_toastDurationHint">How long messages stay visible</div>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--dim2);text-transform:uppercase;letter-spacing:1px">
+              <input type="number" id="toastDurationSec" min="2" max="12" step="1" value="5" style="width:58px;background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:12px;padding:7px 8px;border-radius:2px;outline:none">
+              <span id="st_toastDurationUnit">sec</span>
             </label>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border2);margin-top:8px">
@@ -1307,6 +1317,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="./assets/js/app.js?v=8.5.7i"></script>
+<script src="./assets/js/app.js?v=8.5.7j"></script>
 </body>
 </html>

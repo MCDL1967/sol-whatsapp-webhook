@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7i";
+const APP_VERSION = "v8.5.7j";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -290,6 +290,7 @@ const PREF_DEFAULTS = {
   tooltip_text:    "#dce6f5",
   tooltip_bg:      "#1a2030",
   tooltip_border:  "#41d1ff",
+  toast_duration_sec: 5,
   sidepanel_width: 420,
   sidepanel_image_height: null,
   language:       "en",
@@ -307,6 +308,7 @@ const LS_MAP = {
   tooltip_text:    "hpfleet_tooltip_text",
   tooltip_bg:      "hpfleet_tooltip_bg",
   tooltip_border:  "hpfleet_tooltip_border",
+  toast_duration_sec: "hpfleet_toast_duration_sec",
   sidepanel_width: "hpfleet_sp_width",
   sidepanel_image_height: "hpfleet_sp_img_h",
   language:       "hpfleet_lang",
@@ -706,10 +708,17 @@ function coColor(code){
 }
 function openModal(id){ el(id).classList.add("open"); }
 function closeModal(id){ el(id).classList.remove("open"); }
+let _toastTimer=null;
+function getToastDurationMs(){
+  const raw=(_userPrefs && _userPrefs.toast_duration_sec !== undefined) ? _userPrefs.toast_duration_sec : localStorage.getItem("hpfleet_toast_duration_sec");
+  const sec=parseInt(raw || PREF_DEFAULTS.toast_duration_sec,10);
+  return Math.min(12,Math.max(2,Number.isFinite(sec)?sec:PREF_DEFAULTS.toast_duration_sec))*1000;
+}
 function showToast(msg,type=""){
   const t=el("toast"); t.textContent=msg;
   t.className="toast on"+(type?" "+type:"");
-  setTimeout(()=>t.className="toast",3200);
+  if(_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>{t.className="toast";_toastTimer=null;},getToastDurationMs());
 }
 
 // ── LANG ──
@@ -781,6 +790,7 @@ function applyI18n(){
     st_deleteStatusLabel:"stDeleteStatusLabel",st_deleteStatusHint:"stDeleteStatusHint",st_clearAuditLabel:"stClearAuditLabel",st_clearAuditHint:"stClearAuditHint",
     st_tooltipsLabel:"stTooltipsLabel",st_tooltipsHint:"stTooltipsHint",
     st_tooltipTextColorLabel:"stTooltipTextColor",st_tooltipBoxColorLabel:"stTooltipBoxColor",st_tooltipBorderColorLabel:"stTooltipBorderColor",
+    st_toastDurationLabel:"stToastDurationLabel",st_toastDurationHint:"stToastDurationHint",st_toastDurationUnit:"stToastDurationUnit",
     st_viewAsLabel:"stViewAsLabel",st_viewAsHint:"stViewAsHint",
     st_title:"stTitle",st_apiTitle:"stApiTitle",st_apiLabel:"stApiLabel",st_apiHint:"stApiHint",
     btn_saveApiKey:"saveKey",btn_clearApiKey:"clearKey",
@@ -1776,6 +1786,7 @@ function getTooltipPref(key){
   const raw=lsKey?localStorage.getItem(lsKey):null;
   if(raw===null) return PREF_DEFAULTS[key];
   if(typeof PREF_DEFAULTS[key]==="boolean") return raw==="1";
+  if(typeof PREF_DEFAULTS[key]==="number") return parseFloat(raw);
   return raw;
 }
 function applyTooltipPreferences(){
@@ -1815,6 +1826,7 @@ function initTooltipPreferences(){
   const textInp=el("tooltipTextColor");
   const boxInp=el("tooltipBoxColor");
   const borderInp=el("tooltipBorderColor");
+  const toastInp=el("toastDurationSec");
   if(!check) return;
   const enabled=getTooltipPref("tooltips_enabled");
   check.checked=enabled;
@@ -1822,6 +1834,10 @@ function initTooltipPreferences(){
   if(textInp) textInp.value=getTooltipPref("tooltip_text")||PREF_DEFAULTS.tooltip_text;
   if(boxInp) boxInp.value=getTooltipPref("tooltip_bg")||PREF_DEFAULTS.tooltip_bg;
   if(borderInp) borderInp.value=getTooltipPref("tooltip_border")||PREF_DEFAULTS.tooltip_border;
+  if(toastInp){
+    const prefSec=parseInt(getTooltipPref("toast_duration_sec")||PREF_DEFAULTS.toast_duration_sec,10);
+    toastInp.value=Math.min(12,Math.max(2,Number.isFinite(prefSec)?prefSec:PREF_DEFAULTS.toast_duration_sec));
+  }
   applyTooltipPreferences();
   check.addEventListener("change",function(){
     saveUserPreference("tooltips_enabled",this.checked);
@@ -1835,6 +1851,14 @@ function initTooltipPreferences(){
       applyTooltipPreferences();
     });
   });
+  if(toastInp){
+    toastInp.addEventListener("change",function(){
+      const parsed=parseInt(this.value||PREF_DEFAULTS.toast_duration_sec,10);
+      const sec=Math.min(12,Math.max(2,Number.isFinite(parsed)?parsed:PREF_DEFAULTS.toast_duration_sec));
+      this.value=sec;
+      saveUserPreference("toast_duration_sec",sec);
+    });
+  }
 }
 
 function exportUsersJSON(){
