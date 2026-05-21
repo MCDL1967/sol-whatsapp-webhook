@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.6";
+const APP_VERSION = "v8.5.6a";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -965,6 +965,21 @@ function applyI18n(){
 function setText(id,key){ if(el(id)) el(id).textContent=t(key); }
 function setPh(id,key){ if(el(id)) el(id).placeholder=t(key); }
 function setTitle(id,key){ if(el(id)) el(id).title=t(key); }
+function ensureTip(labelId,key,alignRight=false){
+  const label=el(labelId);
+  if(!label) return;
+  let tip=label.querySelector(".hpf-tip");
+  if(!tip){
+    tip=document.createElement("span");
+    tip.className="hpf-tip"+(alignRight?" tip-right":"");
+    tip.tabIndex=0;
+    tip.setAttribute("aria-label",t(key));
+    tip.textContent="?";
+    label.appendChild(tip);
+  }
+  tip.dataset.tip=t(key);
+  tip.setAttribute("aria-label",t(key));
+}
 function setLabelLeadingText(id,key){
   const node=el(id);
   if(!node) return;
@@ -978,13 +993,18 @@ function localizeAircraftUi(){
   setText("ac_lbl_matricula","aircraftRegistration"); setPh("ac_matricula","aircraftRegistrationPh");
   setText("ac_lbl_makeModel","aircraftMakeModel"); setPh("ac_makeModel","aircraftMakeModelPh");
   setText("ac_lbl_tipo","aircraftType"); setPh("ac_tipo","aircraftTypePh"); setTitle("ac_tipo","aircraftTypeTip");
+  ensureTip("ac_lbl_tipo","aircraftTypeTip");
   setLabelLeadingText("ac_lbl_horoTolerance","aircraftTachTolerance"); setTitle("ac_horoTolerance","aircraftTachToleranceTip"); setTitle("ac_horoTolerance_dot","aircraftTachToleranceDotTip");
+  ensureTip("ac_lbl_horoTolerance","aircraftTachToleranceTip");
   setLabelLeadingText("ac_lbl_diffWarn","aircraftDiffWarn"); setTitle("ac_diffWarn","aircraftDiffWarnTip"); setTitle("ac_diffWarn_dot","aircraftDiffWarnDotTip");
+  ensureTip("ac_lbl_diffWarn","aircraftDiffWarnTip");
   setLabelLeadingText("ac_lbl_diffAlert","aircraftDiffAlert"); setTitle("ac_diffAlert","aircraftDiffAlertTip"); setTitle("ac_diffAlert_dot","aircraftDiffAlertDotTip");
+  ensureTip("ac_lbl_diffAlert","aircraftDiffAlertTip",true);
   setText("ac_lbl_motorId","aircraftEngine"); setPh("ac_motorId","aircraftEnginePh");
   setText("ac_lbl_consumoGalHr","aircraftFuel"); setPh("ac_consumoGalHr","aircraftFuelPh");
   setText("ac_lbl_asientos","aircraftSeats"); setPh("ac_asientos","aircraftSeatsPh");
   setText("ac_lbl_photo","aircraftPhoto"); setTitle("ac_lbl_photo","aircraftPhotoTip");
+  ensureTip("ac_lbl_photo","aircraftPhotoTip");
   setText("ac_photo_empty_text","aircraftNoPhoto"); setText("ac_photo_add","aircraftAddPhoto"); setText("ac_photo_replace","aircraftReplacePhoto");
   setText("ac_lbl_owner","aircraftOwner"); setPh("ac_owner","aircraftOwnerPh");
   setText("ac_lbl_ownerAddress","aircraftOwnerAddress"); setPh("ac_owner_address","aircraftOwnerAddressPh");
