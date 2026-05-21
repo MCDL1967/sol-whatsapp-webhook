@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7w";
+const APP_VERSION = "v8.5.7v";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2563,7 +2563,7 @@ function updateSrcBar(){
     el("srcSentBack").style.pointerEvents=sentBack.length>0?"auto":"none";
     el("srcSentBack")._data=sentBack;
   }
-  if(el("srcStatus")) el("srcStatus").textContent=batchStatusLabel(batchStatus);
+  if(el("srcStatus")) el("srcStatus").textContent=batchStatus||"—";
 
   // Update row markers on table
   if(el("flTbody")){
@@ -2699,14 +2699,6 @@ function fmt(n){return isNaN(n)||n===0?"—":n.toFixed(1);}
 function fmtCurrency(n){
   return "$ "+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,",");
 }
-function batchStatusLabel(status){
-  const labels={DRAFT:"batchDraft",SUBMITTED:"batchSubmitted",APPROVED:"batchApproved",CHANGES:"batchChanges",CLOSED:"batchClosed"};
-  return labels[status]?t(labels[status]):(status||"—");
-}
-function entryStatusLabel(status){
-  const labels={pending:"pending",approved:"approved",rejected:"rejected",flagged:"entryFlagged",skipped:"entrySkipped",void:"entryVoid",nonbillable:"spNonBillable"};
-  return labels[status]?t(labels[status]):(status||"—");
-}
 
 // ── FLIGHT LOG — HOROMETER ──
 function runHoroChecks(){ updateSrcBar(); } // delegated to updateSrcBar
@@ -2740,7 +2732,8 @@ function renderWfBar(){
     switchTab("preinvoice");
   });
   if(el("srcStatus")){
-    el("srcStatus").textContent=batchStatusLabel(batchStatus);
+    const labels={DRAFT:t("wfReview"),SUBMITTED:t("wfSubmit"),APPROVED:t("wfApproved"),CHANGES:t("wfChanges")};
+    el("srcStatus").textContent=labels[batchStatus]||batchStatus;
   }
 }
 
@@ -3249,10 +3242,10 @@ async function openPiLoadModal(){
   if(desc){
     if(batchStatus==="APPROVED"){
       const approved=flEntries.filter(e=>e.status==="approved");
-      desc.textContent=approved.length+" "+t("piApprovedEntries")+" · "+batchStatusLabel(batchStatus);
+      desc.textContent=approved.length+" "+t("piApprovedEntries")+" · "+batchStatus;
       desc.style.color="var(--green)";
     } else {
-      desc.textContent=t("piCurrentStatus")+": "+batchStatusLabel(batchStatus);
+      desc.textContent=t("piCurrentStatus")+": "+batchStatus;
       desc.style.color="var(--dim2)";
     }
   }
@@ -3637,7 +3630,7 @@ function exportFlCSV(){
     return [i+1,e.bnum||"",e.fecha,e.aeronave,e.operador,e.piloto,e.instructor||"",e.horoIn,
       e.motorOut,e.motorIn,tm.toFixed(2),e.vueloOut,e.vueloIn,tv.toFixed(2),
       DEFAULT_MULT[e.operador]||"",e.multOverride||"",tbp.toFixed(2),
-      e.obs||"",e.flagNote||"",entryStatusLabel(e.status),batchStatusLabel(batchStatus),currentUser.name,batchSourceFile.join(", "),FL_LOAD_TS.toISOString()]
+      e.obs||"",e.flagNote||"",e.status,batchStatus,currentUser.name,batchSourceFile.join(", "),FL_LOAD_TS.toISOString()]
       .map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(",");
   });
   const ts=FL_LOAD_TS.toISOString().slice(0,16).replace(/[T:]/g,"-");
@@ -3655,7 +3648,7 @@ function exportFlXLSX(){
       e.motorOut,e.motorIn,parseFloat(tm.toFixed(2)),
       e.vueloOut,e.vueloIn,parseFloat(tv.toFixed(2)),
       DEFAULT_MULT[e.operador]||"",e.multOverride||"",parseFloat(tbp.toFixed(2)),
-      e.obs||"",e.flagNote||"",entryStatusLabel(e.status),batchStatusLabel(batchStatus),currentUser.name,batchSourceFile.join(", "),FL_LOAD_TS.toISOString()];
+      e.obs||"",e.flagNote||"",e.status,batchStatus,currentUser.name,batchSourceFile.join(", "),FL_LOAD_TS.toISOString()];
   })];
   const ws=XLSX.utils.aoa_to_sheet(data);
   ws["!cols"]=[4,12,12,10,18,18,11,10,10,9,10,10,9,9,10,10,20,10,12,16,22,22].map(w=>({wch:w}));
@@ -3666,7 +3659,7 @@ function exportFlXLSX(){
   const sumData=[
     ["HP Fleet — Flight Log Summary",""],
     ["Generated",new Date().toLocaleString()],
-    ["Source File",batchSourceFile.join(", ")],["Batch Status",batchStatusLabel(batchStatus)],["Loaded By",currentUser.name],["",""],
+    ["Source File",batchSourceFile.join(", ")],["Batch Status",batchStatus],["Loaded By",currentUser.name],["",""],
     ["Operator","T.Motor (hrs)","Total TBH (hrs)"],
     ["FM",parseFloat(fmM.toFixed(2)),parseFloat(fmT.toFixed(2))],
     ["MAG",parseFloat(magM.toFixed(2)),parseFloat(magT.toFixed(2))],
@@ -4289,7 +4282,7 @@ function _loadSpEntry(entry){
   const wm=el("sp_nonbill_watermark"); const wmTxt=el("sp_nonbill_wm_text");
   if(wm&&wmTxt){
     if(entry.status==="nonbillable"){
-      wmTxt.textContent=t("spNonBillable");
+      wmTxt.textContent=(entry.nonBillReason||t("spNonBillable")).split(" — ")[0];
       wm.style.display="flex";
     } else { wm.style.display="none"; }
   }
@@ -5030,14 +5023,14 @@ function batchLabel(b){
   const hasData=b.aircraft||b.operador||b.period_from;
   if(!hasData){
     const created=b.created_at?b.created_at.slice(0,10):"—";
-    return created+" · "+batchStatusLabel(b.status)+" · (no metadata)";
+    return created+" · "+b.status+" · (no metadata)";
   }
   const ac=b.aircraft||"?";
   const op=b.operador||"?";
   const pf=b.period_from?b.period_from.slice(0,7):"";
   const lf=b.log_from?"#"+b.log_from:"";
   const lt=b.log_to?"–#"+b.log_to:"";
-  return ac+" · "+op+(pf?" · "+pf:"")+(lf?" · "+lf+lt:"")+" · "+batchStatusLabel(b.status);
+  return ac+" · "+op+(pf?" · "+pf:"")+(lf?" · "+lf+lt:"")+" · "+b.status;
 }
 
 function populateBatchSelect(selEl, approvedOnly=false){
