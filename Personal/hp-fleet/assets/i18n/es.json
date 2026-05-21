@@ -286,7 +286,7 @@
   "piCurrent": "Lote Activo",
   "piHistoric": "Histórico",
   "piLoadTitle": "Cargar Ciclo de Facturación",
-  "piNoApproved": "No hay lote aprobado en memoria.",
+  "piNoApproved": "El lote activo está abierto para edición. Usa Histórico para cargar un ciclo aprobado.",
   "brandSub": "Plataforma de Operaciones de Vuelo",
   "rememberUsername": "Recordar usuario",
   "showHidePasswordTip": "Mostrar/ocultar contraseña",
