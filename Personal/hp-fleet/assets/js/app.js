@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.5t";
+const APP_VERSION = "v8.5.6";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -347,6 +347,34 @@ const I18N = {
     csBilling:"Billing",
     piGoTo:"Billing",piLoadCycle:"Load Billing Cycle",piCurrent:"Current Batch",piHistoric:"Historic",
     piLoadTitle:"Load Billing Cycle",piNoApproved:"No approved batch in memory.",
+    brandSub:"Flight Operations Platform",rememberUsername:"Remember username",showHidePasswordTip:"Show/hide password",
+    viewAs:"View As",viewAsAdmin:"Admin",viewAsOperator:"Operator",viewAsReviewer:"Reviewer",viewAsReadonly:"Read Only",
+    aircraftTitle:"Aircraft Fleet",aircraftAdd:"+ Add Aircraft",aircraftNewTitle:"New Aircraft",aircraftEditTitle:"Edit Aircraft: ",
+    aircraftRegistration:"Registration *",aircraftRegistrationPh:"HP-XXXX",aircraftRegistrationRequiredToast:"Registration required",
+    aircraftMakeModel:"Make/Model *",aircraftMakeModelPh:"Piper PA-28",
+    aircraftType:"Type",aircraftTypePh:"Single Engine",aircraftTypeTip:"Aircraft type, such as Single Engine or Multi Engine.",
+    aircraftTachTolerance:"Tach Tolerance (hrs)",aircraftTachToleranceTip:"Acceptable gap between previous Motor In and current Motor Out - default 0.01.",
+    aircraftTachToleranceDotTip:"Green: tach sequence within tolerance.",
+    aircraftDiffWarn:"Warn Threshold (hrs)",aircraftDiffWarnTip:"Motor vs Flight time gap above this value triggers a yellow warning.",
+    aircraftDiffWarnDotTip:"Yellow: gap warrants attention.",
+    aircraftDiffAlert:"Alert Threshold (hrs)",aircraftDiffAlertTip:"Motor vs Flight time gap above this value triggers a red alert.",
+    aircraftDiffAlertDotTip:"Red: gap requires immediate review.",
+    aircraftEngine:"Engine",aircraftEnginePh:"Lycoming O-320",
+    aircraftFuel:"Fuel (gal/hr)",aircraftFuelPh:"8.5",
+    aircraftSeats:"Seats",aircraftSeatsPh:"2",
+    aircraftPhoto:"Aircraft Photo",aircraftPhotoTip:"Optional aircraft image used on fleet cards.",
+    aircraftNoPhoto:"No photo",aircraftAddPhoto:"+ Add Photo",aircraftReplacePhoto:"Replace Photo",
+    aircraftOwner:"Owner *",aircraftOwnerPh:"Unidad Fragata, S.A.",
+    aircraftOwnerAddress:"Owner Address",aircraftOwnerAddressPh:"Panama City, Panama",
+    aircraftOperatorRates:"Operator Rates",aircraftAddRate:"+ Add Operator Rate",
+    aircraftRateMultiplierPh:"Mult e.g. 1.275",aircraftRateHourlyPh:"$/hr e.g. 165",
+    aircraftNoRates:"No rates configured",aircraftSave:"Save Aircraft",
+    aircraftAddedToast:"Aircraft added",aircraftUpdatedToast:"Aircraft updated",aircraftDeletedToast:"Aircraft deleted",
+    aircraftDelete:"Delete Aircraft",aircraftDeleteConfirm:"Delete aircraft",aircraftDeleteConfirmSuffix:"? This cannot be undone.",
+    aircraftChooseFile:"Choose file",aircraftNoFileChosen:"No file chosen",aircraftPreviewEmpty:"Preview appears here",
+    aircraftPhotoCompressionHint:"Image will be compressed before staging",aircraftUsePhoto:"OK - Use Photo",
+    aircraftRatesRequiredToast:"Add at least one operator rate",
+    aircraftCardMakeModel:"Make/Model",aircraftCardEngine:"Engine",aircraftCardFuel:"Fuel (gal/hr)",aircraftCardDiffThreshold:"Diff Threshold",
   },
   es:{
     signIn:"Iniciar Sesión",signingIn:"Verificando…",signOut:"↩ Salir",
@@ -437,6 +465,34 @@ const I18N = {
     csBilling:"Pre-Factura y Facturación",
     piGoTo:"Pre-Factura",piLoadCycle:"Cargar Ciclo de Facturación",piCurrent:"Lote Activo",piHistoric:"Histórico",
     piLoadTitle:"Cargar Ciclo de Facturación",piNoApproved:"No hay lote aprobado en memoria.",
+    brandSub:"Plataforma de Operaciones de Vuelo",rememberUsername:"Recordar usuario",showHidePasswordTip:"Mostrar/ocultar contraseña",
+    viewAs:"Ver como",viewAsAdmin:"Admin",viewAsOperator:"Operador",viewAsReviewer:"Revisor",viewAsReadonly:"Solo Lectura",
+    aircraftTitle:"Flota de Aeronaves",aircraftAdd:"+ Agregar Aeronave",aircraftNewTitle:"Nueva Aeronave",aircraftEditTitle:"Editar Aeronave: ",
+    aircraftRegistration:"Matrícula *",aircraftRegistrationPh:"HP-XXXX",aircraftRegistrationRequiredToast:"Matrícula requerida",
+    aircraftMakeModel:"Marca/Modelo *",aircraftMakeModelPh:"Piper PA-28",
+    aircraftType:"Tipo",aircraftTypePh:"Monomotor",aircraftTypeTip:"Tipo de aeronave, por ejemplo Monomotor o Multimotor.",
+    aircraftTachTolerance:"Tolerancia tacómetro (hrs)",aircraftTachToleranceTip:"Diferencia aceptable entre el Motor In anterior y el Motor Out actual - default 0.01.",
+    aircraftTachToleranceDotTip:"Verde: secuencia de tacómetro dentro de tolerancia.",
+    aircraftDiffWarn:"Umbral de aviso (hrs)",aircraftDiffWarnTip:"Diferencia Motor vs Vuelo que activa una alerta amarilla.",
+    aircraftDiffWarnDotTip:"Amarillo: diferencia requiere atención.",
+    aircraftDiffAlert:"Umbral de alerta (hrs)",aircraftDiffAlertTip:"Diferencia Motor vs Vuelo que activa una alerta roja.",
+    aircraftDiffAlertDotTip:"Rojo: diferencia requiere revisión inmediata.",
+    aircraftEngine:"Motor",aircraftEnginePh:"Lycoming O-320",
+    aircraftFuel:"Combustible (gal/hr)",aircraftFuelPh:"8.5",
+    aircraftSeats:"Asientos",aircraftSeatsPh:"2",
+    aircraftPhoto:"Foto de Aeronave",aircraftPhotoTip:"Imagen opcional usada en las tarjetas de flota.",
+    aircraftNoPhoto:"Sin foto",aircraftAddPhoto:"+ Agregar Foto",aircraftReplacePhoto:"Reemplazar Foto",
+    aircraftOwner:"Propietario *",aircraftOwnerPh:"Unidad Fragata, S.A.",
+    aircraftOwnerAddress:"Dirección del Propietario",aircraftOwnerAddressPh:"Ciudad de Panamá, Panamá",
+    aircraftOperatorRates:"Tarifas por Operador",aircraftAddRate:"+ Agregar Tarifa",
+    aircraftRateMultiplierPh:"Mult ej. 1.275",aircraftRateHourlyPh:"$/hr ej. 165",
+    aircraftNoRates:"Sin tarifas configuradas",aircraftSave:"Guardar Aeronave",
+    aircraftAddedToast:"Aeronave agregada",aircraftUpdatedToast:"Aeronave actualizada",aircraftDeletedToast:"Aeronave eliminada",
+    aircraftDelete:"Eliminar Aeronave",aircraftDeleteConfirm:"Eliminar aeronave",aircraftDeleteConfirmSuffix:"? Esta acción no se puede deshacer.",
+    aircraftChooseFile:"Seleccionar archivo",aircraftNoFileChosen:"Ningún archivo seleccionado",aircraftPreviewEmpty:"La vista previa aparecerá aquí",
+    aircraftPhotoCompressionHint:"La imagen será comprimida antes de prepararla",aircraftUsePhoto:"OK - Usar Foto",
+    aircraftRatesRequiredToast:"Agrega al menos una tarifa de operador",
+    aircraftCardMakeModel:"Marca/Modelo",aircraftCardEngine:"Motor",aircraftCardFuel:"Combustible (gal/hr)",aircraftCardDiffThreshold:"Umbral de diferencia",
   }
 };
 
@@ -857,10 +913,14 @@ function setLang(l){
 }
 
 function applyI18n(){
+  document.documentElement.lang=lang;
   el("loginTitle").textContent=t("signIn");
   el("loginBtnTxt").textContent=t("signIn");
   el("lbl_user").textContent=t("emailLbl");
   el("lbl_pass").textContent=t("pwdLbl");
+  if(el("brandSub")) el("brandSub").textContent=t("brandSub");
+  if(el("lbl_remember")) el("lbl_remember").textContent=t("rememberUsername");
+  if(el("li_pass_toggle")) el("li_pass_toggle").title=t("showHidePasswordTip");
   if(!currentUser) return;
   el("btnSignOut").textContent=t("signOut");
   const ids={
@@ -889,14 +949,51 @@ function applyI18n(){
     btn_saveApiKey:"saveKey",btn_clearApiKey:"clearKey",
     cs_billing:"csBilling",st_fleetTitle:"stFleetTitle",
     pi_title:"tabBilling",pi_load_cycle_btn:"piLoadCycle",cs_billing:"csBilling",
+    viewAsLabel:"viewAs",viewAsAdmin:"viewAsAdmin",viewAsOperator:"viewAsOperator",viewAsReviewer:"viewAsReviewer",viewAsReadonly:"viewAsReadonly",
+    aircraftTitle:"aircraftTitle",btn_addAircraft2:"aircraftAdd",
   };
   const roleLabels={OPERATOR:ROLES.OPERATOR[lang].label,REVIEWER:ROLES.REVIEWER[lang].label,READONLY:ROLES.READONLY[lang].label};
   if(el("fo_op")) el("fo_op").textContent=roleLabels.OPERATOR;
   if(el("fo_rev")) el("fo_rev").textContent=roleLabels.REVIEWER;
   if(el("fo_ro")) el("fo_ro").textContent=roleLabels.READONLY;
   Object.entries(ids).forEach(([id,key])=>{ if(key && el(id)) el(id).textContent=t(key); });
+  localizeAircraftUi();
   renderTabs();
   updateApiStatus();
+}
+
+function setText(id,key){ if(el(id)) el(id).textContent=t(key); }
+function setPh(id,key){ if(el(id)) el(id).placeholder=t(key); }
+function setTitle(id,key){ if(el(id)) el(id).title=t(key); }
+function setLabelLeadingText(id,key){
+  const node=el(id);
+  if(!node) return;
+  const value=t(key)+" ";
+  if(node.firstChild&&node.firstChild.nodeType===Node.TEXT_NODE) node.firstChild.nodeValue=value;
+  else node.textContent=t(key);
+}
+function localizeAircraftUi(){
+  setText("aircraftTitle","aircraftTitle");
+  setText("btn_addAircraft2","aircraftAdd");
+  setText("ac_lbl_matricula","aircraftRegistration"); setPh("ac_matricula","aircraftRegistrationPh");
+  setText("ac_lbl_makeModel","aircraftMakeModel"); setPh("ac_makeModel","aircraftMakeModelPh");
+  setText("ac_lbl_tipo","aircraftType"); setPh("ac_tipo","aircraftTypePh"); setTitle("ac_tipo","aircraftTypeTip");
+  setLabelLeadingText("ac_lbl_horoTolerance","aircraftTachTolerance"); setTitle("ac_horoTolerance","aircraftTachToleranceTip"); setTitle("ac_horoTolerance_dot","aircraftTachToleranceDotTip");
+  setLabelLeadingText("ac_lbl_diffWarn","aircraftDiffWarn"); setTitle("ac_diffWarn","aircraftDiffWarnTip"); setTitle("ac_diffWarn_dot","aircraftDiffWarnDotTip");
+  setLabelLeadingText("ac_lbl_diffAlert","aircraftDiffAlert"); setTitle("ac_diffAlert","aircraftDiffAlertTip"); setTitle("ac_diffAlert_dot","aircraftDiffAlertDotTip");
+  setText("ac_lbl_motorId","aircraftEngine"); setPh("ac_motorId","aircraftEnginePh");
+  setText("ac_lbl_consumoGalHr","aircraftFuel"); setPh("ac_consumoGalHr","aircraftFuelPh");
+  setText("ac_lbl_asientos","aircraftSeats"); setPh("ac_asientos","aircraftSeatsPh");
+  setText("ac_lbl_photo","aircraftPhoto"); setTitle("ac_lbl_photo","aircraftPhotoTip");
+  setText("ac_photo_empty_text","aircraftNoPhoto"); setText("ac_photo_add","aircraftAddPhoto"); setText("ac_photo_replace","aircraftReplacePhoto");
+  setText("ac_lbl_owner","aircraftOwner"); setPh("ac_owner","aircraftOwnerPh");
+  setText("ac_lbl_ownerAddress","aircraftOwnerAddress"); setPh("ac_owner_address","aircraftOwnerAddressPh");
+  setText("ac_lbl_rates","aircraftOperatorRates"); setText("btn_addRate","aircraftAddRate");
+  setText("ac_save","aircraftSave"); setText("ac_cancel","rfrCancel");
+  if(el("acPhotoTitle")) el("acPhotoTitle").textContent="✦ "+t("aircraftPhoto");
+  setText("ac_photo_choose","aircraftChooseFile");
+  setText("ac_photo_preview_empty","aircraftPreviewEmpty"); setText("ac_photo_hint","aircraftPhotoCompressionHint");
+  setText("acPhoto_cancel","rfrCancel"); setText("acPhoto_ok","aircraftUsePhoto");
 }
 
 // ── AUTH ──
@@ -1392,7 +1489,7 @@ function confirmDelete(){
     const ac=AIRCRAFT.find(x=>x.id===deletingId); if(!ac) return;
     AIRCRAFT.splice(AIRCRAFT.indexOf(ac),1);
     sbDelete("aircraft","id=eq."+ac.id).catch(e=>dbg("Aircraft delete error: "+e.message,"err"));
-    closeModal("delMbd"); renderFleetSettings(); showToast("Aircraft deleted","warn");
+    closeModal("delMbd"); renderFleetSettings(); renderAircraftTab(); showToast(t("aircraftDeletedToast"),"warn");
     initBatchConstants();
   }
   deletingId=null; deleteType=null;
@@ -4777,20 +4874,20 @@ function renderAircraftTab(){
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'+
       '<div style="font-family:var(--display);font-weight:700;font-size:20px;color:var(--cyan)">'+ac.matricula+'</div>'+
       '<div style="display:flex;gap:6px">'+
-      '<button class="btn-sm" data-edit-ac="'+ac.id+'">Edit</button>'+
-      '<button class="btn-sm del" data-del-ac="'+ac.id+'">Delete</button>'+
+      '<button class="btn-sm" data-edit-ac="'+ac.id+'">'+t("edit")+'</button>'+
+      '<button class="btn-sm del" data-del-ac="'+ac.id+'">'+t("del")+'</button>'+
       '</div></div>'+
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-family:var(--mono);font-size:10px;margin-bottom:14px">'+
-      '<div><span style="color:var(--dim)">Make/Model</span><br><span>'+( ac.makeModel||"—")+'</span></div>'+
-      '<div><span style="color:var(--dim)">Engine</span><br><span>'+(ac.motorId||"—")+'</span></div>'+
-      '<div><span style="color:var(--dim)">Fuel (gal/hr)</span><br><span>'+(ac.consumoGalHr||"—")+'</span></div>'+
+      '<div><span style="color:var(--dim)">'+t("aircraftCardMakeModel")+'</span><br><span>'+( ac.makeModel||"—")+'</span></div>'+
+      '<div><span style="color:var(--dim)">'+t("aircraftCardEngine")+'</span><br><span>'+(ac.motorId||"—")+'</span></div>'+
+      '<div><span style="color:var(--dim)">'+t("aircraftCardFuel")+'</span><br><span>'+(ac.consumoGalHr||"—")+'</span></div>'+
       '<div style="display:flex;justify-content:space-between;align-items:flex-end">'+
-        '<div><span style="color:var(--dim)">Diff Threshold</span><br><span style="color:'+(ac.diffThreshold<=0.2?"var(--green)":"var(--yellow)")+'">'+ac.diffThreshold.toFixed(1)+' hrs</span></div>'+
+        '<div><span style="color:var(--dim)">'+t("aircraftCardDiffThreshold")+'</span><br><span style="color:'+(ac.diffThreshold<=0.2?"var(--green)":"var(--yellow)")+'">'+ac.diffThreshold.toFixed(1)+' hrs</span></div>'+
         (ac.photoUrl?'<img src="'+ac.photoUrl+'" alt="'+ac.matricula+'" style="width:90px;height:62px;object-fit:cover;border-radius:2px;border:1px solid var(--border2);flex-shrink:0">':"")+
       '</div>'+
       '</div>'+
-      '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Operator Rates</div>'+
-      (ratesHtml||'<div style="color:var(--dim);font-size:10px;font-family:var(--mono)">No rates configured</div>');
+      '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">'+t("aircraftOperatorRates")+'</div>'+
+      (ratesHtml||'<div style="color:var(--dim);font-size:10px;font-family:var(--mono)">'+t("aircraftNoRates")+'</div>');
     grid.appendChild(card);
   });
   grid.querySelectorAll("[data-edit-ac]").forEach(btn=>btn.addEventListener("click",()=>openEditAircraft(btn.dataset.editAc)));
@@ -4811,8 +4908,8 @@ function renderAcRates(){
       '<select style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:6px;font-family:var(--mono);font-size:11px;border-radius:2px">'+
         COMPANIES.map(c=>'<option value="'+c.code+'"'+(c.code===r.operador?" selected":"")+'>'+c.code+'</option>').join("")+
       '</select>'+
-      '<input type="number" step="0.001" placeholder="Mult e.g. 1.275" value="'+(r.multiplicador||"")+'" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:6px;font-size:11px;border-radius:2px;width:100%">'+
-      '<input type="number" step="0.01" placeholder="$/hr e.g. 165" value="'+(r.tarifaHr||"")+'" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:6px;font-size:11px;border-radius:2px;width:100%">'+
+      '<input type="number" step="0.001" placeholder="'+t("aircraftRateMultiplierPh")+'" value="'+(r.multiplicador||"")+'" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:6px;font-size:11px;border-radius:2px;width:100%">'+
+      '<input type="number" step="0.01" placeholder="'+t("aircraftRateHourlyPh")+'" value="'+(r.tarifaHr||"")+'" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:6px;font-size:11px;border-radius:2px;width:100%">'+
       '<button style="background:none;border:1px solid var(--border2);color:var(--red);cursor:pointer;padding:4px 6px;border-radius:2px">✕</button>';
     const [opSel,multInp,tarifaInp,delBtn]=row.children;
     opSel.addEventListener("change",()=>{tempRates[i].operador=opSel.value;});
@@ -4838,17 +4935,17 @@ function renderFleetSettings(){
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'+
       '<div style="font-family:var(--display);font-weight:700;font-size:16px;color:var(--cyan)">'+ac.matricula+"</div>"+
       '<div style="display:flex;gap:6px">'+
-      '<button class="btn-sm" data-edit-ac="'+ac.id+'">Edit</button>'+
-      '<button class="btn-sm del" data-del-ac="'+ac.id+'">Delete</button>'+
+      '<button class="btn-sm" data-edit-ac="'+ac.id+'">'+t("edit")+'</button>'+
+      '<button class="btn-sm del" data-del-ac="'+ac.id+'">'+t("del")+'</button>'+
       "</div></div>"+
       '<div style="display:grid;gap:5px;font-family:var(--mono);font-size:10px">'+
-      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Make/Model</span><span>'+ac.makeModel+"</span></div>"+
-      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Operator</span><span style="color:var(--green)">'+ac.operador+"</span></div>"+
-      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Multiplier</span><span style="color:var(--yellow)">'+ac.multiplicador.toFixed(3)+"×</span></div>"+
-      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Engine</span><span>'+ac.motorId+"</span></div>"+
-      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Fuel (gal/hr)</span><span>'+ac.consumoGalHr+"</span></div>"+
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">'+t("aircraftCardMakeModel")+'</span><span>'+ac.makeModel+"</span></div>"+
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">'+t("thOp")+'</span><span style="color:var(--green)">'+ac.operador+"</span></div>"+
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">'+t("thMult")+'</span><span style="color:var(--yellow)">'+ac.multiplicador.toFixed(3)+"×</span></div>"+
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">'+t("aircraftCardEngine")+'</span><span>'+ac.motorId+"</span></div>"+
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">'+t("aircraftCardFuel")+'</span><span>'+ac.consumoGalHr+"</span></div>"+
       '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">'+
-      '<div><span style="color:var(--dim)">Diff Threshold</span><br><span style="color:'+(ac.diffThreshold<=0.2?"var(--green)":"var(--yellow)")+'">'+ac.diffThreshold.toFixed(1)+" hrs</span></div>"+
+      '<div><span style="color:var(--dim)">'+t("aircraftCardDiffThreshold")+'</span><br><span style="color:'+(ac.diffThreshold<=0.2?"var(--green)":"var(--yellow)")+'">'+ac.diffThreshold.toFixed(1)+" hrs</span></div>"+
       (ac.photoUrl?'<img src="'+ac.photoUrl+'" alt="'+ac.matricula+'" style="width:90px;height:62px;object-fit:cover;border-radius:2px;border:1px solid var(--border2);flex-shrink:0">':"")+
       "</div>"+
       "</div>";
@@ -4879,7 +4976,7 @@ function openAcPhotoModal(){
   const inp=el("ac_photo_input"); const nameSpan=el("ac_photo_input_name");
   const previewImg=el("ac_photo_preview_img"); const previewEmpty=el("ac_photo_preview_empty");
   if(inp) inp.value="";
-  if(nameSpan) nameSpan.textContent="No file chosen";
+  if(nameSpan) nameSpan.textContent=t("aircraftNoFileChosen");
   if(previewImg){previewImg.style.display="none"; previewImg.src="";}
   if(previewEmpty) previewEmpty.style.display="block";
   openModal("acPhotoMbd");
@@ -4887,7 +4984,7 @@ function openAcPhotoModal(){
 
 function openCreateAircraft(){
   editingAcId=null;
-  el("acModalTitle").textContent="New Aircraft";
+  el("acModalTitle").textContent=t("aircraftNewTitle");
   el("ac_matricula").value=""; el("ac_makeModel").value="";
   el("ac_tipo").value="Single Engine";
   if(el("ac_horoTolerance")) el("ac_horoTolerance").value="0.01";
@@ -4900,13 +4997,14 @@ function openCreateAircraft(){
   if(el("ac_owner_address")) el("ac_owner_address").value="";
   _resetAcPhotoUI();
   tempRates=[]; renderAcRates();
+  localizeAircraftUi();
   openModal("acMbd");
 }
 
 function openEditAircraft(id){
   const ac=AIRCRAFT.find(a=>a.id===id); if(!ac) return;
   editingAcId=id;
-  el("acModalTitle").textContent="Edit Aircraft: "+ac.matricula;
+  el("acModalTitle").textContent=t("aircraftEditTitle")+ac.matricula;
   el("ac_matricula").value=ac.matricula;
   el("ac_makeModel").value=ac.makeModel||"";
   el("ac_tipo").value=ac.tipo||"";
@@ -4924,21 +5022,22 @@ function openEditAircraft(id){
   else { _resetAcPhotoUI(); }
   tempRates=JSON.parse(JSON.stringify(ac.rates||[]));
   renderAcRates();
+  localizeAircraftUi();
   openModal("acMbd");
 }
 
 function openDeleteAircraft(id){
   const ac=AIRCRAFT.find(a=>a.id===id); if(!ac) return;
   deletingId=id; deleteType="aircraft";
-  el("delWarn").innerHTML="Delete aircraft <strong>"+ac.matricula+"</strong>? This cannot be undone.";
-  el("del_confirm").textContent="Delete Aircraft";
+  el("delWarn").innerHTML=t("aircraftDeleteConfirm")+' <strong>'+ac.matricula+"</strong>"+t("aircraftDeleteConfirmSuffix");
+  el("del_confirm").textContent=t("aircraftDelete");
   openModal("delMbd");
 }
 
 async function saveAircraft(){
   const matricula=el("ac_matricula").value.trim().toUpperCase();
-  if(!matricula){showToast("Registration required","err");return;}
-  if(!tempRates.length){showToast("Add at least one operator rate","err");return;}
+  if(!matricula){showToast(t("aircraftRegistrationRequiredToast"),"err");return;}
+  if(!tempRates.length){showToast(t("aircraftRatesRequiredToast"),"err");return;}
   const data={
     matricula, makeModel:el("ac_makeModel").value.trim(),
     tipo:el("ac_tipo").value.trim(),
@@ -4976,7 +5075,7 @@ async function saveAircraft(){
       photo_url:photoUrl
     }).then(()=>dbg("Aircraft updated in DB: "+data.matricula,"ok"))
       .catch(e=>dbg("Aircraft update error: "+e.message,"err"));
-    showToast("Aircraft updated");
+    showToast(t("aircraftUpdatedToast"));
   } else {
     const newAc={id:"ac"+Date.now(),...data};
     AIRCRAFT.push(newAc);
@@ -4990,7 +5089,7 @@ async function saveAircraft(){
       photo_url:photoUrl
     }).then(()=>dbg("Aircraft created in DB: "+data.matricula,"ok"))
       .catch(e=>dbg("Aircraft create error: "+e.message,"err"));
-    showToast("Aircraft added");
+    showToast(t("aircraftAddedToast"));
   }
   _stagedAcPhoto=null;
   closeModal("acMbd");

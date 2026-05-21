@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.5t — built 2026-05-19 — ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.6 - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -16,7 +16,7 @@
   <div class="login-card">
     <div class="lc-head">
       <div class="brand"><div class="brand-dot"></div>HP<span class="brand-ac">·</span>FLEET</div>
-      <div class="brand-sub">Flight Operations Platform</div>
+      <div class="brand-sub" id="brandSub">Flight Operations Platform</div>
     </div>
     <div class="lc-body">
       <div class="lang-row">
@@ -60,12 +60,12 @@
         <button id="appES">ES</button>
       </div>
       <div class="view-as-wrap" id="viewAsWrap" style="display:none">
-        <span class="view-as-label">View As</span>
+        <span class="view-as-label" id="viewAsLabel">View As</span>
         <select class="view-as-sel" id="viewAsRole">
-          <option value="ADMIN">Admin</option>
-          <option value="OPERATOR">Operator</option>
-          <option value="REVIEWER">Reviewer</option>
-          <option value="READONLY">Read Only</option>
+          <option value="ADMIN" id="viewAsAdmin">Admin</option>
+          <option value="OPERATOR" id="viewAsOperator">Operator</option>
+          <option value="REVIEWER" id="viewAsReviewer">Reviewer</option>
+          <option value="READONLY" id="viewAsReadonly">Read Only</option>
         </select>
       </div>
       <div class="tb-user-info">
@@ -306,7 +306,7 @@
     <!-- AIRCRAFT TAB -->
     <div class="tab-panel" id="panel-aircraft">
       <div class="page-hdr">
-        <div class="page-title"><span>·</span> <span>Aircraft Fleet</span></div>
+        <div class="page-title"><span>·</span> <span id="aircraftTitle">Aircraft Fleet</span></div>
         <button class="btn-primary" id="btn_addAircraft2" style="font-size:12px;padding:7px 16px">+ Add Aircraft</button>
       </div>
       <div id="aircraftTabGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;padding:16px 0"></div>
@@ -983,29 +983,29 @@
     <div class="mhdr"><div class="mhdr-t ct" id="acModalTitle">New Aircraft</div><button class="m-x" id="ac_close">✕</button></div>
     <div class="mbody">
       <div class="frow fc2">
-        <div class="field"><label>Registration *</label><input type="text" id="ac_matricula" placeholder="HP-XXXX"><span class="ferr" id="ace_matricula"></span></div>
-        <div class="field"><label>Make/Model *</label><input type="text" id="ac_makeModel" placeholder="Piper PA-28"></div>
+        <div class="field"><label id="ac_lbl_matricula">Registration *</label><input type="text" id="ac_matricula" placeholder="HP-XXXX"><span class="ferr" id="ace_matricula"></span></div>
+        <div class="field"><label id="ac_lbl_makeModel">Make/Model *</label><input type="text" id="ac_makeModel" placeholder="Piper PA-28"></div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>Type</label><input type="text" id="ac_tipo" placeholder="Single Engine" title="Aircraft type e.g. Single Engine, Multi Engine"></div>
-        <div class="field"><label>Tach Tolerance (hrs) <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green);vertical-align:middle;margin-left:4px" title="Green: tach sequence within tolerance"></span></label><input type="number" id="ac_horoTolerance" step="0.01" placeholder="0.01" title="Acceptable gap between prev Motor In and curr Motor Out — default 0.01"></div>
+        <div class="field"><label id="ac_lbl_tipo">Type</label><input type="text" id="ac_tipo" placeholder="Single Engine" title="Aircraft type e.g. Single Engine, Multi Engine"></div>
+        <div class="field"><label id="ac_lbl_horoTolerance">Tach Tolerance (hrs) <span id="ac_horoTolerance_dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green);vertical-align:middle;margin-left:4px" title="Green: tach sequence within tolerance"></span></label><input type="number" id="ac_horoTolerance" step="0.01" placeholder="0.01" title="Acceptable gap between prev Motor In and curr Motor Out - default 0.01"></div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>Warn Threshold (hrs) <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--yellow);vertical-align:middle;margin-left:4px" title="Yellow: gap warrants attention"></span></label><input type="number" id="ac_diffWarn" step="0.1" placeholder="0.3" title="Motor vs Flight time gap above this value triggers a yellow warning"></div>
-        <div class="field"><label>Alert Threshold (hrs) <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);vertical-align:middle;margin-left:4px" title="Red: gap requires immediate review"></span></label><input type="number" id="ac_diffAlert" step="0.1" placeholder="0.4" title="Motor vs Flight time gap above this value triggers a red alert"></div>
+        <div class="field"><label id="ac_lbl_diffWarn">Warn Threshold (hrs) <span id="ac_diffWarn_dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--yellow);vertical-align:middle;margin-left:4px" title="Yellow: gap warrants attention"></span></label><input type="number" id="ac_diffWarn" step="0.1" placeholder="0.3" title="Motor vs Flight time gap above this value triggers a yellow warning"></div>
+        <div class="field"><label id="ac_lbl_diffAlert">Alert Threshold (hrs) <span id="ac_diffAlert_dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);vertical-align:middle;margin-left:4px" title="Red: gap requires immediate review"></span></label><input type="number" id="ac_diffAlert" step="0.1" placeholder="0.4" title="Motor vs Flight time gap above this value triggers a red alert"></div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>Engine</label><input type="text" id="ac_motorId" placeholder="Lycoming O-320"></div>
-        <div class="field"><label>Fuel (gal/hr)</label><input type="number" id="ac_consumoGalHr" step="0.1" placeholder="8.5"></div>
+        <div class="field"><label id="ac_lbl_motorId">Engine</label><input type="text" id="ac_motorId" placeholder="Lycoming O-320"></div>
+        <div class="field"><label id="ac_lbl_consumoGalHr">Fuel (gal/hr)</label><input type="number" id="ac_consumoGalHr" step="0.1" placeholder="8.5"></div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>Seats</label><input type="number" id="ac_asientos" placeholder="2"></div>
+        <div class="field"><label id="ac_lbl_asientos">Seats</label><input type="number" id="ac_asientos" placeholder="2"></div>
         <div class="field">
-          <label style="font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim2)">Aircraft Photo</label>
+          <label id="ac_lbl_photo" style="font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim2)">Aircraft Photo</label>
           <div id="ac_photo_area" style="background:var(--s3);border:1px dashed var(--border2);border-radius:2px;padding:8px;display:flex;align-items:center;gap:9px;min-height:52px">
             <!-- no-photo state -->
             <div id="ac_photo_empty" style="display:flex;align-items:center;gap:8px;width:100%">
-              <span style="font-family:var(--mono);font-size:9px;color:var(--dim)">No photo</span>
+              <span id="ac_photo_empty_text" style="font-family:var(--mono);font-size:9px;color:var(--dim)">No photo</span>
               <button type="button" id="ac_photo_add" class="btn-sm" style="border-color:rgba(65,209,255,.35);color:var(--cyan)">+ Add Photo</button>
             </div>
             <!-- photo present state (hidden until staged/loaded) -->
@@ -1020,11 +1020,11 @@
         </div>
       </div>
       <div class="frow fc2">
-        <div class="field"><label>Owner *</label><input type="text" id="ac_owner" placeholder="Unidad Fragata, S.A."></div>
-        <div class="field"><label>Owner Address</label><input type="text" id="ac_owner_address" placeholder="Panama City, Panama"></div>
+        <div class="field"><label id="ac_lbl_owner">Owner *</label><input type="text" id="ac_owner" placeholder="Unidad Fragata, S.A."></div>
+        <div class="field"><label id="ac_lbl_ownerAddress">Owner Address</label><input type="text" id="ac_owner_address" placeholder="Panama City, Panama"></div>
       </div>
       <div class="frow fc2">
-        <div class="sp-field" style="flex:1"><label style="font-family:var(--mono);font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px">Operator Rates</label>
+        <div class="sp-field" style="flex:1"><label id="ac_lbl_rates" style="font-family:var(--mono);font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px">Operator Rates</label>
           <div id="acRatesList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
           <button type="button" class="btn-ghost" id="btn_addRate" style="width:100%;font-size:11px">+ Add Operator Rate</button>
         </div>
@@ -1037,10 +1037,10 @@
 <!-- AIRCRAFT PHOTO SELECTION MODAL -->
 <div class="mbd" id="acPhotoMbd">
   <div class="mbox" style="border-top:2px solid var(--violet);max-width:380px">
-    <div class="mhdr"><div class="mhdr-t cv">✦ Aircraft Photo</div><button class="m-x" id="acPhoto_close">✕</button></div>
+    <div class="mhdr"><div class="mhdr-t cv" id="acPhotoTitle">✦ Aircraft Photo</div><button class="m-x" id="acPhoto_close">✕</button></div>
     <div class="mbody" style="padding:16px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-        <label class="btn-sm" for="ac_photo_input" style="cursor:pointer">Choose file</label>
+        <label class="btn-sm" for="ac_photo_input" id="ac_photo_choose" style="cursor:pointer">Choose file</label>
         <input type="file" id="ac_photo_input" accept="image/*" style="display:none">
         <span id="ac_photo_input_name" style="font-family:var(--mono);font-size:9px;color:var(--dim)">No file chosen</span>
       </div>
@@ -1048,11 +1048,11 @@
         <span id="ac_photo_preview_empty" style="font-family:var(--mono);font-size:9px;color:var(--dim)">Preview appears here</span>
         <img id="ac_photo_preview_img" src="" alt="" style="width:100%;height:100%;object-fit:contain;display:none">
       </div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--dim)">Image will be compressed before staging</div>
+      <div id="ac_photo_hint" style="font-family:var(--mono);font-size:9px;color:var(--dim)">Image will be compressed before staging</div>
     </div>
     <div class="mftr">
       <button class="btn-ghost" id="acPhoto_cancel">Cancel</button>
-      <button class="btn-primary" id="acPhoto_ok">OK — Use Photo</button>
+      <button class="btn-primary" id="acPhoto_ok">OK - Use Photo</button>
     </div>
   </div>
 </div>
