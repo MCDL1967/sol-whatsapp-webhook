@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7o";
+const APP_VERSION = "v8.5.7p";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -847,6 +847,7 @@ function applyI18n(){
   }
   refreshSettingsToggleLabels();
   localizeLogStatusTitles();
+  localizeLogTooltips();
   localizeCompanyUi();
   localizeAircraftUi();
   renderTabs();
@@ -858,6 +859,35 @@ function setPh(id,key){ if(el(id)) el(id).placeholder=t(key); }
 function setTitle(id,key){ if(el(id)) el(id).title=t(key); }
 function localizeLogStatusTitles(){
   ["srcNotRead","srcNonBill","srcDups","srcLogBreaks","srcHoro","srcSentBack"].forEach(id=>setTitle(id,"clickForDetails"));
+}
+function localizeLogTooltips(){
+  [
+    ["sb_file","logTipSourceFile"],
+    ["sb_records","logTipRecords"],
+    ["sb_read","logTipRead"],
+    ["sb_notRead","logTipNotRead"],
+    ["sb_nonBill","logTipNonBill"],
+    ["sb_dups","logTipDuplicates"],
+    ["sb_logBreaks","logTipLogBreaks"],
+    ["sb_seqAlerts","logTipSeqAlerts"],
+    ["sb_sentBack","logTipSentBack"],
+    ["sb_batch","logTipBatchStatus"],
+    ["tb_entries","logTipExtractedEntries"],
+    ["pt_entries","logTipEntriesTab"],
+    ["pt_audit","logTipAuditTab"],
+    ["spToggleLabel","logTipSourcePanel"],
+    ["btn_approveAll","logTipApproveAll"],
+    ["btn_resetAll","logTipResetAll"],
+    ["btn_newEntry","logTipNewEntry"],
+    ["btn_csv","logTipCsv"],
+    ["btn_xlsx","logTipXlsx"],
+    ["btn_saveDraft","logTipSaveDraft"],
+    ["btn_submit","logTipSubmit"],
+    ["btn_approve","logTipApprove"],
+    ["btn_returnForReview","logTipReturnForReview"],
+    ["btn_reqChanges","logTipRequestChanges"],
+    ["btn_reopen","logTipReopen"]
+  ].forEach(([id,key])=>ensureTip(id,key));
 }
 function localizeUserUi(){
   setPh("userSearch","userSearchPh");
