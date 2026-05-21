@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7p";
+const APP_VERSION = "v8.5.7q";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -857,6 +857,13 @@ function applyI18n(){
 function setText(id,key){ if(el(id)) el(id).textContent=t(key); }
 function setPh(id,key){ if(el(id)) el(id).placeholder=t(key); }
 function setTitle(id,key){ if(el(id)) el(id).title=t(key); }
+function setHoverTip(id,key){
+  const node=el(id);
+  if(!node) return;
+  node.querySelectorAll(".hpf-tip").forEach(tip=>tip.remove());
+  node.title=t(key);
+  node.setAttribute("aria-label",t(key));
+}
 function localizeLogStatusTitles(){
   ["srcNotRead","srcNonBill","srcDups","srcLogBreaks","srcHoro","srcSentBack"].forEach(id=>setTitle(id,"clickForDetails"));
 }
@@ -886,8 +893,28 @@ function localizeLogTooltips(){
     ["btn_approve","logTipApprove"],
     ["btn_returnForReview","logTipReturnForReview"],
     ["btn_reqChanges","logTipRequestChanges"],
-    ["btn_reopen","logTipReopen"]
-  ].forEach(([id,key])=>ensureTip(id,key));
+    ["btn_reopen","logTipReopen"],
+    ["th_log","logTipThLog"],
+    ["th_date","logTipThDate"],
+    ["th_ac","logTipThAircraft"],
+    ["th_op","logTipThOperator"],
+    ["th_pilot","logTipThPilot"],
+    ["th_instructor","logTipThInstructor"],
+    ["th_motor","logTipThMotor"],
+    ["th_mout","logTipThMotorOut"],
+    ["th_min","logTipThMotorIn"],
+    ["th_tm","logTipThMotorTotal"],
+    ["th_flight","logTipThFlight"],
+    ["th_fout","logTipThFlightOut"],
+    ["th_fin","logTipThFlightIn"],
+    ["th_tf","logTipThFlightTotal"],
+    ["th_billing","logTipThBilling"],
+    ["th_mult","logTipThMultiplier"],
+    ["th_tbp","logTipThTbh"],
+    ["th_horo","logTipThHoro"],
+    ["th_obs","logTipThNotes"],
+    ["th_status","logTipThStatus"]
+  ].forEach(([id,key])=>setHoverTip(id,key));
 }
 function localizeUserUi(){
   setPh("userSearch","userSearchPh");
