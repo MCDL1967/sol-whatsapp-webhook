@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.8b";
+const APP_VERSION = "v8.5.8c";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -6352,7 +6352,7 @@ function wireEvents(){
       if(!zone||!body) return;
       const delta=e.clientY-rvStartY;
       const maxH=Math.max(120,Math.floor(body.offsetHeight*0.45));
-      const newH=Math.max(82,Math.min(maxH,rvStartH+delta));
+      const newH=Math.max(82,Math.min(maxH,rvStartH-delta));
       zone.style.height=newH+"px";
     }
     function stopReviewResize(){
