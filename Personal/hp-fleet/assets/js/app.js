@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.8a";
+const APP_VERSION = "v8.5.8b";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";

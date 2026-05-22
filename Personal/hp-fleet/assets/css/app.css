@@ -744,7 +744,7 @@ table.fl-tbl td:last-child{border-right:none}
 .sp-edit-body.collapsed{display:none}
 .sp-zone{border:1px solid rgba(65,84,118,.58);background:rgba(16,24,38,.45);
   padding:10px;border-radius:2px;flex-shrink:0;user-select:none;-webkit-user-select:none}
-.sp-zone-data{border-bottom:2px solid rgba(65,209,255,.78);flex:1 1 auto;
+.sp-zone-data{flex:1 1 auto;
   min-height:0;overflow-y:auto}
 .sp-zone-review{border-color:rgba(255,196,59,.28);border-top:2px solid rgba(255,196,59,.62);
   border-bottom:2px solid rgba(255,196,59,.62);background:rgba(255,196,59,.04);
