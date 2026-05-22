@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.8";
+const APP_VERSION = "v8.5.8a";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -3844,8 +3844,13 @@ function refreshSidePanelLocalizedEntryText(){
 function syncSidePanelReviewZone(){
   const zone=el("spReviewZone");
   const row=el("spCommentRow");
+  const resize=el("spReviewResize");
+  const toggle=el("spReviewToggle");
   if(!zone||!row) return;
-  zone.classList.toggle("is-hidden", row.style.display==="none");
+  const hidden=row.style.display==="none";
+  zone.classList.toggle("is-hidden", hidden);
+  if(resize) resize.classList.toggle("is-hidden", hidden);
+  if(toggle) toggle.textContent=zone.classList.contains("is-collapsed")?"▴":"▾";
 }
 
 function spApplyTransform(){
@@ -4431,6 +4436,7 @@ function _loadSpEntry(entry){
     if(commentRow) commentRow.style.display=(entry.reviewThread&&entry.reviewThread.length)?"block":"none";
     if(saveBtn){ saveBtn.innerHTML='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg> <span id="spSaveText">'+t("spSave")+'</span>'; saveBtn.style.display=""; saveBtn.style.background="rgba(65,209,255,.04)"; saveBtn.style.borderColor="var(--dim2)"; saveBtn.style.color="var(--dim2)"; saveBtn.disabled=true; saveBtn.style.cursor="not-allowed"; saveBtn.style.opacity="0.4"; }
   }
+  if(commentRow&&commentRow.style.display!=="none"&&el("spReviewZone")) el("spReviewZone").classList.remove("is-collapsed");
   syncSidePanelReviewZone();
 }
 
@@ -6311,6 +6317,54 @@ function wireEvents(){
   if(el("spEditHdr")) el("spEditHdr").onclick=null;
   if(el("sp_save")) el("sp_save").addEventListener("click",saveSpEntry);
   // sp_cancel removed — close panel via X button
+
+  const reviewToggle=el("spReviewToggle");
+  if(reviewToggle) reviewToggle.addEventListener("click",e=>{
+    e.stopPropagation();
+    const zone=el("spReviewZone");
+    if(!zone) return;
+    zone.classList.toggle("is-collapsed");
+    syncSidePanelReviewZone();
+  });
+
+  const reviewHandle=el("spReviewResize");
+  if(reviewHandle){
+    let rvStartY=0, rvStartH=0;
+    reviewHandle.addEventListener("pointerdown",e=>{
+      if(e.target&&e.target.closest&&e.target.closest("#spReviewToggle")) return;
+      const zone=el("spReviewZone");
+      if(!zone||zone.classList.contains("is-hidden")) return;
+      zone.classList.remove("is-collapsed");
+      syncSidePanelReviewZone();
+      rvStartY=e.clientY;
+      rvStartH=zone.offsetHeight||180;
+      reviewHandle.classList.add("dragging");
+      if(reviewHandle.setPointerCapture) reviewHandle.setPointerCapture(e.pointerId);
+      document.addEventListener("pointermove",onReviewResize);
+      document.addEventListener("pointerup",stopReviewResize);
+      document.addEventListener("pointercancel",stopReviewResize);
+      document.body.classList.add("sp-resizing");
+      e.preventDefault();
+    });
+    function onReviewResize(e){
+      const zone=el("spReviewZone");
+      const body=el("spEditBody");
+      if(!zone||!body) return;
+      const delta=e.clientY-rvStartY;
+      const maxH=Math.max(120,Math.floor(body.offsetHeight*0.45));
+      const newH=Math.max(82,Math.min(maxH,rvStartH+delta));
+      zone.style.height=newH+"px";
+    }
+    function stopReviewResize(){
+      const zone=el("spReviewZone");
+      reviewHandle.classList.remove("dragging");
+      document.body.classList.remove("sp-resizing");
+      document.removeEventListener("pointermove",onReviewResize);
+      document.removeEventListener("pointerup",stopReviewResize);
+      document.removeEventListener("pointercancel",stopReviewResize);
+      syncSidePanelReviewZone();
+    }
+  }
 
   // Vertical resize handle — image/data divider
   const vHandle=el("spVResize");

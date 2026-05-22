@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.8 - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.8a - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +7,7 @@
 <title>HP Fleet</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="./assets/css/app.css?v=8.5.8">
+<link rel="stylesheet" href="./assets/css/app.css?v=8.5.8a">
 </head>
 <body>
 
@@ -1283,6 +1283,10 @@
           <div class="sp-field"><label id="spLblNotes">Notes</label><input type="text" id="sp_obs"></div>
         </div>
       </div>
+      <div class="sp-review-resize is-hidden" id="spReviewResize">
+        <div class="sp-review-grip"></div>
+        <button class="sp-review-toggle" id="spReviewToggle" type="button">▾</button>
+      </div>
       <div class="sp-zone sp-zone-review" id="spReviewZone">
         <div class="sp-frow fc1" id="spCommentRow" style="display:none">
           <div class="sp-field" style="padding:0">
@@ -1338,6 +1342,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="./assets/js/app.js?v=8.5.8"></script>
+<script src="./assets/js/app.js?v=8.5.8a"></script>
 </body>
 </html>
