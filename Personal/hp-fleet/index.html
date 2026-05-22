@@ -1,4 +1,4 @@
-<!-- HP Fleet v8.5.7y - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
+<!-- HP Fleet v8.5.8 - built 2026-05-21 - ICTLabs / GRANSOLUX S.A. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +7,7 @@
 <title>HP Fleet</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="./assets/css/app.css?v=8.5.7y">
+<link rel="stylesheet" href="./assets/css/app.css?v=8.5.8">
 </head>
 <body>
 
@@ -1240,81 +1240,87 @@
       </div>
     </div>
     <div class="sp-edit-body" id="spEditBody">
-      <div class="diff-alert" id="spDiffAlert">⚠ Motor/Vuelo gap: <span id="spDiffMsg"></span></div>
-      <div class="sp-frow fc3">
-        <div class="sp-field"><label id="spLblLog">Log #</label><input type="text" id="sp_bnum" placeholder="00000"></div>
-        <div class="sp-field"><label id="spLblDate">Date</label><input type="text" id="sp_fecha" placeholder="DD/MM/YYYY"></div>
-        <div class="sp-field"><label id="spLblAircraft">Aircraft</label><select id="sp_aeronave"></select></div>
-      </div>
-      <div class="sp-frow fc3">
-        <div class="sp-field"><label id="spLblOperator">Operator</label><select id="sp_operador"><option>FM</option><option>MAG</option></select></div>
-        <div class="sp-field"><label id="spLblHoroStart">Horo. Start</label><input type="number" id="sp_horoIn" step="0.1"></div>
-        <div class="sp-field"><label id="spLblMultOverride">Mult. Override</label>
-          <select id="sp_mult_sel" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 8px;border-radius:2px;outline:none;width:100%"></select>
-          <input type="number" id="sp_mult" step="0.001" placeholder="Custom value" style="display:none;margin-top:4px;width:100%;box-sizing:border-box">
+      <div class="sp-zone sp-zone-data" id="spDataZone">
+        <div class="diff-alert" id="spDiffAlert">⚠ Motor/Vuelo gap: <span id="spDiffMsg"></span></div>
+        <div class="sp-frow fc3">
+          <div class="sp-field"><label id="spLblLog">Log #</label><input type="text" id="sp_bnum" placeholder="00000"></div>
+          <div class="sp-field"><label id="spLblDate">Date</label><input type="text" id="sp_fecha" placeholder="DD/MM/YYYY"></div>
+          <div class="sp-field"><label id="spLblAircraft">Aircraft</label><select id="sp_aeronave"></select></div>
         </div>
-      </div>
-      <div class="sp-frow">
-        <div class="sp-field"><label id="spLblPilot">Pilot</label><input type="text" id="sp_piloto"></div>
-        <div class="sp-field"><label id="spLblInstructor">Instructor</label><input type="text" id="sp_instructor"></div>
-      </div>
-      <div class="sp-frow fc3">
-        <div class="sp-field"><label id="spLblMotorOut">Motor Out</label>
-          <div style="display:flex;align-items:center;gap:4px">
-            <input type="text" id="sp_motorOut" placeholder="decimal" style="flex:1">
-            <button type="button" id="sp_swap_motor" style="background:none;border:1px solid var(--border2);color:var(--cyan);cursor:pointer;padding:4px 6px;border-radius:2px;font-size:12px;flex-shrink:0">⇄</button>
+        <div class="sp-frow fc3">
+          <div class="sp-field"><label id="spLblOperator">Operator</label><select id="sp_operador"><option>FM</option><option>MAG</option></select></div>
+          <div class="sp-field"><label id="spLblHoroStart">Horo. Start</label><input type="number" id="sp_horoIn" step="0.1"></div>
+          <div class="sp-field"><label id="spLblMultOverride">Mult. Override</label>
+            <select id="sp_mult_sel" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 8px;border-radius:2px;outline:none;width:100%"></select>
+            <input type="number" id="sp_mult" step="0.001" placeholder="Custom value" style="display:none;margin-top:4px;width:100%;box-sizing:border-box">
           </div>
         </div>
-        <div class="sp-field"><label id="spLblMotorIn">Motor In</label><input type="text" id="sp_motorIn" placeholder="decimal"></div>
-        <div class="sp-field"><label id="spLblTMotor">T.Motor</label><input type="text" id="sp_tmotor" readonly></div>
-      </div>
-      <div class="sp-frow fc3">
-        <div class="sp-field"><label id="spLblFlightOut">Flight Out</label>
-          <div style="display:flex;align-items:center;gap:4px">
-            <input type="text" id="sp_vueloOut" placeholder="decimal" style="flex:1">
-            <button type="button" id="sp_swap_vuelo" style="background:none;border:1px solid var(--border2);color:var(--cyan);cursor:pointer;padding:4px 6px;border-radius:2px;font-size:12px;flex-shrink:0">⇄</button>
-          </div>
+        <div class="sp-frow">
+          <div class="sp-field"><label id="spLblPilot">Pilot</label><input type="text" id="sp_piloto"></div>
+          <div class="sp-field"><label id="spLblInstructor">Instructor</label><input type="text" id="sp_instructor"></div>
         </div>
-        <div class="sp-field"><label id="spLblFlightIn">Flight In</label><input type="text" id="sp_vueloIn" placeholder="decimal"></div>
-        <div class="sp-field"><label id="spLblTFlight">T.Flight</label><input type="text" id="sp_tvuelo" readonly></div>
-      </div>
-      <div class="sp-frow fc1">
-        <div class="sp-field"><label id="spLblNotes">Notes</label><input type="text" id="sp_obs"></div>
-      </div>
-      <div class="sp-frow fc1" id="spCommentRow" style="display:none">
-        <div class="sp-field" style="padding:0">
-          <!-- REVIEW THREAD PANEL -->
-          <div id="spReviewThread" style="border:1px solid rgba(255,196,59,0.3);border-radius:3px;overflow:hidden;font-family:var(--mono)">
-            <div style="background:rgba(255,196,59,0.12);padding:6px 10px;border-bottom:1px solid rgba(255,196,59,0.2);display:flex;align-items:center;gap:6px">
-              <span style="font-size:9px;font-weight:700;color:var(--yellow);letter-spacing:1px" id="spThreadTitle">REVIEW THREAD</span>
-              <span style="font-size:9px;color:var(--dim2)" id="spThreadMeta"></span>
+        <div class="sp-frow fc3">
+          <div class="sp-field"><label id="spLblMotorOut">Motor Out</label>
+            <div style="display:flex;align-items:center;gap:4px">
+              <input type="text" id="sp_motorOut" placeholder="decimal" style="flex:1">
+              <button type="button" id="sp_swap_motor" style="background:none;border:1px solid var(--border2);color:var(--cyan);cursor:pointer;padding:4px 6px;border-radius:2px;font-size:12px;flex-shrink:0">⇄</button>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid rgba(255,255,255,0.06)">
-              <div style="padding:5px 8px;font-size:9px;font-weight:700;color:var(--yellow);border-right:1px solid rgba(255,255,255,0.06);letter-spacing:1px" id="spColReviewer">REVIEWER</div>
-              <div style="padding:5px 8px;font-size:9px;font-weight:700;color:var(--cyan);letter-spacing:1px" id="spColOperator">OPERATOR</div>
+          </div>
+          <div class="sp-field"><label id="spLblMotorIn">Motor In</label><input type="text" id="sp_motorIn" placeholder="decimal"></div>
+          <div class="sp-field"><label id="spLblTMotor">T.Motor</label><input type="text" id="sp_tmotor" readonly></div>
+        </div>
+        <div class="sp-frow fc3">
+          <div class="sp-field"><label id="spLblFlightOut">Flight Out</label>
+            <div style="display:flex;align-items:center;gap:4px">
+              <input type="text" id="sp_vueloOut" placeholder="decimal" style="flex:1">
+              <button type="button" id="sp_swap_vuelo" style="background:none;border:1px solid var(--border2);color:var(--cyan);cursor:pointer;padding:4px 6px;border-radius:2px;font-size:12px;flex-shrink:0">⇄</button>
             </div>
-            <div id="spThreadBody" style="max-height:180px;overflow-y:auto"></div>
-            <div id="spThreadInput" style="display:none;padding:8px;border-top:1px solid rgba(255,255,255,0.06)">
-              <textarea id="spThreadTextarea" rows="2" style="width:100%;background:var(--s3);border:1px solid rgba(255,196,59,0.4);color:var(--yellow);font-family:var(--mono);font-size:10px;padding:5px;border-radius:2px;outline:none;resize:none;box-sizing:border-box" placeholder="Add comment…"></textarea>
-              <div style="display:flex;justify-content:flex-end;margin-top:4px;gap:6px">
-                <button class="btn-ghost" id="spThreadCancelBtn" style="font-size:9px;padding:3px 8px" onclick="closeSpThreadInput()">Cancel</button>
-                <button id="spThreadSaveBtn" style="font-size:9px;padding:3px 10px;font-weight:700;border:none;border-radius:2px;cursor:pointer" onclick="saveSpThreadComment()">Save</button>
+          </div>
+          <div class="sp-field"><label id="spLblFlightIn">Flight In</label><input type="text" id="sp_vueloIn" placeholder="decimal"></div>
+          <div class="sp-field"><label id="spLblTFlight">T.Flight</label><input type="text" id="sp_tvuelo" readonly></div>
+        </div>
+        <div class="sp-frow fc1">
+          <div class="sp-field"><label id="spLblNotes">Notes</label><input type="text" id="sp_obs"></div>
+        </div>
+      </div>
+      <div class="sp-zone sp-zone-review" id="spReviewZone">
+        <div class="sp-frow fc1" id="spCommentRow" style="display:none">
+          <div class="sp-field" style="padding:0">
+            <!-- REVIEW THREAD PANEL -->
+            <div id="spReviewThread" style="border:1px solid rgba(255,196,59,0.3);border-radius:3px;overflow:hidden;font-family:var(--mono)">
+              <div style="background:rgba(255,196,59,0.12);padding:6px 10px;border-bottom:1px solid rgba(255,196,59,0.2);display:flex;align-items:center;gap:6px">
+                <span style="font-size:9px;font-weight:700;color:var(--yellow);letter-spacing:1px" id="spThreadTitle">REVIEW THREAD</span>
+                <span style="font-size:9px;color:var(--dim2)" id="spThreadMeta"></span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid rgba(255,255,255,0.06)">
+                <div style="padding:5px 8px;font-size:9px;font-weight:700;color:var(--yellow);border-right:1px solid rgba(255,255,255,0.06);letter-spacing:1px" id="spColReviewer">REVIEWER</div>
+                <div style="padding:5px 8px;font-size:9px;font-weight:700;color:var(--cyan);letter-spacing:1px" id="spColOperator">OPERATOR</div>
+              </div>
+              <div id="spThreadBody" style="max-height:180px;overflow-y:auto"></div>
+              <div id="spThreadInput" style="display:none;padding:8px;border-top:1px solid rgba(255,255,255,0.06)">
+                <textarea id="spThreadTextarea" rows="2" style="width:100%;background:var(--s3);border:1px solid rgba(255,196,59,0.4);color:var(--yellow);font-family:var(--mono);font-size:10px;padding:5px;border-radius:2px;outline:none;resize:none;box-sizing:border-box" placeholder="Add comment…"></textarea>
+                <div style="display:flex;justify-content:flex-end;margin-top:4px;gap:6px">
+                  <button class="btn-ghost" id="spThreadCancelBtn" style="font-size:9px;padding:3px 8px" onclick="closeSpThreadInput()">Cancel</button>
+                  <button id="spThreadSaveBtn" style="font-size:9px;padding:3px 10px;font-weight:700;border:none;border-radius:2px;cursor:pointer" onclick="saveSpThreadComment()">Save</button>
+                </div>
+              </div>
+              <div id="spThreadFooter" style="padding:6px 8px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.06)">
+                <button id="spAddCommentBtn" style="display:none;background:none;border:1px solid var(--yellow);color:var(--yellow);font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:2px;cursor:pointer;letter-spacing:1px" onclick="openSpThreadInput('REVIEWER')">+ COMMENT</button>
+                <span></span>
+                <button id="spSaveResponseBtn" style="display:none;background:var(--cyan);border:none;color:#000;font-family:var(--mono);font-size:9px;font-weight:700;padding:3px 8px;border-radius:2px;cursor:pointer;letter-spacing:1px" onclick="openSpThreadInput('OPERATOR')">REPLY</button>
               </div>
             </div>
-            <div id="spThreadFooter" style="padding:6px 8px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.06)">
-              <button id="spAddCommentBtn" style="display:none;background:none;border:1px solid var(--yellow);color:var(--yellow);font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:2px;cursor:pointer;letter-spacing:1px" onclick="openSpThreadInput('REVIEWER')">+ COMMENT</button>
-              <span></span>
-              <button id="spSaveResponseBtn" style="display:none;background:var(--cyan);border:none;color:#000;font-family:var(--mono);font-size:9px;font-weight:700;padding:3px 8px;border-radius:2px;cursor:pointer;letter-spacing:1px" onclick="openSpThreadInput('OPERATOR')">REPLY</button>
-            </div>
           </div>
         </div>
       </div>
-      <div class="sp-calc">
-        <div class="sp-calc-item"><div class="sp-calc-l" id="spCalcTMotor">T.Motor</div><div class="sp-calc-v cb" id="sp_pv_tm">—</div></div>
-        <div class="sp-calc-item"><div class="sp-calc-l" id="spCalcTFlight">T.Flight</div><div class="sp-calc-v cx" id="sp_pv_tf">—</div></div>
-        <div class="sp-calc-item"><div class="sp-calc-l" id="spCalcMultiplier">Multiplier</div><div class="sp-calc-v" id="sp_pv_mult">—</div></div>
-        <div class="sp-calc-item"><div class="sp-calc-l" id="spCalcTbh">TBH</div><div class="sp-calc-v cg" id="sp_pv_tbp">—</div></div>
-        <div class="sp-calc-item" style="margin-left:auto"><div class="sp-calc-l" id="spCalcGap">Gap</div><div class="sp-calc-v" id="sp_pv_gap" style="font-size:11px">—</div></div>
+      <div class="sp-zone sp-zone-summary" id="spSummaryZone">
+        <div class="sp-calc">
+          <div class="sp-calc-item"><div class="sp-calc-l" id="spCalcTMotor">T.Motor</div><div class="sp-calc-v cb" id="sp_pv_tm">—</div></div>
+          <div class="sp-calc-item"><div class="sp-calc-l" id="spCalcTFlight">T.Flight</div><div class="sp-calc-v cx" id="sp_pv_tf">—</div></div>
+          <div class="sp-calc-item"><div class="sp-calc-l" id="spCalcMultiplier">Multiplier</div><div class="sp-calc-v" id="sp_pv_mult">—</div></div>
+          <div class="sp-calc-item"><div class="sp-calc-l" id="spCalcTbh">TBH</div><div class="sp-calc-v cg" id="sp_pv_tbp">—</div></div>
+          <div class="sp-calc-item" style="margin-left:auto"><div class="sp-calc-l" id="spCalcGap">Gap</div><div class="sp-calc-v" id="sp_pv_gap" style="font-size:11px">—</div></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1332,6 +1338,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="./assets/js/app.js?v=8.5.7y"></script>
+<script src="./assets/js/app.js?v=8.5.8"></script>
 </body>
 </html>

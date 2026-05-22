@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.7y";
+const APP_VERSION = "v8.5.8";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -3841,6 +3841,13 @@ function refreshSidePanelLocalizedEntryText(){
   }
 }
 
+function syncSidePanelReviewZone(){
+  const zone=el("spReviewZone");
+  const row=el("spCommentRow");
+  if(!zone||!row) return;
+  zone.classList.toggle("is-hidden", row.style.display==="none");
+}
+
 function spApplyTransform(){
   const img=el("sp_img"); if(!img) return;
   img.style.transform=`rotate(${spRotation}deg) scale(${spZoom}) translate(${spPanX}px,${spPanY}px)`;
@@ -4424,6 +4431,7 @@ function _loadSpEntry(entry){
     if(commentRow) commentRow.style.display=(entry.reviewThread&&entry.reviewThread.length)?"block":"none";
     if(saveBtn){ saveBtn.innerHTML='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg> <span id="spSaveText">'+t("spSave")+'</span>'; saveBtn.style.display=""; saveBtn.style.background="rgba(65,209,255,.04)"; saveBtn.style.borderColor="var(--dim2)"; saveBtn.style.color="var(--dim2)"; saveBtn.disabled=true; saveBtn.style.cursor="not-allowed"; saveBtn.style.opacity="0.4"; }
   }
+  syncSidePanelReviewZone();
 }
 
 function _updateSpNav(){

@@ -739,9 +739,17 @@ table.fl-tbl td:last-child{border-right:none}
   user-select:none;-webkit-user-select:none;touch-action:manipulation}
 #spEditToggle{min-width:28px;min-height:28px;user-select:none;-webkit-user-select:none;touch-action:manipulation}
 .sp-edit-body{padding:14px 16px;overflow-y:auto;flex:1;min-height:0;
-  transition:none}
+  transition:none;display:flex;flex-direction:column;gap:12px}
 .sp-edit-body.collapsed{display:none}
+.sp-zone{border:1px solid rgba(65,84,118,.58);background:rgba(16,24,38,.45);
+  padding:10px;border-radius:2px;flex-shrink:0}
+.sp-zone-data{border-top:2px solid rgba(65,209,255,.65)}
+.sp-zone-review{border-color:rgba(255,196,59,.28);background:rgba(255,196,59,.04)}
+.sp-zone-review.is-hidden{display:none}
+.sp-zone-summary{border-top:2px solid rgba(137,163,255,.72);margin-top:auto;
+  position:sticky;bottom:0;z-index:11;background:var(--s1);padding:8px}
 .sp-frow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.sp-zone .sp-frow:last-child{margin-bottom:0}
 .sp-frow.fc3{grid-template-columns:1fr 1fr 1fr}
 .sp-frow.fc1{grid-template-columns:1fr}
 .sp-field label{font-family:var(--mono);font-size:9px;letter-spacing:1px;
@@ -753,8 +761,7 @@ table.fl-tbl td:last-child{border-right:none}
 .sp-field input:focus,.sp-field select:focus{border-color:var(--cyan)}
 .sp-field input[readonly]{color:var(--dim2);cursor:default}
 .sp-calc{display:flex;gap:10px;background:var(--s3);border:1px solid var(--border);
-  padding:10px 12px;flex-wrap:wrap;position:sticky;bottom:0;z-index:10;margin-top:auto;
-  box-shadow:0 18px 0 0 var(--s3)}
+  padding:10px 12px;flex-wrap:wrap}
 .sp-calc-item{display:flex;flex-direction:column;align-items:center;gap:2px}
 .sp-calc-l{font-family:var(--mono);font-size:8px;color:var(--dim);text-transform:uppercase}
 .sp-calc-v{font-family:var(--mono);font-size:13px;font-weight:700}
