@@ -338,7 +338,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
   color:var(--dim2);font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
   padding:6px 10px;display:flex;justify-content:space-between;align-items:center;text-align:left}
 
-/* ── WORKFLOW WIDGET v8.5.9b ─────────────────────────────────────────────── */
+/* ── WORKFLOW WIDGET v8.5.9c ─────────────────────────────────────────────── */
 #workflowWidget{--ww-op:#22c55e;--ww-re:#facc15;--ww-cta:#41d1ff;overflow:hidden}
 #workflowWidget .ww-empty{font-family:var(--mono);font-size:10px;color:var(--dim2);letter-spacing:1px;margin-top:18px}
 .ww-timeline{position:relative;height:62px;padding:10px 12px 0 0}
@@ -347,10 +347,12 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 .ww-lane-op>span{color:var(--ww-op)}
 .ww-lane-re>span{color:var(--ww-re)}
 .ww-track{position:relative;height:28px}
-.ww-connector{position:absolute;top:50%;height:2px;transform:translateY(-50%);opacity:.48}
-.ww-connector.green{background:var(--ww-op)}
-.ww-connector.yellow{background:var(--ww-re)}
-.ww-connector.cyan{background:var(--ww-cta)}
+.ww-track:before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(138,169,207,.18)}
+.ww-flow-svg{position:absolute;left:24px;right:12px;top:0;width:calc(100% - 36px);height:62px;pointer-events:none;overflow:visible}
+.ww-flow{stroke-width:2;stroke-linecap:round;opacity:.62;vector-effect:non-scaling-stroke}
+.ww-flow.green{stroke:var(--ww-op)}
+.ww-flow.yellow{stroke:var(--ww-re)}
+.ww-flow.cyan{stroke:var(--ww-cta)}
 .ww-node{position:absolute;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:2px}
 .ww-node i{display:block;width:8px;height:8px;border-radius:50%;box-sizing:border-box}
 .ww-dot-green{background:var(--ww-op);border:2px solid var(--ww-op)}

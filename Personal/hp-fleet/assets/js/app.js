@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.9b";
+const APP_VERSION = "v8.5.9c";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.9b",
-  es: "./assets/i18n/es.json?v=8.5.9b"
+  en: "./assets/i18n/en.json?v=8.5.9c",
+  es: "./assets/i18n/es.json?v=8.5.9c"
 };
 
 async function loadI18nDictionaries(){
@@ -2956,11 +2956,15 @@ function renderWorkflowWidget(){
     return '<span class="ww-node '+(n.active?"active ":"")+(n.current?"current":"")+'" style="left:'+(n.pct*100)+'%" data-color="'+n.color+'">'+
       '<i class="'+dot+'"></i><b class="'+(showLabel?n.color:"hidden")+'">'+escHtml(showLabel?n.label:"")+'</b></span>';
   }).join("");
-  const laneConnectors=lane=>{
-    const activeNodes=nodes.filter(n=>n.lane===lane&&n.active).sort((a,b)=>a.pct-b.pct);
-    return activeNodes.slice(0,-1).map((n,i)=>{
-      const next=activeNodes[i+1];
-      return '<span class="ww-connector '+n.color+'" style="left:'+(n.pct*100)+'%;width:'+((next.pct-n.pct)*100)+'%"></span>';
+  const flowConnectors=()=>{
+    const path=nodes.filter(n=>n.active).sort((a,b)=>a.pct-b.pct);
+    return path.slice(0,-1).map((n,i)=>{
+      const next=path[i+1];
+      const y1=n.lane==="op"?24:52;
+      const y2=next.lane==="op"?24:52;
+      const x1=n.pct*100;
+      const x2=next.pct*100;
+      return '<line class="ww-flow '+next.color+'" x1="'+x1+'%" y1="'+y1+'" x2="'+x2+'%" y2="'+y2+'"></line>';
     }).join("");
   };
   const history=data.workflowEvents.slice(-2).reverse().map(ev=>{
@@ -2970,8 +2974,9 @@ function renderWorkflowWidget(){
   }).join("")||'<div class="ww-history-row"><em>'+t("wwNoBatchHistory")+'</em></div>';
 
   wrap.innerHTML='<div class="ww-timeline" aria-label="'+escHtml(t("sbBatchHistory"))+'">'+
-      '<div class="ww-lane ww-lane-op"><span>OP</span><div class="ww-track">'+laneConnectors("op")+laneHtml("op")+'</div></div>'+
-      '<div class="ww-lane ww-lane-re"><span>RE</span><div class="ww-track">'+laneConnectors("re")+laneHtml("re")+'</div></div>'+
+      '<svg class="ww-flow-svg" aria-hidden="true" preserveAspectRatio="none">'+flowConnectors()+'</svg>'+
+      '<div class="ww-lane ww-lane-op"><span>OP</span><div class="ww-track">'+laneHtml("op")+'</div></div>'+
+      '<div class="ww-lane ww-lane-re"><span>RE</span><div class="ww-track">'+laneHtml("re")+'</div></div>'+
     '</div>'+
     '<div class="ww-history-panel">'+history+'</div>';
   if(el("srcEventText")) el("srcEventText").textContent=t("wfEvents")+": "+workflowEventText(data);
