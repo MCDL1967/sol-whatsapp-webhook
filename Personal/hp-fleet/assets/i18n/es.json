@@ -85,6 +85,7 @@
   "logBreaks": "Saltos de Log #",
   "sequenceAlerts": "Alertas de Secuencia",
   "sentBackForReview": "Devuelto para Corrección",
+  "activeObservedEntries": "Observados Activos",
   "entryShort": "Entrada",
   "reasonSkipped": "Omitida",
   "reasonVoid": "Anulada",

@@ -85,6 +85,7 @@
   "logBreaks": "Log # Breaks",
   "sequenceAlerts": "Sequence Alerts",
   "sentBackForReview": "Sent Back for Review",
+  "activeObservedEntries": "Active Observed Entries",
   "entryShort": "Entry",
   "reasonSkipped": "Skipped",
   "reasonVoid": "Void",

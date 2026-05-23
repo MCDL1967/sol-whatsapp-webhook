@@ -1024,7 +1024,7 @@ function localizeSidePanelUi(){
   spUpdateNonBillBtn(!!active);
 }
 function localizeLogStatusTitles(){
-  ["srcFile","srcNotRead","srcNonBill","srcDups","srcLogBreaks","srcHoro","srcSentBack","srcEventBar"].forEach(id=>setTitle(id,"clickForDetails"));
+  ["srcFile","srcNotRead","srcNonBill","srcDups","srcLogBreaks","srcHoro","srcSentBack","srcObservedActive","srcEventBar"].forEach(id=>setTitle(id,"clickForDetails"));
 }
 function localizeLogTooltips(){
   [
@@ -2665,8 +2665,10 @@ function updateSrcBar(){
     el("srcWorkflowTurn").style.color=wf.turn===t("wfReviewer")?"var(--yellow)":wf.turn===t("wfOperator")?"var(--green)":"var(--dim2)";
   }
   if(el("srcObservedActive")){
-    el("srcObservedActive").textContent=getObservedActiveEntries().length||"—";
-    el("srcObservedActive").style.color=getObservedActiveEntries().length>0?"var(--yellow)":"var(--dim2)";
+    const activeObserved=getObservedActiveEntries().length;
+    el("srcObservedActive").textContent=activeObserved||"—";
+    el("srcObservedActive").style.color=activeObserved>0?"var(--yellow)":"var(--dim2)";
+    el("srcObservedActive").style.pointerEvents=activeObserved>0?"auto":"none";
   }
   if(el("srcEventText")) el("srcEventText").textContent=t("wfEvents")+": "+wf.event;
 
@@ -6084,6 +6086,14 @@ function wireEvents(){
       return t("entryShort")+" #"+(idx+1)+" | "+t("thLog")+" "+(e.bnum||"—")+" | "+e.aeronave+" | "+latestReviewerComment(e);
     });
     openFloatDialog("dlgSentBack",t("sentBackForReview"),lines,"var(--yellow)",flagged.map(e=>e.id));
+  });
+  if(el("srcObservedActive")) el("srcObservedActive").addEventListener("click",()=>{
+    const active=getObservedActiveEntries();
+    const lines=active.map(e=>{
+      const idx=flEntries.indexOf(e);
+      return t("entryShort")+" #"+(idx+1)+" | "+t("thLog")+" "+(e.bnum||"—")+" | "+e.aeronave+" | "+latestReviewerComment(e);
+    });
+    openFloatDialog("dlgSentBack",t("activeObservedEntries"),lines,"var(--yellow)",active.map(e=>e.id));
   });
   if(el("dlgSentBackHdr")) makeDraggable("dlgSentBack","dlgSentBackHdr");
   // Pan/drag — always on (left click + drag), double click = zoom in
