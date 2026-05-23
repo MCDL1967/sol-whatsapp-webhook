@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.9a";
+const APP_VERSION = "v8.5.9b";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.9a",
-  es: "./assets/i18n/es.json?v=8.5.9a"
+  en: "./assets/i18n/en.json?v=8.5.9b",
+  es: "./assets/i18n/es.json?v=8.5.9b"
 };
 
 async function loadI18nDictionaries(){
@@ -2908,9 +2908,9 @@ function deriveWorkflowEvents(displayState,cycle,registered,active){
 }
 
 function wfWidgetTimestamp(ts){
-  if(!ts||ts==="PENDING") return "PENDING";
+  if(!ts||ts==="PENDING") return "—";
   const d=ts instanceof Date?ts:new Date(ts);
-  if(isNaN(d.getTime())) return "PENDING";
+  if(isNaN(d.getTime())) return "—";
   return d.toLocaleDateString(lang==="es"?"es-PA":"en-US",{month:"2-digit",day:"2-digit"})+" "+
     d.toLocaleTimeString(lang==="es"?"es-PA":"en-US",{hour:"2-digit",minute:"2-digit"});
 }
@@ -2953,19 +2953,25 @@ function renderWorkflowWidget(){
   const laneHtml=lane=>nodes.filter(n=>n.lane===lane).map(n=>{
     const dot=n.active?"ww-dot ww-dot-"+n.color:"ww-dot ww-ring-"+n.color;
     const showLabel=n.active&&(n.current||n.id==="draft"||n.id==="submitted"||n.id==="approved"||n.id==="preinvoice");
-    return '<span class="ww-node '+(n.current?"current":"")+'" style="left:'+(n.pct*100)+'%" data-color="'+n.color+'">'+
+    return '<span class="ww-node '+(n.active?"active ":"")+(n.current?"current":"")+'" style="left:'+(n.pct*100)+'%" data-color="'+n.color+'">'+
       '<i class="'+dot+'"></i><b class="'+(showLabel?n.color:"hidden")+'">'+escHtml(showLabel?n.label:"")+'</b></span>';
   }).join("");
+  const laneConnectors=lane=>{
+    const activeNodes=nodes.filter(n=>n.lane===lane&&n.active).sort((a,b)=>a.pct-b.pct);
+    return activeNodes.slice(0,-1).map((n,i)=>{
+      const next=activeNodes[i+1];
+      return '<span class="ww-connector '+n.color+'" style="left:'+(n.pct*100)+'%;width:'+((next.pct-n.pct)*100)+'%"></span>';
+    }).join("");
+  };
   const history=data.workflowEvents.slice(-2).reverse().map(ev=>{
     const role=ev.actorRole==="OPERATOR"?"op":ev.actorRole==="REVIEWER"?"re":"sys";
     const who=ev.actorName&&ev.actorName!=="PENDING"?ev.actorName:"—";
     return '<div class="ww-history-row '+role+'"><span>'+wfWidgetTimestamp(ev.timestamp)+'</span><strong>'+escHtml(who)+'</strong><em>'+escHtml(ev.note||ev.type)+'</em></div>';
   }).join("")||'<div class="ww-history-row"><em>'+t("wwNoBatchHistory")+'</em></div>';
 
-  wrap.innerHTML='<div class="src-history-title" id="sb_batchHistory">'+t("sbBatchHistory")+'</div>'+
-    '<div class="ww-timeline" aria-label="'+escHtml(t("sbBatchHistory"))+'">'+
-      '<div class="ww-lane ww-lane-op"><span>OP</span><div class="ww-track">'+laneHtml("op")+'</div></div>'+
-      '<div class="ww-lane ww-lane-re"><span>RE</span><div class="ww-track">'+laneHtml("re")+'</div></div>'+
+  wrap.innerHTML='<div class="ww-timeline" aria-label="'+escHtml(t("sbBatchHistory"))+'">'+
+      '<div class="ww-lane ww-lane-op"><span>OP</span><div class="ww-track">'+laneConnectors("op")+laneHtml("op")+'</div></div>'+
+      '<div class="ww-lane ww-lane-re"><span>RE</span><div class="ww-track">'+laneConnectors("re")+laneHtml("re")+'</div></div>'+
     '</div>'+
     '<div class="ww-history-panel">'+history+'</div>';
   if(el("srcEventText")) el("srcEventText").textContent=t("wfEvents")+": "+workflowEventText(data);
@@ -6182,7 +6188,12 @@ function wireEvents(){
     const events=deriveWorkflowWidgetState().workflowEvents.slice(-8).reverse();
     const rows=events.map(ev=>{
       const who=ev.actorName&&ev.actorName!=="PENDING"?ev.actorName:ev.actorRole;
-      return wfWidgetTimestamp(ev.timestamp)+" | "+who+" | "+(ev.note||ev.type);
+      const role=ev.actorRole==="OPERATOR"?"op":ev.actorRole==="REVIEWER"?"re":"sys";
+      const time=wfWidgetTimestamp(ev.timestamp);
+      return '<div class="wf-event-row '+role+'">'+
+        '<div class="wf-event-meta"><span>'+escHtml(time)+"</span><strong>"+escHtml(ev.actorRole||"—")+"</strong><b>"+escHtml(who)+"</b></div>"+
+        '<div class="wf-event-note">'+escHtml(ev.note||ev.type)+'</div>'+
+      '</div>';
     });
     openFloatDialog("dlgSources",t("workflowEvents"),rows,"var(--cyan)",null);
   });
