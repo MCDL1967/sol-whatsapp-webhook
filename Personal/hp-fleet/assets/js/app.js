@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.8i";
+const APP_VERSION = "v8.5.8j";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.8i",
-  es: "./assets/i18n/es.json?v=8.5.8i"
+  en: "./assets/i18n/en.json?v=8.5.8j",
+  es: "./assets/i18n/es.json?v=8.5.8j"
 };
 
 async function loadI18nDictionaries(){
@@ -5728,7 +5728,7 @@ function wireEvents(){
 
   // Flight Log tab
   el("apiWarnLink").addEventListener("click",()=>switchTab("settings"));
-  el("sb_dlcsv").addEventListener("click",exportFlCSV);
+  if(el("sb_dlcsv")) el("sb_dlcsv").addEventListener("click",exportFlCSV);
   el("btn_approveAll").addEventListener("click",()=>setAllFlStatus("approved"));
   el("btn_resetAll").addEventListener("click",()=>setAllFlStatus("pending"));
   el("btn_newEntry").addEventListener("click",()=>openEditEntry(null));
