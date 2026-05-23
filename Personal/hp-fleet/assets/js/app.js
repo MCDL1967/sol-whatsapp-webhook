@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.8k";
+const APP_VERSION = "v8.5.9";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.8k",
-  es: "./assets/i18n/es.json?v=8.5.8k"
+  en: "./assets/i18n/en.json?v=8.5.9",
+  es: "./assets/i18n/es.json?v=8.5.9"
 };
 
 async function loadI18nDictionaries(){
@@ -2673,6 +2673,7 @@ function updateSrcBar(){
     el("srcObservedActive").style.pointerEvents=activeObserved>0?"auto":"none";
   }
   if(el("srcEventText")) el("srcEventText").textContent=t("wfEvents")+": "+wf.event;
+  renderWorkflowWidget();
 
   // Update row markers on table
   if(el("flTbody")){
@@ -2831,6 +2832,148 @@ function formatNonBillReason(raw, includeComment=true){
 function runHoroChecks(){ updateSrcBar(); } // delegated to updateSrcBar
 
 // ── FLIGHT LOG — WORKFLOW BAR ──
+function deriveWorkflowWidgetState(){
+  const st=batchStatus;
+  const cycle=reviewCycle||1;
+  const registered=getObservedRegisteredEntries().length;
+  const active=getObservedActiveEntries().length;
+  let workflowState="PAUSED", batchDisplayState="DRAFT", workflowTurn="OPERATOR";
+
+  if(st==="APPROVED"){
+    workflowState="ACTIVE"; batchDisplayState="APPROVED"; workflowTurn="NONE";
+  } else if(st==="SUBMITTED"&&cycle>1){
+    workflowState="ACTIVE"; batchDisplayState="RESUBMITTED"; workflowTurn="REVIEWER";
+  } else if(st==="SUBMITTED"){
+    workflowState="ACTIVE"; batchDisplayState="SUBMITTED"; workflowTurn="REVIEWER";
+  } else if(st==="DRAFT"&&cycle>1&&active>0){
+    workflowState="ACTIVE"; batchDisplayState="OBSERVED"; workflowTurn="OPERATOR";
+  }
+
+  return {
+    workflowState,
+    batchDisplayState,
+    workflowTurn,
+    observedRegisteredCount:registered,
+    observedActiveCount:active,
+    workflowEvents:deriveWorkflowEvents(batchDisplayState,cycle,registered,active),
+    hasBatch:!!currentBatchId&&flEntries.length>0
+  };
+}
+
+function deriveWorkflowEvents(displayState,cycle,registered,active){
+  if(!currentBatchId&&!flEntries.length) return [];
+  const chronological=[...flAuditLog].sort((a,b)=>new Date(a.ts)-new Date(b.ts));
+  const findAction=pattern=>chronological.find(a=>String(a.action||"").toLowerCase().includes(pattern));
+  const events=[];
+  events.push({
+    type:"DRAFT",actorRole:"OPERATOR",actorName:currentUser?.name||"PENDING",
+    timestamp:findAction("batch loaded")?.ts||FL_LOAD_TS||"PENDING",
+    note:t("wwEvDraft")
+  });
+  if(displayState!=="DRAFT"){
+    const submitted=findAction("submitted batch");
+    events.push({
+      type:"SUBMITTED",actorRole:"OPERATOR",actorName:submitted?.actor||"PENDING",
+      timestamp:submitted?.ts||"PENDING",note:t("wwEvSubmitted")
+    });
+    events.push({
+      type:"REVIEW_STARTED",actorRole:"REVIEWER",actorName:"PENDING",
+      timestamp:"PENDING",note:t("wwEvReview")
+    });
+  }
+  const returned=chronological.filter(a=>String(a.action||"").toLowerCase().includes("returned"));
+  returned.forEach((a,i)=>{
+    events.push({
+      type:"OBSERVED",actorRole:"REVIEWER",actorName:a.actor||"PENDING",
+      timestamp:a.ts||"PENDING",cycle:i+1,note:t("wwEvObserved")
+    });
+    if(i+1<cycle||displayState==="RESUBMITTED"||displayState==="APPROVED"){
+      events.push({
+        type:"RESUBMITTED",actorRole:"OPERATOR",actorName:"PENDING",
+        timestamp:"PENDING",cycle:i+2,note:t("wwEvResubmitted")
+      });
+    }
+  });
+  if(displayState==="APPROVED"){
+    const approved=findAction("approved");
+    events.push({
+      type:"APPROVED",actorRole:"REVIEWER",actorName:approved?.actor||piSignedBy||"PENDING",
+      timestamp:approved?.ts||piSignedAt||"PENDING",note:t("wwEvApproved")
+    });
+  }
+  if(displayState==="APPROVED"&&registered>0&&active===0){
+    events[events.length-1].note=t("wwEvApproved")+" "+t("wwObsClear");
+  }
+  return events;
+}
+
+function wfWidgetTimestamp(ts){
+  if(!ts||ts==="PENDING") return "PENDING";
+  const d=ts instanceof Date?ts:new Date(ts);
+  if(isNaN(d.getTime())) return "PENDING";
+  return d.toLocaleDateString(lang==="es"?"es-PA":"en-US",{month:"2-digit",day:"2-digit"})+" "+
+    d.toLocaleTimeString(lang==="es"?"es-PA":"en-US",{hour:"2-digit",minute:"2-digit"});
+}
+
+function workflowEventText(data){
+  if(!data.hasBatch) return t("wwNoActiveBatch");
+  const turn=data.workflowTurn==="OPERATOR"?t("wwRole_OPERATOR"):data.workflowTurn==="REVIEWER"?t("wwRole_REVIEWER"):"";
+  if(data.batchDisplayState==="DRAFT") return t("wwEvDraft");
+  if(data.batchDisplayState==="SUBMITTED") return turn+" — "+t("wwEvSubmitted");
+  if(data.batchDisplayState==="OBSERVED") return turn+" — "+t("wwEvObserved")+" ("+data.observedActiveCount+")";
+  if(data.batchDisplayState==="RESUBMITTED") return turn+" — "+t("wwEvResubmitted");
+  if(data.batchDisplayState==="APPROVED") return t("wwEvApproved");
+  return t("wwNoActiveBatch");
+}
+
+function renderWorkflowWidget(){
+  const wrap=el("workflowWidget");
+  if(!wrap) return;
+  if(!currentBatchId||!flEntries.length){
+    wrap.innerHTML='<div class="src-history-title" id="sb_batchHistory">'+t("sbBatchHistory")+'</div>'+
+      '<div class="ww-empty">'+t("wwNoActiveBatch")+'</div>';
+    return;
+  }
+  const data=deriveWorkflowWidgetState();
+  const st=batchStatus, cycle=reviewCycle||1;
+  const maxLoops=Math.max(0,cycle-1);
+  const nodes=[
+    {id:"draft",lane:"op",pct:.05,label:t("wwBatch_DRAFT"),color:"green",active:true,current:st==="DRAFT"&&cycle===1},
+    {id:"submitted",lane:"op",pct:.22,label:t("wwBatch_SUBMITTED"),color:"green",active:st==="SUBMITTED"||st==="APPROVED"||cycle>1,current:st==="SUBMITTED"&&cycle===1},
+    {id:"review",lane:"re",pct:.38,label:t("wwEvReview"),color:"yellow",active:st==="SUBMITTED"||st==="APPROVED"||cycle>1,current:st==="SUBMITTED"&&cycle===1}
+  ];
+  const spacing=maxLoops>0?.38/Math.max(1,maxLoops*2):.18;
+  for(let i=0;i<maxLoops;i++){
+    nodes.push({id:"obs"+i,lane:"re",pct:.48+(i*2*spacing),label:t("wwBatch_OBSERVED"),color:"yellow",active:true,current:st==="DRAFT"&&cycle>1&&i===maxLoops-1});
+    if(i<maxLoops-1||st==="SUBMITTED"||st==="APPROVED"){
+      nodes.push({id:"resub"+i,lane:"op",pct:.48+((i*2+1)*spacing),label:t("wwBatch_RESUBMITTED"),color:"green",active:true,current:st==="SUBMITTED"&&cycle>1&&i===maxLoops-1});
+    }
+  }
+  nodes.push(
+    {id:"approved",lane:"re",pct:.88,label:t("wwBatch_APPROVED"),color:"yellow",active:st==="APPROVED",current:false},
+    {id:"preinvoice",lane:"op",pct:.97,label:t("wwBatch_PREINVOICE"),color:"cyan",active:st==="APPROVED",current:st==="APPROVED"}
+  );
+
+  const laneHtml=lane=>nodes.filter(n=>n.lane===lane).map(n=>{
+    const dot=n.active?"ww-dot ww-dot-"+n.color:"ww-dot ww-ring-"+n.color;
+    return '<span class="ww-node '+(n.current?"current":"")+'" style="left:'+(n.pct*100)+'%" data-color="'+n.color+'">'+
+      '<i class="'+dot+'"></i><b class="'+(n.active?n.color:"hidden")+'">'+escHtml(n.active?n.label:"")+'</b></span>';
+  }).join("");
+  const history=data.workflowEvents.slice(-6).reverse().map(ev=>{
+    const role=ev.actorRole==="OPERATOR"?"op":ev.actorRole==="REVIEWER"?"re":"sys";
+    const who=ev.actorName&&ev.actorName!=="PENDING"?ev.actorName:"—";
+    return '<div class="ww-history-row '+role+'"><span>'+wfWidgetTimestamp(ev.timestamp)+'</span><strong>'+escHtml(who)+'</strong><em>'+escHtml(ev.note||ev.type)+'</em></div>';
+  }).join("")||'<div class="ww-history-row"><em>'+t("wwNoBatchHistory")+'</em></div>';
+
+  wrap.innerHTML='<div class="src-history-title" id="sb_batchHistory">'+t("sbBatchHistory")+'</div>'+
+    '<div class="ww-timeline" aria-label="'+escHtml(t("sbBatchHistory"))+'">'+
+      '<div class="ww-lane ww-lane-op"><span>OP</span><div class="ww-track">'+laneHtml("op")+'</div></div>'+
+      '<div class="ww-lane ww-lane-re"><span>RE</span><div class="ww-track">'+laneHtml("re")+'</div></div>'+
+    '</div>'+
+    '<div class="ww-history-panel">'+history+'</div>';
+  if(el("srcEventText")) el("srcEventText").textContent=t("wfEvents")+": "+workflowEventText(data);
+}
+
 function renderWfBar(){
   const hasEntries=flEntries.length>0;
   const st=batchStatus;
@@ -2858,6 +3001,7 @@ function renderWfBar(){
   if(el("srcStatus")){
     el("srcStatus").textContent=workflowDisplayState().status;
   }
+  renderWorkflowWidget();
 }
 
 // ── EFFECTIVE ROLE (View As override for Admin) ──
