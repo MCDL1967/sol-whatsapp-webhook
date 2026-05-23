@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.9e";
+const APP_VERSION = "v8.5.9f";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.9e",
-  es: "./assets/i18n/es.json?v=8.5.9e"
+  en: "./assets/i18n/en.json?v=8.5.9f",
+  es: "./assets/i18n/es.json?v=8.5.9f"
 };
 
 async function loadI18nDictionaries(){
