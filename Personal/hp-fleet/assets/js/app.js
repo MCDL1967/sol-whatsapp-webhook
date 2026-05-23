@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.9h";
+const APP_VERSION = "v8.5.9i";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.9h",
-  es: "./assets/i18n/es.json?v=8.5.9h"
+  en: "./assets/i18n/en.json?v=8.5.9i",
+  es: "./assets/i18n/es.json?v=8.5.9i"
 };
 
 async function loadI18nDictionaries(){
@@ -1092,6 +1092,7 @@ function localizeLogTooltips(){
     ["sb_observedRegistered","logTipObservedRegistered"],
     ["sb_observedActive","logTipObservedActive"],
     ["sb_batch","logTipBatchStatus"],
+    ["srcAssistBar","logTipAssistanceBar"],
     ["tb_entries","logTipExtractedEntries"],
     ["pt_entries","logTipEntriesTab"],
     ["pt_audit","logTipAuditTab"],
@@ -2981,12 +2982,31 @@ function workflowEventText(data){
   return t("wwNoActiveBatch");
 }
 
+function workflowAssistanceText(data){
+  if(!data.hasBatch) return {tone:"ready", text:t("assistNoBatch")};
+  if(data.batchDisplayState==="APPROVED") return {tone:"ok", text:t("assistApproved")};
+  if(data.batchDisplayState==="SUBMITTED") return {tone:"attn", text:t("assistSubmitted")};
+  if(data.batchDisplayState==="OBSERVED") return {tone:"attn", text:t("assistObserved").replace("{count}",data.observedActiveCount||0)};
+  if(data.batchDisplayState==="RESUBMITTED") return {tone:"attn", text:t("assistResubmitted")};
+  return {tone:"ready", text:t("assistDraft")};
+}
+
+function renderWorkflowAssistance(data){
+  const bar=el("srcAssistBar");
+  if(!bar) return;
+  const assist=workflowAssistanceText(data||deriveWorkflowWidgetState());
+  bar.classList.remove("ready","attn","ok");
+  bar.classList.add(assist.tone);
+  if(el("srcAssistText")) el("srcAssistText").textContent=t("assistPrefix")+": "+assist.text;
+}
+
 function renderWorkflowWidget(){
   const wrap=el("workflowWidget");
   if(!wrap) return;
   if(!currentBatchId||!flEntries.length){
     wrap.innerHTML='<div class="src-history-title" id="sb_batchHistory">'+t("sbBatchHistory")+'</div>'+
       '<div class="ww-empty">'+t("wwNoActiveBatch")+'</div>';
+    renderWorkflowAssistance({hasBatch:false});
     return;
   }
   const data=deriveWorkflowWidgetState();
@@ -3035,6 +3055,7 @@ function renderWorkflowWidget(){
     '</div>'+
     '<div class="ww-history-panel">'+history+'</div>';
   if(el("srcEventText")) el("srcEventText").textContent=t("wfEvents")+": "+workflowEventText(data);
+  renderWorkflowAssistance(data);
 }
 
 function renderWfBar(){

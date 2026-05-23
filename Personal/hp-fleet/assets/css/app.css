@@ -338,8 +338,15 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
   color:var(--dim2);font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
   padding:6px 10px;display:flex;justify-content:space-between;align-items:center;text-align:left}
 .panel-event-bar{flex:1 1 420px;min-width:260px;max-width:720px;margin-right:10px;height:34px}
+.src-assist-bar{grid-column:1/-1;border:1px solid var(--border2);background:rgba(10,15,26,.72);
+  color:var(--dim2);font-family:var(--mono);font-size:9px;letter-spacing:1px;line-height:1.35;
+  text-transform:uppercase;padding:6px 10px;min-height:28px;display:flex;align-items:center}
+.src-assist-bar span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.src-assist-bar.ready{border-color:rgba(65,209,255,.55);color:var(--cyan)}
+.src-assist-bar.attn{border-color:rgba(255,195,67,.55);color:var(--yellow)}
+.src-assist-bar.ok{border-color:rgba(61,220,132,.5);color:var(--green)}
 
-/* ── WORKFLOW WIDGET v8.5.9h ─────────────────────────────────────────────── */
+/* ── WORKFLOW WIDGET v8.5.9i ─────────────────────────────────────────────── */
 #workflowWidget{--ww-op:#22c55e;--ww-re:#facc15;--ww-cta:#41d1ff;overflow:hidden}
 #workflowWidget .ww-empty{font-family:var(--mono);font-size:10px;color:var(--dim2);letter-spacing:1px;margin-top:18px}
 .ww-timeline{position:relative;height:62px;padding:10px 12px 0 0}
