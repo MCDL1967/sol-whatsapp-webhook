@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.9";
+const APP_VERSION = "v8.5.9a";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.9",
-  es: "./assets/i18n/es.json?v=8.5.9"
+  en: "./assets/i18n/en.json?v=8.5.9a",
+  es: "./assets/i18n/es.json?v=8.5.9a"
 };
 
 async function loadI18nDictionaries(){
@@ -2936,18 +2936,14 @@ function renderWorkflowWidget(){
   }
   const data=deriveWorkflowWidgetState();
   const st=batchStatus, cycle=reviewCycle||1;
-  const maxLoops=Math.max(0,cycle-1);
   const nodes=[
     {id:"draft",lane:"op",pct:.05,label:t("wwBatch_DRAFT"),color:"green",active:true,current:st==="DRAFT"&&cycle===1},
-    {id:"submitted",lane:"op",pct:.22,label:t("wwBatch_SUBMITTED"),color:"green",active:st==="SUBMITTED"||st==="APPROVED"||cycle>1,current:st==="SUBMITTED"&&cycle===1},
-    {id:"review",lane:"re",pct:.38,label:t("wwEvReview"),color:"yellow",active:st==="SUBMITTED"||st==="APPROVED"||cycle>1,current:st==="SUBMITTED"&&cycle===1}
+    {id:"submitted",lane:"op",pct:.24,label:t("wwBatch_SUBMITTED"),color:"green",active:st==="SUBMITTED"||st==="APPROVED"||cycle>1,current:st==="SUBMITTED"&&cycle===1},
+    {id:"review",lane:"re",pct:.42,label:t("wwEvReview"),color:"yellow",active:st==="SUBMITTED"||st==="APPROVED"||cycle>1,current:st==="SUBMITTED"&&cycle===1}
   ];
-  const spacing=maxLoops>0?.38/Math.max(1,maxLoops*2):.18;
-  for(let i=0;i<maxLoops;i++){
-    nodes.push({id:"obs"+i,lane:"re",pct:.48+(i*2*spacing),label:t("wwBatch_OBSERVED"),color:"yellow",active:true,current:st==="DRAFT"&&cycle>1&&i===maxLoops-1});
-    if(i<maxLoops-1||st==="SUBMITTED"||st==="APPROVED"){
-      nodes.push({id:"resub"+i,lane:"op",pct:.48+((i*2+1)*spacing),label:t("wwBatch_RESUBMITTED"),color:"green",active:true,current:st==="SUBMITTED"&&cycle>1&&i===maxLoops-1});
-    }
+  if(cycle>1){
+    nodes.push({id:"observed",lane:"re",pct:.58,label:t("wwBatch_OBSERVED"),color:"yellow",active:true,current:st==="DRAFT"});
+    nodes.push({id:"resubmitted",lane:"op",pct:.72,label:t("wwBatch_RESUBMITTED"),color:"green",active:st==="SUBMITTED"||st==="APPROVED",current:st==="SUBMITTED"&&cycle>1});
   }
   nodes.push(
     {id:"approved",lane:"re",pct:.88,label:t("wwBatch_APPROVED"),color:"yellow",active:st==="APPROVED",current:false},
@@ -2956,10 +2952,11 @@ function renderWorkflowWidget(){
 
   const laneHtml=lane=>nodes.filter(n=>n.lane===lane).map(n=>{
     const dot=n.active?"ww-dot ww-dot-"+n.color:"ww-dot ww-ring-"+n.color;
+    const showLabel=n.active&&(n.current||n.id==="draft"||n.id==="submitted"||n.id==="approved"||n.id==="preinvoice");
     return '<span class="ww-node '+(n.current?"current":"")+'" style="left:'+(n.pct*100)+'%" data-color="'+n.color+'">'+
-      '<i class="'+dot+'"></i><b class="'+(n.active?n.color:"hidden")+'">'+escHtml(n.active?n.label:"")+'</b></span>';
+      '<i class="'+dot+'"></i><b class="'+(showLabel?n.color:"hidden")+'">'+escHtml(showLabel?n.label:"")+'</b></span>';
   }).join("");
-  const history=data.workflowEvents.slice(-6).reverse().map(ev=>{
+  const history=data.workflowEvents.slice(-2).reverse().map(ev=>{
     const role=ev.actorRole==="OPERATOR"?"op":ev.actorRole==="REVIEWER"?"re":"sys";
     const who=ev.actorName&&ev.actorName!=="PENDING"?ev.actorName:"—";
     return '<div class="ww-history-row '+role+'"><span>'+wfWidgetTimestamp(ev.timestamp)+'</span><strong>'+escHtml(who)+'</strong><em>'+escHtml(ev.note||ev.type)+'</em></div>';
@@ -6095,7 +6092,10 @@ function wireEvents(){
     const hdr=dlg.querySelector(".float-dialog-hdr");
     if(hdr) hdr.style.background=color||"var(--cyan)";
     const titleEl=dlg.querySelector(".float-dialog-title");
-    if(titleEl) titleEl.style.color="#000";
+    if(titleEl){
+      titleEl.textContent=title;
+      titleEl.style.color="#000";
+    }
     dlg.style.border="1.5px solid "+(color||"var(--border2)");
     dlg.classList.add("open");
     centerFloatDialog(dlg);
@@ -6179,9 +6179,10 @@ function wireEvents(){
   });
 
   if(el("srcEventBar")) el("srcEventBar").addEventListener("click",()=>{
-    const rows=flAuditLog.slice(0,20).map(a=>{
-      const ts=a.ts instanceof Date?a.ts.toLocaleString(lang==="es"?"es-PA":"en-US"):a.ts;
-      return ts+" | "+a.actor+" | "+a.action+(a.detail?" | "+a.detail:"");
+    const events=deriveWorkflowWidgetState().workflowEvents.slice(-8).reverse();
+    const rows=events.map(ev=>{
+      const who=ev.actorName&&ev.actorName!=="PENDING"?ev.actorName:ev.actorRole;
+      return wfWidgetTimestamp(ev.timestamp)+" | "+who+" | "+(ev.note||ev.type);
     });
     openFloatDialog("dlgSources",t("workflowEvents"),rows,"var(--cyan)",null);
   });

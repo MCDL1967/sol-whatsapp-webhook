@@ -338,10 +338,10 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
   color:var(--dim2);font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
   padding:6px 10px;display:flex;justify-content:space-between;align-items:center;text-align:left}
 
-/* ── WORKFLOW WIDGET v8.5.9 ──────────────────────────────────────────────── */
+/* ── WORKFLOW WIDGET v8.5.9a ─────────────────────────────────────────────── */
 #workflowWidget{--ww-op:#22c55e;--ww-re:#facc15;--ww-cta:#41d1ff;overflow:hidden}
 #workflowWidget .ww-empty{font-family:var(--mono);font-size:10px;color:var(--dim2);letter-spacing:1px;margin-top:18px}
-.ww-timeline{position:relative;height:56px;padding:2px 8px 0 0}
+.ww-timeline{position:relative;height:52px;padding:2px 12px 0 0}
 .ww-lane{display:grid;grid-template-columns:24px 1fr;align-items:center;height:25px}
 .ww-lane>span{font-family:var(--mono);font-size:8px;letter-spacing:1.2px;font-weight:700}
 .ww-lane-op>span{color:var(--ww-op)}
@@ -365,9 +365,9 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 .ww-node b.yellow{color:var(--ww-re)}
 .ww-node b.cyan{color:var(--ww-cta)}
 .ww-node b.hidden{display:none}
-.ww-history-panel{display:grid;gap:3px;margin-top:3px;max-height:34px;overflow:hidden}
+.ww-history-panel{display:grid;gap:3px;margin-top:1px;max-height:30px;overflow:hidden}
 .ww-history-row{display:grid;grid-template-columns:70px 78px 1fr;gap:8px;align-items:center;
-  font-family:var(--mono);font-size:8px;color:var(--dim2);letter-spacing:.6px;white-space:nowrap}
+  font-family:var(--mono);font-size:8px;color:var(--dim2);letter-spacing:.6px;white-space:nowrap;line-height:13px}
 .ww-history-row strong{font-weight:700;overflow:hidden;text-overflow:ellipsis}
 .ww-history-row.op strong{color:var(--ww-op)}
 .ww-history-row.re strong{color:var(--ww-re)}
