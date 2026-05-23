@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.8c";
+const APP_VERSION = "v8.5.8d";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.7h",
-  es: "./assets/i18n/es.json?v=8.5.7h"
+  en: "./assets/i18n/en.json?v=8.5.8d",
+  es: "./assets/i18n/es.json?v=8.5.8d"
 };
 
 async function loadI18nDictionaries(){
@@ -662,9 +662,47 @@ function migrateFlagnoteToThread(entry){
       text:entry.flagNote.trim(),
       ts:new Date().toISOString()
     }];
-    entry.flagNote=""; // clear after migration — thread is source of truth
+    if(entry.status!=="flagged") entry.flagNote=""; // keep active legacy observations active
     dbg("Migrated flagNote to reviewThread for entry "+(entry.id),"info");
   }
+}
+
+function entryReviewThread(entry){
+  return Array.isArray(entry?.reviewThread)?entry.reviewThread:[];
+}
+
+function entryReviewerComments(entry){
+  return entryReviewThread(entry).filter(c=>c&&c.role==="REVIEWER"&&String(c.text||"").trim()!=="");
+}
+
+function latestReviewerComment(entry){
+  const comments=entryReviewerComments(entry);
+  if(comments.length) return String(comments[comments.length-1].text||"").trim();
+  return String(entry?.flagNote||"").trim();
+}
+
+function escHtml(value){
+  return String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
+}
+
+function entryEverObserved(entry){
+  return entryReviewerComments(entry).length>0||String(entry?.flagNote||"").trim()!=="";
+}
+
+function entryActiveObserved(entry){
+  return entry?.status==="flagged"&&String(entry?.flagNote||"").trim()!=="";
+}
+
+function getObservedRegisteredEntries(){
+  return flEntries.filter(entryEverObserved);
+}
+
+function getObservedActiveEntries(){
+  return flEntries.filter(entryActiveObserved);
+}
+
+function getReturnForReviewCandidates(){
+  return flEntries.filter(entryEverObserved);
 }
 let isExtracting=false;
 let extractionAbort=null;
@@ -2540,7 +2578,7 @@ function updateSrcBar(){
   const logBreaks=logCheck();
   const dups=duplicateCheck();
   const seqAlerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; });
-  const sentBack=flEntries.filter(e=>e.flagNote&&e.flagNote.trim()!=="");
+  const sentBack=getObservedActiveEntries();
 
   if(el("srcFile")){
     const files=Array.isArray(batchSourceFile)?batchSourceFile:(batchSourceFile||"—").split(/,\s*/);
@@ -2825,7 +2863,7 @@ function getFilteredEntries(){
   );
   if(f==="hide_nonbill") return flEntries.filter(e=>e.status!=="nonbillable"&&e.status!=="void");
   if(f==="show_nonbill") return flEntries.filter(e=>e.status==="nonbillable");
-  if(f==="reviewer_comments") return flEntries.filter(e=>e.flagNote&&e.flagNote.trim()!=="");
+  if(f==="reviewer_comments") return getObservedActiveEntries();
   return flEntries.filter(e=>e.status===f);
 }
 
@@ -2862,16 +2900,21 @@ function renderFlTable(){
     const hasDiffGap=e.obs&&e.obs.includes("Dif Motor/Vuelo");
     const isOverride=e.multOverride&&e.multOverride!==getAircraftMult(e.aeronave,e.operador);
     const tr=document.createElement("tr");
+    const activeObserved=entryActiveObserved(e);
+    const everObserved=entryEverObserved(e);
     tr.className=e.status==="approved"?"r-ok":e.status==="rejected"?"r-rej":e.status==="flagged"?"r-flagged":e.status==="skipped"?"r-skipped":e.status==="nonbillable"?"r-nonbillable":e.status==="void"?"r-void":"";
-    if(batchStatus==="DRAFT"&&e.flagNote&&e.flagNote.trim()!==""&&e.status==="flagged") tr.classList.add("r-reviewed");
+    if(everObserved) tr.classList.add("r-observed-history");
+    if(activeObserved) tr.classList.add("r-observed-active");
     tr.style.cursor="pointer";
     tr.dataset.entryId=e.id;
     // Notes — show flag note or obs, plus red triangle if diff gap
     const diffTriangle=hasDiffGap?'<span style="color:var(--red);margin-left:4px" title="'+t("flDiffThresholdTip")+'">▲</span>':"";
-    const reviewedMarker=e.flagNote&&e.flagNote.trim()!==""?'<span style="color:var(--yellow);margin-left:4px;font-size:10px" title="'+t("flReviewerCommentTip")+': '+e.flagNote+'">△</span>':"";
-    const notesDisplay=e.flagNote&&e.status==="flagged"
-      ?'<span style="color:var(--yellow);font-size:10px" title="'+t("flReviewerCommentTip")+': '+e.flagNote+'">⚠ '+e.flagNote+"</span>"
-      :(e.obs||"—");
+    const reviewComment=latestReviewerComment(e);
+    const reviewCommentHtml=escHtml(reviewComment);
+    const reviewedMarker=everObserved?'<span style="color:var(--yellow);margin-left:4px;font-size:10px" title="'+escHtml(t("flReviewerCommentTip")+": "+reviewComment)+'">△</span>':"";
+    const notesDisplay=activeObserved
+      ?'<span style="color:var(--yellow);font-size:10px" title="'+escHtml(t("flReviewerCommentTip")+": "+reviewComment)+'">⚠ '+reviewCommentHtml+"</span>"
+      :escHtml(e.obs||"—");
     const motorOutCell='<td class="cb'+((!h.ok)?' horo-seq-gap':'')+'">'+(e.motorOut||"—")+"</td>";
     tr.innerHTML=
       '<td class="cd" style="font-family:var(--mono);font-size:10px;color:var(--dim2);text-align:center">'+String(rowIdx+1).padStart(2,"0")+"</td>"+
@@ -2931,7 +2974,7 @@ function setAllFlStatus(st){
 }
 
 function approveReviewedEntries(){
-  const targets=flEntries.filter(e=>e.flagNote&&e.flagNote.trim()!==""&&e.status==="flagged");
+  const targets=getObservedActiveEntries();
   targets.forEach(e=>e.status="approved");
   addFlAudit("✅",currentUser.name,"approve reviewed entries",targets.length+" entries approved");
   renderFlTable(); updateApproveAllBtn();
@@ -2939,7 +2982,7 @@ function approveReviewedEntries(){
 
 function updateApproveAllBtn(){
   const btn=el("btn_approveAll"); if(!btn) return;
-  const hasReviewed=flEntries.some(e=>e.flagNote&&e.flagNote.trim()!==""&&e.status==="flagged");
+  const hasReviewed=getObservedActiveEntries().length>0;
   btn.textContent=hasReviewed?t("approveReviewed"):t("approveAll");
   btn.onclick=hasReviewed?approveReviewedEntries:()=>setAllFlStatus("approved");
 }
@@ -3200,7 +3243,7 @@ function clearEntryErrors(){
 
 // ── FLIGHT LOG — WORKFLOW ACTIONS ──
 function handleSubmit(){
-  const reviewed=flEntries.filter(e=>e.status==="flagged"&&e.flagNote&&e.flagNote.trim()!=="");
+  const reviewed=getObservedActiveEntries();
   const pending=flEntries.filter(e=>e.status==="pending");
   const approved=flEntries.filter(e=>e.status==="approved");
   if(!approved.length){
@@ -3210,7 +3253,7 @@ function handleSubmit(){
   if(reviewed.length){
     // Contextual message for reviewed entries
     el("excWarn").textContent=t("submitReviewedWarn").replace("{count}",reviewed.length);
-    el("excDetail").innerHTML=reviewed.map(e=>"• "+t("entryShort")+" "+(flEntries.indexOf(e)+1)+": "+e.fecha+" | "+e.aeronave+" | "+e.piloto+(e.flagNote?" — "+e.flagNote:"")).join("<br>");
+    el("excDetail").innerHTML=reviewed.map(e=>"• "+t("entryShort")+" "+(flEntries.indexOf(e)+1)+": "+e.fecha+" | "+e.aeronave+" | "+e.piloto+(latestReviewerComment(e)?" — "+latestReviewerComment(e):"")).join("<br>");
     if(el("exc_title")) el("exc_title").textContent=t("excReviewedTitle");
     if(el("exc_proceed")) el("exc_proceed").textContent=t("resend");
     if(el("exc_back")) el("exc_back").textContent=t("rfrCancel");
@@ -3562,7 +3605,7 @@ async function doApprove(){
 
 // ── RETURN FOR REVIEW ──
 function openRfr(){
-  const flagged=flEntries.filter(e=>e.flagNote&&e.flagNote.trim()!=="");
+  const flagged=getReturnForReviewCandidates();
   const tbody=el("rfr_tbody"); if(tbody) tbody.innerHTML="";
   const noFlags=el("rfr_noFlags");
   if(flagged.length===0){
@@ -3571,17 +3614,21 @@ function openRfr(){
     if(noFlags) noFlags.style.display="none";
     flagged.forEach(e=>{
       const gi=flEntries.indexOf(e)+1;
+      const checked=entryActiveObserved(e)?" checked":"";
+      const comment=latestReviewerComment(e);
       const tr=document.createElement("tr");
       tr.style.borderBottom="1px solid var(--border)";
-      tr.innerHTML=`<td style="padding:6px 8px;color:var(--text)">${gi}</td>`+
-        `<td style="padding:6px 8px;color:var(--cyan)">${e.logNum||"—"}</td>`+
-        `<td style="padding:6px 8px;color:var(--yellow)">${e.flagNote||""}</td>`;
+      tr.innerHTML=`<td style="padding:6px 8px;text-align:center"><input class="rfr-include" type="checkbox" data-rfr-entry="${e.id}"${checked} aria-label="${t("rfrIncludeTip")}"></td>`+
+        `<td style="padding:6px 8px;color:var(--text)">${gi}</td>`+
+        `<td style="padding:6px 8px;color:var(--cyan)">${e.bnum||"—"}</td>`+
+        `<td style="padding:6px 8px;color:var(--yellow)">${escHtml(comment)}</td>`;
       tbody.appendChild(tr);
     });
   }
   // i18n labels
   if(el("rfr_title")) el("rfr_title").textContent=t("rfrTitle");
   if(el("rfr_subtitle")) el("rfr_subtitle").textContent=t("rfrSubtitle").replace("{count}",flagged.length);
+  if(el("rfr_colInclude")) el("rfr_colInclude").textContent=t("rfrColInclude");
   if(el("rfr_colEntry")) el("rfr_colEntry").textContent=t("rfrColEntry");
   if(el("rfr_colLog")) el("rfr_colLog").textContent=t("rfrColLog");
   if(el("rfr_colComment")) el("rfr_colComment").textContent=t("rfrColComment");
@@ -3607,10 +3654,22 @@ function closeRfr(){
 
 async function doReturnForReview(){
   const batchNote=el("rfr_batchNote")?el("rfr_batchNote").value.trim():"";
-  const flagged=flEntries.filter(e=>e.flagNote&&e.flagNote.trim()!=="");
-  const logNums=flagged.map(e=>e.logNum||(  "#"+(flEntries.indexOf(e)+1))).join(", ");
-  // Auto-set all reviewed entries to flagged status
-  flagged.forEach(e=>{ if(e.status!=="nonbillable"&&e.status!=="void") e.status="flagged"; });
+  const checkedIds=[...document.querySelectorAll(".rfr-include:checked")].map(cb=>parseInt(cb.dataset.rfrEntry,10));
+  const checkedSet=new Set(checkedIds);
+  const candidates=getReturnForReviewCandidates();
+  const flagged=candidates.filter(e=>checkedSet.has(e.id));
+  if(!flagged.length){ showToast(t("rfrSelectOne"),"err"); return; }
+  const logNums=flagged.map(e=>e.bnum||(  "#"+(flEntries.indexOf(e)+1))).join(", ");
+  // Selected entries remain active observations; excluded entries keep history only.
+  candidates.forEach(e=>{
+    if(e.status==="nonbillable"||e.status==="void") return;
+    if(checkedSet.has(e.id)){
+      e.flagNote=latestReviewerComment(e);
+      e.status="flagged";
+    } else if(e.status==="flagged"){
+      e.status="approved";
+    }
+  });
   closeRfr();
   // Revert batch to DRAFT, increment cycle
   batchStatus="DRAFT";
@@ -3746,6 +3805,7 @@ async function saveFlagEntry(){
   const comment=el("flag_comment").value.trim();
   if(!comment){showToast(t("flagIssueRequired"),"err");return;}
   const e=flEntries.find(x=>x.id===flaggingEntryId); if(!e) return;
+  addThreadComment(e,"REVIEWER",comment);
   e.status="flagged";
   e.flagNote=comment;
   addFlAudit("🚩",currentUser.name,"flagged entry #"+(flEntries.indexOf(e)+1),comment);
@@ -5950,10 +6010,10 @@ function wireEvents(){
   });
   if(el("dlgSentBackClose")) el("dlgSentBackClose").addEventListener("click",()=>el("dlgSentBack").classList.remove("open"));
   if(el("srcSentBack")) el("srcSentBack").addEventListener("click",()=>{
-    const flagged=flEntries.filter(e=>e.flagNote&&e.flagNote.trim()!=="");
+    const flagged=getObservedActiveEntries();
     const lines=flagged.map(e=>{
       const idx=flEntries.indexOf(e);
-      return t("entryShort")+" #"+(idx+1)+" | "+t("thLog")+" "+(e.bnum||"—")+" | "+e.aeronave+" | "+(e.flagNote||"");
+      return t("entryShort")+" #"+(idx+1)+" | "+t("thLog")+" "+(e.bnum||"—")+" | "+e.aeronave+" | "+latestReviewerComment(e);
     });
     openFloatDialog("dlgSentBack",t("sentBackForReview"),lines,"var(--yellow)",flagged.map(e=>e.id));
   });
