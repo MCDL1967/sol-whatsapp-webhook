@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.8j";
+const APP_VERSION = "v8.5.8k";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.8j",
-  es: "./assets/i18n/es.json?v=8.5.8j"
+  en: "./assets/i18n/en.json?v=8.5.8k",
+  es: "./assets/i18n/es.json?v=8.5.8k"
 };
 
 async function loadI18nDictionaries(){
@@ -1036,7 +1036,9 @@ function localizeLogTooltips(){
     ["sb_dups","logTipDuplicates"],
     ["sb_logBreaks","logTipLogBreaks"],
     ["sb_seqAlerts","logTipSeqAlerts"],
-    ["sb_sentBack","logTipSentBack"],
+    ["sb_workflowTurn","logTipWorkflowTurn"],
+    ["sb_observedRegistered","logTipObservedRegistered"],
+    ["sb_observedActive","logTipObservedActive"],
     ["sb_batch","logTipBatchStatus"],
     ["tb_entries","logTipExtractedEntries"],
     ["pt_entries","logTipEntriesTab"],
@@ -6028,10 +6030,8 @@ function wireEvents(){
 
   if(el("srcFile")) el("srcFile").addEventListener("click",()=>{
     const files=(Array.isArray(batchSourceFile)?batchSourceFile:(batchSourceFile||"").split(/,\s*/)).filter(Boolean);
-    const firstEntryId=flEntries.find(e=>e.imageUrl)?.id||flEntries[0]?.id||null;
-    const entryIds=files.map(()=>firstEntryId).filter(Boolean);
     const lines=files.map((f,i)=>(i+1)+". "+f);
-    openFloatDialog("dlgSources",t("sourceFiles"),lines,"var(--cyan)",entryIds.length===files.length?entryIds:null);
+    openFloatDialog("dlgSources",t("sourceFiles"),lines,"var(--cyan)",null);
   });
 
   if(el("srcEventBar")) el("srcEventBar").addEventListener("click",()=>{
