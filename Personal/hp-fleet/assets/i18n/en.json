@@ -308,6 +308,7 @@
   "submitNeedsApproved": "⚠ Please approve at least one entry before submitting for review.",
   "submitReviewedWarn": "{count} record(s) marked for review will be returned to the Reviewer.",
   "submitPendingWarn": "{count} entries still pending. Proceed anyway?",
+  "reviewCorrectionSubmitted": "Corrections resubmitted for reviewer check.",
   "resend": "Resend",
   "flagTitle": "🚩 Flag Entry",
   "flagNoteLabel": "Note for Operator:",

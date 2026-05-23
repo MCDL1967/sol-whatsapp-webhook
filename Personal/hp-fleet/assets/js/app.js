@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.8d";
+const APP_VERSION = "v8.5.8e";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.8d",
-  es: "./assets/i18n/es.json?v=8.5.8d"
+  en: "./assets/i18n/en.json?v=8.5.8e",
+  es: "./assets/i18n/es.json?v=8.5.8e"
 };
 
 async function loadI18nDictionaries(){
@@ -693,12 +693,26 @@ function entryActiveObserved(entry){
   return entry?.status==="flagged"&&String(entry?.flagNote||"").trim()!=="";
 }
 
+function entryHasCurrentCycleOperatorResponse(entry){
+  return entryReviewThread(entry).some(c=>
+    c&&c.cycle===reviewCycle&&c.role==="OPERATOR"&&String(c.text||"").trim()!==""
+  );
+}
+
+function entryAwaitingReviewerReview(entry){
+  return batchStatus==="SUBMITTED"&&reviewCycle>1&&entryEverObserved(entry)&&entryHasCurrentCycleOperatorResponse(entry);
+}
+
 function getObservedRegisteredEntries(){
   return flEntries.filter(entryEverObserved);
 }
 
 function getObservedActiveEntries(){
   return flEntries.filter(entryActiveObserved);
+}
+
+function getReviewerCommentFilterEntries(){
+  return flEntries.filter(e=>entryActiveObserved(e)||entryAwaitingReviewerReview(e));
 }
 
 function getReturnForReviewCandidates(){
@@ -2578,7 +2592,7 @@ function updateSrcBar(){
   const logBreaks=logCheck();
   const dups=duplicateCheck();
   const seqAlerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; });
-  const sentBack=getObservedActiveEntries();
+  const sentBack=getReviewerCommentFilterEntries();
 
   if(el("srcFile")){
     const files=Array.isArray(batchSourceFile)?batchSourceFile:(batchSourceFile||"—").split(/,\s*/);
@@ -2863,7 +2877,7 @@ function getFilteredEntries(){
   );
   if(f==="hide_nonbill") return flEntries.filter(e=>e.status!=="nonbillable"&&e.status!=="void");
   if(f==="show_nonbill") return flEntries.filter(e=>e.status==="nonbillable");
-  if(f==="reviewer_comments") return getObservedActiveEntries();
+  if(f==="reviewer_comments") return getReviewerCommentFilterEntries();
   return flEntries.filter(e=>e.status===f);
 }
 
@@ -2902,9 +2916,11 @@ function renderFlTable(){
     const tr=document.createElement("tr");
     const activeObserved=entryActiveObserved(e);
     const everObserved=entryEverObserved(e);
+    const awaitingReviewer=entryAwaitingReviewerReview(e);
     tr.className=e.status==="approved"?"r-ok":e.status==="rejected"?"r-rej":e.status==="flagged"?"r-flagged":e.status==="skipped"?"r-skipped":e.status==="nonbillable"?"r-nonbillable":e.status==="void"?"r-void":"";
     if(everObserved) tr.classList.add("r-observed-history");
     if(activeObserved) tr.classList.add("r-observed-active");
+    if(awaitingReviewer) tr.classList.add("r-observed-reviewing");
     tr.style.cursor="pointer";
     tr.dataset.entryId=e.id;
     // Notes — show flag note or obs, plus red triangle if diff gap
@@ -3258,8 +3274,13 @@ function handleSubmit(){
     if(el("exc_proceed")) el("exc_proceed").textContent=t("resend");
     if(el("exc_back")) el("exc_back").textContent=t("rfrCancel");
     confirmCb=()=>{
-      // Auto-approve all reviewed entries then submit
-      reviewed.forEach(e=>e.status="approved");
+      // Mark corrected observations as returned to the reviewer, then submit.
+      reviewed.forEach(e=>{
+        if(!entryHasCurrentCycleOperatorResponse(e)){
+          addThreadComment(e,"OPERATOR",t("reviewCorrectionSubmitted"));
+        }
+        e.status="approved";
+      });
       closeModal("excMbd");
       doSubmit();
     };
@@ -6010,7 +6031,7 @@ function wireEvents(){
   });
   if(el("dlgSentBackClose")) el("dlgSentBackClose").addEventListener("click",()=>el("dlgSentBack").classList.remove("open"));
   if(el("srcSentBack")) el("srcSentBack").addEventListener("click",()=>{
-    const flagged=getObservedActiveEntries();
+    const flagged=getReviewerCommentFilterEntries();
     const lines=flagged.map(e=>{
       const idx=flEntries.indexOf(e);
       return t("entryShort")+" #"+(idx+1)+" | "+t("thLog")+" "+(e.bnum||"—")+" | "+e.aeronave+" | "+latestReviewerComment(e);

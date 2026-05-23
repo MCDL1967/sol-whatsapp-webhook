@@ -957,6 +957,9 @@ table.fl-tbl.sticky-headers thead tr:nth-child(2) th{top:34px;box-shadow:0 -8px 
 .r-observed-active{background:rgba(255,192,67,0.18)!important}
 .r-observed-active td{color:inherit!important}
 .r-observed-active td:first-child{border-left:4px solid var(--yellow)!important}
+.r-observed-reviewing{background:rgba(255,192,67,0.14)!important}
+.r-observed-reviewing td{color:inherit!important}
+.r-observed-reviewing td:first-child{border-left:4px solid var(--yellow)!important}
 
 button.sp-nonbill-btn{background:transparent;border:1px solid var(--red)!important;color:var(--red)!important;
   font-family:var(--mono);font-size:10px;padding:4px 8px;cursor:pointer;border-radius:2px;

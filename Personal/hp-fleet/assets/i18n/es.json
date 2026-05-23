@@ -308,6 +308,7 @@
   "submitNeedsApproved": "⚠ Aprueba al menos una entrada antes de enviar a revisión.",
   "submitReviewedWarn": "{count} registro(s) marcados para revisión serán devueltos al Revisor.",
   "submitPendingWarn": "{count} entradas pendientes. ¿Continuar?",
+  "reviewCorrectionSubmitted": "Correcciones reenviadas para revisión.",
   "resend": "Reenviar",
   "flagTitle": "🚩 Marcar Entrada",
   "flagNoteLabel": "Nota para el operador:",
