@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.9c";
+const APP_VERSION = "v8.5.9d";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.9c",
-  es: "./assets/i18n/es.json?v=8.5.9c"
+  en: "./assets/i18n/en.json?v=8.5.9d",
+  es: "./assets/i18n/es.json?v=8.5.9d"
 };
 
 async function loadI18nDictionaries(){
@@ -546,6 +546,7 @@ function addThreadComment(entry, role, text){
     text:text.trim(),
     ts:new Date().toISOString()
   });
+  if(role==="REVIEWER") markEntryObserved(entry);
 }
 
 function getCurrentCycleComments(entry){
@@ -554,7 +555,7 @@ function getCurrentCycleComments(entry){
 }
 
 function getThreadForEntry(entry){
-  return entry.reviewThread||[];
+  return entryReviewThread(entry).filter(isVisibleReviewComment);
 }
 
 function renderSpThread(entry){
@@ -665,10 +666,49 @@ function migrateFlagnoteToThread(entry){
     if(entry.status!=="flagged") entry.flagNote=""; // keep active legacy observations active
     dbg("Migrated flagNote to reviewThread for entry "+(entry.id),"info");
   }
+  backfillEntryObservedMarker(entry);
 }
 
 function entryReviewThread(entry){
   return Array.isArray(entry?.reviewThread)?entry.reviewThread:[];
+}
+
+function isVisibleReviewComment(comment){
+  return comment&&
+    (comment.role==="REVIEWER"||comment.role==="OPERATOR")&&
+    String(comment.text||"").trim()!=="";
+}
+
+function entryHasObservedMarker(entry){
+  return entry?.reviewObserved===true||
+    entryReviewThread(entry).some(c=>c&&c.role==="META"&&c.type==="review_observed"&&c.observed===true);
+}
+
+function markEntryObserved(entry){
+  if(!entry) return false;
+  if(!Array.isArray(entry.reviewThread)) entry.reviewThread=[];
+  entry.reviewObserved=true;
+  const existing=entry.reviewThread.find(c=>c&&c.role==="META"&&c.type==="review_observed");
+  if(existing){
+    existing.observed=true;
+    existing.cycle=existing.cycle||reviewCycle||1;
+    existing.ts=existing.ts||new Date().toISOString();
+    return false;
+  }
+  entry.reviewThread.push({
+    role:"META",
+    type:"review_observed",
+    observed:true,
+    cycle:reviewCycle||1,
+    ts:new Date().toISOString()
+  });
+  return true;
+}
+
+function backfillEntryObservedMarker(entry){
+  if(!entry||entryHasObservedMarker(entry)) return;
+  const hasReviewerHistory=entryReviewerComments(entry).length>0||String(entry?.flagNote||"").trim()!=="";
+  if(hasReviewerHistory) markEntryObserved(entry);
 }
 
 function entryReviewerComments(entry){
@@ -686,7 +726,7 @@ function escHtml(value){
 }
 
 function entryEverObserved(entry){
-  return entryReviewerComments(entry).length>0||String(entry?.flagNote||"").trim()!=="";
+  return entryHasObservedMarker(entry)||entryReviewerComments(entry).length>0||String(entry?.flagNote||"").trim()!=="";
 }
 
 function entryActiveObserved(entry){
@@ -2512,6 +2552,7 @@ async function extractAll(){
   }
   flEntries=[...flEntries,...allExtracted.map(e=>({
     id:nextEntryId++,status:"pending",multOverride:null,...e,
+    reviewObserved:false,
     horoIn:parseFloat(e.horoIn)||0,
     imageUrl:e._imageUrl||null
   }))];
@@ -3427,7 +3468,7 @@ function proceedSaveEntry(){
     }
     showToast(lang==="es"?"Entrada actualizada.":"Entry updated.");
   } else {
-    flEntries.push({id:nextEntryId++,status:"pending",...data});
+    flEntries.push({id:nextEntryId++,status:"pending",reviewObserved:false,...data});
     addFlAudit("➕",currentUser.name,"added entry",data.fecha+"|"+data.aeronave+"|"+data.piloto);
     showToast(lang==="es"?"Nueva entrada agregada.":"New entry added.");
   }
@@ -4070,6 +4111,7 @@ async function resetTestData(){
   flEntries.forEach(e=>{
     e.flagNote="";
     e.reviewThread=[];
+    e.reviewObserved=false;
     e.status="pending";
   });
   await saveBatchToDB("reset test data");
@@ -5183,6 +5225,7 @@ async function extractAllAppend(appendQueue){
   // APPEND to existing flEntries — do not reset
   const newEntries=allExtracted.map(e=>({
     id:nextEntryId++,status:"pending",multOverride:null,...e,
+    reviewObserved:false,
     horoIn:parseFloat(e.horoIn)||0,
     imageUrl:e._imageUrl||null
   }));
@@ -5432,6 +5475,7 @@ async function loadBatchFromDB(id){
         multOverride:e.mult_override||null,
         obs:e.obs||"", flagNote:e.flag_note||"",
         reviewThread,
+        reviewObserved:false,
         status:e.status||"pending",
         imageUrl:e.image_url||null,
         nonBillReason:e.non_bill_reason||null
@@ -5521,7 +5565,7 @@ async function importFromXLSX(file){
           obs:obs, status:"pending"
         };
         if(!flagRaw.includes("Dif Motor/Vuelo")) checkDiff(entry);
-        flEntries.push({id:nextEntryId++,...entry});
+        flEntries.push({id:nextEntryId++,reviewObserved:false,...entry});
         imported++;
       });
       dbg("Import complete — "+imported+" imported, "+skipped+" skipped","ok");
