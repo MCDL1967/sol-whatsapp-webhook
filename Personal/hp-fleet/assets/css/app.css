@@ -305,7 +305,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 .src-dash-left{display:grid;grid-template-columns:1.45fr .75fr .9fr;border:1px solid var(--border2);
   border-left:3px solid var(--cyan);background:rgba(10,15,26,.55)}
 .src-dash-workflow{display:grid;grid-template-columns:minmax(260px,.7fr) minmax(320px,1.3fr);gap:6px;
-  background:rgba(0,0,0,.45);padding:10px 12px 0}
+  background:rgba(0,0,0,.45);padding:0 12px 0}
 .src-card{background:rgba(10,15,26,.65);border-right:1px solid var(--border2);
   min-height:94px;padding:11px 14px;box-sizing:border-box}
 .src-card:last-child{border-right:none}
@@ -324,7 +324,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 .src-underlined:disabled{cursor:default;text-decoration:none;opacity:.7}
 .src-work-card{border:1px solid var(--border2);border-left:3px solid var(--cyan);min-height:92px}
 .src-work-grid{display:grid;grid-template-columns:1fr auto;gap:7px 14px;align-items:center}
-.src-work-label{color:var(--dim);text-align:right}
+.src-work-label{font-size:10px;color:var(--dim2);letter-spacing:1.2px;text-align:right}
 .src-work-label:first-child{color:var(--cyan)}
 .src-work-value{color:var(--text);text-transform:uppercase;letter-spacing:.8px}
 .src-history-card{border:1px solid var(--border2);min-height:92px;position:relative}
@@ -343,8 +343,10 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 .al-title{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--red);margin-bottom:4px}
 .toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
 .sec-title{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--dim2)}
+.review-toolbar-title{display:none}
 .toolbar-right{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
 .panel-tabs{display:flex;border-bottom:1px solid var(--border);gap:0}
+.panel-filter-wrap{margin-right:10px}
 .ptab{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
   padding:10px 18px;background:transparent;border:none;border-bottom:2px solid transparent;
   color:var(--dim2);cursor:pointer;transition:all .2s}
