@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.8e";
+const APP_VERSION = "v8.5.8f";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.8e",
-  es: "./assets/i18n/es.json?v=8.5.8e"
+  en: "./assets/i18n/en.json?v=8.5.8f",
+  es: "./assets/i18n/es.json?v=8.5.8f"
 };
 
 async function loadI18nDictionaries(){
@@ -826,10 +826,13 @@ function applyI18n(){
     co_cancel:"rfrCancel",co_save:"coSave",
     fl_title:"flTitle",fl_newBatch:"flNewBatch",
     apiWarnMsg:"apiWarnMsg",apiWarnLink:"apiWarnLink",
-    sb_file:"sbFile",btn_addMoreFiles:"addMoreFiles",sb_records:"sbRecords",sb_read:"sbRead",sb_notRead:"sbNotRead",
+    sb_file:"sbFile",btn_addMoreFiles:"addMoreFiles",sb_documents:"sbDocuments",sb_inProcess:"sbInProcess",
+    sb_workflowFlow:"sbWorkflowFlow",sb_workflowTurn:"sbWorkflowTurn",sb_observedRegistered:"sbObservedRegistered",
+    sb_observedActive:"sbObservedActive",sb_batchHistory:"sbBatchHistory",
+    sb_records:"sbRecords",sb_read:"sbRead",sb_notRead:"sbNotRead",
     sb_nonBill:"sbNonBill",sb_dups:"sbDups",sb_logBreaks:"sbLogBreaks",sb_seqAlerts:"sbSeqAlerts",
     sb_sentBack:"sbSentBack",sb_horo:"sbHoro",sb_csv:"sbCsv",sb_ts:"sbTs",sb_batch:"sbBatch",sb_dlcsv:"sbDlCsv",
-    dlgNotReadTitle:"dlgNotReadTitle",dlgDupsTitle:"dlgDupsTitle",dlgNonBillTitle:"dlgNonBillTitle",
+    dlgSourcesTitle:"dlgSourcesTitle",dlgNotReadTitle:"dlgNotReadTitle",dlgDupsTitle:"dlgDupsTitle",dlgNonBillTitle:"dlgNonBillTitle",
     dlgLogBreaksTitle:"dlgLogBreaksTitle",dlgSeqAlertsTitle:"dlgSeqAlertsTitle",dlgSentBackTitle:"dlgSentBackTitle",
     al_horoTitle:"horoAlert",tb_entries:"tbEntries",
     fo_allop:"allOp",fo_problems:"needsReview",fo_hideNonBill:"hideNonBill",fo_showNonBill:"showNonBill",
@@ -1021,7 +1024,7 @@ function localizeSidePanelUi(){
   spUpdateNonBillBtn(!!active);
 }
 function localizeLogStatusTitles(){
-  ["srcNotRead","srcNonBill","srcDups","srcLogBreaks","srcHoro","srcSentBack"].forEach(id=>setTitle(id,"clickForDetails"));
+  ["srcFile","srcNotRead","srcNonBill","srcDups","srcLogBreaks","srcHoro","srcSentBack","srcEventBar"].forEach(id=>setTitle(id,"clickForDetails"));
 }
 function localizeLogTooltips(){
   [
@@ -1341,7 +1344,7 @@ async function bootApp(loginLanguageOverride=null){
   dbg("Loading batch from database…","info");
   const hasBatch=await loadBatchFromDB();
   if(hasBatch){
-    if(el("srcBar")) el("srcBar").style.display="flex";
+    if(el("srcBar")) el("srcBar").style.display="grid";
     if(el("reviewSection")) el("reviewSection").style.display="block";
     updateSrcBar();
     renderWfBar(); setupFlRoleUI(); renderFlTable(); renderFlAudit();
@@ -2512,7 +2515,7 @@ async function extractAll(){
   uploadLog(msg);
   uploadLog(t("extractReadyReview"));
   showResultBanner(hasErrors?"warn":"ok",msg);
-  el("srcBar").style.display="flex";
+  el("srcBar").style.display="grid";
   el("reviewSection").style.display="block";
   await saveBatchToDB("initial extraction save");
   renderWfBar(); setupFlRoleUI(); renderFlTable();
@@ -2584,6 +2587,15 @@ function duplicateCheck(){
   return dups;
 }
 
+function workflowDisplayState(){
+  const activeObserved=getObservedActiveEntries().length;
+  if(batchStatus==="APPROVED") return {workflow:t("wfActive"), status:t("wfApproved"), turn:"—", event:t("wfEventApproved")};
+  if(batchStatus==="SUBMITTED"&&reviewCycle>1) return {workflow:t("wfActive"), status:t("wfResubmitted"), turn:t("wfReviewer"), event:t("wfEventResubmitted")};
+  if(batchStatus==="SUBMITTED") return {workflow:t("wfActive"), status:t("wfSubmitted"), turn:t("wfReviewer"), event:t("wfEventSubmitted")};
+  if(batchStatus==="DRAFT"&&reviewCycle>1&&activeObserved>0) return {workflow:t("wfActive"), status:t("wfObserved"), turn:t("wfOperator"), event:t("wfEventObserved")};
+  return {workflow:t("wfPaused"), status:t("wfDraft"), turn:t("wfOperator"), event:t("wfEventDraft")};
+}
+
 function updateSrcBar(){
   const total=flEntries.length;
   const read=flEntries.filter(e=>e.status!=="skipped"&&e.status!=="void"&&e.aeronave&&e.fecha).length;
@@ -2596,7 +2608,11 @@ function updateSrcBar(){
 
   if(el("srcFile")){
     const files=Array.isArray(batchSourceFile)?batchSourceFile:(batchSourceFile||"—").split(/,\s*/);
-    el("srcFile").textContent=files.length?files.map((f,i)=>(i+1)+". "+f).join("\n"):"—";
+    const cleanFiles=files.filter(Boolean);
+    el("srcFile").textContent=cleanFiles.length||"—";
+    el("srcFile").title=cleanFiles.length?cleanFiles.join("\n"):t("noItems");
+    el("srcFile").style.color=cleanFiles.length?"var(--text)":"var(--dim2)";
+    el("srcFile").style.pointerEvents=cleanFiles.length?"auto":"none";
   }
   if(el("srcTotalRecords")) el("srcTotalRecords").textContent=total||"—";
   if(el("srcRead")){ el("srcRead").textContent=read; el("srcRead").style.color=read>0?"var(--green)":"var(--dim2)"; }
@@ -2630,12 +2646,24 @@ function updateSrcBar(){
   }
   // Sent Back
   if(el("srcSentBack")){
-    el("srcSentBack").textContent=sentBack.length||"—";
-    el("srcSentBack").style.color=sentBack.length>0?"var(--yellow)":"var(--dim2)";
-    el("srcSentBack").style.pointerEvents=sentBack.length>0?"auto":"none";
+    const registered=getObservedRegisteredEntries().length;
+    el("srcSentBack").textContent=registered||"—";
+    el("srcSentBack").style.color=registered>0?"var(--yellow)":"var(--dim2)";
+    el("srcSentBack").style.pointerEvents=registered>0?"auto":"none";
     el("srcSentBack")._data=sentBack;
   }
-  if(el("srcStatus")) el("srcStatus").textContent=batchStatus||"—";
+  const wf=workflowDisplayState();
+  if(el("srcWorkflowState")){ el("srcWorkflowState").textContent=wf.workflow; el("srcWorkflowState").style.color=batchStatus==="DRAFT"&&reviewCycle===1?"var(--text)":"var(--green)"; }
+  if(el("srcStatus")) el("srcStatus").textContent=wf.status;
+  if(el("srcWorkflowTurn")){
+    el("srcWorkflowTurn").textContent=wf.turn;
+    el("srcWorkflowTurn").style.color=wf.turn===t("wfReviewer")?"var(--yellow)":wf.turn===t("wfOperator")?"var(--green)":"var(--dim2)";
+  }
+  if(el("srcObservedActive")){
+    el("srcObservedActive").textContent=getObservedActiveEntries().length||"—";
+    el("srcObservedActive").style.color=getObservedActiveEntries().length>0?"var(--yellow)":"var(--dim2)";
+  }
+  if(el("srcEventText")) el("srcEventText").textContent=t("wfEvents")+": "+wf.event;
 
   // Update row markers on table
   if(el("flTbody")){
@@ -2798,32 +2826,28 @@ function renderWfBar(){
   const hasEntries=flEntries.length>0;
   const st=batchStatus;
   const inCycle=reviewCycle>1; // batch has been through at least one review cycle
+  const workflowOn=st==="SUBMITTED"||st==="APPROVED"||(st==="DRAFT"&&inCycle);
   const steps=[
     {key:"wfUpload",  state:"done"},
     {key:"wfExtract", state:hasEntries?"done":"pending"},
-    {key:"wfReview",  state:hasEntries&&(st==="SUBMITTED"||st==="APPROVED"||(st==="DRAFT"&&inCycle))?"done":hasEntries&&st==="DRAFT"&&!inCycle?"active":"pending"},
-    {key:"wfSubmit",  state:st==="APPROVED"?"done":(st==="SUBMITTED"||(st==="DRAFT"&&inCycle))?"active":"pending"},
-    {key:"wfApproved",state:st==="APPROVED"?"active":"pending"}
+    {key:"wfCleanup", state:workflowOn||st==="APPROVED"?"done":hasEntries?"active":"pending"},
+    {key:"wfActivated", state:st==="APPROVED"?"done":workflowOn?"active":"pending"},
+    {key:"wfApproved",state:st==="APPROVED"?"done":"pending"},
+    {key:"piGoTo",state:st==="APPROVED"?"active":"locked",cta:true}
   ];
   const bar=el("wfBar"); if(!bar) return;
   let html=steps.map((s,i)=>{
     const arrow=i<steps.length-1?'<span class="wf-arrow">›</span>':"";
-    return '<div class="wf-step '+s.state+'"><div class="wf-dot"></div>'+t(s.key)+"</div>"+arrow;
+    return '<div class="wf-step '+s.state+(s.cta?" wf-cta-step":"")+'"><div class="wf-dot"></div>'+t(s.key)+"</div>"+arrow;
   }).join("");
-  // CTA when APPROVED
-  if(st==="APPROVED"){
-    html+='<span class="wf-arrow">›</span><button id="wf_goto_pi" style="font-family:var(--mono);font-size:10px;padding:4px 14px;background:transparent;color:var(--cyan);border:1px solid var(--cyan);cursor:pointer;border-radius:2px;font-weight:700;letter-spacing:1px;white-space:nowrap;text-transform:uppercase;transition:all .15s" onmouseover="this.style.background=\'rgba(65,209,255,.12)\'" onmouseout="this.style.background=\'transparent\'">'+t("piGoTo")+' →</button>';
-  }
   bar.innerHTML=html;
-  // Wire CTA button
-  const ctaBtn=el("wf_goto_pi");
-  if(ctaBtn) ctaBtn.addEventListener("click",()=>{
+  const ctaStep=bar.querySelector(".wf-cta-step.active");
+  if(ctaStep) ctaStep.addEventListener("click",()=>{
     if(currentBatchId&&batchStatus==="APPROVED") renderPreInvoice();
     switchTab("preinvoice");
   });
   if(el("srcStatus")){
-    const labels={DRAFT:t("wfReview"),SUBMITTED:t("wfSubmit"),APPROVED:t("wfApproved"),CHANGES:t("wfChanges")};
-    el("srcStatus").textContent=labels[batchStatus]||batchStatus;
+    el("srcStatus").textContent=workflowDisplayState().status;
   }
 }
 
@@ -5268,7 +5292,7 @@ async function switchToBatch(batchId){
   if(currentBatchId&&flEntries.length) await saveBatchToDB("before switching batch");
   await loadBatchFromDB(batchId);
   renderBatchSelector();
-  if(el("srcBar")) el("srcBar").style.display="flex";
+  if(el("srcBar")) el("srcBar").style.display="grid";
   if(el("reviewSection")) el("reviewSection").style.display="block";
   updateSrcBar();
   renderWfBar(); setupFlRoleUI(); renderFlTable(); renderFlAudit();
@@ -5342,9 +5366,9 @@ async function importFromXLSX(file){
       dbg("Import complete — "+imported+" imported, "+skipped+" skipped","ok");
       if(!imported){showToast("No valid entries found in Excel","err");return;}
       batchSourceFile=[file.name];
-      if(el("srcFile")) el("srcFile").textContent="1. "+file.name;
+      if(el("srcFile")){ el("srcFile").textContent="1"; el("srcFile").title=file.name; }
       if(el("srcTs")) el("srcTs").textContent=new Date().toLocaleString(lang==="es"?"es-PA":"en-US");
-      el("srcBar").style.display="flex";
+      el("srcBar").style.display="grid";
       el("reviewSection").style.display="block";
       batchStatus="DRAFT";
       await saveBatchToDB("Excel import");
@@ -5986,12 +6010,30 @@ function wireEvents(){
   makeDraggable("dlgNonBill","dlgNonBillHdr");
   makeDraggable("dlgLogBreaks","dlgLogBreaksHdr");
   makeDraggable("dlgSeqAlerts","dlgSeqAlertsHdr");
+  makeDraggable("dlgSources","dlgSourcesHdr");
 
+  if(el("dlgSourcesClose")) el("dlgSourcesClose").addEventListener("click",()=>el("dlgSources").classList.remove("open"));
   if(el("dlgDupsClose")) el("dlgDupsClose").addEventListener("click",()=>el("dlgDups").classList.remove("open"));
   if(el("dlgNotReadClose")) el("dlgNotReadClose").addEventListener("click",()=>el("dlgNotRead").classList.remove("open"));
   if(el("dlgNonBillClose")) el("dlgNonBillClose").addEventListener("click",()=>el("dlgNonBill").classList.remove("open"));
   if(el("dlgLogBreaksClose")) el("dlgLogBreaksClose").addEventListener("click",()=>el("dlgLogBreaks").classList.remove("open"));
   if(el("dlgSeqAlertsClose")) el("dlgSeqAlertsClose").addEventListener("click",()=>el("dlgSeqAlerts").classList.remove("open"));
+
+  if(el("srcFile")) el("srcFile").addEventListener("click",()=>{
+    const files=(Array.isArray(batchSourceFile)?batchSourceFile:(batchSourceFile||"").split(/,\s*/)).filter(Boolean);
+    const firstEntryId=flEntries.find(e=>e.imageUrl)?.id||flEntries[0]?.id||null;
+    const entryIds=files.map(()=>firstEntryId).filter(Boolean);
+    const lines=files.map((f,i)=>(i+1)+". "+f);
+    openFloatDialog("dlgSources",t("sourceFiles"),lines,"var(--cyan)",entryIds.length===files.length?entryIds:null);
+  });
+
+  if(el("srcEventBar")) el("srcEventBar").addEventListener("click",()=>{
+    const rows=flAuditLog.slice(0,20).map(a=>{
+      const ts=a.ts instanceof Date?a.ts.toLocaleString(lang==="es"?"es-PA":"en-US"):a.ts;
+      return ts+" | "+a.actor+" | "+a.action+(a.detail?" | "+a.detail:"");
+    });
+    openFloatDialog("dlgSources",t("workflowEvents"),rows,"var(--cyan)",null);
+  });
 
   if(el("srcNotRead")) el("srcNotRead").addEventListener("click",()=>{
     const entries=flEntries.filter(e=>e.status==="skipped"||e.status==="void"||!e.aeronave||!e.fecha);
