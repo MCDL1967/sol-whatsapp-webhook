@@ -219,6 +219,7 @@
   "logTipExtractedEntries": "Área principal para revisar las entradas extraídas del flight log.",
   "logTipEntriesTab": "Muestra las entradas extraídas y editables del flight log.",
   "logTipAuditTab": "Muestra el historial de auditoría y acciones del sistema.",
+  "logTipFilter": "Filtra las filas visibles del flight log.",
   "logTipSourcePanel": "Abre o cierra el panel de imagen/datos fuente.",
   "logTipApproveAll": "Marca como aprobadas todas las entradas visibles elegibles.",
   "logTipResetAll": "Reinicia los estados de revisión visibles para otra pasada.",

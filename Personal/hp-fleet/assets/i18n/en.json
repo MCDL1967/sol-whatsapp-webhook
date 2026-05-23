@@ -219,6 +219,7 @@
   "logTipExtractedEntries": "Main workspace for reviewing extracted flight-log rows.",
   "logTipEntriesTab": "Shows the editable extracted flight-log rows.",
   "logTipAuditTab": "Shows the batch audit trail and system actions.",
+  "logTipFilter": "Filters the visible flight-log rows.",
   "logTipSourcePanel": "Opens or closes the source image/data panel.",
   "logTipApproveAll": "Marks all currently visible eligible entries as approved.",
   "logTipResetAll": "Resets visible entry review states for another pass.",
