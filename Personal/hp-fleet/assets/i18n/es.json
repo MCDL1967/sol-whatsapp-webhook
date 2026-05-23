@@ -707,5 +707,10 @@
   "wwEvApproved": "Revisor aprobó — lote cerrado.",
   "wwObsClear": "Observaciones activas despejadas.",
   "wwNoActiveBatch": "Sin lote activo.",
-  "wwNoBatchHistory": "Sin historial aún."
+  "wwNoBatchHistory": "Sin historial aún.",
+  "logTipSideCalcMotor": "Tiempo de motor calculado de Motor In menos Motor Out.",
+  "logTipSideCalcFlight": "Tiempo de vuelo calculado de Vuelo In menos Vuelo Out.",
+  "logTipSideCalcMultiplier": "Multiplicador de facturación seleccionado para esta aeronave/operador.",
+  "logTipSideCalcTbh": "Horas facturables calculadas con el tiempo de motor y el multiplicador.",
+  "logTipSideCalcGap": "Diferencia entre el tiempo de motor y el tiempo de vuelo."
 }

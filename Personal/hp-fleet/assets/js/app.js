@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.9f";
+const APP_VERSION = "v8.5.9g";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.9f",
-  es: "./assets/i18n/es.json?v=8.5.9f"
+  en: "./assets/i18n/en.json?v=8.5.9g",
+  es: "./assets/i18n/es.json?v=8.5.9g"
 };
 
 async function loadI18nDictionaries(){
@@ -1022,6 +1022,18 @@ function localizeSidePanelUi(){
     ["nonBill_confirm","confirmOk"]
   ].forEach(([id,key])=>setText(id,key));
   setLabelLeadingText("nonBill_commentLabel","nonBillCommentLabel");
+  [
+    ["spCalcTMotor","logTipSideCalcMotor"],
+    ["sp_pv_tm","logTipSideCalcMotor"],
+    ["spCalcTFlight","logTipSideCalcFlight"],
+    ["sp_pv_tf","logTipSideCalcFlight"],
+    ["spCalcMultiplier","logTipSideCalcMultiplier"],
+    ["sp_pv_mult","logTipSideCalcMultiplier"],
+    ["spCalcTbh","logTipSideCalcTbh"],
+    ["sp_pv_tbp","logTipSideCalcTbh"],
+    ["spCalcGap","logTipSideCalcGap"],
+    ["sp_pv_gap","logTipSideCalcGap"]
+  ].forEach(([id,key])=>setHoverTip(id,key));
   [
     ["sp_mult","spCustomValuePh"],
     ["sp_motorOut","spDecimalPh"],

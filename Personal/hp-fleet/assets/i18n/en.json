@@ -707,5 +707,10 @@
   "wwEvApproved": "Reviewer approved — batch closed.",
   "wwObsClear": "Active observations cleared.",
   "wwNoActiveBatch": "No active batch.",
-  "wwNoBatchHistory": "No history yet."
+  "wwNoBatchHistory": "No history yet.",
+  "logTipSideCalcMotor": "Motor time from Motor In minus Motor Out.",
+  "logTipSideCalcFlight": "Flight time from Flight In minus Flight Out.",
+  "logTipSideCalcMultiplier": "Billing multiplier selected for this aircraft/operator.",
+  "logTipSideCalcTbh": "Total billable hours calculated from motor time and multiplier.",
+  "logTipSideCalcGap": "Difference between motor time and flight time."
 }
