@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.8f";
+const APP_VERSION = "v8.5.8g";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.8f",
-  es: "./assets/i18n/es.json?v=8.5.8f"
+  en: "./assets/i18n/en.json?v=8.5.8g",
+  es: "./assets/i18n/es.json?v=8.5.8g"
 };
 
 async function loadI18nDictionaries(){
@@ -1257,11 +1257,14 @@ function doLogin(){
   // Auth against DB users (USERS array loaded from DB at init)
   setTimeout(async ()=>{
     try {
-      if(USERS.length&&!USERS.some(u=>u.pwd)){
-        const _fresh=await sbGet("users");
-        if(_fresh&&_fresh.length) USERS.splice(0,USERS.length,..._fresh);
+      const _fresh=await sbGet("users","email=eq."+encodeURIComponent(email)+"&limit=1");
+      if(_fresh&&_fresh.length){
+        const freshUser=_fresh[0];
+        const idx=USERS.findIndex(u=>u.id===freshUser.id);
+        if(idx>=0) USERS[idx]=freshUser;
+        else USERS.push(freshUser);
       }
-      const user=USERS.find(u=>u.email===email&&u.pwd===pwd);
+      const user=USERS.find(u=>String(u.email||"").toLowerCase()===email.toLowerCase()&&u.pwd===pwd);
       if(!user||user.status!=="active"){
         errEl.textContent=!user?t("loginErr"):t("inactiveErr");
         errEl.classList.add("on"); btn.textContent=t("signIn"); return;
@@ -1277,6 +1280,8 @@ function doLogin(){
       sbPatch("users","id=eq."+user.id,{last_login:user.lastLogin}).catch(()=>{});
       currentUser=user;
       USERS.forEach(u=>{ delete u.pwd; });
+      viewRole=null;
+      if(el("viewAsRole")) el("viewAsRole").value=currentUser.role==="ADMIN"?"ADMIN":currentUser.role;
       addAudit("🔑",user.name,lang==="es"?"inició sesión":"logged in","—");
       await bootApp(_loginLanguageOverride);
     } catch(err){
