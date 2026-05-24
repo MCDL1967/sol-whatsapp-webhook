@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.9i";
+const APP_VERSION = "v8.5.9j";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.9i",
-  es: "./assets/i18n/es.json?v=8.5.9i"
+  en: "./assets/i18n/en.json?v=8.5.9j",
+  es: "./assets/i18n/es.json?v=8.5.9j"
 };
 
 async function loadI18nDictionaries(){
@@ -2971,6 +2971,43 @@ function wfWidgetTimestamp(ts){
     d.toLocaleTimeString(lang==="es"?"es-PA":"en-US",{hour:"2-digit",minute:"2-digit"});
 }
 
+function wfWidgetFullTimestamp(ts){
+  if(!ts||ts==="PENDING") return "—";
+  const d=ts instanceof Date?ts:new Date(ts);
+  if(isNaN(d.getTime())) return "—";
+  return d.toLocaleString(lang==="es"?"es-PA":"en-US",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+}
+
+function wfWidgetHeldHours(startTs,endTs){
+  if(!startTs||startTs==="PENDING"||!endTs||endTs==="PENDING") return "—";
+  const a=startTs instanceof Date?startTs:new Date(startTs);
+  const b=endTs instanceof Date?endTs:new Date(endTs);
+  if(isNaN(a.getTime())||isNaN(b.getTime())||b<a) return "—";
+  return ((b-a)/36e5).toFixed(1);
+}
+
+function workflowNodeEventType(node){
+  if(node.id==="draft") return "DRAFT";
+  if(node.id==="submitted") return "SUBMITTED";
+  if(node.id==="review") return "REVIEW_STARTED";
+  if(node.id==="observed") return "OBSERVED";
+  if(node.id==="resubmitted") return "RESUBMITTED";
+  if(node.id==="approved"||node.id==="preinvoice") return "APPROVED";
+  return "";
+}
+
+function workflowNodeTip(node,events){
+  const type=workflowNodeEventType(node);
+  const idx=events.findIndex(ev=>ev.type===type);
+  const ev=idx>=0?events[idx]:null;
+  const next=idx>=0?events.slice(idx+1).find(n=>n.timestamp&&n.timestamp!=="PENDING"):null;
+  const heldEnd=next?.timestamp||(node.current?new Date():null);
+  return t("wwNodeTip")
+    .replace("{state}",node.label)
+    .replace("{timestamp}",wfWidgetFullTimestamp(ev?.timestamp))
+    .replace("{hours}",wfWidgetHeldHours(ev?.timestamp,heldEnd));
+}
+
 function workflowEventText(data){
   if(!data.hasBatch) return t("wwNoActiveBatch");
   const turn=data.workflowTurn==="OPERATOR"?t("wwRole_OPERATOR"):data.workflowTurn==="REVIEWER"?t("wwRole_REVIEWER"):"";
@@ -3028,8 +3065,9 @@ function renderWorkflowWidget(){
   const laneHtml=lane=>nodes.filter(n=>n.lane===lane).map(n=>{
     const dot=n.active?"ww-dot ww-dot-"+n.color:"ww-dot ww-ring-"+n.color;
     const showLabel=n.active&&(n.current||n.id==="draft"||n.id==="submitted"||n.id==="approved"||n.id==="preinvoice");
+    const tip=n.active?workflowNodeTip(n,data.workflowEvents):"";
     return '<span class="ww-node '+(n.active?"active ":"")+(n.current?"current":"")+'" style="left:'+(n.pct*100)+'%" data-color="'+n.color+'">'+
-      '<i class="'+dot+'"></i><b class="'+(showLabel?n.color:"hidden")+'">'+escHtml(showLabel?n.label:"")+'</b></span>';
+      '<i class="'+dot+' hpf-hover-tip" tabindex="0" data-tip="'+escHtml(tip)+'" aria-label="'+escHtml(tip)+'"></i><b class="'+(showLabel?n.color:"hidden")+'">'+escHtml(showLabel?n.label:"")+'</b></span>';
   }).join("");
   const flowConnectors=()=>{
     const path=nodes.filter(n=>n.active).sort((a,b)=>a.pct-b.pct);
@@ -3266,18 +3304,26 @@ function updateApproveAllBtn(){
 
 // ── FLIGHT LOG — SUMMARY ──
 function updateFlSummary(){
-  let fmM=0,fmT=0,magM=0,magT=0,totV=0,approved=0;
+  let totM=0,totT=0,totV=0,approved=0;
+  const opTotals={};
   flEntries.filter(e=>e.status==="approved").forEach(e=>{
     approved++;
     const{tm,tv,tbp}=calcEntry(e); totV+=tv;
-    if(e.operador==="FM"){fmM+=tm;fmT+=tbp;}else{magM+=tm;magT+=tbp;}
+    totM+=tm; totT+=tbp;
+    const code=e.operador||"—";
+    if(!opTotals[code]) opTotals[code]={tm:0,tbp:0};
+    opTotals[code].tm+=tm; opTotals[code].tbp+=tbp;
   });
   const sg=el("sumGrid"); if(!sg) return;
-  sg.innerHTML=
-    '<div class="scard sc-fm"><div class="sc-l">'+t("fmMotor")+"</div><div class=\"sc-v\">"+fmt(fmM)+"</div><div class=\"sc-s\">"+t("thTbp")+": "+fmt(fmT)+" "+t("hrs")+"</div></div>"+
-    '<div class="scard sc-mag"><div class="sc-l">'+t("magMotor")+"</div><div class=\"sc-v\">"+fmt(magM)+"</div><div class=\"sc-s\">"+t("thTbp")+": "+fmt(magT)+" "+t("hrs")+"</div></div>"+
-    '<div class="scard sc-tot"><div class="sc-l">'+t("totMotor")+"</div><div class=\"sc-v\">"+fmt(fmM+magM)+"</div><div class=\"sc-s\">"+t("tFlight")+": "+fmt(totV)+" "+t("hrs")+"</div></div>"+
-    '<div class="scard sc-tbp"><div class="sc-l">'+t("totTbp")+"</div><div class=\"sc-v\">"+fmt(fmT+magT)+"</div><div class=\"sc-s\">"+t("tbpHours")+"</div></div>"+
+  const activeCompanyCodes=new Set(COMPANIES.filter(c=>c.status==="active").map(c=>c.code));
+  const opCards=Object.keys(opTotals).filter(code=>!activeCompanyCodes.size||activeCompanyCodes.has(code)).sort().map(code=>{
+    const label=code==="FM"?t("fmMotor"):code==="MAG"?t("magMotor"):code+" - "+t("thTm");
+    const cls=code==="FM"?"sc-fm":code==="MAG"?"sc-mag":"sc-tot";
+    return '<div class="scard '+cls+'"><div class="sc-l">'+label+"</div><div class=\"sc-v\">"+fmt(opTotals[code].tm)+"</div><div class=\"sc-s\">"+t("thTbp")+": "+fmt(opTotals[code].tbp)+" "+t("hrs")+"</div></div>";
+  }).join("");
+  sg.innerHTML=opCards+
+    '<div class="scard sc-tot"><div class="sc-l">'+t("totMotor")+"</div><div class=\"sc-v\">"+fmt(totM)+"</div><div class=\"sc-s\">"+t("tFlight")+": "+fmt(totV)+" "+t("hrs")+"</div></div>"+
+    '<div class="scard sc-tbp"><div class="sc-l">'+t("totTbp")+"</div><div class=\"sc-v\">"+fmt(totT)+"</div><div class=\"sc-s\">"+t("tbpHours")+"</div></div>"+
     '<div class="scard sc-ent"><div class="sc-l">'+t("approved2")+"</div><div class=\"sc-v\">"+approved+"</div><div class=\"sc-s\">"+t("showing")+" "+getFilteredEntries().length+" "+t("of")+" "+flEntries.length+"</div></div>";
   updateActionBar();
 }

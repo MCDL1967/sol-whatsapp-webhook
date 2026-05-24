@@ -346,7 +346,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 .src-assist-bar.attn{border-color:rgba(255,195,67,.55);color:var(--yellow)}
 .src-assist-bar.ok{border-color:rgba(61,220,132,.5);color:var(--green)}
 
-/* ── WORKFLOW WIDGET v8.5.9i ─────────────────────────────────────────────── */
+/* ── WORKFLOW WIDGET v8.5.9j ─────────────────────────────────────────────── */
 #workflowWidget{--ww-op:#22c55e;--ww-re:#facc15;--ww-cta:#41d1ff;overflow:hidden}
 #workflowWidget .ww-empty{font-family:var(--mono);font-size:10px;color:var(--dim2);letter-spacing:1px;margin-top:18px}
 .ww-timeline{position:relative;height:62px;padding:10px 12px 0 0}
@@ -407,17 +407,18 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 .toolbar-right{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
 .panel-tabs{display:flex;border-bottom:1px solid var(--border);gap:0}
 .filter-control{display:flex;align-items:center;gap:8px;margin-right:10px}
-.filter-glyph{position:relative;width:16px;height:14px;color:var(--dim2);flex:0 0 auto}
-.filter-glyph::before{content:"";position:absolute;left:1px;top:1px;width:14px;height:8px;
-  border:2px solid currentColor;border-bottom:none;border-radius:12px 12px 2px 2px}
-.filter-glyph::after{content:"";position:absolute;left:6px;top:7px;width:4px;height:7px;
-  background:currentColor;border-radius:0 0 2px 2px}
+.filter-glyph{position:relative;width:18px;height:16px;color:var(--dim2);flex:0 0 auto}
+.filter-glyph::before{content:"";position:absolute;inset:1px 1px 0 1px;
+  background:currentColor;clip-path:polygon(0 0,100% 0,62% 48%,62% 100%,38% 100%,38% 48%)}
+.filter-glyph::after{content:"";position:absolute;inset:3px 4px 4px 4px;
+  background:var(--bg);clip-path:polygon(0 0,100% 0,58% 46%,58% 100%,42% 100%,42% 46%)}
 .filter-control:hover .filter-glyph{color:var(--cyan)}
 .panel-filter-wrap{margin-right:0}
 .ptab{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
-  padding:10px 18px 10px 22px;background:transparent;border:none;border-bottom:2px solid transparent;
-  color:var(--dim2);cursor:pointer;transition:all .2s;position:relative}
-.ptab::before{content:"";position:absolute;left:7px;top:7px;bottom:7px;width:2px;background:rgba(138,169,207,.35);
+  padding:10px 22px 10px 22px;background:transparent;border:none;border-left:1px solid rgba(138,169,207,.28);
+  border-bottom:2px solid transparent;color:var(--dim2);cursor:pointer;transition:all .2s;position:relative}
+.ptab:last-of-type{border-right:1px solid rgba(138,169,207,.28)}
+.ptab::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:rgba(138,169,207,.35);
   transition:background .2s,box-shadow .2s}
 .ptab.active::before{background:var(--cyan);box-shadow:0 0 6px rgba(65,209,255,.45)}
 .ptab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
