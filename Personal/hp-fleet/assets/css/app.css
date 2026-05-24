@@ -346,7 +346,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 .src-assist-bar.attn{border-color:rgba(255,195,67,.55);color:var(--yellow)}
 .src-assist-bar.ok{border-color:rgba(61,220,132,.5);color:var(--green)}
 
-/* ── WORKFLOW WIDGET v8.5.9l ─────────────────────────────────────────────── */
+/* ── WORKFLOW WIDGET v8.5.9m ─────────────────────────────────────────────── */
 #workflowWidget{--ww-op:#22c55e;--ww-re:#facc15;--ww-cta:#41d1ff;overflow:hidden}
 #workflowWidget .ww-empty{font-family:var(--mono);font-size:10px;color:var(--dim2);letter-spacing:1px;margin-top:18px}
 .ww-timeline{position:relative;height:86px;padding:12px 12px 0 0}
@@ -379,16 +379,23 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 .ww-node b.yellow{color:var(--ww-re)}
 .ww-node b.cyan{color:var(--ww-cta)}
 .ww-node b.hidden{display:none}
-.wf-event-row{display:grid;grid-template-columns:190px 1fr;gap:12px;align-items:start;padding:6px 0}
-.wf-event-row.op{border-left:3px solid var(--green);padding-left:8px}
-.wf-event-row.re{border-left:3px solid var(--yellow);padding-left:8px}
-.wf-event-row.sys{border-left:3px solid var(--cyan);padding-left:8px}
-.wf-event-meta{display:grid;gap:2px;font-family:var(--mono);font-size:9px;color:var(--dim2);letter-spacing:.7px;text-transform:uppercase}
-.wf-event-meta strong{font-size:9px;color:var(--text)}
-.wf-event-row.op .wf-event-meta strong{color:var(--green)}
-.wf-event-row.re .wf-event-meta strong{color:var(--yellow)}
-.wf-event-meta b{font-size:9px;color:var(--dim2);font-weight:700;overflow:hidden;text-overflow:ellipsis}
-.wf-event-note{font-family:var(--mono);font-size:11px;line-height:1.45;color:var(--text);letter-spacing:.4px}
+.wf-event-card{display:grid;gap:8px;padding:10px 0 12px;border-bottom:1px solid var(--border2);
+  border-left:3px solid var(--cyan);padding-left:10px}
+.wf-event-card.op{border-left-color:var(--green)}
+.wf-event-card.re{border-left-color:var(--yellow)}
+.wf-event-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.wf-event-pill{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
+  color:var(--text);font-weight:800}
+.wf-event-card.op .wf-event-pill{color:var(--green)}
+.wf-event-card.re .wf-event-pill{color:var(--yellow)}
+.wf-event-time{font-family:var(--mono);font-size:9px;color:var(--dim2);letter-spacing:.5px;text-align:right}
+.wf-event-grid{display:grid;grid-template-columns:1.2fr 1fr 64px;gap:10px}
+.wf-event-grid div,.wf-event-detail{display:grid;gap:2px;min-width:0}
+.wf-event-card b{font-family:var(--mono);font-size:8px;letter-spacing:1.1px;text-transform:uppercase;
+  color:var(--dim2);font-weight:700}
+.wf-event-card span{font-family:var(--mono);font-size:10px;line-height:1.35;color:var(--text);
+  letter-spacing:.4px;overflow:hidden;text-overflow:ellipsis}
+.wf-event-detail span{white-space:normal;color:var(--dim)}
 /* ── END WORKFLOW WIDGET ─────────────────────────────────────────────────── */
 .alert{display:none;border:1px solid;padding:10px 14px;margin-bottom:12px;font-size:12px;line-height:1.6}
 .alert.on{display:block}

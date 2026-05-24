@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.9l";
+const APP_VERSION = "v8.5.9m";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.9l",
-  es: "./assets/i18n/es.json?v=8.5.9l"
+  en: "./assets/i18n/en.json?v=8.5.9m",
+  es: "./assets/i18n/es.json?v=8.5.9m"
 };
 
 async function loadI18nDictionaries(){
@@ -3032,6 +3032,43 @@ function workflowEventText(data){
   if(data.batchDisplayState==="RESUBMITTED") return turn+" — "+t("wwEvResubmitted");
   if(data.batchDisplayState==="APPROVED") return t("wwEvApproved");
   return t("wwNoActiveBatch");
+}
+
+function workflowEventRoleLabel(role){
+  if(role==="OPERATOR") return t("wwRole_OPERATOR");
+  if(role==="REVIEWER") return t("wwRole_REVIEWER");
+  return role||"—";
+}
+
+function workflowEventTypeLabel(type){
+  if(type==="DRAFT") return t("wwBatch_DRAFT");
+  if(type==="SUBMITTED") return t("wwBatch_SUBMITTED");
+  if(type==="REVIEW_STARTED") return t("wwEvReview");
+  if(type==="OBSERVED") return t("wwBatch_OBSERVED");
+  if(type==="RESUBMITTED") return t("wwBatch_RESUBMITTED");
+  if(type==="APPROVED") return t("wwBatch_APPROVED");
+  if(type==="PREINVOICE") return t("wwBatch_PREINVOICE");
+  return type||"—";
+}
+
+function workflowEventDialogRows(events){
+  return events.map(ev=>{
+    const role=ev.actorRole==="OPERATOR"?"op":ev.actorRole==="REVIEWER"?"re":"sys";
+    const who=ev.actorName&&ev.actorName!=="PENDING"?ev.actorName:"—";
+    const cycle=ev.cycle!=null?ev.cycle:"—";
+    return '<div class="wf-event-card '+role+'">'+
+      '<div class="wf-event-head">'+
+        '<span class="wf-event-pill">'+escHtml(workflowEventTypeLabel(ev.type))+'</span>'+
+        '<span class="wf-event-time">'+escHtml(wfWidgetFullTimestamp(ev.timestamp))+'</span>'+
+      '</div>'+
+      '<div class="wf-event-grid">'+
+        '<div><b>'+escHtml(t("wfEventActor"))+'</b><span>'+escHtml(who)+'</span></div>'+
+        '<div><b>'+escHtml(t("wfEventRole"))+'</b><span>'+escHtml(workflowEventRoleLabel(ev.actorRole))+'</span></div>'+
+        '<div><b>'+escHtml(t("wfEventCycle"))+'</b><span>'+escHtml(cycle)+'</span></div>'+
+      '</div>'+
+      '<div class="wf-event-detail"><b>'+escHtml(t("wfEventDetail"))+'</b><span>'+escHtml(ev.note||workflowEventTypeLabel(ev.type))+'</span></div>'+
+    '</div>';
+  });
 }
 
 function workflowAssistanceText(data){
@@ -6324,15 +6361,7 @@ function wireEvents(){
 
   if(el("srcEventBar")) el("srcEventBar").addEventListener("click",()=>{
     const events=deriveWorkflowWidgetState().workflowEvents.slice(-8).reverse();
-    const rows=events.map(ev=>{
-      const who=ev.actorName&&ev.actorName!=="PENDING"?ev.actorName:ev.actorRole;
-      const role=ev.actorRole==="OPERATOR"?"op":ev.actorRole==="REVIEWER"?"re":"sys";
-      const time=wfWidgetTimestamp(ev.timestamp);
-      return '<div class="wf-event-row '+role+'">'+
-        '<div class="wf-event-meta"><span>'+escHtml(time)+"</span><strong>"+escHtml(ev.actorRole||"—")+"</strong><b>"+escHtml(who)+"</b></div>"+
-        '<div class="wf-event-note">'+escHtml(ev.note||ev.type)+'</div>'+
-      '</div>';
-    });
+    const rows=workflowEventDialogRows(events);
     openFloatDialog("dlgSources",t("workflowEvents"),rows,"var(--cyan)",null);
   });
 
