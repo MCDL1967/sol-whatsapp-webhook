@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.9j";
+const APP_VERSION = "v8.5.9k";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.9j",
-  es: "./assets/i18n/es.json?v=8.5.9j"
+  en: "./assets/i18n/en.json?v=8.5.9k",
+  es: "./assets/i18n/es.json?v=8.5.9k"
 };
 
 async function loadI18nDictionaries(){
@@ -3002,9 +3002,10 @@ function workflowNodeTip(node,events){
   const ev=idx>=0?events[idx]:null;
   const next=idx>=0?events.slice(idx+1).find(n=>n.timestamp&&n.timestamp!=="PENDING"):null;
   const heldEnd=next?.timestamp||(node.current?new Date():null);
+  const sentText=next?.timestamp?wfWidgetFullTimestamp(next.timestamp):(node.current?t("wwNodeTipInProgress"):"—");
   return t("wwNodeTip")
-    .replace("{state}",node.label)
-    .replace("{timestamp}",wfWidgetFullTimestamp(ev?.timestamp))
+    .replace("{received}",wfWidgetFullTimestamp(ev?.timestamp))
+    .replace("{sent}",sentText)
     .replace("{hours}",wfWidgetHeldHours(ev?.timestamp,heldEnd));
 }
 
