@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.9k";
+const APP_VERSION = "v8.5.9l";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.9k",
-  es: "./assets/i18n/es.json?v=8.5.9k"
+  en: "./assets/i18n/en.json?v=8.5.9l",
+  es: "./assets/i18n/es.json?v=8.5.9l"
 };
 
 async function loadI18nDictionaries(){
@@ -2919,39 +2919,52 @@ function deriveWorkflowWidgetState(){
 function deriveWorkflowEvents(displayState,cycle,registered,active){
   if(!currentBatchId&&!flEntries.length) return [];
   const chronological=[...flAuditLog].sort((a,b)=>new Date(a.ts)-new Date(b.ts));
-  const findAction=pattern=>chronological.find(a=>String(a.action||"").toLowerCase().includes(pattern));
+  const rowText=a=>String((a?.action||"")+" "+(a?.detail||"")).toLowerCase();
+  const isSubmitted=a=>rowText(a).includes("submitted batch")||rowText(a).includes("lote enviado");
+  const isReturned=a=>rowText(a).includes("returned batch")||rowText(a).includes("returned observations")||
+    rowText(a).includes("devolvió lote")||rowText(a).includes("devuelto para corrección");
+  const isApproved=a=>rowText(a).includes("approved for invoicing")||rowText(a).includes("reviewer approved")||
+    rowText(a).includes("revisor aprob")||rowText(a).includes("lote cerrado");
+  const after=(row,ts)=>{
+    const a=new Date(row?.ts).getTime();
+    const b=new Date(ts).getTime();
+    return !isNaN(a)&&!isNaN(b)&&a>b;
+  };
+  const firstSubmitted=chronological.find(isSubmitted);
+  const submittedRows=chronological.filter(isSubmitted);
+  const returnedRows=chronological.filter(isReturned);
+  const approved=chronological.find(isApproved);
+  const firstAudit=chronological.find(a=>a?.ts);
   const events=[];
   events.push({
     type:"DRAFT",actorRole:"OPERATOR",actorName:currentUser?.name||"PENDING",
-    timestamp:findAction("batch loaded")?.ts||FL_LOAD_TS||"PENDING",
+    timestamp:firstAudit?.ts||FL_LOAD_TS||"PENDING",
     note:t("wwEvDraft")
   });
-  if(displayState!=="DRAFT"){
-    const submitted=findAction("submitted batch");
+  if(displayState!=="DRAFT"||firstSubmitted){
     events.push({
-      type:"SUBMITTED",actorRole:"OPERATOR",actorName:submitted?.actor||"PENDING",
-      timestamp:submitted?.ts||"PENDING",note:t("wwEvSubmitted")
+      type:"SUBMITTED",actorRole:"OPERATOR",actorName:firstSubmitted?.actor||"PENDING",
+      timestamp:firstSubmitted?.ts||"PENDING",note:t("wwEvSubmitted")
     });
     events.push({
-      type:"REVIEW_STARTED",actorRole:"REVIEWER",actorName:"PENDING",
-      timestamp:"PENDING",note:t("wwEvReview")
+      type:"REVIEW_STARTED",actorRole:"REVIEWER",actorName:firstSubmitted?.actor||"PENDING",
+      timestamp:firstSubmitted?.ts||"PENDING",note:t("wwEvReview")
     });
   }
-  const returned=chronological.filter(a=>String(a.action||"").toLowerCase().includes("returned"));
-  returned.forEach((a,i)=>{
+  returnedRows.forEach((a,i)=>{
     events.push({
       type:"OBSERVED",actorRole:"REVIEWER",actorName:a.actor||"PENDING",
       timestamp:a.ts||"PENDING",cycle:i+1,note:t("wwEvObserved")
     });
-    if(i+1<cycle||displayState==="RESUBMITTED"||displayState==="APPROVED"){
+    const resubmitted=submittedRows.find(s=>after(s,a.ts));
+    if(resubmitted){
       events.push({
-        type:"RESUBMITTED",actorRole:"OPERATOR",actorName:"PENDING",
-        timestamp:"PENDING",cycle:i+2,note:t("wwEvResubmitted")
+        type:"RESUBMITTED",actorRole:"OPERATOR",actorName:resubmitted.actor||"PENDING",
+        timestamp:resubmitted.ts||"PENDING",cycle:i+2,note:t("wwEvResubmitted")
       });
     }
   });
-  if(displayState==="APPROVED"){
-    const approved=findAction("approved");
+  if(displayState==="APPROVED"||approved){
     events.push({
       type:"APPROVED",actorRole:"REVIEWER",actorName:approved?.actor||piSignedBy||"PENDING",
       timestamp:approved?.ts||piSignedAt||"PENDING",note:t("wwEvApproved")
@@ -2998,7 +3011,8 @@ function workflowNodeEventType(node){
 
 function workflowNodeTip(node,events){
   const type=workflowNodeEventType(node);
-  const idx=events.findIndex(ev=>ev.type===type);
+  const idx=events.findLastIndex?events.findLastIndex(ev=>ev.type===type):
+    events.map(ev=>ev.type).lastIndexOf(type);
   const ev=idx>=0?events[idx]:null;
   const next=idx>=0?events.slice(idx+1).find(n=>n.timestamp&&n.timestamp!=="PENDING"):null;
   const heldEnd=next?.timestamp||(node.current?new Date():null);
@@ -3065,7 +3079,7 @@ function renderWorkflowWidget(){
 
   const laneHtml=lane=>nodes.filter(n=>n.lane===lane).map(n=>{
     const dot=n.active?"ww-dot ww-dot-"+n.color:"ww-dot ww-ring-"+n.color;
-    const showLabel=n.active&&(n.current||n.id==="draft"||n.id==="submitted"||n.id==="approved"||n.id==="preinvoice");
+    const showLabel=n.active;
     const tip=n.active?workflowNodeTip(n,data.workflowEvents):"";
     return '<span class="ww-node '+(n.active?"active ":"")+(n.current?"current":"")+'" style="left:'+(n.pct*100)+'%" data-color="'+n.color+'">'+
       '<i class="'+dot+' hpf-hover-tip" tabindex="0" data-tip="'+escHtml(tip)+'" aria-label="'+escHtml(tip)+'"></i><b class="'+(showLabel?n.color:"hidden")+'">'+escHtml(showLabel?n.label:"")+'</b></span>';
@@ -3074,25 +3088,18 @@ function renderWorkflowWidget(){
     const path=nodes.filter(n=>n.active).sort((a,b)=>a.pct-b.pct);
     return path.slice(0,-1).map((n,i)=>{
       const next=path[i+1];
-      const y1=n.lane==="op"?24:52;
-      const y2=next.lane==="op"?24:52;
+      const y1=n.lane==="op"?31:69;
+      const y2=next.lane==="op"?31:69;
       const x1=n.pct*100;
       const x2=next.pct*100;
       return '<line class="ww-flow '+next.color+'" x1="'+x1+'%" y1="'+y1+'" x2="'+x2+'%" y2="'+y2+'"></line>';
     }).join("");
   };
-  const history=data.workflowEvents.slice(-2).reverse().map(ev=>{
-    const role=ev.actorRole==="OPERATOR"?"op":ev.actorRole==="REVIEWER"?"re":"sys";
-    const who=ev.actorName&&ev.actorName!=="PENDING"?ev.actorName:"—";
-    return '<div class="ww-history-row '+role+'"><span>'+wfWidgetTimestamp(ev.timestamp)+'</span><strong>'+escHtml(who)+'</strong><em>'+escHtml(ev.note||ev.type)+'</em></div>';
-  }).join("")||'<div class="ww-history-row"><em>'+t("wwNoBatchHistory")+'</em></div>';
-
   wrap.innerHTML='<div class="ww-timeline" aria-label="'+escHtml(t("sbBatchHistory"))+'">'+
       '<svg class="ww-flow-svg" aria-hidden="true" preserveAspectRatio="none">'+flowConnectors()+'</svg>'+
       '<div class="ww-lane ww-lane-op"><span>OP</span><div class="ww-track">'+laneHtml("op")+'</div></div>'+
       '<div class="ww-lane ww-lane-re"><span>RE</span><div class="ww-track">'+laneHtml("re")+'</div></div>'+
-    '</div>'+
-    '<div class="ww-history-panel">'+history+'</div>';
+    '</div>';
   if(el("srcEventText")) el("srcEventText").textContent=t("wfEvents")+": "+workflowEventText(data);
   renderWorkflowAssistance(data);
 }
@@ -3609,8 +3616,8 @@ function handleSubmit(){
 async function doSubmit(){
   batchStatus="SUBMITTED";
   if(el("resultBanner")) el("resultBanner").style.display="none";
-  await saveBatchToDB("submit batch");
   addFlAudit("📤",currentUser.name,"submitted batch",flEntries.filter(e=>e.status==="approved").length+" approved entries");
+  await saveBatchToDB("submit batch");
   const flagged=flEntries.filter(e=>e.status==="flagged").length;
   const approved=flEntries.filter(e=>e.status==="approved").length;
   renderWfBar(); setupFlRoleUI();
@@ -3918,9 +3925,9 @@ async function reopenBatch(){
 async function doApprove(){
   batchStatus="APPROVED";
   if(el("resultBanner")) el("resultBanner").style.display="none";
+  addFlAudit("✅",currentUser.name,"approved for invoicing",flEntries.filter(e=>e.status==="approved").length+" entries");
   await saveBatchToDB("approve for invoicing");
   exportFlCSV();
-  addFlAudit("✅",currentUser.name,"approved for invoicing",flEntries.filter(e=>e.status==="approved").length+" entries");
   renderWfBar(); setupFlRoleUI(); renderPreInvoice();
   showToast(t("approvedMsg"));
   notifyWhatsApp("OPERATOR",
@@ -4004,8 +4011,8 @@ async function doReturnForReview(){
   batchStatus="DRAFT";
   reviewCycle++;
   if(el("resultBanner")) el("resultBanner").style.display="none";
-  await saveBatchToDB("return for review");
   addFlAudit("↩",currentUser.name,t("auditReturnedBatch"),flagged.length+" "+t("rfrWaFlagged"));
+  await saveBatchToDB("return for review");
   renderWfBar(); setupFlRoleUI(); renderFlTable();
   // Pre-activate reviewer_comments filter for operator
   if(el("filterOp")){ el("filterOp").value="reviewer_comments"; renderFlTable(); }

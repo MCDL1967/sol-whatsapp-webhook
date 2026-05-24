@@ -703,7 +703,7 @@
   "wwRole_REVIEWER": "REVISOR",
   "wwEvDraft": "Operador prepara el lote.",
   "wwEvSubmitted": "Lote enviado — esperando al Revisor.",
-  "wwEvReview": "REVISIÓN",
+  "wwEvReview": "EN REVISIÓN",
   "wwEvObserved": "Revisor devolvió observaciones.",
   "wwEvResubmitted": "Operador re-envió correcciones.",
   "wwEvApproved": "Revisor aprobó — lote cerrado.",

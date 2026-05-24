@@ -703,7 +703,7 @@
   "wwRole_REVIEWER": "REVIEWER",
   "wwEvDraft": "Operator is preparing the batch.",
   "wwEvSubmitted": "Batch submitted — awaiting Reviewer.",
-  "wwEvReview": "REVIEW",
+  "wwEvReview": "IN REVIEW",
   "wwEvObserved": "Reviewer returned observations.",
   "wwEvResubmitted": "Operator resubmitted corrections.",
   "wwEvApproved": "Reviewer approved — batch closed.",
