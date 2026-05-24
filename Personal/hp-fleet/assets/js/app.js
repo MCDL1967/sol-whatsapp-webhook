@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.9m";
+const APP_VERSION = "v8.5.9n";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.9m",
-  es: "./assets/i18n/es.json?v=8.5.9m"
+  en: "./assets/i18n/en.json?v=8.5.9n",
+  es: "./assets/i18n/es.json?v=8.5.9n"
 };
 
 async function loadI18nDictionaries(){
@@ -3811,12 +3811,7 @@ function renderPreInvoice(){
         totalTbp+=tbp; totalAmt+=amt;
         const tr=document.createElement("tr");
         tr.innerHTML="<td>"+(i+1)+"</td><td>"+(e.bnum||"—")+"</td><td>"+(e.fecha||"—")+"</td><td>"+(e.piloto||"—")+"</td><td>"+fmt(tbp)+" hrs</td><td class='pi-amt"+(amt===0?" pi-zero":"")+"'>"+fmtCurrency(amt)+"</td>";
-        // Last row goes into the summary block, rest into main tbody
-        if(i===sortedApproved.length-1 && lastRowTbl){
-          lastRowTbl.appendChild(tr);
-        } else {
-          tbody.appendChild(tr);
-        }
+        tbody.appendChild(tr);
       });
     }
     if(el("pi_sub_hrs")) el("pi_sub_hrs").textContent=fmt(totalTbp)+" hrs";
