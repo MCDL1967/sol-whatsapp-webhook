@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.1";
+const APP_VERSION = "v8.6.0";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -333,23 +333,11 @@ function canCompany(companyCode,user=currentUser){
   return (user.companies||[]).includes(companyCode);
 }
 
-const RIGHTS_UI_GROUPS = [
-  {key:"rightsGroupUsers",rights:[RIGHTS.USERS_VIEW,RIGHTS.USERS_MANAGE]},
-  {key:"rightsGroupCompanies",rights:[RIGHTS.COMPANIES_VIEW,RIGHTS.COMPANIES_MANAGE]},
-  {key:"rightsGroupAircraft",rights:[RIGHTS.AIRCRAFT_VIEW,RIGHTS.AIRCRAFT_MANAGE]},
-  {key:"rightsGroupLogs",rights:[RIGHTS.LOGS_VIEW,RIGHTS.LOGS_LOAD,RIGHTS.LOGS_EDIT,RIGHTS.LOGS_SUBMIT,RIGHTS.LOGS_REVIEW,RIGHTS.LOGS_APPROVE,RIGHTS.LOGS_REOPEN,RIGHTS.LOGS_EXPORT]},
-  {key:"rightsGroupBilling",rights:[RIGHTS.BILLING_VIEW,RIGHTS.BILLING_SIGNOFF,RIGHTS.BILLING_EXPORT]},
-  {key:"rightsGroupSettings",rights:[RIGHTS.SETTINGS_VIEW,RIGHTS.SETTINGS_MANAGE,RIGHTS.SETTINGS_API,RIGHTS.SETTINGS_DEV,RIGHTS.SETTINGS_DB,RIGHTS.ADMIN_VIEW_AS]}
-];
-function rightLabelKey(right){
-  return "right_"+right.replace(/\./g,"_");
-}
-
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.6.1",
-  es: "./assets/i18n/es.json?v=8.6.1"
+  en: "./assets/i18n/en.json?v=8.6.0",
+  es: "./assets/i18n/es.json?v=8.6.0"
 };
 
 async function loadI18nDictionaries(){
@@ -1229,8 +1217,6 @@ function localizeUserUi(){
   setPh("um_pwd","pwdShort");
   setText("um_pwd_hint","pwdShort");
   if(el("um_lbl_pwd")) el("um_lbl_pwd").textContent=editingUserId?t("umNewPassword"):t("umPassword");
-  setText("um_rights_title","rightsPreviewTitle");
-  setText("um_rights_sub","rightsPreviewHint");
   if(el("userMbd")&&el("userMbd").classList.contains("open")){
     const u=editingUserId?USERS.find(x=>x.id===editingUserId):null;
     if(el("umTitle")) el("umTitle").textContent=u?t("umEditTitlePrefix")+u.name:t("umNewTitle");
@@ -1828,25 +1814,6 @@ function updateRoleDesc(){
   const role=el("um_role").value;
   const descs={ADMIN:t("roleDescAdmin"),OPERATOR:t("roleDescOperator"),REVIEWER:t("roleDescReviewer"),READONLY:t("roleDescReadonly")};
   el("roleDesc").textContent=descs[role]||"";
-  renderUserRightsPreview();
-}
-function renderUserRightsPreview(){
-  const grid=el("um_rights_grid"); if(!grid) return;
-  const role=el("um_role")?el("um_role").value:"READONLY";
-  const edited=editingUserId?USERS.find(x=>x.id===editingUserId):null;
-  const explicit=normalizeRights(edited?.rights);
-  const useExplicit=explicit.length>0 && edited?.role===role;
-  const rights=useExplicit?explicit:defaultRightsForRole(role);
-  if(el("um_rights_mode")) el("um_rights_mode").textContent=useExplicit?t("rightsModeCustom"):t("rightsModePreset");
-  grid.innerHTML=RIGHTS_UI_GROUPS.map(group=>{
-    const active=group.rights.filter(right=>rights.includes(right));
-    return '<div class="urp-card">'+
-      '<div class="urp-card-title">'+escHtml(t(group.key))+"</div>"+
-      (active.length
-        ? '<div class="urp-list">'+active.map(right=>'<span class="urp-right">'+escHtml(t(rightLabelKey(right)))+"</span>").join("")+"</div>"
-        : '<div class="urp-empty">'+escHtml(t("rightsNone"))+"</div>")+
-      "</div>";
-  }).join("");
 }
 function openRoleRights(role){
   const r=ROLES[role];
