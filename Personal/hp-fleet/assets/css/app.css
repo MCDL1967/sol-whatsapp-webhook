@@ -346,7 +346,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;
 .src-assist-bar.attn{border-color:rgba(255,195,67,.55);color:var(--yellow)}
 .src-assist-bar.ok{border-color:rgba(61,220,132,.5);color:var(--green)}
 
-/* ── WORKFLOW WIDGET v8.5.9o ─────────────────────────────────────────────── */
+/* ── WORKFLOW WIDGET v8.6.0 ─────────────────────────────────────────────── */
 #workflowWidget{--ww-op:#22c55e;--ww-re:#facc15;--ww-cta:#41d1ff;overflow:hidden}
 #workflowWidget .ww-empty{font-family:var(--mono);font-size:10px;color:var(--dim2);letter-spacing:1px;margin-top:18px}
 .ww-timeline{position:relative;height:86px;padding:12px 12px 0 0}

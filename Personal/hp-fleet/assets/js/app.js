@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.9o";
+const APP_VERSION = "v8.6.0";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -256,11 +256,88 @@ const ROLES = {
     es:{label:"Solo Lectura",desc:"Acceso de solo lectura para tus compañías asignadas.",perms:["Ver Entradas"]}}
 };
 
+// ── RIGHTS ──
+// v8.6 foundation: roles remain presets, user.rights can override later.
+const RIGHTS = {
+  USERS_VIEW:"users.view",
+  USERS_MANAGE:"users.manage",
+  COMPANIES_VIEW:"companies.view",
+  COMPANIES_MANAGE:"companies.manage",
+  AIRCRAFT_VIEW:"aircraft.view",
+  AIRCRAFT_MANAGE:"aircraft.manage",
+  LOGS_VIEW:"logs.view",
+  LOGS_LOAD:"logs.load",
+  LOGS_EDIT:"logs.edit",
+  LOGS_SUBMIT:"logs.submit",
+  LOGS_REVIEW:"logs.review",
+  LOGS_APPROVE:"logs.approve",
+  LOGS_REOPEN:"logs.reopen",
+  LOGS_EXPORT:"logs.export",
+  BILLING_VIEW:"billing.view",
+  BILLING_SIGNOFF:"billing.signoff",
+  BILLING_EXPORT:"billing.export",
+  SETTINGS_VIEW:"settings.view",
+  SETTINGS_MANAGE:"settings.manage",
+  SETTINGS_API:"settings.api",
+  SETTINGS_DEV:"settings.dev",
+  SETTINGS_DB:"settings.db",
+  ADMIN_VIEW_AS:"admin.view_as"
+};
+const ROLE_RIGHTS = {
+  ADMIN:Object.values(RIGHTS),
+  OPERATOR:[
+    RIGHTS.AIRCRAFT_VIEW,RIGHTS.AIRCRAFT_MANAGE,
+    RIGHTS.LOGS_VIEW,RIGHTS.LOGS_LOAD,RIGHTS.LOGS_EDIT,RIGHTS.LOGS_SUBMIT,RIGHTS.LOGS_EXPORT,
+    RIGHTS.BILLING_VIEW,RIGHTS.BILLING_EXPORT,
+    RIGHTS.SETTINGS_VIEW
+  ],
+  REVIEWER:[
+    RIGHTS.LOGS_VIEW,RIGHTS.LOGS_REVIEW,RIGHTS.LOGS_APPROVE,RIGHTS.LOGS_EXPORT,
+    RIGHTS.BILLING_VIEW,RIGHTS.BILLING_SIGNOFF,RIGHTS.BILLING_EXPORT,
+    RIGHTS.SETTINGS_VIEW
+  ],
+  READONLY:[
+    RIGHTS.LOGS_VIEW,RIGHTS.LOGS_EXPORT,
+    RIGHTS.BILLING_VIEW,RIGHTS.BILLING_EXPORT,
+    RIGHTS.SETTINGS_VIEW
+  ]
+};
+
+function normalizeRights(rights){
+  if(Array.isArray(rights)) return [...new Set(rights.filter(Boolean).map(String))];
+  if(rights&&typeof rights==="object"){
+    return Object.entries(rights).filter(([,on])=>on===true).map(([right])=>right);
+  }
+  return [];
+}
+function defaultRightsForRole(role){
+  return ROLE_RIGHTS[role] ? [...ROLE_RIGHTS[role]] : [...ROLE_RIGHTS.READONLY];
+}
+function userRights(user=currentUser, roleOverride=null){
+  const role=roleOverride || user?.role || "READONLY";
+  const explicit=normalizeRights(user?.rights);
+  return explicit.length ? explicit : defaultRightsForRole(role);
+}
+function can(right){
+  const role=effectiveRole();
+  const rights=(viewRole&&currentUser) ? defaultRightsForRole(role) : userRights(currentUser,role);
+  return rights.includes(right);
+}
+function canAny(rights){
+  return rights.some(right=>can(right));
+}
+function canCompany(companyCode,user=currentUser){
+  if(!companyCode) return false;
+  if(!user) return false;
+  if(user.role==="ADMIN" && (!user.companies || !user.companies.length)) return true;
+  return (user.companies||[]).includes(companyCode);
+}
+
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.9o",
-  es: "./assets/i18n/es.json?v=8.5.9o"
+  en: "./assets/i18n/en.json?v=8.6.0",
+  es: "./assets/i18n/es.json?v=8.6.0"
 };
 
 async function loadI18nDictionaries(){
@@ -1396,7 +1473,7 @@ async function bootApp(loginLanguageOverride=null){
   initStickyTabsToggle();
   // Restore active tab from preferences; fall back to role default
   const defaultTab=currentUser.role==="ADMIN"?"users":"flightlog";
-  const TAB_IDS=TAB_CONFIG.filter(t=>t.roles.includes(effectiveRole())).map(t=>t.id);
+  const TAB_IDS=TAB_CONFIG.filter(t=>t.right?can(t.right):t.roles.includes(effectiveRole())).map(t=>t.id);
   const savedTab=_userPrefs.active_tab;
   const restoredTab=(savedTab && TAB_IDS.includes(savedTab)) ? savedTab : defaultTab;
   switchTab(restoredTab);
@@ -1416,17 +1493,17 @@ async function bootApp(loginLanguageOverride=null){
 
 // ── TABS ──
 const TAB_CONFIG=[
-  {id:"users",     icon:"👥",labelKey:"tabUsers",     roles:["ADMIN"]},
-  {id:"companies", icon:"🏢",labelKey:"tabCompanies", roles:["ADMIN"]},
-  {id:"aircraft",  icon:"✈️",labelKey:"tabAircraft",  roles:["ADMIN","OPERATOR"]},
-  {id:"flightlog", icon:"📋",labelKey:"tabFlightLog", roles:["ADMIN","OPERATOR","REVIEWER","READONLY"]},
-  {id:"preinvoice",icon:"💳",labelKey:"tabBilling",   roles:["ADMIN","REVIEWER","OPERATOR","READONLY"]},
-  {id:"settings",  icon:"⚙️",labelKey:"tabSettings",  roles:["ADMIN","OPERATOR","REVIEWER","READONLY"]},
+  {id:"users",     icon:"👥",labelKey:"tabUsers",     roles:["ADMIN"],right:RIGHTS.USERS_VIEW},
+  {id:"companies", icon:"🏢",labelKey:"tabCompanies", roles:["ADMIN"],right:RIGHTS.COMPANIES_VIEW},
+  {id:"aircraft",  icon:"✈️",labelKey:"tabAircraft",  roles:["ADMIN","OPERATOR"],right:RIGHTS.AIRCRAFT_VIEW},
+  {id:"flightlog", icon:"📋",labelKey:"tabFlightLog", roles:["ADMIN","OPERATOR","REVIEWER","READONLY"],right:RIGHTS.LOGS_VIEW},
+  {id:"preinvoice",icon:"💳",labelKey:"tabBilling",   roles:["ADMIN","REVIEWER","OPERATOR","READONLY"],right:RIGHTS.BILLING_VIEW},
+  {id:"settings",  icon:"⚙️",labelKey:"tabSettings",  roles:["ADMIN","OPERATOR","REVIEWER","READONLY"],right:RIGHTS.SETTINGS_VIEW},
 ];
 
 function renderTabs(){
   const nav=el("tabNav"); nav.innerHTML="";
-  TAB_CONFIG.filter(tab=>tab.roles.includes(effectiveRole())).forEach(tab=>{
+  TAB_CONFIG.filter(tab=>tab.right?can(tab.right):tab.roles.includes(effectiveRole())).forEach(tab=>{
     const btn=document.createElement("button");
     btn.className="tab-btn"+(activeTab===tab.id?" active":"");
     btn.innerHTML='<span class="tab-icon">'+tab.icon+"</span>"+t(tab.labelKey);
@@ -2300,11 +2377,10 @@ function initViewAsToggle(){
 }
 
 function setupSettingsUI(){
-  const isAdmin=effectiveRole()==="ADMIN";
-  if(el("stSection_api")) el("stSection_api").style.display=isAdmin?"":"none";
-  if(el("stSection_workflow")) el("stSection_workflow").style.display=isAdmin?"":"none";
-  if(el("stSection_dev")) el("stSection_dev").style.display=isAdmin?"":"none";
-  if(el("stSection_db")) el("stSection_db").style.display=isAdmin?"":"none";
+  if(el("stSection_api")) el("stSection_api").style.display=can(RIGHTS.SETTINGS_API)?"":"none";
+  if(el("stSection_workflow")) el("stSection_workflow").style.display=can(RIGHTS.SETTINGS_MANAGE)?"":"none";
+  if(el("stSection_dev")) el("stSection_dev").style.display=can(RIGHTS.SETTINGS_DEV)?"":"none";
+  if(el("stSection_db")) el("stSection_db").style.display=can(RIGHTS.SETTINGS_DB)?"":"none";
 }
 
 // ── STICKY HEADERS TOGGLE ──
@@ -3178,10 +3254,9 @@ function effectiveRole(){ return viewRole || (currentUser ? currentUser.role : "
 function setupFlRoleUI(){
   const role=effectiveRole();
   const isReview=batchStatus==="SUBMITTED"&&role==="REVIEWER";
-  const canEdit=(role==="ADMIN"||role==="OPERATOR")&&batchStatus==="DRAFT";
-  const canSubmit=(role==="ADMIN"||role==="OPERATOR")&&batchStatus==="DRAFT";
-  const canApprove=(role==="ADMIN"||role==="REVIEWER")&&batchStatus==="SUBMITTED";
-  const canFlag=(role==="ADMIN"||role==="REVIEWER")&&batchStatus==="SUBMITTED";
+  const canEdit=can(RIGHTS.LOGS_EDIT)&&batchStatus==="DRAFT";
+  const canSubmit=can(RIGHTS.LOGS_SUBMIT)&&batchStatus==="DRAFT";
+  const canApprove=can(RIGHTS.LOGS_APPROVE)&&batchStatus==="SUBMITTED";
   // Standard buttons
   if(el("btn_newEntry")) el("btn_newEntry").style.display=(canEdit&&!isReview)?"":"none";
   if(el("btn_approveAll")) el("btn_approveAll").style.display=(canEdit&&!isReview)?"":"none";
@@ -3199,7 +3274,7 @@ function setupFlRoleUI(){
   if(el("sp_nonbill_toggle")) el("sp_nonbill_toggle").style.display=isReviewer?"none":"";
   // Return for Review button — only in REVIEW mode
   if(el("btn_returnForReview")) el("btn_returnForReview").style.display=isReview?"flex":"none";
-  const canReopen=role==="ADMIN"&&batchStatus!=="DRAFT"&&batchStatus!=="CLOSED";
+  const canReopen=can(RIGHTS.LOGS_REOPEN)&&batchStatus!=="DRAFT"&&batchStatus!=="CLOSED";
   if(el("btn_reopen")) el("btn_reopen").style.display=canReopen?"":"none";
   if(role==="REVIEWER"||role==="READONLY"){
     const us=el("uploadSection"); if(us) us.style.display="none";
@@ -3246,7 +3321,7 @@ function renderFlTable(){
     th.textContent=base+(flSortCol===col?(flSortDir===1?" ▲":" ▼"):"");
   });
   const role=effectiveRole();
-  const canEdit=(role==="ADMIN"||role==="OPERATOR")&&batchStatus==="DRAFT";
+  const canEdit=can(RIGHTS.LOGS_EDIT)&&batchStatus==="DRAFT";
   tbody.innerHTML="";
   if(!visible.length){
     tbody.innerHTML='<tr><td colspan="18" class="audit-empty" style="text-align:center;padding:18px">'+t("flNoEntries")+"</td></tr>";
@@ -3377,7 +3452,7 @@ function updateActionBar(){
   const pending=flEntries.filter(e=>e.status==="pending").length;
   const approved=flEntries.filter(e=>e.status==="approved").length;
   const rejected=flEntries.filter(e=>e.status==="rejected").length;
-  const canSubmit=(effectiveRole()==="ADMIN"||effectiveRole()==="OPERATOR")&&batchStatus==="DRAFT";
+  const canSubmit=can(RIGHTS.LOGS_SUBMIT)&&batchStatus==="DRAFT";
   if(canSubmit&&el("btn_submit")){
     el("btn_submit").disabled=approved===0;
     el("actionNote").textContent=t("flActionCounts")
@@ -3416,7 +3491,7 @@ function switchFlPanel(id){
 
 // ── FLIGHT LOG — EDIT ENTRY MODAL ──
 function openEditEntry(id){
-  const canEdit=(effectiveRole()==="ADMIN"||effectiveRole()==="OPERATOR")&&batchStatus==="DRAFT";
+  const canEdit=can(RIGHTS.LOGS_EDIT)&&batchStatus==="DRAFT";
   if(!canEdit){showToast(t("cantEdit"),"err");return;}
   editingEntryId=id;
   clearEntryErrors();
