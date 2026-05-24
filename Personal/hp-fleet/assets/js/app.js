@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.5.9n";
+const APP_VERSION = "v8.5.9o";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -259,8 +259,8 @@ const ROLES = {
 // ── I18N ──
 let I18N = {en:{}, es:{}};
 const I18N_FILES = {
-  en: "./assets/i18n/en.json?v=8.5.9n",
-  es: "./assets/i18n/es.json?v=8.5.9n"
+  en: "./assets/i18n/en.json?v=8.5.9o",
+  es: "./assets/i18n/es.json?v=8.5.9o"
 };
 
 async function loadI18nDictionaries(){
@@ -3812,6 +3812,9 @@ function renderPreInvoice(){
         const tr=document.createElement("tr");
         tr.innerHTML="<td>"+(i+1)+"</td><td>"+(e.bnum||"—")+"</td><td>"+(e.fecha||"—")+"</td><td>"+(e.piloto||"—")+"</td><td>"+fmt(tbp)+" hrs</td><td class='pi-amt"+(amt===0?" pi-zero":"")+"'>"+fmtCurrency(amt)+"</td>";
         tbody.appendChild(tr);
+        if(i===sortedApproved.length-1 && lastRowTbl){
+          lastRowTbl.appendChild(tr.cloneNode(true));
+        }
       });
     }
     if(el("pi_sub_hrs")) el("pi_sub_hrs").textContent=fmt(totalTbp)+" hrs";
