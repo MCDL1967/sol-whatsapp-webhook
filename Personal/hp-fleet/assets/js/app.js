@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.1a";
+const APP_VERSION = "v8.6.1b";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -337,6 +337,13 @@ function hasAdditionalRights(user){
   if(!explicit.length) return false;
   const base=new Set(defaultRightsForRole(user?.role||"READONLY"));
   return explicit.some(right=>!base.has(right));
+}
+function syncUserRightsLocal(userId, rights){
+  const idx=USERS.findIndex(u=>u.id===userId);
+  const normalized=rights===null ? null : normalizeRights(rights);
+  if(idx>=0) USERS[idx]={...USERS[idx],rights:normalized};
+  if(currentUser&&currentUser.id===userId) currentUser={...currentUser,rights:normalized};
+  return idx>=0 ? USERS[idx] : null;
 }
 function escAttr(value){
   return String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
@@ -1547,10 +1554,13 @@ function renderRoleBanner(){
     const co=COMPANIES.find(c=>c.code===code); return co?co.name:code;
   }).join(", ");
   const permsHtml=rd.perms.map(p=>'<span class="perm-tag">✓ '+p+"</span>").join("");
+  const extraRights=hasAdditionalRights(currentUser);
+  const extraTip=extraRights?t("roleChipExtraTip"):"";
+  const extraMark=extraRights?'<span class="role-extra-mark rb-extra-mark hpf-hover-tip" data-tip="'+escAttr(extraTip)+'" aria-label="'+escAttr(extraTip)+'" aria-hidden="false">+</span>':"";
   el("roleBanner").innerHTML='<div class="role-banner '+r.bannerClass+'" style="margin:20px 24px 0">'+
     '<div class="rb-icon">'+r.icon+"</div>"+
     "<div>"+
-    '<div class="rb-role">'+rd.label+"</div>"+
+    '<div class="rb-role">'+rd.label+extraMark+"</div>"+
     '<div class="rb-name">'+currentUser.name+"</div>"+
     '<div class="rb-co">'+coNames+"</div>"+
     '<div class="rb-desc">'+rd.desc+"</div>"+
@@ -1892,7 +1902,7 @@ function renderRoleRightsAvailable(selectedRights, editable){
 }
 function refreshAfterRightsChange(user){
   if(currentUser && user && currentUser.id===user.id){
-    currentUser=user;
+    currentUser=USERS.find(u=>u.id===user.id)||user;
     renderRoleBanner();
     renderTabs();
     setupSettingsUI();
@@ -1937,12 +1947,12 @@ async function saveRoleRights(){
   const u=getRoleRightsUser(roleRightsContext.userId);
   if(!u){ closeModal("roleRightsMbd"); return; }
   const selected=normalizeRights(getRoleRightsSelected());
-  u.rights=selected;
   try{
-    await sbPatch("users","id=eq."+u.id,{rights:selected});
+    const saved=await sbPatch("users","id=eq."+u.id,{rights:selected});
+    const synced=syncUserRightsLocal(u.id,(saved&&saved[0]&&"rights" in saved[0])?saved[0].rights:selected)||u;
     addAudit("🔐",currentUser.name,(lang==="es"?"actualizó permisos":"updated rights"),u.name+" — "+selected.length+" "+t("rrRightsCount"));
-    refreshAfterRightsChange(u);
-    openRoleRights(u.role,u.id);
+    refreshAfterRightsChange(synced);
+    openRoleRights(synced.role,synced.id);
     showToast(t("rrSaved"));
   }catch(e){
     dbg("Rights save error: "+e.message,"err");
@@ -1953,12 +1963,12 @@ async function saveRoleRights(){
 async function resetRoleRights(){
   const u=getRoleRightsUser(roleRightsContext.userId);
   if(!u) return;
-  u.rights=null;
   try{
     await sbPatch("users","id=eq."+u.id,{rights:null});
+    const synced=syncUserRightsLocal(u.id,null)||u;
     addAudit("🔐",currentUser.name,(lang==="es"?"restauró permisos":"reset rights"),u.name+" — "+ROLES[u.role][lang].label);
-    refreshAfterRightsChange(u);
-    openRoleRights(u.role,u.id);
+    refreshAfterRightsChange(synced);
+    openRoleRights(synced.role,synced.id);
     showToast(t("rrResetDone"));
   }catch(e){
     dbg("Rights reset error: "+e.message,"err");
