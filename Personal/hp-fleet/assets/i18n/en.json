@@ -468,6 +468,7 @@
   "umSave": "Save User",
   "viewRoleRights": "View Role Rights",
   "roleChipTip": "Click a role chip to view rights.",
+  "roleChipExtraTip": "Custom rights added. Click to view or edit rights.",
   "codeExists": "Code already in use.",
   "multInvalid": "Must be > 0.",
   "companySaved": "Company saved.",

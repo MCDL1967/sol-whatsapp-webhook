@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.1";
+const APP_VERSION = "v8.6.1a";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -331,6 +331,15 @@ function canCompany(companyCode,user=currentUser){
   if(!user) return false;
   if(user.role==="ADMIN" && (!user.companies || !user.companies.length)) return true;
   return (user.companies||[]).includes(companyCode);
+}
+function hasAdditionalRights(user){
+  const explicit=normalizeRights(user?.rights);
+  if(!explicit.length) return false;
+  const base=new Set(defaultRightsForRole(user?.role||"READONLY"));
+  return explicit.some(right=>!base.has(right));
+}
+function escAttr(value){
+  return String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 }
 
 // ── I18N ──
@@ -1728,6 +1737,11 @@ function renderUsers(){
       const color=coColor(code);
       return '<span class="co-tag" style="color:'+color+';border-color:'+color+'40;background:'+color+'12">'+code+"</span>";
     }).join("");
+    const hasExtraRights=hasAdditionalRights(u);
+    const roleTip=hasExtraRights ? t("roleChipExtraTip") : t("roleChipTip");
+    const roleChipHtml='<button type="button" class="role-chip role-chip-btn '+r.chipClass+(hasExtraRights?" has-extra-rights":"")+
+      ' hpf-hover-tip" data-tip="'+escAttr(roleTip)+'" aria-label="'+escAttr(roleTip)+'" data-role-rights="'+u.role+'" data-role-rights-user="'+u.id+'">'+
+      '<span>'+r[lang].label+'</span>'+(hasExtraRights?'<span class="role-extra-mark" aria-hidden="true">+</span>':"")+"</button>";
     tr.innerHTML='<td><div class="u-cell">'+
       '<div class="u-av" style="background:'+r.avatarBg+';color:'+r.color+'">'+initials(u.name)+"</div>"+
       "<div>"+
@@ -1736,7 +1750,7 @@ function renderUsers(){
       '<div class="u-email">'+u.email+"</div>"+
       '<div class="u-companies">'+coTagsHtml+"</div>"+
       "</div></div></td>"+
-      '<td><button type="button" class="role-chip role-chip-btn '+r.chipClass+'" data-role-rights="'+u.role+'" data-role-rights-user="'+u.id+'">'+r[lang].label+"</button></td>"+
+      '<td>'+roleChipHtml+"</td>"+
       '<td><div style="display:flex;gap:4px;flex-wrap:wrap">'+coTagsHtml+"</div></td>"+
       '<td><button class="sp '+(u.status==="active"?"sp-on":"sp-off")+'" data-uid="'+u.id+'" '+(isSelf?"disabled":"")+'>'+
       (u.status==="active"?t("active"):t("inactive"))+"</button></td>"+

@@ -468,6 +468,7 @@
   "umSave": "Guardar Usuario",
   "viewRoleRights": "Ver Permisos del Rol",
   "roleChipTip": "Haz clic en un rol para ver sus permisos.",
+  "roleChipExtraTip": "Permisos custom agregados. Haz clic para ver o editar permisos.",
   "codeExists": "Código ya en uso.",
   "multInvalid": "Debe ser mayor a 0.",
   "companySaved": "Compañía guardada.",
