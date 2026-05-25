@@ -545,7 +545,7 @@ table.fl-tbl td:last-child{border-right:none}
 .mbox.user-box{max-width:540px;border-top:2px solid var(--cyan)}
 .mbox.co-box{max-width:520px;border-top:2px solid var(--yellow)}
 .mbox.fl-box{max-width:620px;border-top:2px solid var(--cyan)}
-.mbox.role-rights-box{max-width:460px;border-top:2px solid var(--violet)}
+.mbox.role-rights-box{max-width:820px;border-top:2px solid var(--violet)}
 .mbox.confirm-box{max-width:460px;border-top:2px solid var(--green)}
 .mbox.exc-box{max-width:440px;border-top:2px solid var(--yellow)}
 .mbox.req-box{max-width:400px;border-top:2px solid var(--violet)}
@@ -558,16 +558,41 @@ table.fl-tbl td:last-child{border-right:none}
 .m-x:hover{color:var(--text)}
 .mbody{padding:20px}
 .role-rights-head{display:flex;align-items:flex-start;gap:14px;padding:12px 14px;border:1px solid var(--border);
-  background:var(--s2);margin-bottom:16px}
+  background:var(--s2);margin-bottom:14px}
 .role-rights-icon{width:34px;height:34px;border:1px solid var(--border2);display:flex;align-items:center;
   justify-content:center;background:var(--s1);font-size:18px;flex-shrink:0}
 .role-rights-role{font-family:var(--display);font-weight:700;font-size:16px;color:var(--text);margin-bottom:4px}
 .role-rights-desc{font-size:13px;color:var(--dim2);line-height:1.5}
+.role-rights-user{font-family:var(--mono);font-size:10px;color:var(--cyan);margin-top:6px;letter-spacing:.6px}
+.role-rights-mode{margin-left:auto;font-family:var(--mono);font-size:9px;letter-spacing:1.2px;text-transform:uppercase;
+  color:var(--green);border:1px solid rgba(61,220,132,.5);padding:6px 10px;background:rgba(61,220,132,.08);white-space:nowrap}
+.role-rights-mode.custom{color:var(--yellow);border-color:rgba(255,192,67,.55);background:rgba(255,192,67,.09)}
+.role-rights-note{font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--dim2);margin-bottom:12px}
+.role-rights-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:12px}
+.role-rights-panel{border:1px solid var(--border);background:rgba(20,24,36,.65);padding:12px}
 .role-rights-sub{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim2);
   margin-bottom:10px}
-.role-rights-list{list-style:none;display:grid;gap:8px}
-.role-rights-list li{border:1px solid var(--border);background:var(--s2);padding:8px 10px;
-  font-family:var(--mono);font-size:10px;color:var(--text)}
+.role-rights-current{display:grid;gap:10px}
+.role-rights-current-group{display:grid;gap:6px}
+.role-rights-current-title,.role-rights-group-title{font-family:var(--mono);font-size:9px;letter-spacing:1.8px;
+  text-transform:uppercase;color:var(--dim);padding-bottom:4px;border-bottom:1px solid var(--border)}
+.role-rights-pills{display:flex;flex-wrap:wrap;gap:6px}
+.role-rights-pill{font-family:var(--mono);font-size:9px;color:var(--text);border:1px solid rgba(65,209,255,.38);
+  background:rgba(65,209,255,.08);padding:5px 7px}
+.role-rights-empty{font-family:var(--mono);font-size:10px;color:var(--dim);padding:10px;border:1px dashed var(--border)}
+.role-rights-select{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.role-rights-group{display:grid;gap:6px;align-content:start}
+.role-rights-check{display:flex;align-items:center;gap:8px;border:1px solid var(--border);background:var(--s2);
+  padding:7px 8px;font-family:var(--mono);font-size:10px;color:var(--text);cursor:pointer;min-height:34px}
+.role-rights-check input{accent-color:var(--cyan);width:15px;height:15px;flex:0 0 auto}
+.role-rights-check:hover{border-color:rgba(65,209,255,.55)}
+.role-rights-check.disabled{cursor:default;opacity:.7}
+.role-rights-check.disabled:hover{border-color:var(--border)}
+@media(max-width:760px){
+  .role-rights-grid,.role-rights-select{grid-template-columns:1fr}
+  .role-rights-head{flex-wrap:wrap}
+  .role-rights-mode{margin-left:48px}
+}
 .mftr{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
 .frow{display:grid;gap:10px;margin-bottom:12px}
 .fc1{grid-template-columns:1fr} .fc2{grid-template-columns:1fr 1fr} .fc3{grid-template-columns:1fr 1fr 1fr}

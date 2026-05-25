@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.0";
+const APP_VERSION = "v8.6.1";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -539,6 +539,7 @@ function saveUserPreference(key, value, immediate=false){
 }
 // ── END PREFERENCE LAYER ────────────────────────────────────────────────────
 let editingUserId=null, editingCoId=null, deletingId=null, deleteType=null;
+let roleRightsContext={role:null,userId:null};
 let nextUserId=200, nextCoId=300, nextRuleId=400, tempRules=[], tempContacts=[];
 
 function contactTypeOptions(selected){
@@ -1735,7 +1736,7 @@ function renderUsers(){
       '<div class="u-email">'+u.email+"</div>"+
       '<div class="u-companies">'+coTagsHtml+"</div>"+
       "</div></div></td>"+
-      '<td><button type="button" class="role-chip role-chip-btn '+r.chipClass+'" data-role-rights="'+u.role+'">'+r[lang].label+"</button></td>"+
+      '<td><button type="button" class="role-chip role-chip-btn '+r.chipClass+'" data-role-rights="'+u.role+'" data-role-rights-user="'+u.id+'">'+r[lang].label+"</button></td>"+
       '<td><div style="display:flex;gap:4px;flex-wrap:wrap">'+coTagsHtml+"</div></td>"+
       '<td><button class="sp '+(u.status==="active"?"sp-on":"sp-off")+'" data-uid="'+u.id+'" '+(isSelf?"disabled":"")+'>'+
       (u.status==="active"?t("active"):t("inactive"))+"</button></td>"+
@@ -1815,26 +1816,140 @@ function updateRoleDesc(){
   const descs={ADMIN:t("roleDescAdmin"),OPERATOR:t("roleDescOperator"),REVIEWER:t("roleDescReviewer"),READONLY:t("roleDescReadonly")};
   el("roleDesc").textContent=descs[role]||"";
 }
-function openRoleRights(role){
-  const r=ROLES[role];
+const RIGHTS_GROUPS=[
+  ["users",[RIGHTS.USERS_VIEW,RIGHTS.USERS_MANAGE]],
+  ["companies",[RIGHTS.COMPANIES_VIEW,RIGHTS.COMPANIES_MANAGE]],
+  ["aircraft",[RIGHTS.AIRCRAFT_VIEW,RIGHTS.AIRCRAFT_MANAGE]],
+  ["logs",[RIGHTS.LOGS_VIEW,RIGHTS.LOGS_LOAD,RIGHTS.LOGS_EDIT,RIGHTS.LOGS_SUBMIT,RIGHTS.LOGS_REVIEW,RIGHTS.LOGS_APPROVE,RIGHTS.LOGS_REOPEN,RIGHTS.LOGS_EXPORT]],
+  ["billing",[RIGHTS.BILLING_VIEW,RIGHTS.BILLING_SIGNOFF,RIGHTS.BILLING_EXPORT]],
+  ["settings",[RIGHTS.SETTINGS_VIEW,RIGHTS.SETTINGS_MANAGE,RIGHTS.SETTINGS_API,RIGHTS.SETTINGS_DEV,RIGHTS.SETTINGS_DB]],
+  ["admin",[RIGHTS.ADMIN_VIEW_AS]]
+];
+
+function rightLabelKey(right){
+  return "right_"+String(right).replace(/\./g,"_");
+}
+function rightGroupKey(group){
+  return "rightGroup_"+group;
+}
+function getRoleRightsUser(userId){
+  return userId ? USERS.find(u=>u.id===userId) : null;
+}
+function getRoleRightsSelected(){
+  return Array.from(document.querySelectorAll("#rrAvailable input[type=checkbox]:checked")).map(cb=>cb.value);
+}
+function renderRoleRightsCurrent(selectedRights){
+  const wrap=el("rrList"); if(!wrap) return;
+  const selected=new Set(selectedRights);
+  wrap.innerHTML="";
+  let hasAny=false;
+  RIGHTS_GROUPS.forEach(([group,rights])=>{
+    const groupRights=rights.filter(right=>selected.has(right));
+    if(!groupRights.length) return;
+    hasAny=true;
+    const block=document.createElement("div");
+    block.className="role-rights-current-group";
+    block.innerHTML='<div class="role-rights-current-title">'+t(rightGroupKey(group))+'</div>'+
+      '<div class="role-rights-pills">'+groupRights.map(right=>'<span class="role-rights-pill">'+t(rightLabelKey(right))+"</span>").join("")+"</div>";
+    wrap.appendChild(block);
+  });
+  if(!hasAny) wrap.innerHTML='<div class="role-rights-empty">'+t("rrNoRights")+"</div>";
+}
+function renderRoleRightsAvailable(selectedRights, editable){
+  const wrap=el("rrAvailable"); if(!wrap) return;
+  const selected=new Set(selectedRights);
+  wrap.innerHTML="";
+  RIGHTS_GROUPS.forEach(([group,rights])=>{
+    const block=document.createElement("div");
+    block.className="role-rights-group";
+    block.innerHTML='<div class="role-rights-group-title">'+t(rightGroupKey(group))+"</div>";
+    rights.forEach(right=>{
+      const label=document.createElement("label");
+      label.className="role-rights-check"+(editable?"":" disabled");
+      label.innerHTML='<input type="checkbox" value="'+right+'"'+(selected.has(right)?" checked":"")+(editable?"":" disabled")+">"+
+        '<span>'+t(rightLabelKey(right))+"</span>";
+      if(editable){
+        label.querySelector("input").addEventListener("change",()=>renderRoleRightsCurrent(getRoleRightsSelected()));
+      }
+      block.appendChild(label);
+    });
+    wrap.appendChild(block);
+  });
+}
+function refreshAfterRightsChange(user){
+  if(currentUser && user && currentUser.id===user.id){
+    currentUser=user;
+    renderRoleBanner();
+    renderTabs();
+    setupSettingsUI();
+    setupFlRoleUI();
+    if(flEntries.length) renderFlTable();
+    updateActionBar();
+  }
+  renderUsers();
+}
+function openRoleRights(role,userId=null){
+  const u=getRoleRightsUser(userId);
+  const effectiveRole=role || u?.role || "READONLY";
+  const r=ROLES[effectiveRole];
   if(!r) return;
+  roleRightsContext={role:effectiveRole,userId:u?u.id:null};
   const rd=r[lang];
+  const rolePreviewOnly=!!(u&&role&&role!==u.role);
+  const explicit=rolePreviewOnly ? [] : normalizeRights(u?.rights);
+  const editable=!!u&&!rolePreviewOnly;
+  const selected=editable ? userRights(u,effectiveRole) : defaultRightsForRole(effectiveRole);
   if(el("rrTitle")) el("rrTitle").textContent=t("roleRightsTitle");
-  if(el("rrSub")) el("rrSub").textContent=t("roleRightsIncluded");
+  if(el("rrSub")) el("rrSub").textContent=t("rrCurrentRights");
+  if(el("rrAvailableTitle")) el("rrAvailableTitle").textContent=t("rrAvailableRights");
   if(el("rr_done")) el("rr_done").textContent=t("close");
+  if(el("rr_save")){ el("rr_save").textContent=t("rrSave"); el("rr_save").style.display=editable?"":"none"; }
+  if(el("rr_reset")){ el("rr_reset").textContent=t("rrResetPreset"); el("rr_reset").style.display=editable?"":"none"; }
   if(el("rrIcon")) el("rrIcon").textContent=r.icon;
   if(el("rrRole")) el("rrRole").textContent=rd.label;
   if(el("rrDesc")) el("rrDesc").textContent=rd.desc;
-  const list=el("rrList");
-  if(list){
-    list.innerHTML="";
-    rd.perms.forEach(perm=>{
-      const li=document.createElement("li");
-      li.textContent=perm;
-      list.appendChild(li);
-    });
+  if(el("rrUser")) el("rrUser").textContent=editable ? (u.name+" · "+u.email) : t("rrPreviewOnly");
+  if(el("rrNote")) el("rrNote").textContent=editable ? t("rrSelectHint") : (rolePreviewOnly?t("rrUnsavedRoleHint"):t("rrPreviewHint"));
+  if(el("rrMode")){
+    el("rrMode").textContent=explicit.length ? t("rrModeCustom") : t("rrModePreset");
+    el("rrMode").className="role-rights-mode"+(explicit.length?" custom":"");
   }
+  renderRoleRightsCurrent(selected);
+  renderRoleRightsAvailable(selected,editable);
   openModal("roleRightsMbd");
+}
+
+async function saveRoleRights(){
+  const u=getRoleRightsUser(roleRightsContext.userId);
+  if(!u){ closeModal("roleRightsMbd"); return; }
+  const selected=normalizeRights(getRoleRightsSelected());
+  u.rights=selected;
+  try{
+    await sbPatch("users","id=eq."+u.id,{rights:selected});
+    addAudit("🔐",currentUser.name,(lang==="es"?"actualizó permisos":"updated rights"),u.name+" — "+selected.length+" "+t("rrRightsCount"));
+    refreshAfterRightsChange(u);
+    openRoleRights(u.role,u.id);
+    showToast(t("rrSaved"));
+  }catch(e){
+    dbg("Rights save error: "+e.message,"err");
+    showToast(t("rrSaveError"),"err");
+  }
+}
+
+async function resetRoleRights(){
+  const u=getRoleRightsUser(roleRightsContext.userId);
+  if(!u) return;
+  u.rights=null;
+  try{
+    await sbPatch("users","id=eq."+u.id,{rights:null});
+    addAudit("🔐",currentUser.name,(lang==="es"?"restauró permisos":"reset rights"),u.name+" — "+ROLES[u.role][lang].label);
+    refreshAfterRightsChange(u);
+    openRoleRights(u.role,u.id);
+    showToast(t("rrResetDone"));
+  }catch(e){
+    dbg("Rights reset error: "+e.message,"err");
+    showToast(t("rrSaveError"),"err");
+  }
 }
 
 function saveUser(){
@@ -1859,27 +1974,38 @@ function saveUser(){
     if(u.status!==status) changes.push("status→"+t(status));
     if(JSON.stringify(u.companies)!==JSON.stringify(companies)) changes.push("companies→["+companies.join(",")+"]");
     if(pwd) changes.push("password updated");
+    const roleChanged=u.role!==role;
     u.name=name; u.email=email; u.role=role; u.status=status; u.phone=phone; u.companies=companies;
+    if(roleChanged) u.rights=null;
     if(pwd) u.pwd=pwd;
     sbPatch("users","id=eq."+u.id,{
       name:u.name, email:u.email, role:u.role, status:u.status,
       phone:u.phone||"", companies:u.companies,
+      ...(roleChanged?{rights:null}:{}),
       ...(pwd?{pwd}:{})
     }).then(()=>dbg("User updated in DB: "+u.name,"ok"))
       .catch(e=>dbg("User update error: "+e.message,"err"));
     addAudit("✏️",currentUser.name,(lang==="es"?"editó usuario":"edited user"),u.name+(changes.length?" ("+changes.join(", ")+")":""));
     showToast(t("userUpdated"));
   } else {
-    const nu={id:"u"+nextUserId++,name,email,pwd,role,status,phone,companies,created:new Date().toISOString().slice(0,10),lastLogin:null};
+    const nu={id:"u"+nextUserId++,name,email,pwd,role,status,phone,companies,rights:null,created:new Date().toISOString().slice(0,10),lastLogin:null};
     USERS.push(nu);
     sbPost("users",{id:nu.id,name,email,pwd,role,status,phone:phone||"",companies,
-      created:nu.created,last_login:null})
+      rights:null,created:nu.created,last_login:null})
       .then(()=>dbg("User created in DB: "+name,"ok"))
       .catch(e=>dbg("User create error: "+e.message,"err"));
     addAudit("➕",currentUser.name,(lang==="es"?"creó usuario":"created user"),name+" ("+email+") — "+ROLES[role][lang].label+" ["+companies.join(",")+"]");
     showToast(t("userCreated"));
   }
   closeModal("userMbd"); renderUsers();
+  if(currentUser&&editingUserId===currentUser.id){
+    renderRoleBanner();
+    renderTabs();
+    setupSettingsUI();
+    setupFlRoleUI();
+    if(flEntries.length) renderFlTable();
+    updateActionBar();
+  }
 }
 
 function openDeleteUser(id){
@@ -6075,9 +6201,11 @@ function wireEvents(){
   el("um_cancel").addEventListener("click",()=>closeModal("userMbd"));
   el("um_save").addEventListener("click",saveUser);
   el("um_role").addEventListener("change",updateRoleDesc);
-  if(el("um_roleRightsBtn")) el("um_roleRightsBtn").addEventListener("click",()=>openRoleRights(el("um_role").value));
+  if(el("um_roleRightsBtn")) el("um_roleRightsBtn").addEventListener("click",()=>openRoleRights(el("um_role").value,editingUserId));
   if(el("rr_close")) el("rr_close").addEventListener("click",()=>closeModal("roleRightsMbd"));
   if(el("rr_done")) el("rr_done").addEventListener("click",()=>closeModal("roleRightsMbd"));
+  if(el("rr_save")) el("rr_save").addEventListener("click",saveRoleRights);
+  if(el("rr_reset")) el("rr_reset").addEventListener("click",resetRoleRights);
   if(el("roleRightsMbd")) el("roleRightsMbd").addEventListener("click",e=>{ if(e.target===el("roleRightsMbd")) closeModal("roleRightsMbd"); });
   // userMbd: backdrop click disabled — prevents accidental loss of unsaved user data
 
@@ -6087,7 +6215,7 @@ function wireEvents(){
     const editBtn=e.target.closest("[data-edit-user]");
     const delBtn=e.target.closest("[data-del-user]");
     const stBtn=e.target.closest("[data-uid]");
-    if(roleBtn) openRoleRights(roleBtn.dataset.roleRights);
+    if(roleBtn) openRoleRights(roleBtn.dataset.roleRights,roleBtn.dataset.roleRightsUser);
     else if(editBtn) openEditUser(editBtn.dataset.editUser);
     else if(delBtn) openDeleteUser(delBtn.dataset.delUser);
     else if(stBtn) toggleUserStatus(stBtn.dataset.uid);
