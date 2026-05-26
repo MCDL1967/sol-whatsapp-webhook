@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.2";
+const APP_VERSION = "v8.6.3";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -334,6 +334,19 @@ function canCompany(companyCode,user=currentUser){
   if(!user) return false;
   if(user.role==="ADMIN" && (!user.companies || !user.companies.length)) return true;
   return (user.companies||[]).includes(companyCode);
+}
+function visibleAircraftRates(ac,user=currentUser){
+  return (ac?.rates||[]).filter(rate=>canCompany(rate.operador,user));
+}
+function canAircraft(ac,user=currentUser){
+  if(!ac) return false;
+  if(user?.role==="ADMIN" && (!user.companies || !user.companies.length)) return true;
+  return visibleAircraftRates(ac,user).length>0;
+}
+function canManageAircraftRecord(ac,user=currentUser){
+  if(!can(RIGHTS.AIRCRAFT_MANAGE) || !canAircraft(ac,user)) return false;
+  if(user?.role==="ADMIN" && (!user.companies || !user.companies.length)) return true;
+  return (ac?.rates||[]).every(rate=>canCompany(rate.operador,user));
 }
 function hasAdditionalRights(user){
   const explicit=normalizeRights(user?.rights);
@@ -1651,7 +1664,7 @@ function updateApiStatus(){
 }
 
 async function saveApiKey(){
-  if(!currentUser||currentUser.role!=="ADMIN") return;
+  if(!can(RIGHTS.SETTINGS_API)){showToast(t("permissionDenied"),"err");return;}
   const val=el("apiKeyInput").value.trim();
   if(!val||val.startsWith("•")){ showToast(t("enterValidApiKey"),"err"); return; }
   _cachedApiKey=val;
@@ -1668,7 +1681,7 @@ async function saveApiKey(){
 }
 
 async function clearApiKey(){
-  if(!currentUser||currentUser.role!=="ADMIN") return;
+  if(!can(RIGHTS.SETTINGS_API)){showToast(t("permissionDenied"),"err");return;}
   _cachedApiKey="";
   localStorage.removeItem("hpfleet_apikey");
   try {
@@ -1721,6 +1734,10 @@ function getFilteredUsers(){
 
 function renderUsers(){
   renderUserStats(); populateCompanyFilter();
+  const canManageUsers=can(RIGHTS.USERS_MANAGE);
+  if(el("ut_add")) el("ut_add").style.display=canManageUsers?"":"none";
+  if(el("ut_export")) el("ut_export").style.display=canManageUsers?"":"none";
+  if(el("ut_clearLog")) el("ut_clearLog").style.display=canManageUsers?"":"none";
   let list=getFilteredUsers();
   // Apply sort
   if(userSortCol){
@@ -1755,6 +1772,9 @@ function renderUsers(){
     const roleChipHtml='<button type="button" class="role-chip role-chip-btn '+r.chipClass+(hasExtraRights?" has-extra-rights":"")+
       ' hpf-hover-tip" data-tip="'+escAttr(roleTip)+'" aria-label="'+escAttr(roleTip)+'" data-role-rights="'+u.role+'" data-role-rights-user="'+u.id+'">'+
       '<span>'+r[lang].label+'</span>'+(hasExtraRights?'<span class="role-extra-mark" aria-hidden="true">+</span>':"")+"</button>";
+    const statusHtml=canManageUsers
+      ? '<button class="sp '+(u.status==="active"?"sp-on":"sp-off")+'" data-uid="'+u.id+'" '+(isSelf?"disabled":"")+'>'+(u.status==="active"?t("active"):t("inactive"))+"</button>"
+      : '<span class="sp '+(u.status==="active"?"sp-on":"sp-off")+'">'+(u.status==="active"?t("active"):t("inactive"))+"</span>";
     tr.innerHTML='<td><div class="u-cell">'+
       '<div class="u-av" style="background:'+r.avatarBg+';color:'+r.color+'">'+initials(u.name)+"</div>"+
       "<div>"+
@@ -1765,21 +1785,21 @@ function renderUsers(){
       "</div></div></td>"+
       '<td>'+roleChipHtml+"</td>"+
       '<td><div style="display:flex;gap:4px;flex-wrap:wrap">'+coTagsHtml+"</div></td>"+
-      '<td><button class="sp '+(u.status==="active"?"sp-on":"sp-off")+'" data-uid="'+u.id+'" '+(isSelf?"disabled":"")+'>'+
-      (u.status==="active"?t("active"):t("inactive"))+"</button></td>"+
+      '<td>'+statusHtml+"</td>"+
       '<td style="font-family:var(--mono);font-size:11px;color:var(--dim2)">'+
       (u.created||"—")+"</td>"+
       '<td style="font-family:var(--mono);font-size:11px;color:var(--dim2)">'+
       (u.lastLogin?new Date(u.lastLogin).toLocaleString(lang==="es"?"es-PA":"en-US"):t("never"))+"</td>"+
       '<td><div class="act-cell">'+
-      '<button class="btn-sm" data-edit-user="'+u.id+'">'+t("edit")+"</button>"+
-      '<button class="btn-sm del" data-del-user="'+u.id+'" '+(isSelf?"disabled":"")+'>'+t("del")+"</button>"+
+      (canManageUsers?'<button class="btn-sm" data-edit-user="'+u.id+'">'+t("edit")+"</button>"+
+      '<button class="btn-sm del" data-del-user="'+u.id+'" '+(isSelf?"disabled":"")+'>'+t("del")+"</button>":"")+
       "</div></td>";
     tbody.appendChild(tr);
   });
 }
 
 function toggleUserStatus(id){
+  if(!can(RIGHTS.USERS_MANAGE)){showToast(t("permissionDenied"),"err");return;}
   const u=USERS.find(x=>x.id===id); if(!u) return;
   if(currentUser.id===id){showToast(t("cantDeactivateSelf"),"err");return;}
   u.status=u.status==="active"?"inactive":"active";
@@ -1792,6 +1812,7 @@ function toggleUserStatus(id){
 
 // ── CREATE/EDIT USER ──
 function openCreateUser(){
+  if(!can(RIGHTS.USERS_MANAGE)){showToast(t("permissionDenied"),"err");return;}
   editingUserId=null; clearUserErrors();
   el("umTitle").textContent=t("umNewTitle");
   el("um_name").value=""; el("um_email").value="";
@@ -1806,6 +1827,7 @@ function openCreateUser(){
 }
 
 function openEditUser(id){
+  if(!can(RIGHTS.USERS_MANAGE)){showToast(t("permissionDenied"),"err");return;}
   const u=USERS.find(x=>x.id===id); if(!u) return;
   editingUserId=id; clearUserErrors();
   el("umTitle").textContent=t("umEditTitlePrefix")+u.name;
@@ -1924,7 +1946,7 @@ function openRoleRights(role,userId=null){
   const rd=r[lang];
   const rolePreviewOnly=!!(u&&role&&role!==u.role);
   const explicit=rolePreviewOnly ? [] : normalizeRights(u?.rights);
-  const editable=!!u&&!rolePreviewOnly;
+  const editable=!!u&&!rolePreviewOnly&&can(RIGHTS.USERS_MANAGE);
   const selected=editable ? userRights(u,effectiveRole) : defaultRightsForRole(effectiveRole);
   if(el("rrTitle")) el("rrTitle").textContent=t("roleRightsTitle");
   if(el("rrSub")) el("rrSub").textContent=t("rrCurrentRights");
@@ -1947,6 +1969,7 @@ function openRoleRights(role,userId=null){
 }
 
 async function saveRoleRights(){
+  if(!can(RIGHTS.USERS_MANAGE)){showToast(t("permissionDenied"),"err");return;}
   const u=getRoleRightsUser(roleRightsContext.userId);
   if(!u){ closeModal("roleRightsMbd"); return; }
   const selected=normalizeRights(getRoleRightsSelected());
@@ -1964,6 +1987,7 @@ async function saveRoleRights(){
 }
 
 async function resetRoleRights(){
+  if(!can(RIGHTS.USERS_MANAGE)){showToast(t("permissionDenied"),"err");return;}
   const u=getRoleRightsUser(roleRightsContext.userId);
   if(!u) return;
   try{
@@ -1980,6 +2004,7 @@ async function resetRoleRights(){
 }
 
 async function saveUser(){
+  if(!can(RIGHTS.USERS_MANAGE)){showToast(t("permissionDenied"),"err");return;}
   clearUserErrors();
   const name=el("um_name").value.trim(), email=el("um_email").value.trim();
   const role=el("um_role").value, status=el("um_status").value, pwd=el("um_pwd").value;
@@ -2049,6 +2074,7 @@ async function saveUser(){
 }
 
 function openDeleteUser(id){
+  if(!can(RIGHTS.USERS_MANAGE)){showToast(t("permissionDenied"),"err");return;}
   const u=USERS.find(x=>x.id===id); if(!u) return;
   if(currentUser.id===id){showToast(t("cantDelSelf"),"err");return;}
   deletingId=id; deleteType="user";
@@ -2075,6 +2101,7 @@ function confirmDelete(){
   } else if(deleteType==="aircraft"){
     if(!can(RIGHTS.AIRCRAFT_MANAGE)){showToast(t("permissionDenied"),"err");return;}
     const ac=AIRCRAFT.find(x=>x.id===deletingId); if(!ac) return;
+    if(!canManageAircraftRecord(ac)){showToast(t("permissionDenied"),"err");return;}
     AIRCRAFT.splice(AIRCRAFT.indexOf(ac),1);
     sbDelete("aircraft","id=eq."+ac.id).catch(e=>dbg("Aircraft delete error: "+e.message,"err"));
     closeModal("delMbd"); renderFleetSettings(); renderAircraftTab(); showToast(t("aircraftDeletedToast"),"warn");
@@ -2476,6 +2503,7 @@ function initTooltipPreferences(){
 }
 
 function exportUsersJSON(){
+  if(!can(RIGHTS.USERS_MANAGE)){showToast(t("permissionDenied"),"err");return;}
   const safe=USERS.map(u=>({...u,pwd:"[REDACTED]"}));
   const blob=new Blob([JSON.stringify({users:safe,companies:COMPANIES},null,2)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
@@ -2641,7 +2669,10 @@ function renderAudit(){
     "</div></div>").join("");
 }
 
-function clearAudit(){auditLog=[];renderAudit();showToast(lang==="es"?"Log limpiado.":"Log cleared.");}
+function clearAudit(){
+  if(!can(RIGHTS.USERS_MANAGE)){showToast(t("permissionDenied"),"err");return;}
+  auditLog=[];renderAudit();showToast(lang==="es"?"Log limpiado.":"Log cleared.");
+}
 
 // ── FLIGHT LOG — UPLOAD ──
 function initUploadZone(){ /* inline upload zone removed — handled by New Batch modal */ }
@@ -5735,6 +5766,7 @@ async function loadAllBatches(){
 
 // ── DB MAINTENANCE ──
 async function deleteTestBatches(){
+  if(!can(RIGHTS.SETTINGS_DB)){showToast(t("permissionDenied"),"err");return;}
   if(!confirm("Delete all batches with no aircraft/operator metadata? This cannot be undone.")) return;
   try {
     const batches=await sbGet("batches","aircraft=is.null&operador=is.null");
@@ -5752,6 +5784,7 @@ async function deleteTestBatches(){
 }
 
 async function deleteBatchesByStatus(status){
+  if(!can(RIGHTS.SETTINGS_DB)){showToast(t("permissionDenied"),"err");return;}
   if(!confirm("Delete ALL "+status+" batches? This cannot be undone.")) return;
   try {
     const batches=await sbGet("batches","status=eq."+status);
@@ -5769,6 +5802,7 @@ async function deleteBatchesByStatus(status){
 }
 
 async function clearAuditLogDB(){
+  if(!can(RIGHTS.SETTINGS_DB)){showToast(t("permissionDenied"),"err");return;}
   if(!confirm("Clear all app audit log entries? This cannot be undone.")) return;
   try {
     await sbDelete("audit_log_app","id=gt.0");
@@ -5972,11 +6006,14 @@ async function importFromXLSX(file){
 // ── AIRCRAFT TAB RENDER ──
 function renderAircraftTab(){
   const grid=el("aircraftTabGrid"); if(!grid) return;
+  const canManageAircraft=can(RIGHTS.AIRCRAFT_MANAGE);
+  if(el("btn_addAircraft2")) el("btn_addAircraft2").style.display=canManageAircraft?"":"none";
   grid.innerHTML="";
-  AIRCRAFT.forEach(ac=>{
+  AIRCRAFT.filter(ac=>canAircraft(ac)).forEach(ac=>{
+    const canManageThisAircraft=canManageAircraftRecord(ac);
     const card=document.createElement("div");
     card.style.cssText="background:var(--s2);border:1px solid var(--border2);border-top:3px solid var(--cyan);padding:18px;";
-    const ratesHtml=(ac.rates||[]).map(r=>
+    const ratesHtml=visibleAircraftRates(ac).map(r=>
       '<div style="display:grid;grid-template-columns:60px 80px 80px 1fr;align-items:center;gap:6px;padding:6px 10px;background:var(--s3);border-radius:2px;margin-bottom:4px">'+
       '<span style="color:var(--green);font-weight:600;font-family:var(--mono);font-size:11px">'+r.operador+'</span>'+
       '<span style="color:var(--dim2);font-family:var(--mono);font-size:11px;text-align:center">×'+r.multiplicador.toFixed(3)+'</span>'+
@@ -5988,8 +6025,8 @@ function renderAircraftTab(){
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'+
       '<div style="font-family:var(--display);font-weight:700;font-size:20px;color:var(--cyan)">'+ac.matricula+'</div>'+
       '<div style="display:flex;gap:6px">'+
-      '<button class="btn-sm" data-edit-ac="'+ac.id+'">'+t("edit")+'</button>'+
-      '<button class="btn-sm del" data-del-ac="'+ac.id+'">'+t("del")+'</button>'+
+      (canManageThisAircraft?'<button class="btn-sm" data-edit-ac="'+ac.id+'">'+t("edit")+'</button>'+
+      '<button class="btn-sm del" data-del-ac="'+ac.id+'">'+t("del")+'</button>':"")+
       '</div></div>'+
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-family:var(--mono);font-size:10px;margin-bottom:14px">'+
       '<div><span style="color:var(--dim)">'+t("aircraftCardMakeModel")+'</span><br><span>'+( ac.makeModel||"—")+'</span></div>'+
@@ -6015,12 +6052,13 @@ let _stagedAcPhoto=null; // blob staged before aircraft save — cleared on moda
 function renderAcRates(){
   const wrap=el("acRatesList"); if(!wrap) return;
   wrap.innerHTML="";
+  const scopedCompanies=COMPANIES.filter(co=>canCompany(co.code));
   tempRates.forEach((r,i)=>{
     const row=document.createElement("div");
     row.style.cssText="display:grid;grid-template-columns:80px 110px 110px 32px;gap:6px;align-items:center";
     row.innerHTML=
       '<select style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:6px;font-family:var(--mono);font-size:11px;border-radius:2px">'+
-        COMPANIES.map(c=>'<option value="'+c.code+'"'+(c.code===r.operador?" selected":"")+'>'+c.code+'</option>').join("")+
+        scopedCompanies.map(c=>'<option value="'+c.code+'"'+(c.code===r.operador?" selected":"")+'>'+c.code+'</option>').join("")+
       '</select>'+
       '<input type="number" step="0.001" placeholder="'+t("aircraftRateMultiplierPh")+'" value="'+(r.multiplicador||"")+'" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:6px;font-size:11px;border-radius:2px;width:100%">'+
       '<input type="number" step="0.01" placeholder="'+t("aircraftRateHourlyPh")+'" value="'+(r.tarifaHr||"")+'" style="background:var(--s3);border:1px solid var(--border2);color:var(--text);padding:6px;font-size:11px;border-radius:2px;width:100%">'+
@@ -6035,27 +6073,31 @@ function renderAcRates(){
 }
 
 function addAcRate(){
-  tempRates.push({operador:COMPANIES[0]?.code||"FM",multiplicador:1.275,tarifaHr:0});
+  const scopedCompanies=COMPANIES.filter(co=>canCompany(co.code));
+  tempRates.push({operador:scopedCompanies[0]?.code||"FM",multiplicador:1.275,tarifaHr:0});
   renderAcRates();
 }
 
 function renderFleetSettings(){
   const grid=el("fleetGrid"); if(!grid) return;
   grid.innerHTML="";
-  AIRCRAFT.forEach(ac=>{
+  AIRCRAFT.filter(ac=>canAircraft(ac)).forEach(ac=>{
+    const rates=visibleAircraftRates(ac);
+    const primaryRate=rates[0] || {};
+    const canManageThisAircraft=canManageAircraftRecord(ac);
     const card=document.createElement("div");
     card.style.cssText="background:var(--s2);border:1px solid var(--border2);border-top:3px solid var(--cyan);padding:14px;";
     card.innerHTML=
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'+
       '<div style="font-family:var(--display);font-weight:700;font-size:16px;color:var(--cyan)">'+ac.matricula+"</div>"+
       '<div style="display:flex;gap:6px">'+
-      '<button class="btn-sm" data-edit-ac="'+ac.id+'">'+t("edit")+'</button>'+
-      '<button class="btn-sm del" data-del-ac="'+ac.id+'">'+t("del")+'</button>'+
+      (canManageThisAircraft?'<button class="btn-sm" data-edit-ac="'+ac.id+'">'+t("edit")+'</button>'+
+      '<button class="btn-sm del" data-del-ac="'+ac.id+'">'+t("del")+'</button>':"")+
       "</div></div>"+
       '<div style="display:grid;gap:5px;font-family:var(--mono);font-size:10px">'+
       '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">'+t("aircraftCardMakeModel")+'</span><span>'+ac.makeModel+"</span></div>"+
-      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">'+t("thOp")+'</span><span style="color:var(--green)">'+ac.operador+"</span></div>"+
-      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">'+t("thMult")+'</span><span style="color:var(--yellow)">'+ac.multiplicador.toFixed(3)+"×</span></div>"+
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">'+t("thOp")+'</span><span style="color:var(--green)">'+(primaryRate.operador||"—")+"</span></div>"+
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">'+t("thMult")+'</span><span style="color:var(--yellow)">'+(primaryRate.multiplicador?primaryRate.multiplicador.toFixed(3)+"×":"—")+"</span></div>"+
       '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">'+t("aircraftCardEngine")+'</span><span>'+ac.motorId+"</span></div>"+
       '<div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">'+t("aircraftCardFuel")+'</span><span>'+ac.consumoGalHr+"</span></div>"+
       '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">'+
@@ -6097,6 +6139,7 @@ function openAcPhotoModal(){
 }
 
 function openCreateAircraft(){
+  if(!can(RIGHTS.AIRCRAFT_MANAGE)){showToast(t("permissionDenied"),"err");return;}
   editingAcId=null;
   el("acModalTitle").textContent=t("aircraftNewTitle");
   el("ac_matricula").value=""; el("ac_makeModel").value="";
@@ -6117,6 +6160,7 @@ function openCreateAircraft(){
 
 function openEditAircraft(id){
   const ac=AIRCRAFT.find(a=>a.id===id); if(!ac) return;
+  if(!canManageAircraftRecord(ac)){showToast(t("permissionDenied"),"err");return;}
   editingAcId=id;
   el("acModalTitle").textContent=t("aircraftEditTitle")+ac.matricula;
   el("ac_matricula").value=ac.matricula;
@@ -6142,6 +6186,7 @@ function openEditAircraft(id){
 
 function openDeleteAircraft(id){
   const ac=AIRCRAFT.find(a=>a.id===id); if(!ac) return;
+  if(!canManageAircraftRecord(ac)){showToast(t("permissionDenied"),"err");return;}
   deletingId=id; deleteType="aircraft";
   el("delWarn").innerHTML=t("aircraftDeleteConfirm")+' <strong>'+ac.matricula+"</strong>"+t("aircraftDeleteConfirmSuffix");
   el("del_confirm").textContent=t("aircraftDelete");
@@ -6149,6 +6194,11 @@ function openDeleteAircraft(id){
 }
 
 async function saveAircraft(){
+  if(!can(RIGHTS.AIRCRAFT_MANAGE)){showToast(t("permissionDenied"),"err");return;}
+  if(editingAcId){
+    const existing=AIRCRAFT.find(a=>a.id===editingAcId);
+    if(!canManageAircraftRecord(existing)){showToast(t("permissionDenied"),"err");return;}
+  }
   const matricula=el("ac_matricula").value.trim().toUpperCase();
   if(!matricula){showToast(t("aircraftRegistrationRequiredToast"),"err");return;}
   if(!tempRates.length){showToast(t("aircraftRatesRequiredToast"),"err");return;}
