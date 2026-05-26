@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.3";
+const APP_VERSION = "v8.6.4a";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -334,6 +334,37 @@ function canCompany(companyCode,user=currentUser){
   if(!user) return false;
   if(user.role==="ADMIN" && (!user.companies || !user.companies.length)) return true;
   return (user.companies||[]).includes(companyCode);
+}
+function canSeeLogEntry(entry,user=currentUser){
+  if(!entry||!user||!can(RIGHTS.LOGS_VIEW)) return false;
+  if(entry.operador) return canCompany(entry.operador,user);
+  const ac=entry.aeronave?AIRCRAFT.find(a=>a.matricula===entry.aeronave):null;
+  if(ac) return canAircraft(ac,user);
+  return true;
+}
+function getVisibleLogEntries(){
+  return flEntries.filter(e=>canSeeLogEntry(e));
+}
+function canTouchLogEntry(entry,right=RIGHTS.LOGS_EDIT,requiredStatus="DRAFT"){
+  if(!canSeeLogEntry(entry)) return false;
+  if(!can(right)) return false;
+  if(requiredStatus&&batchStatus!==requiredStatus) return false;
+  return true;
+}
+function requireLogRight(right,requiredStatus=null){
+  if(!can(right)){showToast(t("permissionDenied"),"err");return false;}
+  if(requiredStatus&&batchStatus!==requiredStatus){showToast(t("permissionDenied"),"err");return false;}
+  return true;
+}
+function canLoadCurrentBatch(batch){
+  if(!can(RIGHTS.LOGS_VIEW)) return false;
+  if(!batch) return true;
+  if(batch.operador) return canCompany(batch.operador);
+  if(batch.aircraft){
+    const ac=AIRCRAFT.find(a=>a.matricula===batch.aircraft);
+    if(ac) return canAircraft(ac);
+  }
+  return true;
 }
 function visibleAircraftRates(ac,user=currentUser){
   return (ac?.rates||[]).filter(rate=>canCompany(rate.operador,user));
@@ -672,10 +703,6 @@ function renderSpThread(entry){
   const thread=getThreadForEntry(entry);
   const body=el("spThreadBody"); if(!body) return;
   body.innerHTML="";
-  const role=effectiveRole();
-  const isReviewer=role==="REVIEWER"||role==="ADMIN";
-  const isOperator=role==="OPERATOR"||role==="ADMIN";
-
   // Group by cycle
   const cycles=[...new Set(thread.map(c=>c.cycle))].sort((a,b)=>a-b);
   const circled=["①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩"];
@@ -714,8 +741,8 @@ function renderSpThread(entry){
   if(el("spThreadMeta")) el("spThreadMeta").textContent=t("spThreadMeta").replace("{count}",thread.length);
 
   // Show/hide action buttons based on role and batch state
-  const canReviewerComment=(isReviewer)&&batchStatus==="SUBMITTED";
-  const canOperatorRespond=(isOperator)&&batchStatus==="DRAFT";
+  const canReviewerComment=can(RIGHTS.LOGS_REVIEW)&&batchStatus==="SUBMITTED"&&canSeeLogEntry(entry);
+  const canOperatorRespond=can(RIGHTS.LOGS_EDIT)&&batchStatus==="DRAFT"&&canSeeLogEntry(entry);
   if(el("spAddCommentBtn")) el("spAddCommentBtn").style.display=canReviewerComment?"":"none";
   if(el("spSaveResponseBtn")) el("spSaveResponseBtn").style.display=canOperatorRespond?"":"none";
 }
@@ -750,6 +777,8 @@ function saveSpThreadComment(){
   const text=ta.value.trim(); if(!text) return;
   const role=el("spThreadInput").dataset.role||effectiveRole();
   const entry=flEntries.find(e=>e.id===spEditingEntryId); if(!entry) return;
+  if(role==="REVIEWER"&&!canTouchLogEntry(entry,RIGHTS.LOGS_REVIEW,"SUBMITTED")){showToast(t("permissionDenied"),"err");return;}
+  if(role==="OPERATOR"&&!canTouchLogEntry(entry,RIGHTS.LOGS_EDIT,"DRAFT")){showToast(t("permissionDenied"),"err");return;}
   addThreadComment(entry,role,text);
   // Sync flagNote for backwards compat — drives Notes column marker, RFR dialog, filter, WA message
   if(role==="REVIEWER"){
@@ -854,19 +883,19 @@ function entryAwaitingReviewerReview(entry){
 }
 
 function getObservedRegisteredEntries(){
-  return flEntries.filter(entryEverObserved);
+  return getVisibleLogEntries().filter(entryEverObserved);
 }
 
 function getObservedActiveEntries(){
-  return flEntries.filter(entryActiveObserved);
+  return getVisibleLogEntries().filter(entryActiveObserved);
 }
 
 function getReviewerCommentFilterEntries(){
-  return flEntries.filter(entryEverObserved);
+  return getVisibleLogEntries().filter(entryEverObserved);
 }
 
 function getReturnForReviewCandidates(){
-  return flEntries.filter(entryEverObserved);
+  return getVisibleLogEntries().filter(entryEverObserved);
 }
 let isExtracting=false;
 let extractionAbort=null;
@@ -2733,6 +2762,7 @@ function checkDiff(entry){
 }
 
 async function extractAll(){
+  if(!requireLogRight(RIGHTS.LOGS_LOAD)) return;
   if(isExtracting){ showToast(t("extractionAlreadyRunning"),"warn"); return; }
   const apiKey=getApiKey();
   if(!apiKey){showToast(t("noApiKey"),"err");switchTab("settings");return;}
@@ -2848,6 +2878,12 @@ async function extractAll(){
   }
 
   isExtracting=false; extractionAbort=null;
+  const scopedExtracted=allExtracted.filter(canSeeLogEntry);
+  if(scopedExtracted.length!==allExtracted.length){
+    hasErrors=true;
+    uploadLog(t("permissionDenied"));
+  }
+  allExtracted=scopedExtracted;
   if(!allExtracted.length&&hasErrors){
     uploadLog(t("extractFailedNoEntries"));
     showResultBanner("err","✗ "+t("extractError"));return;
@@ -2875,7 +2911,7 @@ async function extractAll(){
 function logCheck(){
   const breaks=[];
   // Global sequence — Log # is shared across all aircraft in the batch
-  const entries=flEntries
+  const entries=getVisibleLogEntries()
     .filter(e=>e.bnum&&e.status!=="skipped"&&e.status!=="void")
     .sort((a,b)=>parseInt(a.bnum)-parseInt(b.bnum));
   for(let i=1;i<entries.length;i++){
@@ -2923,7 +2959,8 @@ function horoCheck(entry,idx){
 function duplicateCheck(){
   const seen={};
   const dups=[];
-  flEntries.forEach((e,idx)=>{
+  getVisibleLogEntries().forEach((e)=>{
+    const idx=flEntries.indexOf(e);
     if(!e.bnum||e.status==="skipped"||e.status==="void") return;
     if(seen[e.bnum]===undefined){ seen[e.bnum]=idx; }
     else {
@@ -2947,13 +2984,14 @@ function workflowDisplayState(){
 }
 
 function updateSrcBar(){
-  const total=flEntries.length;
-  const read=flEntries.filter(e=>e.status!=="skipped"&&e.status!=="void"&&e.aeronave&&e.fecha).length;
+  const visible=getVisibleLogEntries();
+  const total=visible.length;
+  const read=visible.filter(e=>e.status!=="skipped"&&e.status!=="void"&&e.aeronave&&e.fecha).length;
   const notRead=total-read;
-  const nonBill=flEntries.filter(e=>e.status==="nonbillable").length;
+  const nonBill=visible.filter(e=>e.status==="nonbillable").length;
   const logBreaks=logCheck();
   const dups=duplicateCheck();
-  const seqAlerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; });
+  const seqAlerts=visible.filter((e)=>{ const h=horoCheck(e,flEntries.indexOf(e)); return h&&!h.ok; });
   const sentBack=getReviewerCommentFilterEntries();
 
   if(el("srcFile")){
@@ -3477,17 +3515,18 @@ function setupFlRoleUI(){
   if(el("btn_approve")) el("btn_approve").style.display=canApprove?"flex":"none";
   if(el("btn_reqChanges")) el("btn_reqChanges").style.display="none";
   // REVIEW mode — hide upload area, batch constants, new batch, add more files
-  const isReviewer=role==="REVIEWER"||role==="READONLY";
-  if(el("fl_newBatch")) el("fl_newBatch").style.display=isReviewer?"none":"";
-  if(el("btn_addMoreFiles")) el("btn_addMoreFiles").style.display=isReviewer?"none":"";
+  const canLoad=can(RIGHTS.LOGS_LOAD);
+  const canAppend=can(RIGHTS.LOGS_LOAD)&&batchStatus==="DRAFT";
+  if(el("fl_newBatch")) el("fl_newBatch").style.display=canLoad?"":"none";
+  if(el("btn_addMoreFiles")) el("btn_addMoreFiles").style.display=canAppend?"":"none";
   // OCR and non-billable toggle hidden in REVIEW mode (side panel)
-  if(el("sp_reextract")) el("sp_reextract").style.display=isReviewer?"none":"";
-  if(el("sp_nonbill_toggle")) el("sp_nonbill_toggle").style.display=isReviewer?"none":"";
+  if(el("sp_reextract")) el("sp_reextract").style.display=canEdit?"":"none";
+  if(el("sp_nonbill_toggle")) el("sp_nonbill_toggle").style.display=canEdit?"":"none";
   // Return for Review button — only in REVIEW mode
   if(el("btn_returnForReview")) el("btn_returnForReview").style.display=isReview?"flex":"none";
   const canReopen=can(RIGHTS.LOGS_REOPEN)&&batchStatus!=="DRAFT"&&batchStatus!=="CLOSED";
   if(el("btn_reopen")) el("btn_reopen").style.display=canReopen?"":"none";
-  if(role==="REVIEWER"||role==="READONLY"){
+  if(!canLoad){
     const us=el("uploadSection"); if(us) us.style.display="none";
     const bc=el("batchConstants"); if(bc) bc.style.display="none";
   } else {
@@ -3499,16 +3538,17 @@ function setupFlRoleUI(){
 // ── FLIGHT LOG — TABLE ──
 function getFilteredEntries(){
   const f=el("filterOp") ? el("filterOp").value : "ALL";
-  if(f==="ALL") return flEntries;
-  if(f==="FM"||f==="MAG") return flEntries.filter(e=>e.operador===f);
-  if(f==="problems") return flEntries.filter(e=>
+  const base=getVisibleLogEntries();
+  if(f==="ALL") return base;
+  if(f==="FM"||f==="MAG") return base.filter(e=>e.operador===f);
+  if(f==="problems") return base.filter(e=>
     e.status==="skipped"||e.status==="void"||e.status==="flagged"||
     !e.aeronave||!e.fecha||!e.piloto||!e.motorOut||!e.motorIn
   );
-  if(f==="hide_nonbill") return flEntries.filter(e=>e.status!=="nonbillable"&&e.status!=="void");
-  if(f==="show_nonbill") return flEntries.filter(e=>e.status==="nonbillable");
+  if(f==="hide_nonbill") return base.filter(e=>e.status!=="nonbillable"&&e.status!=="void");
+  if(f==="show_nonbill") return base.filter(e=>e.status==="nonbillable");
   if(f==="reviewer_comments") return getReviewerCommentFilterEntries();
-  return flEntries.filter(e=>e.status===f);
+  return base.filter(e=>e.status===f);
 }
 
 function renderFlTable(){
@@ -3583,7 +3623,7 @@ function renderFlTable(){
       "<td>"+mkFlToggle(e,canEdit)+"</td>";
     tbody.appendChild(tr);
   });
-  if(el("ptab_count")) el("ptab_count").textContent=flEntries.length;
+  if(el("ptab_count")) el("ptab_count").textContent=getVisibleLogEntries().length;
   updateFlSummary(); runHoroChecks();
   // Re-apply sticky headers preference after re-render
   const _sh=localStorage.getItem("hpfleet_stickyheaders");
@@ -3604,6 +3644,7 @@ function mkFlToggle(e,canEdit){
 
 function setEntrySt(id,st){
   const e=flEntries.find(x=>x.id===id); if(!e) return;
+  if(!canTouchLogEntry(e,RIGHTS.LOGS_EDIT,"DRAFT")){showToast(t("permissionDenied"),"err");return;}
   const old=e.status;
   const oldReason=e.nonBillReason;
   e.status=st;
@@ -3613,6 +3654,7 @@ function setEntrySt(id,st){
 }
 
 function setAllFlStatus(st){
+  if(!requireLogRight(RIGHTS.LOGS_EDIT,"DRAFT")) return;
   const targets=getFilteredEntries().filter(e=>e.status!=="nonbillable"&&e.status!=="void");
   targets.forEach(e=>e.status=st);
   addFlAudit("🔄",currentUser.name,"all visible entries→"+st,targets.length+" entries");
@@ -3620,6 +3662,7 @@ function setAllFlStatus(st){
 }
 
 function approveReviewedEntries(){
+  if(!requireLogRight(RIGHTS.LOGS_EDIT,"DRAFT")) return;
   const targets=getObservedActiveEntries();
   targets.forEach(e=>e.status="approved");
   addFlAudit("✅",currentUser.name,"approve reviewed entries",targets.length+" entries approved");
@@ -3637,7 +3680,7 @@ function updateApproveAllBtn(){
 function updateFlSummary(){
   let totM=0,totT=0,totV=0,approved=0;
   const opTotals={};
-  flEntries.filter(e=>e.status==="approved").forEach(e=>{
+  getVisibleLogEntries().filter(e=>e.status==="approved").forEach(e=>{
     approved++;
     const{tm,tv,tbp}=calcEntry(e); totV+=tv;
     totM+=tm; totT+=tbp;
@@ -3646,7 +3689,7 @@ function updateFlSummary(){
     opTotals[code].tm+=tm; opTotals[code].tbp+=tbp;
   });
   const sg=el("sumGrid"); if(!sg) return;
-  const activeCompanyCodes=new Set(COMPANIES.filter(c=>c.status==="active").map(c=>c.code));
+  const activeCompanyCodes=new Set(COMPANIES.filter(c=>c.status==="active"&&canCompany(c.code)).map(c=>c.code));
   const opCards=Object.keys(opTotals).filter(code=>!activeCompanyCodes.size||activeCompanyCodes.has(code)).sort().map(code=>{
     const label=code==="FM"?t("fmMotor"):code==="MAG"?t("magMotor"):code+" - "+t("thTm");
     const cls=code==="FM"?"sc-fm":code==="MAG"?"sc-mag":"sc-tot";
@@ -3655,14 +3698,15 @@ function updateFlSummary(){
   sg.innerHTML=opCards+
     '<div class="scard sc-tot"><div class="sc-l">'+t("totMotor")+"</div><div class=\"sc-v\">"+fmt(totM)+"</div><div class=\"sc-s\">"+t("tFlight")+": "+fmt(totV)+" "+t("hrs")+"</div></div>"+
     '<div class="scard sc-tbp"><div class="sc-l">'+t("totTbp")+"</div><div class=\"sc-v\">"+fmt(totT)+"</div><div class=\"sc-s\">"+t("tbpHours")+"</div></div>"+
-    '<div class="scard sc-ent"><div class="sc-l">'+t("approved2")+"</div><div class=\"sc-v\">"+approved+"</div><div class=\"sc-s\">"+t("showing")+" "+getFilteredEntries().length+" "+t("of")+" "+flEntries.length+"</div></div>";
+    '<div class="scard sc-ent"><div class="sc-l">'+t("approved2")+"</div><div class=\"sc-v\">"+approved+"</div><div class=\"sc-s\">"+t("showing")+" "+getFilteredEntries().length+" "+t("of")+" "+getVisibleLogEntries().length+"</div></div>";
   updateActionBar();
 }
 
 function updateActionBar(){
-  const pending=flEntries.filter(e=>e.status==="pending").length;
-  const approved=flEntries.filter(e=>e.status==="approved").length;
-  const rejected=flEntries.filter(e=>e.status==="rejected").length;
+  const visible=getVisibleLogEntries();
+  const pending=visible.filter(e=>e.status==="pending").length;
+  const approved=visible.filter(e=>e.status==="approved").length;
+  const rejected=visible.filter(e=>e.status==="rejected").length;
   const canSubmit=can(RIGHTS.LOGS_SUBMIT)&&batchStatus==="DRAFT";
   if(canSubmit&&el("btn_submit")){
     el("btn_submit").disabled=approved===0;
@@ -3704,12 +3748,13 @@ function switchFlPanel(id){
 function openEditEntry(id){
   const canEdit=can(RIGHTS.LOGS_EDIT)&&batchStatus==="DRAFT";
   if(!canEdit){showToast(t("cantEdit"),"err");return;}
+  const e=id===null?null:flEntries.find(x=>x.id===id);
+  if(e&&!canTouchLogEntry(e,RIGHTS.LOGS_EDIT,"DRAFT")){showToast(t("permissionDenied"),"err");return;}
   editingEntryId=id;
   clearEntryErrors();
   // Populate aircraft dropdown from AIRCRAFT data
   const acSel=el("f_aeronave");
-  acSel.innerHTML=AIRCRAFT.map(a=>'<option value="'+a.matricula+'">'+a.matricula+"</option>").join("");
-  const e=id===null?null:flEntries.find(x=>x.id===id);
+  acSel.innerHTML=AIRCRAFT.filter(a=>canAircraft(a)).map(a=>'<option value="'+a.matricula+'">'+a.matricula+"</option>").join("");
   el("flEditTitle").textContent=e?t("editEntry")+" #"+(flEntries.indexOf(e)+1):"New Manual Entry";
   if(el("f_bnum")) el("f_bnum").value=e?.bnum||"";
   el("f_fecha").value=e?.fecha||"";
@@ -3854,6 +3899,7 @@ function saveEntryForm(){
 }
 
 function proceedSaveEntry(){
+  if(!requireLogRight(RIGHTS.LOGS_EDIT,"DRAFT")) return;
   const multRaw=parseFloat(el("f_mult").value);
   const multOverride=isNaN(multRaw)||!el("f_mult").value.trim()?null:multRaw;
   const data={
@@ -3868,6 +3914,11 @@ function proceedSaveEntry(){
     _directTv:(!el("f_vueloOut").value.trim()&&!el("f_vueloIn").value.trim())?parseFloat(el("f_tvuelo").value)||null:null,
     obs:el("f_obs").value.trim(), multOverride
   };
+  const target=editingEntryId!==null?flEntries.find(x=>x.id===editingEntryId):data;
+  if(target&&!canSeeLogEntry(target)){showToast(t("permissionDenied"),"err");return;}
+  if(data.operador&&!canCompany(data.operador)){showToast(t("permissionDenied"),"err");return;}
+  const dataAircraft=AIRCRAFT.find(a=>a.matricula===data.aeronave);
+  if(dataAircraft&&!canAircraft(dataAircraft)){showToast(t("permissionDenied"),"err");return;}
   checkDiff(data);
   if(editingEntryId!==null){
     const e=flEntries.find(x=>x.id===editingEntryId);
@@ -3897,9 +3948,11 @@ function clearEntryErrors(){
 
 // ── FLIGHT LOG — WORKFLOW ACTIONS ──
 function handleSubmit(){
+  if(!requireLogRight(RIGHTS.LOGS_SUBMIT,"DRAFT")) return;
   const reviewed=getObservedActiveEntries();
-  const pending=flEntries.filter(e=>e.status==="pending");
-  const approved=flEntries.filter(e=>e.status==="approved");
+  const visible=getVisibleLogEntries();
+  const pending=visible.filter(e=>e.status==="pending");
+  const approved=visible.filter(e=>e.status==="approved");
   if(!approved.length){
     showResultBanner("err",t("submitNeedsApproved"));
     return;
@@ -3937,12 +3990,14 @@ function handleSubmit(){
 }
 
 async function doSubmit(){
+  if(!requireLogRight(RIGHTS.LOGS_SUBMIT,"DRAFT")) return;
   batchStatus="SUBMITTED";
   if(el("resultBanner")) el("resultBanner").style.display="none";
-  addFlAudit("📤",currentUser.name,"submitted batch",flEntries.filter(e=>e.status==="approved").length+" approved entries");
+  addFlAudit("📤",currentUser.name,"submitted batch",getVisibleLogEntries().filter(e=>e.status==="approved").length+" approved entries");
   await saveBatchToDB("submit batch");
-  const flagged=flEntries.filter(e=>e.status==="flagged").length;
-  const approved=flEntries.filter(e=>e.status==="approved").length;
+  const visible=getVisibleLogEntries();
+  const flagged=visible.filter(e=>e.status==="flagged").length;
+  const approved=visible.filter(e=>e.status==="approved").length;
   renderWfBar(); setupFlRoleUI();
   showToast(t("submitted"));
   notifyWhatsApp("REVIEWER",
@@ -3956,7 +4011,8 @@ async function doSubmit(){
 }
 
 function handleApprove(){
-  const approved=flEntries.filter(e=>e.status==="approved");
+  if(!requireLogRight(RIGHTS.LOGS_APPROVE,"SUBMITTED")) return;
+  const approved=getVisibleLogEntries().filter(e=>e.status==="approved");
   showFlConfirm(t("confirmApprove"),t("confirmApproveBody"),approved,()=>doApprove());
 }
 
@@ -3981,7 +4037,7 @@ async function openPiLoadModal(){
   const desc=el("piLoad_currentDesc");
   if(desc){
     if(batchStatus==="APPROVED"){
-      const approved=flEntries.filter(e=>e.status==="approved");
+      const approved=getVisibleLogEntries().filter(e=>e.status==="approved");
       desc.textContent=approved.length+" "+t("piApprovedEntries")+" · "+batchStatus;
       desc.style.color="var(--green)";
     } else {
@@ -4004,7 +4060,7 @@ function renderPreInvoice(){
   if(batchStatus==="APPROVED"){
     ready.style.display="block"; soon.style.display="none";
     if(!piInvNum) piInvNum=generateInvNum();
-    const approved=flEntries.filter(e=>e.status==="approved");
+    const approved=getVisibleLogEntries().filter(e=>e.status==="approved");
     const aircraft=approved.length?AIRCRAFT.find(a=>a.matricula===approved[0].aeronave):null;
     const operatorCode=approved.length?approved[0].operador:"";
     const company=COMPANIES.find(c=>c.code===operatorCode);
@@ -4230,6 +4286,8 @@ function renderPiCharges(subtotal){
 }
 
 async function reopenBatch(){
+  if(!requireLogRight(RIGHTS.LOGS_REOPEN)) return;
+  if(batchStatus==="DRAFT"||batchStatus==="CLOSED"){showToast(t("permissionDenied"),"err");return;}
   const reason=el("reopen_reason")?el("reopen_reason").value.trim():"";
   if(!reason){showToast(t("reopenReasonRequired"),"err");return;}
   const prevStatus=batchStatus;
@@ -4244,9 +4302,10 @@ async function reopenBatch(){
 }
 
 async function doApprove(){
+  if(!requireLogRight(RIGHTS.LOGS_APPROVE,"SUBMITTED")) return;
   batchStatus="APPROVED";
   if(el("resultBanner")) el("resultBanner").style.display="none";
-  addFlAudit("✅",currentUser.name,"approved for invoicing",flEntries.filter(e=>e.status==="approved").length+" entries");
+  addFlAudit("✅",currentUser.name,"approved for invoicing",getVisibleLogEntries().filter(e=>e.status==="approved").length+" entries");
   await saveBatchToDB("approve for invoicing");
   exportFlCSV();
   renderWfBar(); setupFlRoleUI(); renderPreInvoice();
@@ -4254,7 +4313,7 @@ async function doApprove(){
   notifyWhatsApp("OPERATOR",
     t("waApproveMsg")
       .replace("{user}",currentUser.name)
-      .replace("{approved}",flEntries.filter(e=>e.status==="approved").length)
+      .replace("{approved}",getVisibleLogEntries().filter(e=>e.status==="approved").length)
       .replace("{source}",batchSourceFile),
     true
   );
@@ -4262,6 +4321,7 @@ async function doApprove(){
 
 // ── RETURN FOR REVIEW ──
 function openRfr(){
+  if(!requireLogRight(RIGHTS.LOGS_REVIEW,"SUBMITTED")) return;
   const flagged=getReturnForReviewCandidates();
   const tbody=el("rfr_tbody"); if(tbody) tbody.innerHTML="";
   const noFlags=el("rfr_noFlags");
@@ -4310,6 +4370,7 @@ function closeRfr(){
 }
 
 async function doReturnForReview(){
+  if(!requireLogRight(RIGHTS.LOGS_REVIEW,"SUBMITTED")) return;
   const batchNote=el("rfr_batchNote")?el("rfr_batchNote").value.trim():"";
   const checkedIds=[...document.querySelectorAll(".rfr-include:checked")].map(cb=>parseInt(cb.dataset.rfrEntry,10));
   const checkedSet=new Set(checkedIds);
@@ -4354,6 +4415,7 @@ async function doReturnForReview(){
 }
 
 async function saveDraft(){
+  if(!requireLogRight(RIGHTS.LOGS_EDIT,"DRAFT")) return;
   await saveBatchToDB("save draft");
   addFlAudit("💾",currentUser.name,"saved draft",flEntries.length+" entries");
   showToast(t("draftSaved"));
@@ -4378,8 +4440,9 @@ function executeConfirm(){ closeModal("confirmMbd"); if(confirmCb){confirmCb();c
 
 // ── EXPORTS ──
 function exportFlCSV(){
+  if(!requireLogRight(RIGHTS.LOGS_EXPORT)) return;
   const hdrs=flExportHeaders();
-  const rows=flEntries.map((e,i)=>{
+  const rows=getVisibleLogEntries().map((e,i)=>{
     const{tm,tv,tbp}=calcEntry(e);
     return [i+1,e.bnum||"",e.fecha,e.aeronave,e.operador,e.piloto,e.instructor||"",e.horoIn,
       e.motorOut,e.motorIn,tm.toFixed(2),e.vueloOut,e.vueloIn,tv.toFixed(2),
@@ -4394,9 +4457,10 @@ function exportFlCSV(){
 }
 
 function exportFlXLSX(){
+  if(!requireLogRight(RIGHTS.LOGS_EXPORT)) return;
   if(typeof XLSX==="undefined"){showToast(t("xlsxLibMissing"),"err");return;}
   const headers=flExportHeaders();
-  const data=[headers,...flEntries.map((e,i)=>{
+  const data=[headers,...getVisibleLogEntries().map((e,i)=>{
     const{tm,tv,tbp}=calcEntry(e);
     return [i+1,e.bnum||"",e.fecha,e.aeronave,e.operador,e.piloto,e.instructor||"",e.horoIn,
       e.motorOut,e.motorIn,parseFloat(tm.toFixed(2)),
@@ -4409,7 +4473,7 @@ function exportFlXLSX(){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,"Flight Log");
   let fmM=0,fmT=0,magM=0,magT=0;
-  flEntries.filter(e=>e.status==="approved").forEach(e=>{const{tm,tbp}=calcEntry(e);if(e.operador==="FM"){fmM+=tm;fmT+=tbp;}else{magM+=tm;magT+=tbp;}});
+  getVisibleLogEntries().filter(e=>e.status==="approved").forEach(e=>{const{tm,tbp}=calcEntry(e);if(e.operador==="FM"){fmM+=tm;fmT+=tbp;}else{magM+=tm;magT+=tbp;}});
   const sumData=[
     ["HP Fleet — Flight Log Summary",""],
     ["Generated",new Date().toLocaleString()],
@@ -4819,7 +4883,7 @@ let _namePropData=null; // {field, oldVal, newVal, matches, currentEntryId}
 
 function checkNamePropagation(entryId, field, oldVal, newVal, onConfirm){
   if(!oldVal||!newVal||oldVal===newVal) { onConfirm([]); return; }
-  const matches=flEntries.filter(e=>
+  const matches=getVisibleLogEntries().filter(e=>
     e.id!==entryId &&
     String(e[field]||"").trim().toLowerCase()===oldVal.trim().toLowerCase()
   );
@@ -5010,8 +5074,9 @@ function openSidePanel(entryIdOrFileIdx, isEntryId=false){
   if(isEntryId){
     const entry=flEntries.find(e=>e.id===entryIdOrFileIdx);
     if(!entry) return;
+    if(!canSeeLogEntry(entry)){showToast(t("permissionDenied"),"err");return;}
     spEditingEntryId=entry.id;
-    spCurrentIndex=flEntries.indexOf(entry);
+    spCurrentIndex=getVisibleLogEntries().indexOf(entry);
     _loadSpEntry(entry);
     if(navBar) navBar.style.display="flex";
     _updateSpNav();
@@ -5122,9 +5187,8 @@ function _loadSpEntry(entry){
     editSec.style.height="";
   });
   // Role-aware mode
-  const role=effectiveRole();
-  const isReviewer=role==="REVIEWER";
-  const isReadOnly=role==="READONLY";
+  const isReviewer=can(RIGHTS.LOGS_REVIEW)&&batchStatus==="SUBMITTED";
+  const isReadOnly=!can(RIGHTS.LOGS_EDIT)||batchStatus!=="DRAFT";
   const editTitle=el("spEditTitle");
   const commentRow=el("spCommentRow");
   const saveBtn=el("sp_save");
@@ -5160,7 +5224,8 @@ function _loadSpEntry(entry){
 
 function _updateSpNav(){
   const pos=el("spNavPos");
-  if(pos) pos.textContent=t("spNavPos").replace("{current}",spCurrentIndex+1).replace("{total}",flEntries.length);
+  const visible=getVisibleLogEntries();
+  if(pos) pos.textContent=t("spNavPos").replace("{current}",spCurrentIndex+1).replace("{total}",visible.length);
 }
 
 function spNavigate(dir, afterNav){
@@ -5170,10 +5235,11 @@ function spNavigate(dir, afterNav){
   });
 }
 function _spNavigate(dir){
+  const visible=getVisibleLogEntries();
   const newIdx=spCurrentIndex+dir;
-  if(newIdx<0||newIdx>=flEntries.length) return false;
+  if(newIdx<0||newIdx>=visible.length) return false;
   spCurrentIndex=newIdx;
-  const entry=flEntries[newIdx];
+  const entry=visible[newIdx];
   spEditingEntryId=entry.id;
   _loadSpEntry(entry);
   _updateSpNav();
@@ -5283,8 +5349,17 @@ async function saveSpEntry(){
   if(!spEditingEntryId) return;
   const e=flEntries.find(x=>x.id===spEditingEntryId); if(!e) return;
   const role=effectiveRole();
+  const isReviewerPath=role==="REVIEWER"||can(RIGHTS.LOGS_REVIEW)&&batchStatus==="SUBMITTED";
+  if(isReviewerPath){
+    if(!canTouchLogEntry(e,RIGHTS.LOGS_REVIEW,"SUBMITTED")){showToast(t("permissionDenied"),"err");return;}
+  } else if(batchStatus==="APPROVED"){
+    if(!canSeeLogEntry(e)||!can(RIGHTS.LOGS_EDIT)||!can(RIGHTS.LOGS_REOPEN)){showToast(t("permissionDenied"),"err");return;}
+  } else if(!canTouchLogEntry(e,RIGHTS.LOGS_EDIT,"DRAFT")){
+    showToast(t("permissionDenied"),"err");return;
+  }
   // APPROVED lock — intercept and confirm reopen before first write
   if(batchStatus==="APPROVED" && role!=="REVIEWER"){
+    if(!can(RIGHTS.LOGS_REOPEN)){showToast(t("permissionDenied"),"err");return;}
     const msg=lang==="es"
       ?"Este lote está APROBADO. ¿Reabrir a BORRADOR para editar?"
       :"This batch is APPROVED. Reopen to DRAFT to allow edits?";
@@ -5296,7 +5371,7 @@ async function saveSpEntry(){
     renderWfBar(); setupFlRoleUI();
     showToast("Batch reopened to DRAFT","warn");
   }
-  if(role==="REVIEWER"){
+  if(isReviewerPath){
     // Save review comment to thread
     const ta=el("spThreadTextarea");
     const comment=ta&&ta.value.trim()?ta.value.trim():"";
@@ -5323,11 +5398,15 @@ async function saveSpEntry(){
     const oldPiloto=e.piloto, oldInstructor=e.instructor;
     const newPiloto=el("sp_piloto").value.trim();
     const newInstructor=el("sp_instructor").value.trim();
+    const nextOperador=el("sp_operador").value;
+    const nextAircraft=AIRCRAFT.find(a=>a.matricula===el("sp_aeronave").value);
+    if(nextOperador&&!canCompany(nextOperador)){showToast(t("permissionDenied"),"err");return;}
+    if(nextAircraft&&!canAircraft(nextAircraft)){showToast(t("permissionDenied"),"err");return;}
     Object.assign(e,{
       bnum:el("sp_bnum")?el("sp_bnum").value.trim():"",
       fecha:el("sp_fecha").value.trim(),
       aeronave:el("sp_aeronave").value,
-      operador:el("sp_operador").value,
+      operador:nextOperador,
       piloto:newPiloto,
       instructor:newInstructor,
       horoIn:parseFloat(el("sp_horoIn").value)||0,
@@ -5409,10 +5488,11 @@ async function resetBatch(){
 
 // ── NEW BATCH MODAL ──
 function openNewBatchModal(){
+  if(!requireLogRight(RIGHTS.LOGS_LOAD)) return;
   // Populate aircraft dropdown
   const acSel=el("nb_aircraft");
   if(acSel){
-    acSel.innerHTML='<option value="">'+t("autoDetect")+"</option>"+AIRCRAFT.map(a=>'<option value="'+a.matricula+'">'+a.matricula+"</option>").join("");
+    acSel.innerHTML='<option value="">'+t("autoDetect")+"</option>"+AIRCRAFT.filter(a=>canAircraft(a)).map(a=>'<option value="'+a.matricula+'">'+a.matricula+"</option>").join("");
     acSel.dispatchEvent(new Event("change"));
   }
   // Set default period to current month
@@ -5439,6 +5519,7 @@ function openNewBatchModal(){
 }
 
 async function confirmNewBatch(){
+  if(!requireLogRight(RIGHTS.LOGS_LOAD)) return;
   const aircraft=el("nb_aircraft")?el("nb_aircraft").value:"";
   const operador=el("nb_operator")?el("nb_operator").value:"";
   const periodFrom=el("nb_period_from")?el("nb_period_from").value:"";
@@ -5446,6 +5527,9 @@ async function confirmNewBatch(){
   const logFrom=el("nb_log_from")?el("nb_log_from").value.trim():"";
   const logTo=el("nb_log_to")?el("nb_log_to").value.trim():"";
   if(!nbFiles.length){showToast(t("pleaseAddFile"),"warn");return;}
+  if(operador&&!canCompany(operador)){showToast(t("permissionDenied"),"err");return;}
+  const ac=aircraft?AIRCRAFT.find(a=>a.matricula===aircraft):null;
+  if(ac&&!canAircraft(ac)){showToast(t("permissionDenied"),"err");return;}
   closeModal("newBatchMbd");
   await resetBatch();
   window._pendingBatchMeta={aircraft,operador,periodFrom,periodTo,logFrom,logTo};
@@ -5461,14 +5545,15 @@ async function confirmNewBatch(){
 let afFiles=[];
 
 function openAddFilesDialog(){
+  if(!requireLogRight(RIGHTS.LOGS_LOAD,"DRAFT")) return;
   afFiles=[];
   afRenderQueue();
   const acSel=el("af_aircraft"); const opSel=el("af_operator");
   if(acSel){
-    acSel.innerHTML='<option value="">'+t("autoDetect")+'</option>'+AIRCRAFT.map(a=>'<option value="'+a.matricula+'">'+a.matricula+'</option>').join("");
+    acSel.innerHTML='<option value="">'+t("autoDetect")+'</option>'+AIRCRAFT.filter(a=>canAircraft(a)).map(a=>'<option value="'+a.matricula+'">'+a.matricula+'</option>').join("");
   }
   if(opSel){
-    opSel.innerHTML='<option value="">'+t("autoDetect")+'</option>'+COMPANIES.map(c=>'<option value="'+c.code+'">'+c.code+'</option>').join("");
+    opSel.innerHTML='<option value="">'+t("autoDetect")+'</option>'+COMPANIES.filter(c=>canCompany(c.code)).map(c=>'<option value="'+c.code+'">'+c.code+'</option>').join("");
   }
   const dlg=el("addFilesMbd"); if(dlg) dlg.style.display="flex";
 }
@@ -5523,11 +5608,15 @@ function initAfDropZone(){
 }
 
 async function confirmAddFiles(){
+  if(!requireLogRight(RIGHTS.LOGS_LOAD,"DRAFT")) return;
   if(!afFiles.length){showToast(t("pleaseAddFile"),"warn");return;}
   const apiKey=getApiKey();
   if(!apiKey){showToast(t("noApiKey"),"err");return;}
   const aircraft=el("af_aircraft")?el("af_aircraft").value:"";
   const operador=el("af_operator")?el("af_operator").value:"";
+  if(operador&&!canCompany(operador)){showToast(t("permissionDenied"),"err");return;}
+  const ac=aircraft?AIRCRAFT.find(a=>a.matricula===aircraft):null;
+  if(ac&&!canAircraft(ac)){showToast(t("permissionDenied"),"err");return;}
   // Build isolated queue — bypasses fileQueue duplicate check entirely
   const afQueue=afFiles.map(f=>({
     file:f, name:sanitizeFilename(f.name), size:f.size, type:f.type,
@@ -5542,6 +5631,7 @@ async function confirmAddFiles(){
 }
 
 async function extractAllAppend(appendQueue){
+  if(!requireLogRight(RIGHTS.LOGS_LOAD,"DRAFT")) return;
   // Append mode — uses isolated queue, does NOT touch fileQueue, does NOT reset flEntries
   if(isExtracting){ showToast(t("extractionAlreadyRunning"),"warn"); return; }
   const apiKey=getApiKey();
@@ -5633,6 +5723,12 @@ async function extractAllAppend(appendQueue){
   isExtracting=false; extractionAbort=null;
 
   // APPEND to existing flEntries — do not reset
+  const scopedExtracted=allExtracted.filter(canSeeLogEntry);
+  if(scopedExtracted.length!==allExtracted.length){
+    hasErrors=true;
+    uploadLog(t("permissionDenied"));
+  }
+  allExtracted=scopedExtracted;
   const newEntries=allExtracted.map(e=>({
     id:nextEntryId++,status:"pending",multOverride:null,...e,
     reviewObserved:false,
@@ -5727,14 +5823,15 @@ function saveUploadLog(){
 
 // ── EXTRACTION SUMMARY MODAL ──
 function showExtractionSummary(){
-  const total=flEntries.length;
-  const read=flEntries.filter(e=>e.status!=="skipped"&&e.status!=="void"&&e.aeronave&&e.fecha).length;
+  const visible=getVisibleLogEntries();
+  const total=visible.length;
+  const read=visible.filter(e=>e.status!=="skipped"&&e.status!=="void"&&e.aeronave&&e.fecha).length;
   const notRead=total-read;
-  const seqAlerts=flEntries.filter(e=>{
+  const seqAlerts=visible.filter(e=>{
     const idx=flEntries.indexOf(e);
     return horoCheck(e,idx)&&!horoCheck(e,idx).ok;
   }).length;
-  const threshAlerts=flEntries.filter(e=>e.status==="flagged").length;
+  const threshAlerts=visible.filter(e=>e.status==="flagged").length;
   const sourceFile=el("srcFile")?el("srcFile").textContent:"—";
   const rows=[
     {label:t("fileSource"),val:sourceFile,color:"var(--text)"},
@@ -5759,7 +5856,7 @@ let allBatches=[];
 async function loadAllBatches(){
   try {
     const batches=await sbGet("batches","order=created_at.desc&limit=50");
-    allBatches=batches||[];
+    allBatches=(batches||[]).filter(canLoadCurrentBatch);
     renderBatchSelector();
   } catch(e){ dbg("Batch history load error: "+e.message,"err"); }
 }
@@ -5852,11 +5949,16 @@ async function loadBatchFromDB(id){
       // Load specific batch by ID
       const rows=await sbGet("batches","id=eq."+id);
       if(rows&&rows.length) batch=rows[0];
+      if(batch&&!canLoadCurrentBatch(batch)){showToast(t("permissionDenied"),"err");return false;}
     }
     if(!batch){
       // On login: prefer most recent non-CLOSED batch
-      let rows=await sbGet("batches","status=neq.CLOSED&order=created_at.desc&limit=1");
-      if(!rows||!rows.length) rows=await sbGet("batches","order=created_at.desc&limit=1");
+      let rows=await sbGet("batches","status=neq.CLOSED&order=created_at.desc&limit=50");
+      rows=(rows||[]).filter(canLoadCurrentBatch);
+      if(!rows.length){
+        rows=await sbGet("batches","order=created_at.desc&limit=50");
+        rows=(rows||[]).filter(canLoadCurrentBatch);
+      }
       if(rows&&rows.length) batch=rows[0];
     }
     if(!batch){ dbg("No batch found in DB","info"); return false; }
@@ -5907,6 +6009,8 @@ async function loadBatchFromDB(id){
 async function switchToBatch(batchId){
   if(!batchId) return;
   if(batchId===currentBatchId) return;
+  const target=allBatches.find(b=>b.id===batchId);
+  if(target&&!canLoadCurrentBatch(target)){showToast(t("permissionDenied"),"err");return;}
   if(currentBatchId&&flEntries.length) await saveBatchToDB("before switching batch");
   await loadBatchFromDB(batchId);
   renderBatchSelector();
@@ -6676,7 +6780,7 @@ function wireEvents(){
   });
 
   if(el("srcNotRead")) el("srcNotRead").addEventListener("click",()=>{
-    const entries=flEntries.filter(e=>e.status==="skipped"||e.status==="void"||!e.aeronave||!e.fecha);
+    const entries=getVisibleLogEntries().filter(e=>e.status==="skipped"||e.status==="void"||!e.aeronave||!e.fecha);
     const lines=entries.map(e=>{
       const idx=flEntries.indexOf(e)+1;
       const reason=e.status==="skipped"?t("reasonSkipped"):e.status==="void"?t("reasonVoid"):!e.aeronave?t("reasonNoAircraft"):!e.fecha?t("reasonNoDate"):t("reasonUnknown");
@@ -6685,7 +6789,7 @@ function wireEvents(){
     openFloatDialog("dlgNotRead",t("notReadEntries"),lines,"var(--yellow)",entries.map(e=>e.id));
   });
   if(el("srcNonBill")) el("srcNonBill").addEventListener("click",()=>{
-    const entries=flEntries.filter(e=>e.status==="nonbillable");
+    const entries=getVisibleLogEntries().filter(e=>e.status==="nonbillable");
     const lines=entries.map(e=>{
       const idx=flEntries.indexOf(e)+1;
       return t("entryShort")+" #"+idx+" | "+t("thLog")+" "+(e.bnum||"—")+" | "+(e.fecha||"—")+" | "+(formatNonBillReason(e.nonBillReason)||t("noReasonGiven"));
@@ -6703,7 +6807,7 @@ function wireEvents(){
     openFloatDialog("dlgLogBreaks",t("logBreaks"),lines,"var(--red)",breaks.map(b=>b.entry.id));
   });
   if(el("srcHoro")) el("srcHoro").addEventListener("click",()=>{
-    const alerts=flEntries.filter((e,idx)=>{ const h=horoCheck(e,idx); return h&&!h.ok; });
+    const alerts=getVisibleLogEntries().filter(e=>{ const h=horoCheck(e,flEntries.indexOf(e)); return h&&!h.ok; });
     const lines=alerts.map(e=>{
       const idx=flEntries.indexOf(e);
       const h=horoCheck(e,idx);
