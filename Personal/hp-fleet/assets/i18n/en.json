@@ -35,6 +35,8 @@
   "userUpdated": "User updated.",
   "userDeleted": "User deleted.",
   "statusUpdated": "Status updated.",
+  "permissionDenied": "Permission denied.",
+  "permissionSaveFailed": "Could not save permissions to DB.",
   "ctTitle": "Companies",
   "ctAdd": "+ New Company",
   "flTitle": "Flight Log / Bitácora Review",

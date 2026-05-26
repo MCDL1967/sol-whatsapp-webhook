@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.1b";
+const APP_VERSION = "v8.6.2";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -318,9 +318,12 @@ function userRights(user=currentUser, roleOverride=null){
   const explicit=normalizeRights(user?.rights);
   return explicit.length ? explicit : defaultRightsForRole(role);
 }
+function canUseViewAs(){
+  return !!(currentUser&&currentUser.role==="ADMIN");
+}
 function can(right){
   const role=effectiveRole();
-  const rights=(viewRole&&currentUser) ? defaultRightsForRole(role) : userRights(currentUser,role);
+  const rights=(canUseViewAs()&&viewRole&&currentUser) ? defaultRightsForRole(role) : userRights(currentUser,role);
   return rights.includes(right);
 }
 function canAny(rights){
@@ -501,8 +504,8 @@ function applyUserPreferences(){
   }
   // viewas_visible — apply topbar widget early (mirrors bootApp inline logic)
   const vaw = el("viewAsWrap");
-  if(vaw && currentUser && currentUser.role === "ADMIN"){
-    vaw.style.display = _userPrefs.viewas_visible ? "flex" : "none";
+  if(vaw){
+    vaw.style.display = currentUser && currentUser.role === "ADMIN" && _userPrefs.viewas_visible ? "flex" : "none";
   }
   // All other prefs are read by the existing init* functions from localStorage
   // No need to apply them here — localStorage is now synced from DB above
@@ -1470,7 +1473,7 @@ async function bootApp(loginLanguageOverride=null){
   el("tbCompanies").textContent=currentUser.companies.join(" · ");
   el("tbAvatar").textContent=initials(currentUser.name);
   el("tbAvatar").style.color=r.color;
-  if(el("viewAsRole")) el("viewAsRole").value="ADMIN";
+  if(el("viewAsRole")) el("viewAsRole").value=currentUser.role==="ADMIN"?"ADMIN":currentUser.role;
   viewRole=null;
   applyI18n();
   renderRoleBanner();
@@ -1976,7 +1979,7 @@ async function resetRoleRights(){
   }
 }
 
-function saveUser(){
+async function saveUser(){
   clearUserErrors();
   const name=el("um_name").value.trim(), email=el("um_email").value.trim();
   const role=el("um_role").value, status=el("um_status").value, pwd=el("um_pwd").value;
@@ -1992,6 +1995,7 @@ function saveUser(){
   if(!ok) return;
   if(editingUserId){
     const u=USERS.find(x=>x.id===editingUserId);
+    const prevUser={...u,companies:[...(u.companies||[])],rights:u.rights===null?null:normalizeRights(u.rights)};
     const changes=[];
     if(u.name!==name) changes.push('name→"'+name+'"');
     if(u.role!==role) changes.push("role→"+ROLES[role][lang].label);
@@ -2002,22 +2006,34 @@ function saveUser(){
     u.name=name; u.email=email; u.role=role; u.status=status; u.phone=phone; u.companies=companies;
     if(roleChanged) u.rights=null;
     if(pwd) u.pwd=pwd;
-    sbPatch("users","id=eq."+u.id,{
-      name:u.name, email:u.email, role:u.role, status:u.status,
-      phone:u.phone||"", companies:u.companies,
-      ...(roleChanged?{rights:null}:{}),
-      ...(pwd?{pwd}:{})
-    }).then(()=>dbg("User updated in DB: "+u.name,"ok"))
-      .catch(e=>dbg("User update error: "+e.message,"err"));
+    try{
+      await sbPatch("users","id=eq."+u.id,{
+        name:u.name, email:u.email, role:u.role, status:u.status,
+        phone:u.phone||"", companies:u.companies,
+        ...(roleChanged?{rights:null}:{}),
+        ...(pwd?{pwd}:{})
+      });
+      dbg("User updated in DB: "+u.name,"ok");
+    }catch(e){
+      Object.assign(u,prevUser);
+      dbg("User update error: "+e.message,"err");
+      showToast(t("permissionSaveFailed"),"err");
+      return;
+    }
     addAudit("✏️",currentUser.name,(lang==="es"?"editó usuario":"edited user"),u.name+(changes.length?" ("+changes.join(", ")+")":""));
     showToast(t("userUpdated"));
   } else {
     const nu={id:"u"+nextUserId++,name,email,pwd,role,status,phone,companies,rights:null,created:new Date().toISOString().slice(0,10),lastLogin:null};
-    USERS.push(nu);
-    sbPost("users",{id:nu.id,name,email,pwd,role,status,phone:phone||"",companies,
-      rights:null,created:nu.created,last_login:null})
-      .then(()=>dbg("User created in DB: "+name,"ok"))
-      .catch(e=>dbg("User create error: "+e.message,"err"));
+    try{
+      await sbPost("users",{id:nu.id,name,email,pwd,role,status,phone:phone||"",companies,
+        rights:null,created:nu.created,last_login:null});
+      USERS.push(nu);
+      dbg("User created in DB: "+name,"ok");
+    }catch(e){
+      dbg("User create error: "+e.message,"err");
+      showToast(t("permissionSaveFailed"),"err");
+      return;
+    }
     addAudit("➕",currentUser.name,(lang==="es"?"creó usuario":"created user"),name+" ("+email+") — "+ROLES[role][lang].label+" ["+companies.join(",")+"]");
     showToast(t("userCreated"));
   }
@@ -2042,20 +2058,22 @@ function openDeleteUser(id){
 }
 
 function confirmDelete(){
-  if(!currentUser||currentUser.role!=="ADMIN") return;
   if(deleteType==="user"){
+    if(!can(RIGHTS.USERS_MANAGE)){showToast(t("permissionDenied"),"err");return;}
     const u=USERS.find(x=>x.id===deletingId); if(!u) return;
     USERS.splice(USERS.indexOf(u),1);
     sbDelete("users","id=eq."+u.id).catch(e=>dbg("User delete error: "+e.message,"err"));
     addAudit("🗑️",currentUser.name,(lang==="es"?"eliminó usuario":"deleted user"),u.name+" ("+u.email+")");
     closeModal("delMbd"); renderUsers(); showToast(t("userDeleted"),"warn");
   } else if(deleteType==="company"){
+    if(!can(RIGHTS.COMPANIES_MANAGE)){showToast(t("permissionDenied"),"err");return;}
     const co=COMPANIES.find(x=>x.id===deletingId); if(!co) return;
     COMPANIES.splice(COMPANIES.indexOf(co),1);
     sbDelete("companies","id=eq."+co.id).catch(e=>dbg("Company delete error: "+e.message,"err"));
     addAudit("🗑️",currentUser.name,(lang==="es"?"eliminó compañía":"deleted company"),co.name);
     closeModal("delMbd"); renderCompanies(); showToast(t("companyDeleted"),"warn");
   } else if(deleteType==="aircraft"){
+    if(!can(RIGHTS.AIRCRAFT_MANAGE)){showToast(t("permissionDenied"),"err");return;}
     const ac=AIRCRAFT.find(x=>x.id===deletingId); if(!ac) return;
     AIRCRAFT.splice(AIRCRAFT.indexOf(ac),1);
     sbDelete("aircraft","id=eq."+ac.id).catch(e=>dbg("Aircraft delete error: "+e.message,"err"));
@@ -2087,11 +2105,14 @@ function billingUnitLabel(unit){
   return unit||"";
 }
 function renderCompanies(){
-  const active=COMPANIES.filter(c=>c.status==="active").length;
-  el("coStats").innerHTML='<div class="scard sc-tot"><div class="sc-l">'+t("coCardTotal")+'</div><div class="sc-v">'+COMPANIES.length+"</div>"+
+  const canManage=can(RIGHTS.COMPANIES_MANAGE);
+  const visibleCompanies=COMPANIES.filter(co=>canCompany(co.code));
+  if(el("ct_add")) el("ct_add").style.display=canManage?"":"none";
+  const active=visibleCompanies.filter(c=>c.status==="active").length;
+  el("coStats").innerHTML='<div class="scard sc-tot"><div class="sc-l">'+t("coCardTotal")+'</div><div class="sc-v">'+visibleCompanies.length+"</div>"+
     '<div class="sc-s">'+active+" "+t("coCardActive")+"</div></div>";
   el("coGrid").innerHTML="";
-  COMPANIES.forEach(co=>{
+  visibleCompanies.forEach(co=>{
     const color=coColor(co.code);
     const card=document.createElement("div");
     card.className="co-card"+(co.status==="inactive"?" co-inactive":"");
@@ -2118,15 +2139,16 @@ function renderCompanies(){
       '<div class="co-row-label" style="margin-bottom:6px">'+t("coCardBillingRules")+"</div>"+
       '<div class="br-list">'+rulesHtml+"</div></div></div>"+
       '<div class="co-card-footer">'+
-      '<button class="btn-sm" data-edit-co="'+co.id+'">'+t("edit")+"</button>"+
+      (canManage?'<button class="btn-sm" data-edit-co="'+co.id+'">'+t("edit")+"</button>"+
       '<button class="btn-sm" data-toggle-co="'+co.id+'">'+(co.status==="active"?t("coDeactivate"):t("coActivate"))+"</button>"+
-      '<button class="btn-sm del" data-del-co="'+co.id+'">'+t("del")+"</button>"+
+      '<button class="btn-sm del" data-del-co="'+co.id+'">'+t("del")+"</button>":"")+
       "</div>";
     el("coGrid").appendChild(card);
   });
 }
 
 function toggleCompanyStatus(id){
+  if(!can(RIGHTS.COMPANIES_MANAGE)){showToast(t("permissionDenied"),"err");return;}
   const co=COMPANIES.find(x=>x.id===id); if(!co) return;
   co.status=co.status==="active"?"inactive":"active";
   sbPatch("companies","id=eq."+co.id,{status:co.status}).catch(e=>dbg("Company status error: "+e.message,"err"));
@@ -2135,6 +2157,7 @@ function toggleCompanyStatus(id){
 }
 
 function openDeleteCompany(id){
+  if(!can(RIGHTS.COMPANIES_MANAGE)){showToast(t("permissionDenied"),"err");return;}
   const co=COMPANIES.find(x=>x.id===id); if(!co) return;
   deletingId=id; deleteType="company";
   el("delWarn").innerHTML=t("delCoWarn")+" <strong>"+co.name+"</strong>"+t("delCoWarn2");
@@ -2150,6 +2173,7 @@ function _syncInvChkStyles(){
 }
 
 function openCreateCompany(){
+  if(!can(RIGHTS.COMPANIES_MANAGE)){showToast(t("permissionDenied"),"err");return;}
   editingCoId=null; tempRules=[]; clearCoErrors();
   el("coModalTitle").textContent=t("coNewTitle");
   el("co_name").value=""; el("co_code").value="";
@@ -2166,6 +2190,7 @@ function openCreateCompany(){
 }
 
 function openEditCompany(id){
+  if(!can(RIGHTS.COMPANIES_MANAGE)){showToast(t("permissionDenied"),"err");return;}
   const co=COMPANIES.find(x=>x.id===id); if(!co) return;
   editingCoId=id; tempRules=JSON.parse(JSON.stringify(co.billingRules||[])); clearCoErrors();
   el("coModalTitle").textContent=t("coEditTitle")+co.name;
@@ -2277,6 +2302,7 @@ function addBillingRuleRow(){
 }
 
 function saveCompany(){
+  if(!can(RIGHTS.COMPANIES_MANAGE)){showToast(t("permissionDenied"),"err");return;}
   clearCoErrors();
   const name=el("co_name").value.trim(), code=el("co_code").value.trim().toUpperCase();
   const status=el("co_status").value, notes=el("co_notes").value.trim();
@@ -2515,13 +2541,17 @@ function initViewAsToggle(){
   check.checked=on;
   setToggleLabel(label,on);
   const vaw=el("viewAsWrap");
-  if(vaw&&currentUser&&currentUser.role==="ADMIN") vaw.style.display=on?"flex":"none";
+  if(vaw) vaw.style.display=(canUseViewAs()&&on)?"flex":"none";
+  if(!canUseViewAs()){
+    viewRole=null;
+    if(el("viewAsRole")) el("viewAsRole").value=currentUser?currentUser.role:"READONLY";
+  }
   check.addEventListener("change",function(){
     const on=this.checked;
     saveUserPreference("viewas_visible", on);
     setToggleLabel(label,on);
     const vaw=el("viewAsWrap");
-    if(vaw&&currentUser&&currentUser.role==="ADMIN") vaw.style.display=on?"flex":"none";
+    if(vaw) vaw.style.display=(canUseViewAs()&&on)?"flex":"none";
     if(!on){ viewRole=null; renderWfBar(); setupFlRoleUI(); renderFlTable(); renderTabs(); updateActionBar(); }
   });
 }
@@ -3398,7 +3428,7 @@ function renderWfBar(){
 }
 
 // ── EFFECTIVE ROLE (View As override for Admin) ──
-function effectiveRole(){ return viewRole || (currentUser ? currentUser.role : "READONLY"); }
+function effectiveRole(){ return (canUseViewAs()?viewRole:null) || (currentUser ? currentUser.role : "READONLY"); }
 
 // ── FLIGHT LOG — ROLE UI ──
 function setupFlRoleUI(){
@@ -6363,6 +6393,11 @@ function wireEvents(){
 
   // View As toggle (Admin only)
   if(el("viewAsRole")) el("viewAsRole").addEventListener("change",function(){
+    if(!canUseViewAs()){
+      viewRole=null;
+      this.value=currentUser?currentUser.role:"READONLY";
+      return;
+    }
     viewRole=this.value==="ADMIN"?null:this.value;
     renderWfBar(); setupFlRoleUI(); setupSettingsUI(); renderFlTable(); renderTabs(); updateActionBar();
     showToast("View As: "+(viewRole||"Admin"));

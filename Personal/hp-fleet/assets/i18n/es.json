@@ -35,6 +35,8 @@
   "userUpdated": "Usuario actualizado.",
   "userDeleted": "Usuario eliminado.",
   "statusUpdated": "Estado actualizado.",
+  "permissionDenied": "Permiso denegado.",
+  "permissionSaveFailed": "No se pudieron guardar los permisos en la BD.",
   "ctTitle": "Compañías",
   "ctAdd": "+ Nueva Compañía",
   "flTitle": "Flight Log / Revisión de Bitácora",
