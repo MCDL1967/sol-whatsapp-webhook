@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.4a";
+const APP_VERSION = "v8.6.4b";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -1669,14 +1669,15 @@ async function saveAdminCcToDB(val){
 function updateApiStatus(){
   const key=getApiKey();
   const badge=el("apiStatusBadge");
-  const isAdmin=currentUser&&(currentUser.role==="ADMIN");
+  const canManageApi=can(RIGHTS.SETTINGS_API);
+  const shouldWarnMissingApi=!key&&can(RIGHTS.LOGS_LOAD);
   if(badge){
     badge.textContent=key?t("apiOk"):t("apiMissing");
     badge.className="api-status "+(key?"api-ok":"api-missing");
   }
   // Non-admin sees masked configured status only
   if(el("apiKeyInput")){
-    if(!isAdmin){
+    if(!canManageApi){
       el("apiKeyInput").value=key?t("apiConfiguredByAdmin"):"";
       el("apiKeyInput").readOnly=true;
       el("apiKeyInput").style.color="var(--dim2)";
@@ -1686,10 +1687,11 @@ function updateApiStatus(){
       el("apiKeyInput").style.color="";
     }
   }
-  if(el("btn_saveApiKey")) el("btn_saveApiKey").style.display=isAdmin?"":"none";
-  if(el("btn_clearApiKey")) el("btn_clearApiKey").style.display=isAdmin?"":"none";
+  if(el("btn_saveApiKey")) el("btn_saveApiKey").style.display=canManageApi?"":"none";
+  if(el("btn_clearApiKey")) el("btn_clearApiKey").style.display=canManageApi?"":"none";
   const warn=el("apiWarn");
-  if(warn){ if(!key) warn.classList.add("on"); else warn.classList.remove("on"); }
+  if(el("apiWarnLink")) el("apiWarnLink").style.display=canManageApi?"inline":"none";
+  if(warn){ if(shouldWarnMissingApi) warn.classList.add("on"); else warn.classList.remove("on"); }
 }
 
 async function saveApiKey(){
@@ -1995,6 +1997,11 @@ function openRoleRights(role,userId=null){
   renderRoleRightsCurrent(selected);
   renderRoleRightsAvailable(selected,editable);
   openModal("roleRightsMbd");
+}
+function openUserModalRoleRights(){
+  const u=getRoleRightsUser(editingUserId);
+  if(u) openRoleRights(u.role,u.id);
+  else openRoleRights(el("um_role").value,null);
 }
 
 async function saveRoleRights(){
@@ -6409,7 +6416,7 @@ function wireEvents(){
   el("um_cancel").addEventListener("click",()=>closeModal("userMbd"));
   el("um_save").addEventListener("click",saveUser);
   el("um_role").addEventListener("change",updateRoleDesc);
-  if(el("um_roleRightsBtn")) el("um_roleRightsBtn").addEventListener("click",()=>openRoleRights(el("um_role").value,editingUserId));
+  if(el("um_roleRightsBtn")) el("um_roleRightsBtn").addEventListener("click",openUserModalRoleRights);
   if(el("rr_close")) el("rr_close").addEventListener("click",()=>closeModal("roleRightsMbd"));
   if(el("rr_done")) el("rr_done").addEventListener("click",()=>closeModal("roleRightsMbd"));
   if(el("rr_save")) el("rr_save").addEventListener("click",saveRoleRights);
@@ -6460,7 +6467,10 @@ function wireEvents(){
   el("delMbd").addEventListener("click",e=>{ if(e.target===el("delMbd")) closeModal("delMbd"); });
 
   // Flight Log tab
-  el("apiWarnLink").addEventListener("click",()=>switchTab("settings"));
+  el("apiWarnLink").addEventListener("click",()=>{
+    if(can(RIGHTS.SETTINGS_API)) switchTab("settings");
+    else showToast(t("permissionDenied"),"err");
+  });
   if(el("sb_dlcsv")) el("sb_dlcsv").addEventListener("click",exportFlCSV);
   el("btn_approveAll").addEventListener("click",()=>setAllFlStatus("approved"));
   el("btn_resetAll").addEventListener("click",()=>setAllFlStatus("pending"));
