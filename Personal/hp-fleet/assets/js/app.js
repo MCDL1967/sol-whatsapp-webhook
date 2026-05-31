@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.4b";
+const APP_VERSION = "v8.6.4c";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -1670,7 +1670,7 @@ function updateApiStatus(){
   const key=getApiKey();
   const badge=el("apiStatusBadge");
   const canManageApi=can(RIGHTS.SETTINGS_API);
-  const shouldWarnMissingApi=!key&&can(RIGHTS.LOGS_LOAD);
+  const shouldWarnMissingApi=!key&&canManageApi;
   if(badge){
     badge.textContent=key?t("apiOk"):t("apiMissing");
     badge.className="api-status "+(key?"api-ok":"api-missing");
@@ -2772,7 +2772,7 @@ async function extractAll(){
   if(!requireLogRight(RIGHTS.LOGS_LOAD)) return;
   if(isExtracting){ showToast(t("extractionAlreadyRunning"),"warn"); return; }
   const apiKey=getApiKey();
-  if(!apiKey){showToast(t("noApiKey"),"err");switchTab("settings");return;}
+  if(!apiKey){showToast(t("ocrUnavailable"),"err");return;}
   if(!fileQueue.length){showToast(t("noFiles"),"err");return;}
   isExtracting=true;
   extractionAbort=new AbortController();
@@ -4808,7 +4808,7 @@ async function spReextract(){
   if(spReextracting){showToast("Re-extraction already in progress","warn");return;}
   if(isExtracting){showToast("Batch extraction in progress — please wait","warn");return;}
   const apiKey=getApiKey();
-  if(!apiKey){showToast("API key not configured","err");return;}
+  if(!apiKey){showToast(t("ocrUnavailable"),"err");return;}
   const entry=flEntries.find(e=>e.id===spEditingEntryId); if(!entry||!entry.imageUrl) return;
 
   // Guard + spinner
@@ -5618,7 +5618,7 @@ async function confirmAddFiles(){
   if(!requireLogRight(RIGHTS.LOGS_LOAD,"DRAFT")) return;
   if(!afFiles.length){showToast(t("pleaseAddFile"),"warn");return;}
   const apiKey=getApiKey();
-  if(!apiKey){showToast(t("noApiKey"),"err");return;}
+  if(!apiKey){showToast(t("ocrUnavailable"),"err");return;}
   const aircraft=el("af_aircraft")?el("af_aircraft").value:"";
   const operador=el("af_operator")?el("af_operator").value:"";
   if(operador&&!canCompany(operador)){showToast(t("permissionDenied"),"err");return;}
