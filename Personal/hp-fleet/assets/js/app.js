@@ -5540,7 +5540,21 @@ function openNewBatchModal(){
 }
 
 async function confirmNewBatch(){
+  try {
+    await confirmNewBatchCore();
+  } catch(err){
+    const msg=t("nbUnexpectedError").replace("{error}",err?.message||String(err||"unknown"));
+    openUploadStatusWindow(true);
+    uploadLog(msg);
+    showToast(msg,"err");
+    dbg("New Batch startup error: "+(err?.stack||err?.message||err),"err");
+  }
+}
+
+async function confirmNewBatchCore(){
   if(!requireLogRight(RIGHTS.LOGS_LOAD)) return;
+  openUploadStatusWindow(true);
+  uploadLog(t("nbPreflightStarted"));
   const aircraft=el("nb_aircraft")?el("nb_aircraft").value:"";
   const operador=el("nb_operator")?el("nb_operator").value:"";
   const periodFrom=el("nb_period_from")?el("nb_period_from").value:"";
@@ -5561,7 +5575,6 @@ async function confirmNewBatch(){
   if(ocrFiles.length&&!getApiKey()) preflightErrors.push(t("ocrUnavailable"));
   if(pdfFiles.length&&typeof pdfjsLib==="undefined") preflightErrors.push(t("nbPdfRendererUnavailable"));
   if(preflightErrors.length){
-    openUploadStatusWindow(true);
     uploadLog(t("nbPreflightFailed"));
     preflightErrors.forEach(msg=>uploadLog(msg));
     showToast(preflightErrors[0],"err");
