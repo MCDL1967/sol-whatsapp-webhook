@@ -943,8 +943,14 @@ function coColor(code){
   const idx = COMPANIES.findIndex(c=>c.code===code) % hues.length;
   return "hsl("+hues[Math.max(0,idx)]+",80%,65%)";
 }
-function openModal(id){ el(id).classList.add("open"); }
-function closeModal(id){ el(id).classList.remove("open"); }
+function openModal(id){
+  const node=el(id);
+  if(node) node.classList.add("open");
+}
+function closeModal(id){
+  const node=el(id);
+  if(node) node.classList.remove("open");
+}
 let _toastTimer=null;
 function getToastDurationMs(){
   const raw=(_userPrefs && _userPrefs.toast_duration_sec !== undefined) ? _userPrefs.toast_duration_sec : localStorage.getItem("hpfleet_toast_duration_sec");
@@ -5498,10 +5504,10 @@ async function resetBatch(){
   piAdditionalCharges=[]; piSignedBy=null; piSignedAt=null; piInvNum=null; piRulesSeeded=false;
   if(el("pi_signed_badge")){ el("pi_signed_badge").style.display="none"; el("pi_signed_badge").textContent=""; }
   if(el("pi_signoff_btn")) el("pi_signoff_btn").style.display="";
-  el("srcBar").style.display="none";
-  el("reviewSection").style.display="none";
+  if(el("srcBar")) el("srcBar").style.display="none";
+  if(el("reviewSection")) el("reviewSection").style.display="none";
   if(el("resultBanner")) el("resultBanner").style.display="none";
-  el("horoAlert").classList.remove("on");
+  if(el("horoAlert")) el("horoAlert").classList.remove("on");
   renderQueue(); renderWfBar(); setupFlRoleUI(); renderPreInvoice();
   await loadAllBatches(); // refresh selector
   dbg("New billing cycle started — previous batch preserved","ok");
