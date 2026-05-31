@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.4c";
+const APP_VERSION = "v8.6.4d";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2724,6 +2724,20 @@ function addFilesToQueue(files){
     }
     fileQueue.push({file:f,name:sanitizeFilename(f.name),size:f.size,type:f.type,status:"waiting",progress:0,_preview:null});
   });
+}
+
+function isSpreadsheetFile(file){
+  return /\.(xls|xlsx)$/i.test(file.name);
+}
+function isOcrFile(file){
+  return file.type==="application/pdf"||
+    file.type==="image/jpeg"||
+    file.type==="image/jpg"||
+    file.type==="image/png"||
+    /\.(pdf|jpg|jpeg|png)$/i.test(file.name);
+}
+function isSupportedBatchFile(file){
+  return isOcrFile(file)||isSpreadsheetFile(file);
 }
 
 function removeFromQueue(idx){ fileQueue.splice(idx,1); }
@@ -5537,15 +5551,53 @@ async function confirmNewBatch(){
   if(operador&&!canCompany(operador)){showToast(t("permissionDenied"),"err");return;}
   const ac=aircraft?AIRCRAFT.find(a=>a.matricula===aircraft):null;
   if(ac&&!canAircraft(ac)){showToast(t("permissionDenied"),"err");return;}
+  const unsupported=nbFiles.filter(f=>!isSupportedBatchFile(f));
+  const spreadsheetFiles=nbFiles.filter(isSpreadsheetFile);
+  const ocrFiles=nbFiles.filter(isOcrFile);
+  const pdfFiles=ocrFiles.filter(f=>f.type==="application/pdf"||/\.pdf$/i.test(f.name));
+  const preflightErrors=[];
+  if(unsupported.length) preflightErrors.push(t("nbUnsupportedFile").replace("{file}",unsupported.map(f=>f.name).join(", ")));
+  if(spreadsheetFiles.length&&typeof XLSX==="undefined") preflightErrors.push(t("nbSpreadsheetUnavailable"));
+  if(ocrFiles.length&&!getApiKey()) preflightErrors.push(t("ocrUnavailable"));
+  if(pdfFiles.length&&typeof pdfjsLib==="undefined") preflightErrors.push(t("nbPdfRendererUnavailable"));
+  if(preflightErrors.length){
+    openUploadStatusWindow(true);
+    uploadLog(t("nbPreflightFailed"));
+    preflightErrors.forEach(msg=>uploadLog(msg));
+    showToast(preflightErrors[0],"err");
+    return;
+  }
   closeModal("newBatchMbd");
   await resetBatch();
   window._pendingBatchMeta={aircraft,operador,periodFrom,periodTo,logFrom,logTo};
   addAudit("🆕",currentUser.name,"new billing cycle",aircraft+" / "+operador+" / "+periodFrom+" → "+periodTo);
-  // Add files to main queue and trigger extraction
-  nbFiles.forEach(f=>fileQueue.push({file:f,name:sanitizeFilename(f.name),size:f.size,type:f.type,status:"waiting",progress:0,_preview:null}));
+  const queuedFiles=[...nbFiles];
   nbFiles=[];
-  openUploadStatusWindow();
-  extractAll();
+  if(spreadsheetFiles.length){
+    openUploadStatusWindow(true);
+    uploadLog(t("nbSpreadsheetReady").replace("{files}",spreadsheetFiles.map(f=>f.name).join(", ")));
+    for(const file of spreadsheetFiles){
+      uploadLog(t("nbSpreadsheetImporting").replace("{file}",file.name));
+      const imported=await importFromXLSX(file);
+      uploadLog(t(imported?"nbSpreadsheetCompleted":"nbSpreadsheetFailed").replace("{file}",file.name));
+    }
+  }
+  if(ocrFiles.length){
+    ocrFiles.forEach(f=>fileQueue.push({file:f,name:sanitizeFilename(f.name),size:f.size,type:f.type,status:"waiting",progress:0,_preview:null}));
+    if(!spreadsheetFiles.length) openUploadStatusWindow();
+    uploadLog(t("nbOcrReady").replace("{files}",ocrFiles.map(f=>f.name).join(", ")));
+    try {
+      await extractAll();
+    } catch(err){
+      const msg=t("nbExtractionFailed").replace("{error}",err.message);
+      uploadLog(msg);
+      showToast(msg,"err");
+      dbg("New Batch extraction error: "+err.message,"err");
+    }
+  }
+  if(!ocrFiles.length&&!spreadsheetFiles.length){
+    showToast(queuedFiles.length?t("nbUnsupportedFile").replace("{file}",queuedFiles[0].name):t("pleaseAddFile"),"err");
+  }
 }
 
 // ── ADD MORE FILES ──
@@ -5594,7 +5646,10 @@ function initAfDropZone(){
   zone.addEventListener("dragleave",()=>zone.classList.remove("dragover"));
   zone.addEventListener("drop",e=>{
     e.preventDefault(); zone.classList.remove("dragover");
-    const files=Array.from(e.dataTransfer.files).filter(f=>/\.(pdf|jpg|jpeg|png)$/i.test(f.name));
+    const dropped=Array.from(e.dataTransfer.files);
+    const files=dropped.filter(isSupportedBatchFile);
+    const rejected=dropped.filter(f=>!isSupportedBatchFile(f));
+    rejected.forEach(f=>showToast(t("nbUnsupportedFile").replace("{file}",f.name),"err"));
     files.forEach(f=>{
       if(afFiles.find(q=>q.name===f.name&&q.size===f.size)){
         if(!confirm(t("duplicateFileConfirm").replace("{file}",f.name))) return;
@@ -5604,7 +5659,9 @@ function initAfDropZone(){
     afRenderQueue();
   });
   input.addEventListener("change",()=>{
-    Array.from(input.files).forEach(f=>{
+    const selected=Array.from(input.files);
+    selected.filter(f=>!isSupportedBatchFile(f)).forEach(f=>showToast(t("nbUnsupportedFile").replace("{file}",f.name),"err"));
+    selected.filter(isSupportedBatchFile).forEach(f=>{
       if(afFiles.find(q=>q.name===f.name&&q.size===f.size)){
         if(!confirm(t("duplicateFileConfirm").replace("{file}",f.name))) return;
       }
@@ -5617,15 +5674,29 @@ function initAfDropZone(){
 async function confirmAddFiles(){
   if(!requireLogRight(RIGHTS.LOGS_LOAD,"DRAFT")) return;
   if(!afFiles.length){showToast(t("pleaseAddFile"),"warn");return;}
-  const apiKey=getApiKey();
-  if(!apiKey){showToast(t("ocrUnavailable"),"err");return;}
   const aircraft=el("af_aircraft")?el("af_aircraft").value:"";
   const operador=el("af_operator")?el("af_operator").value:"";
   if(operador&&!canCompany(operador)){showToast(t("permissionDenied"),"err");return;}
   const ac=aircraft?AIRCRAFT.find(a=>a.matricula===aircraft):null;
   if(ac&&!canAircraft(ac)){showToast(t("permissionDenied"),"err");return;}
+  const unsupported=afFiles.filter(f=>!isSupportedBatchFile(f));
+  const spreadsheetFiles=afFiles.filter(isSpreadsheetFile);
+  const ocrFiles=afFiles.filter(isOcrFile);
+  const pdfFiles=ocrFiles.filter(f=>f.type==="application/pdf"||/\.pdf$/i.test(f.name));
+  const preflightErrors=[];
+  if(unsupported.length) preflightErrors.push(t("nbUnsupportedFile").replace("{file}",unsupported.map(f=>f.name).join(", ")));
+  if(spreadsheetFiles.length&&typeof XLSX==="undefined") preflightErrors.push(t("nbSpreadsheetUnavailable"));
+  if(ocrFiles.length&&!getApiKey()) preflightErrors.push(t("ocrUnavailable"));
+  if(pdfFiles.length&&typeof pdfjsLib==="undefined") preflightErrors.push(t("nbPdfRendererUnavailable"));
+  if(preflightErrors.length){
+    openUploadStatusWindow(true);
+    uploadLog(t("nbPreflightFailed"));
+    preflightErrors.forEach(msg=>uploadLog(msg));
+    showToast(preflightErrors[0],"err");
+    return;
+  }
   // Build isolated queue — bypasses fileQueue duplicate check entirely
-  const afQueue=afFiles.map(f=>({
+  const afQueue=ocrFiles.map(f=>({
     file:f, name:sanitizeFilename(f.name), size:f.size, type:f.type,
     status:"waiting", progress:0, _preview:null,
     _afContext:{aircraft, operador}
@@ -5634,7 +5705,19 @@ async function confirmAddFiles(){
   closeAddFilesDialog();
   await saveBatchToDB("preserve batch before append");
   openUploadStatusWindow(true);
-  await extractAllAppend(afQueue);
+  if(spreadsheetFiles.length){
+    window._pendingBatchMeta={...(window._pendingBatchMeta||{}),aircraft,operador};
+    uploadLog(t("nbSpreadsheetReady").replace("{files}",spreadsheetFiles.map(f=>f.name).join(", ")));
+    for(const file of spreadsheetFiles){
+      uploadLog(t("nbSpreadsheetImporting").replace("{file}",file.name));
+      const imported=await importFromXLSX(file);
+      uploadLog(t(imported?"nbSpreadsheetCompleted":"nbSpreadsheetFailed").replace("{file}",file.name));
+    }
+  }
+  if(afQueue.length){
+    uploadLog(t("nbOcrReady").replace("{files}",ocrFiles.map(f=>f.name).join(", ")));
+    await extractAllAppend(afQueue);
+  }
 }
 
 async function extractAllAppend(appendQueue){
@@ -5783,11 +5866,16 @@ function initNbDropZone(){
   zone.addEventListener("dragleave",()=>zone.classList.remove("dragover"));
   zone.addEventListener("drop",e=>{
     e.preventDefault(); zone.classList.remove("dragover");
-    const files=Array.from(e.dataTransfer.files).filter(f=>/\.(pdf|jpg|jpeg|png)$/i.test(f.name));
+    const dropped=Array.from(e.dataTransfer.files);
+    const files=dropped.filter(isSupportedBatchFile);
+    const rejected=dropped.filter(f=>!isSupportedBatchFile(f));
+    rejected.forEach(f=>showToast(t("nbUnsupportedFile").replace("{file}",f.name),"err"));
     files.forEach(f=>nbFiles.push(f)); nbRenderQueue();
   });
   input.addEventListener("change",()=>{
-    Array.from(input.files).forEach(f=>nbFiles.push(f));
+    const selected=Array.from(input.files);
+    selected.filter(f=>!isSupportedBatchFile(f)).forEach(f=>showToast(t("nbUnsupportedFile").replace("{file}",f.name),"err"));
+    selected.filter(isSupportedBatchFile).forEach(f=>nbFiles.push(f));
     input.value=""; nbRenderQueue();
   });
 }
@@ -6046,8 +6134,9 @@ function renderAll(){
 
 // ── XLSX IMPORTER ──
 async function importFromXLSX(file){
-  if(typeof XLSX==="undefined"){showToast(t("xlsxLibMissing"),"err");return;}
+  if(typeof XLSX==="undefined"){showToast(t("xlsxLibMissing"),"err");return false;}
   dbg("Starting XLSX import: "+file.name,"info");
+  return new Promise((resolve)=>{
   const reader=new FileReader();
   reader.onload=async function(e){
     try {
@@ -6061,7 +6150,7 @@ async function importFromXLSX(file){
       for(let i=0;i<rows.length;i++){
         if(rows[i].some(c=>String(c||"").includes("Nº Bit."))){hdrIdx=i;break;}
       }
-      if(hdrIdx===-1){dbg("Header row not found — expected 'Nº Bit.' in any cell","err");showToast("Header row not found in Excel file","err");return;}
+      if(hdrIdx===-1){dbg("Header row not found — expected 'Nº Bit.' in any cell","err");showToast(t("xlsxHeaderMissing"),"err");resolve(false);return;}
       dbg("Header row found at row "+(hdrIdx+1),"ok");
       const dataRows=rows.slice(hdrIdx+1);
       dbg("Data rows to process: "+dataRows.length,"info");
@@ -6093,9 +6182,9 @@ async function importFromXLSX(file){
         imported++;
       });
       dbg("Import complete — "+imported+" imported, "+skipped+" skipped","ok");
-      if(!imported){showToast("No valid entries found in Excel","err");return;}
-      batchSourceFile=[file.name];
-      if(el("srcFile")){ el("srcFile").textContent="1"; el("srcFile").title=file.name; }
+      if(!imported){showToast(t("xlsxNoValidEntries"),"err");resolve(false);return;}
+      batchSourceFile=[...(Array.isArray(batchSourceFile)?batchSourceFile:[]),file.name];
+      if(el("srcFile")){ el("srcFile").textContent=String(batchSourceFile.length); el("srcFile").title=batchSourceFile.join("\n"); }
       if(el("srcTs")) el("srcTs").textContent=new Date().toLocaleString(lang==="es"?"es-PA":"en-US");
       el("srcBar").style.display="grid";
       el("reviewSection").style.display="block";
@@ -6105,13 +6194,18 @@ async function importFromXLSX(file){
       renderWfBar(); setupFlRoleUI(); renderFlTable();
       showToast("✓ "+imported+" "+t("xlsxImported"));
       showResultBanner("ok","✓ "+imported+" "+t("xlsxImported")+" — "+file.name);
+      resolve(true);
     } catch(err){
       dbg("XLSX parse error: "+err.message,"err");
-      showToast("Excel import error: "+err.message,"err");
-      showResultBanner("err","✗ Excel import failed: "+err.message);
+      const msg=t("xlsxImportError").replace("{error}",err.message);
+      showToast(msg,"err");
+      showResultBanner("err","✗ "+msg);
+      resolve(false);
     }
   };
+  reader.onerror=()=>{showToast(t("xlsxImportError").replace("{error}",reader.error?.message||"unknown"),"err");resolve(false);};
   reader.readAsArrayBuffer(file);
+  });
 }
 
 // ── AIRCRAFT TAB RENDER ──

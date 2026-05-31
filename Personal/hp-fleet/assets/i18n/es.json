@@ -776,5 +776,18 @@
   "right_settings_api": "Gestionar API Key",
   "right_settings_dev": "Herramientas Developer",
   "right_settings_db": "Mantenimiento de BD",
-  "right_admin_view_as": "Usar Ver Como"
+  "right_admin_view_as": "Usar Ver Como",
+  "nbUnsupportedFile": "Tipo de archivo no soportado: {file}",
+  "nbPreflightFailed": "Preflight falló.",
+  "nbSpreadsheetUnavailable": "Importador de hojas de cálculo no disponible.",
+  "nbPdfRendererUnavailable": "Renderizador PDF no disponible. Recarga la app e intenta de nuevo.",
+  "nbSpreadsheetReady": "Importación de hoja lista: {files}",
+  "nbSpreadsheetImporting": "Importando hoja: {file}",
+  "nbSpreadsheetCompleted": "Importación de hoja completada: {file}",
+  "nbSpreadsheetFailed": "Falló importación de hoja: {file}",
+  "nbOcrReady": "Extracción OCR lista: {files}",
+  "nbExtractionFailed": "Falló extracción: {error}",
+  "xlsxNoValidEntries": "No se encontraron entradas válidas en Excel",
+  "xlsxHeaderMissing": "No se encontró la fila de encabezado en Excel",
+  "xlsxImportError": "Error importando Excel: {error}"
 }

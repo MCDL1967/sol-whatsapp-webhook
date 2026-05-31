@@ -776,5 +776,18 @@
   "right_settings_api": "Manage API Key",
   "right_settings_dev": "Developer Tools",
   "right_settings_db": "Database Maintenance",
-  "right_admin_view_as": "Use View As"
+  "right_admin_view_as": "Use View As",
+  "nbUnsupportedFile": "Unsupported file type: {file}",
+  "nbPreflightFailed": "Preflight failed.",
+  "nbSpreadsheetUnavailable": "Spreadsheet importer unavailable.",
+  "nbPdfRendererUnavailable": "PDF renderer unavailable. Reload the app and try again.",
+  "nbSpreadsheetReady": "Spreadsheet import ready: {files}",
+  "nbSpreadsheetImporting": "Importing spreadsheet: {file}",
+  "nbSpreadsheetCompleted": "Spreadsheet import completed: {file}",
+  "nbSpreadsheetFailed": "Spreadsheet import failed: {file}",
+  "nbOcrReady": "OCR extraction ready: {files}",
+  "nbExtractionFailed": "Extraction failed: {error}",
+  "xlsxNoValidEntries": "No valid entries found in Excel",
+  "xlsxHeaderMissing": "Header row not found in Excel file",
+  "xlsxImportError": "Excel import error: {error}"
 }
