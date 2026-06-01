@@ -640,6 +640,27 @@ table.fl-tbl td:last-child{border-right:none}
 .toast.err{border-left-color:var(--red)}
 .toast.info{border-left-color:var(--blue)}
 
+/* EXTRACTION TERMINAL */
+.upload-terminal{display:none;position:fixed;top:72px;left:72px;z-index:400;
+  width:min(760px,calc(100vw - 96px));height:min(520px,calc(100vh - 120px));
+  min-width:360px;min-height:220px;background:#050b0f;border:1px solid rgba(52,211,153,.65);
+  border-radius:3px;box-shadow:0 10px 34px rgba(0,0,0,.55);flex-direction:column;
+  resize:both;overflow:hidden}
+.upload-terminal-hdr{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:10px 12px;background:#050b0f;border-bottom:1px solid rgba(52,211,153,.45);
+  flex-shrink:0;cursor:move}
+.upload-terminal-title{font-family:var(--mono);font-size:11px;color:var(--green);
+  letter-spacing:1px;font-weight:700}
+.upload-terminal-actions{display:flex;gap:8px;align-items:center}
+.upload-terminal-btn{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.6);
+  color:var(--green);font-family:var(--mono);font-size:10px;padding:5px 10px;
+  cursor:pointer;border-radius:2px}
+.upload-terminal-btn:hover{background:rgba(52,211,153,.18);color:var(--text)}
+.upload-terminal-body{flex:1;overflow:auto;padding:12px 16px;font-family:var(--mono);
+  font-size:10px;color:var(--green);line-height:1.75;min-height:0}
+.upload-terminal-body::-webkit-scrollbar-thumb{background:rgba(52,211,153,.65)}
+.upload-terminal-body::-webkit-scrollbar-track{background:#050b0f}
+
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:var(--s1)}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
