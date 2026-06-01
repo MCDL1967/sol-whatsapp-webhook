@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.4h";
+const APP_VERSION = "v8.6.4j";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -862,6 +862,38 @@ function latestReviewerComment(entry){
 
 function escHtml(value){
   return String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
+}
+
+function normalizeSourceFileItem(item){
+  if(!item) return null;
+  if(typeof item==="string"){
+    const name=item.trim();
+    return name?{name}:null;
+  }
+  if(typeof item==="object"){
+    const rawName=item.name||item.fileName||item.filename||item.path||item.url||"";
+    const name=String(rawName).trim();
+    return name?{...item,name}:null;
+  }
+  return null;
+}
+
+function sourceFileItems(){
+  const raw=Array.isArray(batchSourceFile)?batchSourceFile:String(batchSourceFile||"").split(/,\s*/);
+  return raw.map(normalizeSourceFileItem).filter(Boolean);
+}
+
+function sourceFileNames(){
+  return sourceFileItems().map(f=>f.name);
+}
+
+function sourceFileLabel(){
+  return sourceFileNames().join(", ");
+}
+
+function sourceFileStoredValue(){
+  const items=sourceFileItems();
+  return JSON.stringify(items.map(f=>(f.url||f.href||f.storagePath||f.source||f.addedAt||f.addedBy)?f:f.name));
 }
 
 function entryEverObserved(entry){
@@ -2918,7 +2950,7 @@ async function extractAll(){
   batchSourceFile=fileQueue.map(f=>f.name);
   // Populate session bar
   updateSrcBar();
-  const msg=hasErrors?"⚠ "+allExtracted.length+" "+t("extractPartial"):"✓ "+allExtracted.length+" "+t("extractSuccess")+" "+batchSourceFile.join(", ");
+  const msg=hasErrors?"⚠ "+allExtracted.length+" "+t("extractPartial"):"✓ "+allExtracted.length+" "+t("extractSuccess")+" "+sourceFileLabel();
   uploadLog(msg);
   uploadLog(t("extractReadyReview"));
   showResultBanner(hasErrors?"warn":"ok",msg);
@@ -3004,21 +3036,12 @@ function horoCheck(entry,idx){
 
 // ── DUPLICATE LOG # CHECK ──
 function duplicateCheck(){
-  const seen={};
-  const dups=[];
-  getVisibleLogEntries().forEach((e)=>{
-    const idx=flEntries.indexOf(e);
-    if(!e.bnum||e.status==="skipped"||e.status==="void") return;
-    if(seen[e.bnum]===undefined){ seen[e.bnum]=idx; }
-    else {
-      // Flag both the first and current occurrence
-      if(!dups.find(d=>d.idx===seen[e.bnum])){
-        dups.push({idx:seen[e.bnum],entry:flEntries[seen[e.bnum]],bnum:e.bnum});
-      }
-      dups.push({idx,entry:e,bnum:e.bnum});
-    }
-  });
-  return dups;
+  const excluded=duplicateContinuityExcludedIdxs();
+  return [...excluded].sort((a,b)=>a-b).map(idx=>({
+    idx,
+    entry:flEntries[idx],
+    bnum:flEntries[idx]?.bnum||""
+  })).filter(d=>d.entry);
 }
 
 function workflowDisplayState(){
@@ -3042,10 +3065,9 @@ function updateSrcBar(){
   const sentBack=getReviewerCommentFilterEntries();
 
   if(el("srcFile")){
-    const files=Array.isArray(batchSourceFile)?batchSourceFile:(batchSourceFile||"—").split(/,\s*/);
-    const cleanFiles=files.filter(Boolean);
+    const cleanFiles=sourceFileItems();
     el("srcFile").textContent=cleanFiles.length||"—";
-    el("srcFile").title=cleanFiles.length?cleanFiles.join("\n"):t("noItems");
+    el("srcFile").title=cleanFiles.length?cleanFiles.map(f=>f.name).join("\n"):t("noItems");
     el("srcFile").style.color=cleanFiles.length?"var(--text)":"var(--dim2)";
     el("srcFile").style.pointerEvents=cleanFiles.length?"auto":"none";
   }
@@ -4052,7 +4074,7 @@ async function doSubmit(){
       .replace("{user}",currentUser.name)
       .replace("{approved}",approved)
       .replace("{flaggedPart}",flagged?t("waFlaggedPart").replace("{flagged}",flagged):"")
-      .replace("{source}",batchSourceFile),
+      .replace("{source}",sourceFileLabel()),
     true
   );
 }
@@ -4361,7 +4383,7 @@ async function doApprove(){
     t("waApproveMsg")
       .replace("{user}",currentUser.name)
       .replace("{approved}",getVisibleLogEntries().filter(e=>e.status==="approved").length)
-      .replace("{source}",batchSourceFile),
+      .replace("{source}",sourceFileLabel()),
     true
   );
 }
@@ -4494,7 +4516,7 @@ function exportFlCSV(){
     return [i+1,e.bnum||"",e.fecha,e.aeronave,e.operador,e.piloto,e.instructor||"",e.horoIn,
       e.motorOut,e.motorIn,tm.toFixed(2),e.vueloOut,e.vueloIn,tv.toFixed(2),
       DEFAULT_MULT[e.operador]||"",e.multOverride||"",tbp.toFixed(2),
-      e.obs||"",e.flagNote||"",e.status,batchStatus,currentUser.name,batchSourceFile.join(", "),FL_LOAD_TS.toISOString()]
+      e.obs||"",e.flagNote||"",e.status,batchStatus,currentUser.name,sourceFileLabel(),FL_LOAD_TS.toISOString()]
       .map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(",");
   });
   const ts=FL_LOAD_TS.toISOString().slice(0,16).replace(/[T:]/g,"-");
@@ -4513,7 +4535,7 @@ function exportFlXLSX(){
       e.motorOut,e.motorIn,parseFloat(tm.toFixed(2)),
       e.vueloOut,e.vueloIn,parseFloat(tv.toFixed(2)),
       DEFAULT_MULT[e.operador]||"",e.multOverride||"",parseFloat(tbp.toFixed(2)),
-      e.obs||"",e.flagNote||"",e.status,batchStatus,currentUser.name,batchSourceFile.join(", "),FL_LOAD_TS.toISOString()];
+      e.obs||"",e.flagNote||"",e.status,batchStatus,currentUser.name,sourceFileLabel(),FL_LOAD_TS.toISOString()];
   })];
   const ws=XLSX.utils.aoa_to_sheet(data);
   ws["!cols"]=[4,12,12,10,18,18,11,10,10,9,10,10,9,9,10,10,20,10,12,16,22,22].map(w=>({wch:w}));
@@ -4524,7 +4546,7 @@ function exportFlXLSX(){
   const sumData=[
     ["HP Fleet — Flight Log Summary",""],
     ["Generated",new Date().toLocaleString()],
-    ["Source File",batchSourceFile.join(", ")],["Batch Status",batchStatus],["Loaded By",currentUser.name],["",""],
+    ["Source File",sourceFileLabel()],["Batch Status",batchStatus],["Loaded By",currentUser.name],["",""],
     ["Operator","T.Motor (hrs)","Total TBH (hrs)"],
     ["FM",parseFloat(fmM.toFixed(2)),parseFloat(fmT.toFixed(2))],
     ["MAG",parseFloat(magM.toFixed(2)),parseFloat(magT.toFixed(2))],
@@ -4976,7 +4998,7 @@ async function saveBatchToDB(reason="unspecified"){
     const meta=window._pendingBatchMeta||{};
     const logNums=flEntries.map(e=>e.bnum).filter(Boolean).sort();
     const batchData={
-      source_file:JSON.stringify(Array.isArray(batchSourceFile)?batchSourceFile:[batchSourceFile]),
+      source_file:sourceFileStoredValue(),
       status:batchStatus,
       submitted_by:currentUser.name,
       aircraft:meta.aircraft||"",
@@ -4994,6 +5016,7 @@ async function saveBatchToDB(reason="unspecified"){
     } else {
       // Update existing batch
       const _batchPatch={
+        source_file:batchData.source_file,
         status:batchStatus,
         cycle:reviewCycle,
         submitted_by:currentUser.name,
@@ -5866,7 +5889,7 @@ async function extractAllAppend(appendQueue){
 
   // Update source file array — append new file names
   const newNames=appendQueue.map(f=>f.name);
-  batchSourceFile=[...batchSourceFile,...newNames];
+  batchSourceFile=[...sourceFileItems(),...newNames.map(name=>({name,source:"add_more_files"}))];
 
   const msg=hasErrors?t("appendWithErrors").replace("{entries}",newEntries.length):t("appendCompleteMsg").replace("{entries}",newEntries.length).replace("{files}",newNames.join(", "));
   uploadLog(msg);
@@ -5947,7 +5970,7 @@ function saveUploadLog(){
   const txt=uploadLogLines.join("\n");
   const a=document.createElement("a");
   a.href=URL.createObjectURL(new Blob([txt],{type:"text/plain"}));
-  const srcName=Array.isArray(batchSourceFile)?batchSourceFile[0]:(batchSourceFile||"extraction");
+  const srcName=sourceFileNames()[0]||"extraction";
   const baseName=srcName.trim().replace(/\.[^.]+$/,"").replace(/[^a-zA-Z0-9_\-]/g,"_");
   a.download=baseName+"_log.txt";
   a.click();
@@ -6220,8 +6243,8 @@ async function importFromXLSX(file){
       });
       dbg("Import complete — "+imported+" imported, "+skipped+" skipped","ok");
       if(!imported){showToast(t("xlsxNoValidEntries"),"err");resolve(false);return;}
-      batchSourceFile=[...(Array.isArray(batchSourceFile)?batchSourceFile:[]),file.name];
-      if(el("srcFile")){ el("srcFile").textContent=String(batchSourceFile.length); el("srcFile").title=batchSourceFile.join("\n"); }
+      batchSourceFile=[...sourceFileItems(),{name:file.name,source:"xlsx"}];
+      if(el("srcFile")){ el("srcFile").textContent=String(sourceFileItems().length); el("srcFile").title=sourceFileNames().join("\n"); }
       if(el("srcTs")) el("srcTs").textContent=new Date().toLocaleString(lang==="es"?"es-PA":"en-US");
       el("srcBar").style.display="grid";
       el("reviewSection").style.display="block";
@@ -6909,8 +6932,15 @@ function wireEvents(){
   if(el("dlgSeqAlertsClose")) el("dlgSeqAlertsClose").addEventListener("click",()=>el("dlgSeqAlerts").classList.remove("open"));
 
   if(el("srcFile")) el("srcFile").addEventListener("click",()=>{
-    const files=(Array.isArray(batchSourceFile)?batchSourceFile:(batchSourceFile||"").split(/,\s*/)).filter(Boolean);
-    const lines=files.map((f,i)=>(i+1)+". "+f);
+    const files=sourceFileItems();
+    const lines=files.map((f,i)=>{
+      const url=f.url||f.href||"";
+      const name=escHtml(f.name);
+      if(url){
+        return (i+1)+'. <a href="'+escHtml(url)+'" target="_blank" rel="noopener" style="color:var(--cyan);text-decoration:underline">'+name+"</a>";
+      }
+      return (i+1)+". "+name;
+    });
     openFloatDialog("dlgSources",t("sourceFiles"),lines,"var(--cyan)",null);
   });
 
