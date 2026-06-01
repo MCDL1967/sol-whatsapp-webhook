@@ -2905,12 +2905,6 @@ async function extractAll(){
   }
 
   isExtracting=false; extractionAbort=null;
-  const scopedExtracted=allExtracted.filter(canSeeLogEntry);
-  if(scopedExtracted.length!==allExtracted.length){
-    hasErrors=true;
-    uploadLog(t("permissionDenied"));
-  }
-  allExtracted=scopedExtracted;
   if(!allExtracted.length&&hasErrors){
     uploadLog(t("extractFailedNoEntries"));
     showResultBanner("err","✗ "+t("extractError"));return;
@@ -5498,7 +5492,7 @@ function closeSidePanel(){
 }
 async function resetBatch(){
   // Archive current batch — DO NOT delete
-  flEntries=[]; flAuditLog=[]; fileQueue=[]; batchStatus="DRAFT";
+  flEntries=[]; flAuditLog=[]; fileQueue=[]; batchStatus="DRAFT"; reviewCycle=1;
   batchSourceFile=[]; editingEntryId=null; nextEntryId=1;
   currentBatchId=null; // deselect, preserve in DB
   piAdditionalCharges=[]; piSignedBy=null; piSignedAt=null; piInvNum=null; piRulesSeeded=false;
@@ -5831,13 +5825,7 @@ async function extractAllAppend(appendQueue){
 
   isExtracting=false; extractionAbort=null;
 
-  // APPEND to existing flEntries — do not reset
-  const scopedExtracted=allExtracted.filter(canSeeLogEntry);
-  if(scopedExtracted.length!==allExtracted.length){
-    hasErrors=true;
-    uploadLog(t("permissionDenied"));
-  }
-  allExtracted=scopedExtracted;
+  // APPEND to existing flEntries — do not reset or drop extracted continuity rows.
   const newEntries=allExtracted.map(e=>({
     id:nextEntryId++,status:"pending",multOverride:null,...e,
     reviewObserved:false,
