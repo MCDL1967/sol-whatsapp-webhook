@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.4g";
+const APP_VERSION = "v8.6.4h";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -2929,11 +2929,36 @@ async function extractAll(){
 }
 
 // ── LOG # SEQUENCE CHECK ──
+function duplicateContinuityExcludedIdxs(){
+  const byLog={};
+  getVisibleLogEntries().forEach(e=>{
+    const idx=flEntries.indexOf(e);
+    const logKey=String(e.bnum||"").trim();
+    if(idx<0||!logKey||e.status==="skipped"||e.status==="void") return;
+    if(!byLog[logKey]) byLog[logKey]=[];
+    byLog[logKey].push(idx);
+  });
+  const excluded=new Set();
+  Object.values(byLog).forEach(idxs=>{
+    if(idxs.length<2) return;
+    idxs.sort((a,b)=>a-b).slice(0,-1).forEach(idx=>excluded.add(idx));
+  });
+  return excluded;
+}
+
+function isContinuityExcluded(entry,idx,duplicateIdxs){
+  if(!entry) return true;
+  if(entry.status==="void"||entry.status==="skipped") return true;
+  const dupSet=duplicateIdxs||duplicateContinuityExcludedIdxs();
+  return dupSet.has(idx);
+}
+
 function logCheck(){
   const breaks=[];
+  const duplicateIdxs=duplicateContinuityExcludedIdxs();
   // Global sequence — Log # is shared across all aircraft in the batch
   const entries=getVisibleLogEntries()
-    .filter(e=>e.bnum&&e.status!=="skipped"&&e.status!=="void")
+    .filter(e=>e.bnum&&!isContinuityExcluded(e,flEntries.indexOf(e),duplicateIdxs))
     .sort((a,b)=>parseInt(a.bnum)-parseInt(b.bnum));
   for(let i=1;i<entries.length;i++){
     const prev=parseInt(entries[i-1].bnum);
@@ -2952,12 +2977,13 @@ function logCheck(){
 }
 
 function horoCheck(entry,idx){
-  // Skip void/skipped entries entirely — they don't count in the sequence
+  // Skip rows excluded from continuity entirely — they don't count in meter sequence.
   if(!entry.motorOut||!entry.aeronave) return{ok:true};
-  if(entry.status==="void"||entry.status==="skipped") return{ok:true};
+  const duplicateIdxs=duplicateContinuityExcludedIdxs();
+  if(isContinuityExcluded(entry,idx,duplicateIdxs)) return{ok:true};
   const prev=flEntries.slice(0,idx).filter(e=>
     e.aeronave===entry.aeronave&&
-    e.status!=="skipped"&&e.status!=="void"&&
+    !isContinuityExcluded(e,flEntries.indexOf(e),duplicateIdxs)&&
     e.motorIn&&e.motorIn!=="—"
   ).pop();
   if(!prev) return{ok:true};
