@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.4j";
+const APP_VERSION = "v8.6.4k";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -864,22 +864,44 @@ function escHtml(value){
   return String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
 }
 
+function sourceFileDisplayName(value){
+  if(!value) return "";
+  if(typeof value==="object"){
+    return sourceFileDisplayName(value.name||value.fileName||value.filename||value.path||value.storagePath||value.url||value.href||value.publicUrl||value.downloadUrl);
+  }
+  const raw=String(value).trim();
+  if(!raw) return "";
+  const clean=raw.split(/[?#]/)[0];
+  const name=clean.split("/").filter(Boolean).pop()||raw;
+  try{ return decodeURIComponent(name); }
+  catch(e){ return name; }
+}
+
 function normalizeSourceFileItem(item){
   if(!item) return null;
   if(typeof item==="string"){
-    const name=item.trim();
+    const name=sourceFileDisplayName(item);
     return name?{name}:null;
   }
   if(typeof item==="object"){
-    const rawName=item.name||item.fileName||item.filename||item.path||item.url||"";
-    const name=String(rawName).trim();
+    const name=sourceFileDisplayName(item);
     return name?{...item,name}:null;
   }
   return null;
 }
 
 function sourceFileItems(){
-  const raw=Array.isArray(batchSourceFile)?batchSourceFile:String(batchSourceFile||"").split(/,\s*/);
+  let raw=batchSourceFile;
+  if(typeof raw==="string"){
+    const trimmed=raw.trim();
+    if(trimmed.startsWith("[")||trimmed.startsWith("{")){
+      try{ raw=JSON.parse(trimmed); }
+      catch(e){ raw=trimmed.split(/,\s*/); }
+    } else {
+      raw=trimmed.split(/,\s*/);
+    }
+  }
+  raw=Array.isArray(raw)?raw:[raw];
   return raw.map(normalizeSourceFileItem).filter(Boolean);
 }
 
@@ -6934,10 +6956,10 @@ function wireEvents(){
   if(el("srcFile")) el("srcFile").addEventListener("click",()=>{
     const files=sourceFileItems();
     const lines=files.map((f,i)=>{
-      const url=f.url||f.href||"";
+      const url=f.url||f.href||f.publicUrl||f.downloadUrl||"";
       const name=escHtml(f.name);
       if(url){
-        return (i+1)+'. <a href="'+escHtml(url)+'" target="_blank" rel="noopener" style="color:var(--cyan);text-decoration:underline">'+name+"</a>";
+        return (i+1)+'. <a href="'+escHtml(url)+'" target="_blank" rel="noopener" download style="color:var(--cyan);text-decoration:underline">'+name+"</a>";
       }
       return (i+1)+". "+name;
     });
