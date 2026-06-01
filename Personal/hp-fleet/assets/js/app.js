@@ -7274,7 +7274,11 @@ function wireEvents(){
   if(el("batchSelector")) el("batchSelector").addEventListener("change",async function(){
     const newId=this.value; if(!newId||newId===currentBatchId) return;
     if(flEntries.length){
-      if(confirm(t("batchSwitchSaveConfirm"))) await saveBatchToDB("batch selector switch");
+      if(!confirm(t("batchSwitchSaveConfirm"))){
+        this.value=currentBatchId||"";
+        return;
+      }
+      await saveBatchToDB("batch selector switch");
     }
     await switchToBatch(newId);
   });
