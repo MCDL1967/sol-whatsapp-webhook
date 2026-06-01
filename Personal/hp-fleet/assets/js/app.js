@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.4f";
+const APP_VERSION = "v8.6.4g";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -5449,6 +5449,8 @@ async function saveSpEntry(){
     addFlAudit("✏️",currentUser.name,"edited entry via panel","#"+(flEntries.indexOf(e)+1));
     await saveBatchToDB("side panel entry edit");
     renderFlTable();
+    updateSrcBar();
+    renderWfBar();
     showToast("Entry updated");
     spClearDirty();
     // Refresh meta only — do NOT call _loadSpEntry which resets transform
@@ -5469,6 +5471,8 @@ async function saveSpEntry(){
   // Reviewer comment path
   await saveBatchToDB("reviewer comment");
   renderFlTable();
+  updateSrcBar();
+  renderWfBar();
   showToast(role==="REVIEWER"?"Comment saved":"Entry updated");
   if(el("sp_title")) el("sp_title").textContent=t("spLogEntryTitle").replace("{num}",flEntries.indexOf(e)+1);
   if(el("sp_meta")) el("sp_meta").textContent=(e.fecha||"—")+" | "+(e.bnum?t("spLogPrefix")+e.bnum+" | ":"")+(e.piloto||"—")+" | "+(e.aeronave||"—");
