@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.4m";
+const APP_VERSION = "v8.6.4n";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -251,7 +251,7 @@ const ROLES = {
   REVIEWER: {icon:"✅",color:"var(--green)",bannerClass:"rb-reviewer",chipClass:"rc-reviewer",avatarBg:"rgba(61,220,132,.15)",
     en:{label:"Reviewer / Approver",desc:"Review submitted flight log batches for your assigned companies and approve them for invoicing.",perms:["View Entries","Approve for Invoicing","Request Changes","Export"]},
     es:{label:"Revisor / Aprobador",desc:"Revisa los lotes enviados de tus compañías y apruébalos para facturación.",perms:["Ver Entradas","Aprobar Facturación","Solicitar Cambios","Exportar"]}},
-  READONLY: {icon:"👁️",color:"var(--dim2)",bannerClass:"rb-readonly",chipClass:"rc-readonly",avatarBg:"rgba(136,153,187,.15)",
+  READONLY: {icon:"📘",color:"var(--dim2)",bannerClass:"rb-readonly",chipClass:"rc-readonly",avatarBg:"rgba(136,153,187,.15)",
     en:{label:"Read Only",desc:"View-only access for your assigned companies.",perms:["View Entries"]},
     es:{label:"Solo Lectura",desc:"Acceso de solo lectura para tus compañías asignadas.",perms:["Ver Entradas"]}}
 };
