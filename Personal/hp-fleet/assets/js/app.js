@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.4n";
+const APP_VERSION = "v8.6.4o";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -4125,6 +4125,14 @@ let piSignedBy=null, piSignedAt=null, piInvNum=null;
 let piRulesSeeded=false;
 let piSortCol="bnum", piSortDir="asc";
 
+function canSignBilling(){
+  return batchStatus==="APPROVED" && can(RIGHTS.BILLING_SIGNOFF);
+}
+function syncBillingSignoffUI(){
+  const btn=el("pi_signoff_btn"); if(!btn) return;
+  btn.style.display=(!piSignedBy && canSignBilling())?"":"none";
+}
+
 function generateInvNum(){
   const now=new Date();
   return "INV-"+now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(Math.floor(Math.random()*900)+100);
@@ -4268,12 +4276,16 @@ function renderPreInvoice(){
     if(piSignedBy&&el("pi_signed_badge")){
       el("pi_signed_badge").style.display="flex";
       el("pi_signed_badge").textContent="✓ Approved by "+piSignedBy+" on "+piSignedAt;
-      if(el("pi_signoff_btn")) el("pi_signoff_btn").style.display="none";
+    } else if(el("pi_signed_badge")){
+      el("pi_signed_badge").style.display="none";
+      el("pi_signed_badge").textContent="";
     }
+    syncBillingSignoffUI();
   } else {
     ready.style.display="none"; soon.style.display="block";
     const msg=el("pi_coming_msg");
     if(msg) msg.textContent=batchStatus==="SUBMITTED"?t("piAwaitingApproval"):t("piApproveToUnlock");
+    syncBillingSignoffUI();
   }
 }
 
@@ -5615,7 +5627,7 @@ async function resetBatch(){
   currentBatchId=null; // deselect, preserve in DB
   piAdditionalCharges=[]; piSignedBy=null; piSignedAt=null; piInvNum=null; piRulesSeeded=false;
   if(el("pi_signed_badge")){ el("pi_signed_badge").style.display="none"; el("pi_signed_badge").textContent=""; }
-  if(el("pi_signoff_btn")) el("pi_signoff_btn").style.display="";
+  syncBillingSignoffUI();
   if(el("srcBar")) el("srcBar").style.display="none";
   if(el("reviewSection")) el("reviewSection").style.display="none";
   if(el("resultBanner")) el("resultBanner").style.display="none";
@@ -6248,7 +6260,7 @@ async function switchToBatch(batchId){
   renderWfBar(); setupFlRoleUI(); renderFlTable(); renderFlAudit();
   piAdditionalCharges=[]; piSignedBy=null; piSignedAt=null; piInvNum=null; piRulesSeeded=false;
   if(el("pi_signed_badge")){ el("pi_signed_badge").style.display="none"; el("pi_signed_badge").textContent=""; }
-  if(el("pi_signoff_btn")) el("pi_signoff_btn").style.display="";
+  syncBillingSignoffUI();
   renderPreInvoice();
   showToast("Billing cycle loaded","info");
 }
@@ -7157,6 +7169,7 @@ function wireEvents(){
   const addCharge=()=>{piAdditionalCharges.push({desc:t("piAdditionalChargeDefault"),amount:0});renderPreInvoice();};
   if(el("pi_add_charge2")) el("pi_add_charge2").addEventListener("click",addCharge);
   if(el("pi_signoff_btn")) el("pi_signoff_btn").addEventListener("click",async()=>{
+    if(!canSignBilling()){showToast(t("permissionDenied"),"err");syncBillingSignoffUI();return;}
     piSignedBy=currentUser.name;
     piSignedAt=new Date().toLocaleString("es-PA");
     addFlAudit("✍️",currentUser.name,"signed off billing",piInvNum);
