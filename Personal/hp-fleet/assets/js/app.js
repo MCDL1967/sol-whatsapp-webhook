@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.4o";
+const APP_VERSION = "v8.6.4p";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -96,6 +96,31 @@ async function uploadImageToStorage(blob, filename){
     dbg("Image uploaded: "+filename,"ok");
     return publicUrl;
   } catch(err){dbg("Storage upload error: "+err.message,"err");return null;}
+}
+
+async function uploadSourceFileToStorage(item){
+  if(!item?.file||!currentBatchId) return item;
+  const name=sanitizeFilename(item.name||item.file.name||"source_file");
+  const path="batches/"+currentBatchId+"/sources/"+name;
+  try {
+    const r=await fetch(SB_URL+"/storage/v1/object/bitacoras/"+path,{
+      method:"POST",
+      headers:{
+        "apikey":SB_KEY,
+        "Authorization":"Bearer "+SB_KEY,
+        "Content-Type":item.file.type||item.type||"application/octet-stream",
+        "x-upsert":"true"
+      },
+      body:item.file
+    });
+    if(!r.ok){const e=await r.text();dbg("Source file upload failed: "+name+" — "+e,"err");return {...item,name};}
+    const url=SB_URL+"/storage/v1/object/public/bitacoras/"+path;
+    dbg("Source file uploaded: "+name,"ok");
+    return {...item,name,url,storagePath:path};
+  } catch(err){
+    dbg("Source file upload error: "+name+" — "+err.message,"err");
+    return {...item,name};
+  }
 }
 
 // ── AIRCRAFT PHOTO UPLOAD ──
@@ -870,7 +895,7 @@ function escHtml(value){
 function sourceFileDisplayName(value){
   if(!value) return "";
   if(typeof value==="object"){
-    return sourceFileDisplayName(value.name||value.fileName||value.filename||value.path||value.storagePath||value.url||value.href||value.publicUrl||value.downloadUrl);
+    return sourceFileDisplayName(value.name||value.fileName||value.filename||value.file?.name||value.path||value.storagePath||value.url||value.href||value.publicUrl||value.downloadUrl);
   }
   const raw=String(value).trim();
   if(!raw) return "";
@@ -908,6 +933,36 @@ function sourceFileItems(){
   return raw.map(normalizeSourceFileItem).filter(Boolean);
 }
 
+function sourceFilePersistableItem(item){
+  const clean=normalizeSourceFileItem(item);
+  if(!clean) return null;
+  const {file,_preview,_label,_error,_afContext,progress,status,...rest}=clean;
+  return rest;
+}
+
+function sourceFileUrl(item){
+  if(!item) return "";
+  if(item.url||item.href||item.publicUrl||item.downloadUrl) return item.url||item.href||item.publicUrl||item.downloadUrl;
+  if(item.storagePath) return SB_URL+"/storage/v1/object/public/bitacoras/"+String(item.storagePath).replace(/^\/+/,"");
+  return "";
+}
+
+async function ensureSourceFilesStored(){
+  if(!currentBatchId) return;
+  const items=sourceFileItems();
+  let changed=false;
+  const stored=[];
+  for(const item of items){
+    let next=item;
+    if(item.file&&!item.url&&!item.href&&!item.publicUrl&&!item.downloadUrl){
+      next=await uploadSourceFileToStorage(item);
+      changed=true;
+    }
+    stored.push(sourceFilePersistableItem(next));
+  }
+  if(changed) batchSourceFile=stored.filter(Boolean);
+}
+
 function sourceFileNames(){
   return sourceFileItems().map(f=>f.name);
 }
@@ -918,7 +973,10 @@ function sourceFileLabel(){
 
 function sourceFileStoredValue(){
   const items=sourceFileItems();
-  return JSON.stringify(items.map(f=>(f.url||f.href||f.storagePath||f.source||f.addedAt||f.addedBy)?f:f.name));
+  return JSON.stringify(items.map(f=>{
+    const clean=sourceFilePersistableItem(f);
+    return clean&&(clean.url||clean.href||clean.storagePath||clean.source||clean.addedAt||clean.addedBy)?clean:clean?.name;
+  }).filter(Boolean));
 }
 
 function entryEverObserved(entry){
@@ -2981,7 +3039,13 @@ async function extractAll(){
     horoIn:parseFloat(e.horoIn)||0,
     imageUrl:e._imageUrl||null
   }))];
-  batchSourceFile=fileQueue.map(f=>f.name);
+  batchSourceFile=fileQueue.map(f=>({
+    name:f.name,
+    source:"new_batch",
+    size:f.size,
+    type:f.type,
+    file:f.file
+  }));
   // Populate session bar
   updateSrcBar();
   const msg=hasErrors?"⚠ "+allExtracted.length+" "+t("extractPartial"):"✓ "+allExtracted.length+" "+t("extractSuccess")+" "+sourceFileLabel();
@@ -5090,7 +5154,12 @@ async function saveBatchToDB(reason="unspecified"){
       const rows=await sbPost("batches",batchData);
       currentBatchId=rows[0].id;
       dbg("Batch created in DB — id: "+currentBatchId,"ok");
+      await ensureSourceFilesStored();
+      batchData.source_file=sourceFileStoredValue();
+      await sbPatch("batches","id=eq."+currentBatchId,{source_file:batchData.source_file});
     } else {
+      await ensureSourceFilesStored();
+      batchData.source_file=sourceFileStoredValue();
       // Update existing batch
       const _batchPatch={
         source_file:batchData.source_file,
@@ -5966,7 +6035,13 @@ async function extractAllAppend(appendQueue){
 
   // Update source file array — append new file names
   const newNames=appendQueue.map(f=>f.name);
-  batchSourceFile=[...sourceFileItems(),...newNames.map(name=>({name,source:"add_more_files"}))];
+  batchSourceFile=[...sourceFileItems(),...appendQueue.map(f=>({
+    name:f.name,
+    source:"add_more_files",
+    size:f.size,
+    type:f.type,
+    file:f.file
+  }))];
 
   const msg=hasErrors?t("appendWithErrors").replace("{entries}",newEntries.length):t("appendCompleteMsg").replace("{entries}",newEntries.length).replace("{files}",newNames.join(", "));
   uploadLog(msg);
@@ -7015,7 +7090,7 @@ function wireEvents(){
   if(el("srcFile")) el("srcFile").addEventListener("click",()=>{
     const files=sourceFileItems();
     const lines=files.map((f,i)=>{
-      const url=f.url||f.href||f.publicUrl||f.downloadUrl||"";
+      const url=sourceFileUrl(f);
       const name=escHtml(f.name);
       if(url){
         return (i+1)+'. <a href="'+escHtml(url)+'" target="_blank" rel="noopener" download style="color:var(--cyan);text-decoration:underline">'+name+"</a>";
