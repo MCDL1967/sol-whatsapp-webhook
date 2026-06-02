@@ -4685,6 +4685,37 @@ async function resetTestData(){
   showToast(lang==="es"?"Datos de prueba reiniciados":"Test data reset","warn");
 }
 
+async function resetSelectedBatchEntryData(){
+  if(!can(RIGHTS.SETTINGS_MANAGE)){showToast(t("permissionDenied"),"err");return;}
+  const batchId=el("reset_batch_id")?.value||"";
+  if(!batchId){showToast(lang==="es"?"Selecciona un lote":"Select a batch","err");return;}
+  const batch=allBatches.find(b=>b.id===batchId);
+  const label=batch?batchLabel(batch):batchId;
+  if(!confirm("Reset entry data for:\n\n"+label+"\n"+batchId+"\n\nThis clears reviewer notes, review threads, and resets entries to pending.")) return;
+  try {
+    await sbPatch("entries","batch_id=eq."+batchId,{
+      flag_note:"",
+      review_thread:"[]",
+      status:"pending"
+    });
+    if(batchId===currentBatchId){
+      flEntries.forEach(e=>{
+        e.flagNote="";
+        e.reviewThread=[];
+        e.reviewObserved=false;
+        e.status="pending";
+      });
+      addFlAudit("🗑",currentUser.name,"reset entry data","Selected batch entry notes and review state cleared");
+      await saveBatchToDB("reset selected batch entry data");
+      renderFlTable(); updateSrcBar(); renderWfBar();
+    } else {
+      addAudit("🗑",currentUser.name,"reset entry data","Batch "+batchId+" entry notes and review state cleared");
+    }
+    showToast(lang==="es"?"Datos de lote reiniciados":"Batch entry data reset","warn");
+    dbg("Reset entry data for batch "+batchId,"ok");
+  } catch(err){ showToast("Error: "+err.message,"err"); dbg("Reset selected batch error: "+err.message,"err"); }
+}
+
 function _scaleNonBillWatermark(){
   const wrap=el("sp_img_wrap");
   const txt=el("sp_nonbill_wm_text");
@@ -6075,6 +6106,46 @@ async function deleteBatchesByStatus(status){
   } catch(err){ showToast("Error: "+err.message,"err"); dbg("Delete by status error: "+err.message,"err"); }
 }
 
+async function deleteSelectedBatch(){
+  if(!can(RIGHTS.SETTINGS_DB)){showToast(t("permissionDenied"),"err");return;}
+  const batchId=el("del_batch_id")?.value||"";
+  await deleteBatchById(batchId);
+}
+
+async function deleteSelectedTestBatch(){
+  if(!can(RIGHTS.SETTINGS_DB)){showToast(t("permissionDenied"),"err");return;}
+  const batchId=el("del_test_batch_id")?.value||"";
+  await deleteBatchById(batchId);
+}
+
+async function deleteBatchById(batchId){
+  if(!batchId){showToast(lang==="es"?"Selecciona un lote":"Select a batch","err");return;}
+  const batch=allBatches.find(b=>b.id===batchId);
+  const label=batch?batchLabel(batch):batchId;
+  if(!confirm("Delete this exact batch?\n\n"+label+"\n"+batchId+"\n\nThis deletes the batch, entries, and audit rows. This cannot be undone.")) return;
+  try {
+    await sbDelete("entries","batch_id=eq."+batchId);
+    await sbDelete("audit_log","batch_id=eq."+batchId);
+    await sbDelete("batches","id=eq."+batchId);
+    addAudit("🗑",currentUser.name,"deleted selected batch",label+" · "+batchId);
+    if(batchId===currentBatchId){
+      currentBatchId=null;
+      flEntries=[];
+      flAuditLog=[];
+      batchStatus="DRAFT";
+      reviewCycle=1;
+      sourceFileName="";
+      sourceFileNames=[];
+      sourceFileRecords=[];
+      window._pendingBatchMeta=null;
+      renderFlTable(); updateSrcBar(); renderWfBar();
+    }
+    await loadAllBatches();
+    showToast(lang==="es"?"Lote eliminado":"Batch deleted","warn");
+    dbg("Deleted selected batch "+batchId,"ok");
+  } catch(err){ showToast("Error: "+err.message,"err"); dbg("Delete selected batch error: "+err.message,"err"); }
+}
+
 async function clearAuditLogDB(){
   if(!can(RIGHTS.SETTINGS_DB)){showToast(t("permissionDenied"),"err");return;}
   if(!confirm("Clear all app audit log entries? This cannot be undone.")) return;
@@ -6123,8 +6194,25 @@ function populateBatchSelect(selEl, approvedOnly=false){
   });
 }
 
+function populateTestBatchSelect(selEl){
+  if(!selEl) return;
+  selEl.innerHTML='<option value="">— '+(lang==="es"?"Seleccionar lote vacío/prueba":"Select empty/test batch")+' —</option>';
+  const list=allBatches.filter(b=>!b.aircraft&&!b.operador);
+  list.forEach(b=>{
+    const opt=document.createElement("option");
+    opt.value=b.id;
+    opt.textContent=batchLabel(b)+(b.id?" · "+b.id.slice(0,4):"");
+    opt.title=b.id||opt.textContent;
+    if(b.id===currentBatchId) opt.selected=true;
+    selEl.appendChild(opt);
+  });
+}
+
 function renderBatchSelector(){
   populateBatchSelect(el("batchSelector"), false);
+  populateBatchSelect(el("del_batch_id"), false);
+  populateBatchSelect(el("reset_batch_id"), false);
+  populateTestBatchSelect(el("del_test_batch_id"));
 }
 
 async function loadBatchFromDB(id){
@@ -6732,11 +6820,8 @@ function wireEvents(){
   // Settings
   el("btn_saveApiKey").addEventListener("click",saveApiKey);
   el("btn_clearApiKey").addEventListener("click",clearApiKey);
-  if(el("btn_delTestBatches")) el("btn_delTestBatches").addEventListener("click",deleteTestBatches);
-  if(el("btn_delByStatus")) el("btn_delByStatus").addEventListener("click",()=>{
-    const status=el("del_batch_status").value;
-    deleteBatchesByStatus(status);
-  });
+  if(el("btn_delTestBatch")) el("btn_delTestBatch").addEventListener("click",deleteSelectedTestBatch);
+  if(el("btn_delSelectedBatch")) el("btn_delSelectedBatch").addEventListener("click",deleteSelectedBatch);
   if(el("btn_clearAuditDB")) el("btn_clearAuditDB").addEventListener("click",clearAuditLogDB);
 
   // View As toggle (Admin only)
@@ -7139,9 +7224,7 @@ function wireEvents(){
   // Export PDF
   if(el("pi_export_pdf")) el("pi_export_pdf").addEventListener("click",()=>window.print());
 
-  if(el("btn_resetTestData")) el("btn_resetTestData").addEventListener("click",()=>{
-    if(confirm(t("resetReviewConfirm"))) resetTestData();
-  });
+  if(el("btn_resetTestData")) el("btn_resetTestData").addEventListener("click",resetSelectedBatchEntryData);
   if(el("btn_reopen")) el("btn_reopen").addEventListener("click",()=>{
     if(el("reopen_reason")) el("reopen_reason").value="";
     if(el("reopen_title")) el("reopen_title").textContent=t("reopenTitle");
