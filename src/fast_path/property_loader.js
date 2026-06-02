@@ -1,9 +1,9 @@
 /*
 File: property_loader.js
-Version: v14.0.0
-Date: 2026-04-30
+Version: v14.0.1
+Date: 2026-06-01
 Role: Load property package JSON files for SOL V14 Fast Path trial
-Status: trial scaffold
+Status: split response-template loader
 
 Purpose:
 - Load property-specific configuration from JSON files.
@@ -25,6 +25,20 @@ function safeRequireJson(resolvedPath, fallback) {
   }
 }
 
+function loadResponseTemplates(packageRoot) {
+  const templatesEn = safeRequireJson(path.join(packageRoot, 'response_templates_en.json'), null);
+  const templatesEs = safeRequireJson(path.join(packageRoot, 'response_templates_es.json'), null);
+
+  if (templatesEn || templatesEs) {
+    return {
+      ...(templatesEn || {}),
+      ...(templatesEs || {})
+    };
+  }
+
+  return safeRequireJson(path.join(packageRoot, 'response_templates.json'), {});
+}
+
 function loadPropertyPackage(propertyId = 'demo') {
   const packageRoot = path.join(__dirname, '..', '..', 'property_packages', propertyId);
 
@@ -33,7 +47,7 @@ function loadPropertyPackage(propertyId = 'demo') {
     propertyConfig: safeRequireJson(path.join(packageRoot, 'property_config.json'), {}),
     propertyMasterData: safeRequireJson(path.join(packageRoot, 'property_master_data.json'), {}),
     menuDictionary: safeRequireJson(path.join(packageRoot, 'menu_dictionary.json'), { menus: {} }),
-    responseTemplates: safeRequireJson(path.join(packageRoot, 'response_templates.json'), {})
+    responseTemplates: loadResponseTemplates(packageRoot)
   };
 }
 
