@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.4k";
+const APP_VERSION = "v8.6.4l";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -6106,10 +6106,18 @@ function populateBatchSelect(selEl, approvedOnly=false){
   if(!selEl) return;
   selEl.innerHTML='<option value="">— '+(lang==="es"?"Seleccionar ciclo":"Select Billing Cycle")+' —</option>';
   const list=approvedOnly?allBatches.filter(b=>b.status==="APPROVED"):allBatches;
+  const labelCounts=list.reduce((acc,b)=>{
+    const label=batchLabel(b);
+    acc[label]=(acc[label]||0)+1;
+    return acc;
+  },{});
   list.forEach(b=>{
     const opt=document.createElement("option");
+    const label=batchLabel(b);
+    const shortId=b.id?b.id.slice(0,4):"";
     opt.value=b.id;
-    opt.textContent=batchLabel(b);
+    opt.textContent=label+(labelCounts[label]>1&&shortId?" · "+shortId:"");
+    opt.title=b.id||label;
     if(b.id===currentBatchId) opt.selected=true;
     selEl.appendChild(opt);
   });
