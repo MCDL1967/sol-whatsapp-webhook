@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.4l";
+const APP_VERSION = "v8.6.4m";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -332,7 +332,8 @@ function canAny(rights){
 function canCompany(companyCode,user=currentUser){
   if(!companyCode) return false;
   if(!user) return false;
-  if(user.role==="ADMIN" && (!user.companies || !user.companies.length)) return true;
+  if(user===currentUser && user.role==="ADMIN" && effectiveRole()==="ADMIN") return true;
+  if(user!==currentUser && user.role==="ADMIN") return true;
   return (user.companies||[]).includes(companyCode);
 }
 function canSeeLogEntry(entry,user=currentUser){
@@ -371,12 +372,14 @@ function visibleAircraftRates(ac,user=currentUser){
 }
 function canAircraft(ac,user=currentUser){
   if(!ac) return false;
-  if(user?.role==="ADMIN" && (!user.companies || !user.companies.length)) return true;
+  if(user===currentUser && user.role==="ADMIN" && effectiveRole()==="ADMIN") return true;
+  if(user!==currentUser && user?.role==="ADMIN") return true;
   return visibleAircraftRates(ac,user).length>0;
 }
 function canManageAircraftRecord(ac,user=currentUser){
   if(!can(RIGHTS.AIRCRAFT_MANAGE) || !canAircraft(ac,user)) return false;
-  if(user?.role==="ADMIN" && (!user.companies || !user.companies.length)) return true;
+  if(user===currentUser && user.role==="ADMIN" && effectiveRole()==="ADMIN") return true;
+  if(user!==currentUser && user?.role==="ADMIN") return true;
   return (ac?.rates||[]).every(rate=>canCompany(rate.operador,user));
 }
 function hasAdditionalRights(user){
@@ -1785,15 +1788,24 @@ async function clearApiKey(){
 }
 
 // ── USER STATS ──
+function canSeeUserRecord(user){
+  if(!user||!currentUser) return false;
+  if(currentUser.role==="ADMIN" && effectiveRole()==="ADMIN") return true;
+  return (user.companies||[]).some(companyCode=>canCompany(companyCode));
+}
+function getVisibleUsers(){
+  return USERS.filter(canSeeUserRecord);
+}
 function renderUserStats(){
   const roles=["ADMIN","OPERATOR","REVIEWER","READONLY"];
   const cls={ADMIN:"sc-admin",OPERATOR:"sc-op",REVIEWER:"sc-rev",READONLY:"sc-ro"};
-  const active=USERS.filter(u=>u.status==="active").length;
-  let html='<div class="scard sc-tot"><div class="sc-l">Total</div><div class="sc-v">'+USERS.length+"</div>"+
+  const visibleUsers=getVisibleUsers();
+  const active=visibleUsers.filter(u=>u.status==="active").length;
+  let html='<div class="scard sc-tot"><div class="sc-l">Total</div><div class="sc-v">'+visibleUsers.length+"</div>"+
     '<div class="sc-s">'+active+" "+t("active")+"</div></div>";
   roles.forEach(r=>{
-    const cnt=USERS.filter(u=>u.role===r).length;
-    const act=USERS.filter(u=>u.role===r&&u.status==="active").length;
+    const cnt=visibleUsers.filter(u=>u.role===r).length;
+    const act=visibleUsers.filter(u=>u.role===r&&u.status==="active").length;
     html+='<div class="scard '+cls[r]+'"><div class="sc-l">'+ROLES[r][lang].label+"</div>"+
       '<div class="sc-v">'+cnt+"</div>"+
       '<div class="sc-s">'+act+" "+t("active")+"</div></div>";
@@ -1804,7 +1816,7 @@ function renderUserStats(){
 function populateCompanyFilter(){
   const sel=el("filterCompany"); const cur=sel.value;
   sel.innerHTML='<option value="ALL">'+t("allCompanies")+"</option>";
-  COMPANIES.forEach(co=>{
+  COMPANIES.filter(co=>canCompany(co.code)).forEach(co=>{
     const opt=document.createElement("option");
     opt.value=co.code; opt.textContent=co.code+" — "+co.name;
     sel.appendChild(opt);
@@ -1817,7 +1829,7 @@ function getFilteredUsers(){
   const r=el("filterRole").value;
   const co=el("filterCompany").value;
   const s=el("filterStatus").value;
-  return USERS.filter(u=>{
+  return getVisibleUsers().filter(u=>{
     const mq=!q||u.name.toLowerCase().includes(q)||u.email.toLowerCase().includes(q);
     return mq&&(r==="ALL"||u.role===r)&&(co==="ALL"||(u.companies||[]).includes(co))&&(s==="ALL"||u.status===s);
   });
@@ -1845,7 +1857,7 @@ function renderUsers(){
     const base=th.textContent.replace(/ [▲▼]$/,"");
     th.textContent=base+(userSortCol===col?(userSortDir===1?" ▲":" ▼"):"");
   });
-  el("userCount").textContent=t("showing")+" "+list.length+" "+t("of")+" "+USERS.length+" "+t("users");
+  el("userCount").textContent=t("showing")+" "+list.length+" "+t("of")+" "+getVisibleUsers().length+" "+t("users");
   const tbody=el("userTbody"); tbody.innerHTML="";
   if(!list.length){
     tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;font-family:var(--mono);font-size:11px;color:var(--dim)">'+t("noResults")+"</td></tr>"; return;
@@ -6070,51 +6082,9 @@ async function loadAllBatches(){
 }
 
 // ── DB MAINTENANCE ──
-async function deleteTestBatches(){
-  if(!can(RIGHTS.SETTINGS_DB)){showToast(t("permissionDenied"),"err");return;}
-  if(!confirm("Delete all batches with no aircraft/operator metadata? This cannot be undone.")) return;
-  try {
-    const batches=await sbGet("batches","aircraft=is.null&operador=is.null");
-    if(!batches||!batches.length){showToast("No test batches found","info");return;}
-    for(const b of batches){
-      await sbDelete("entries","batch_id=eq."+b.id);
-      await sbDelete("audit_log","batch_id=eq."+b.id);
-      await sbDelete("batches","id=eq."+b.id);
-    }
-    addAudit("🗑",currentUser.name,"deleted test batches",batches.length+" batches removed");
-    await loadAllBatches();
-    showToast(batches.length+" test batch(es) deleted","warn");
-    dbg("Deleted "+batches.length+" test batches","ok");
-  } catch(err){ showToast("Error: "+err.message,"err"); dbg("Delete test batches error: "+err.message,"err"); }
-}
-
-async function deleteBatchesByStatus(status){
-  if(!can(RIGHTS.SETTINGS_DB)){showToast(t("permissionDenied"),"err");return;}
-  if(!confirm("Delete ALL "+status+" batches? This cannot be undone.")) return;
-  try {
-    const batches=await sbGet("batches","status=eq."+status);
-    if(!batches||!batches.length){showToast("No "+status+" batches found","info");return;}
-    for(const b of batches){
-      await sbDelete("entries","batch_id=eq."+b.id);
-      await sbDelete("audit_log","batch_id=eq."+b.id);
-      await sbDelete("batches","id=eq."+b.id);
-    }
-    addAudit("🗑",currentUser.name,"deleted batches by status",batches.length+" "+status+" batches removed");
-    await loadAllBatches();
-    showToast(batches.length+" "+status+" batch(es) deleted","warn");
-    dbg("Deleted "+batches.length+" "+status+" batches","ok");
-  } catch(err){ showToast("Error: "+err.message,"err"); dbg("Delete by status error: "+err.message,"err"); }
-}
-
 async function deleteSelectedBatch(){
   if(!can(RIGHTS.SETTINGS_DB)){showToast(t("permissionDenied"),"err");return;}
   const batchId=el("del_batch_id")?.value||"";
-  await deleteBatchById(batchId);
-}
-
-async function deleteSelectedTestBatch(){
-  if(!can(RIGHTS.SETTINGS_DB)){showToast(t("permissionDenied"),"err");return;}
-  const batchId=el("del_test_batch_id")?.value||"";
   await deleteBatchById(batchId);
 }
 
@@ -6194,25 +6164,10 @@ function populateBatchSelect(selEl, approvedOnly=false){
   });
 }
 
-function populateTestBatchSelect(selEl){
-  if(!selEl) return;
-  selEl.innerHTML='<option value="">— '+(lang==="es"?"Seleccionar lote vacío/prueba":"Select empty/test batch")+' —</option>';
-  const list=allBatches.filter(b=>!b.aircraft&&!b.operador);
-  list.forEach(b=>{
-    const opt=document.createElement("option");
-    opt.value=b.id;
-    opt.textContent=batchLabel(b)+(b.id?" · "+b.id.slice(0,4):"");
-    opt.title=b.id||opt.textContent;
-    if(b.id===currentBatchId) opt.selected=true;
-    selEl.appendChild(opt);
-  });
-}
-
 function renderBatchSelector(){
   populateBatchSelect(el("batchSelector"), false);
   populateBatchSelect(el("del_batch_id"), false);
   populateBatchSelect(el("reset_batch_id"), false);
-  populateTestBatchSelect(el("del_test_batch_id"));
 }
 
 async function loadBatchFromDB(id){
@@ -6820,7 +6775,6 @@ function wireEvents(){
   // Settings
   el("btn_saveApiKey").addEventListener("click",saveApiKey);
   el("btn_clearApiKey").addEventListener("click",clearApiKey);
-  if(el("btn_delTestBatch")) el("btn_delTestBatch").addEventListener("click",deleteSelectedTestBatch);
   if(el("btn_delSelectedBatch")) el("btn_delSelectedBatch").addEventListener("click",deleteSelectedBatch);
   if(el("btn_clearAuditDB")) el("btn_clearAuditDB").addEventListener("click",clearAuditLogDB);
 
