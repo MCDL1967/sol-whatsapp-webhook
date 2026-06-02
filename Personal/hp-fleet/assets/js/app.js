@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.4p";
+const APP_VERSION = "v8.6.4q";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -944,6 +944,10 @@ function sourceFileUrl(item){
   if(!item) return "";
   if(item.url||item.href||item.publicUrl||item.downloadUrl) return item.url||item.href||item.publicUrl||item.downloadUrl;
   if(item.storagePath) return SB_URL+"/storage/v1/object/public/bitacoras/"+String(item.storagePath).replace(/^\/+/,"");
+  if(item.name&&currentBatchId){
+    const name=sanitizeFilename(item.name);
+    return SB_URL+"/storage/v1/object/public/bitacoras/batches/"+currentBatchId+"/sources/"+name;
+  }
   return "";
 }
 
