@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.4q";
+const APP_VERSION = "v8.6.4r";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -1670,6 +1670,7 @@ async function bootApp(loginLanguageOverride=null){
   dbg("Loading batch from database…","info");
   const hasBatch=await loadBatchFromDB();
   if(hasBatch){
+    renderBatchSelector();
     if(el("srcBar")) el("srcBar").style.display="grid";
     if(el("reviewSection")) el("reviewSection").style.display="block";
     updateSrcBar();
