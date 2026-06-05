@@ -1,9 +1,22 @@
 /*
 File: fast_path_classifier.js
-Version: v14.0.6
-Date: 2026-05-19
+Version: v14.0.7
+Date: 2026-06-05
 Role: Fast Path classifier using menu_dictionary and context
 Status: additive loyalty Program-information submenu for V14 mid-track
+
+This version changes (v14.0.7, additive only):
+- fixes Issue A: active restaurant reservation detail turns such as
+  "2 personas, manana 6pm" were being misread as follow-up submenu option 2
+  (`new_reservation`) instead of continuing reservation extraction
+- adds a narrow restaurant_followup_menu guard for active restaurant reservation
+  continuations that include usable reservation details
+- requires active_request.type="reservation" and selected_restaurant carry-forward
+  before bypassing deterministic follow-up submenu handling
+- returns null so existing reservation continuation / extraction ownership can
+  process partial details without forcing a new submenu selection
+- preserves pure restaurant follow-up submenu selections and does not change
+  webhook.js, responder, templates, loader, voice integration, or menu structure
 
 This version changes (v14.0.5, additive only):
 - preserves all v14.0.4 main-menu, restaurants_menu, restaurant_followup_menu,
@@ -114,6 +127,29 @@ function extractLeadingChoice(text = "", choiceAliases = {}) {
   return null;
 }
 
+function hasRestaurantReservationDetailSignal(text = "") {
+  const normalized = normalize(text);
+  if (!normalized) return false;
+
+  return [
+    /\b\d{1,2}\s*(?:am|pm)\b/,
+    /\b\d{1,2}:\d{2}\b/,
+    /\b(?:today|tomorrow|tonight|hoy|manana|mañana|esta noche)\b/,
+    /\b(?:monday|mon|tuesday|tue|wednesday|wed|thursday|thu|friday|fri|saturday|sat|sunday|sun)\b/,
+    /\b(?:lunes|martes|miercoles|miércoles|jueves|viernes|sabado|sábado|domingo)\b/,
+    /\b(?:party of|table for|for|para)\s+\d{1,2}\b/,
+    /\b\d{1,2}\s+(?:guests?|people|persons?|personas?|huespedes|huéspedes|pax)\b/,
+    /\b(?:somos|seremos)\s+\d{1,2}\b/
+  ].some((pattern) => pattern.test(normalized));
+}
+
+function isActiveRestaurantReservationContinuation(session = {}) {
+  return (
+    session.active_request?.type === "reservation" &&
+    !!session.selected_restaurant
+  );
+}
+
 function classifyFastPath({ input = "", session = {}, menuDictionary = {} }) {
   const text = normalize(input);
   const menus = menuDictionary.menus || {};
@@ -159,6 +195,13 @@ function classifyFastPath({ input = "", session = {}, menuDictionary = {} }) {
   }
 
   if (context === "restaurant_followup_menu" && menus.restaurant_followup_menu) {
+    if (
+      isActiveRestaurantReservationContinuation(session) &&
+      hasRestaurantReservationDetailSignal(text)
+    ) {
+      return null;
+    }
+
     const lookup = menus.restaurant_followup_menu.lookup || {};
     if (lookup[text]) {
       return {
