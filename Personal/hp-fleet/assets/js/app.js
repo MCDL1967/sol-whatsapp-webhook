@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.4r";
+const APP_VERSION = "v8.6.4s";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -3359,6 +3359,7 @@ function sanitizeFilename(name){
 
 
 function fmt(n){return isNaN(n)||n===0?"—":n.toFixed(1);}
+function billingTbh(n){return parseFloat((Number(n)||0).toFixed(1));}
 function fmtCurrency(n){
   return "$ "+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,",");
 }
@@ -4248,13 +4249,13 @@ function renderPreInvoice(){
     const tarifaHr=rate?rate.tarifaHr:0;
     // Auto-seed billing rules from company if not yet seeded for this invoice
     if(!piRulesSeeded && company?.billingRules?.length){
-      const totalTbh=approved.reduce((s,e)=>s+calcEntry(e).tbp,0);
+      const totalTbh=billingTbh(approved.reduce((s,e)=>s+calcEntry(e).tbp,0));
       const totalEntries=approved.length;
       company.billingRules.filter(r=>r.active&&r.type!=="discount").forEach(r=>{
         let amt=0, formula="";
         if(r.unit==="per Flight Hour"||r.unit==="/ TBH"){
           amt=parseFloat((r.amount*totalTbh).toFixed(2));
-          formula="$"+r.amount.toFixed(2)+" × "+totalTbh.toFixed(2)+" TBH";
+          formula="$"+r.amount.toFixed(2)+" × "+totalTbh.toFixed(1)+" TBH";
         } else if(r.unit==="per Flight"||r.unit==="/ Flight"){
           amt=parseFloat((r.amount*totalEntries).toFixed(2));
           formula="$"+r.amount.toFixed(2)+" × "+totalEntries+" flights";
@@ -4339,9 +4340,11 @@ function renderPreInvoice(){
         }
       });
     }
-    if(el("pi_sub_hrs")) el("pi_sub_hrs").textContent=fmt(totalTbp)+" hrs";
-    if(el("pi_sub_amt")) el("pi_sub_amt").textContent=fmtCurrency(totalAmt);
-    renderPiCharges(totalAmt);
+    const billingTotalTbp=billingTbh(totalTbp);
+    const billingSubtotal=tarifaHr>0?parseFloat((billingTotalTbp*tarifaHr).toFixed(2)):totalAmt;
+    if(el("pi_sub_hrs")) el("pi_sub_hrs").textContent=fmt(billingTotalTbp)+" hrs";
+    if(el("pi_sub_amt")) el("pi_sub_amt").textContent=fmtCurrency(billingSubtotal);
+    renderPiCharges(billingSubtotal);
     if(piSignedBy&&el("pi_signed_badge")){
       el("pi_signed_badge").style.display="flex";
       el("pi_signed_badge").textContent="✓ Approved by "+piSignedBy+" on "+piSignedAt;
