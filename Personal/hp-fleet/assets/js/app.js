@@ -1,5 +1,5 @@
 // ── DATA ──
-const APP_VERSION = "v8.6.4s";
+const APP_VERSION = "v8.6.4t";
 
 // ── SUPABASE CONFIG ──
 const SB_URL = "https://merarvfkbevvdbtghhfs.supabase.co";
@@ -4417,11 +4417,12 @@ function renderPiCharges(subtotal){
     // De-emphasize TOTAL AMOUNT DUE when pronto pago exists
     if(totalAmtEl) totalAmtEl.classList.add("has-pronto");
     if(totalLblEl) totalLblEl.classList.add("has-pronto");
+    // Discounts apply only to TBH/hourly subtotal, never to additional charges.
+    const discountBase=subtotal;
     // Compute stacked net total across all discounts
     let totalDiscAmt=0;
     discounts.forEach(d=>{
-      const base=d._discountBase==="total"?grandTotal:subtotal;
-      totalDiscAmt+=d._discountMode==="pct"?parseFloat((base*(d.amount/100)).toFixed(2)):d.amount;
+      totalDiscAmt+=d._discountMode==="pct"?parseFloat((discountBase*(d.amount/100)).toFixed(2)):d.amount;
     });
     totalDiscAmt=parseFloat(totalDiscAmt.toFixed(2));
     const netTotal=parseFloat((grandTotal-totalDiscAmt).toFixed(2));
@@ -4429,13 +4430,12 @@ function renderPiCharges(subtotal){
     if(discWrap){
       discounts.forEach(d=>{
         if(!(d._showDiscountLine??false)) return;
-        const base=d._discountBase==="total"?grandTotal:subtotal;
-        const dAmt=d._discountMode==="pct"?parseFloat((base*(d.amount/100)).toFixed(2)):d.amount;
+        const dAmt=d._discountMode==="pct"?parseFloat((discountBase*(d.amount/100)).toFixed(2)):d.amount;
         const dRow=document.createElement("div");
         dRow.style.cssText="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-top:1px dashed var(--border2);font-family:var(--mono);font-size:11px";
         dRow.innerHTML='<span style="color:var(--dim2)">'+d.desc+
           ' <span style="color:var(--dim);font-size:9px">('+
-          (d._discountMode==="pct"?d.amount+"% "+t(d._discountBase==="total"?"discOfTotal":"discOfSubtotal"):"$"+dAmt.toFixed(2)+" off")+
+          (d._discountMode==="pct"?d.amount+"% "+t("discOfSubtotal"):"$"+dAmt.toFixed(2)+" off")+
           ')</span></span><span style="color:var(--red)">− '+fmtCurrency(dAmt)+'</span>';
         discWrap.appendChild(dRow);
       });
