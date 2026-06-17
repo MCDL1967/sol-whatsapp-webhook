@@ -1,12 +1,25 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v14.0.5
-Date: 2026-06-15
+Version: v14.0.6
+Date: 2026-06-16
 Role: WhatsApp ↔ Voiceflow middleware webhook with V14 Fast Path trial
 Status: trial hybrid diagnostic candidate
 Base: webhook.v13.1.31.js
  
+This version adds (v14.0.6):
+- hydrates Voiceflow `reservation_candidate` from middleware-owned reservation/session state
+  when the runtime bridge read shows the candidate is missing known fields
+- seeds `reservation_candidate` in `buildVoiceflowStateVariables()` for active reservation
+  turns using current middleware context
+- adds minimal VF variable patch helper to merge a corrected `reservation_candidate`
+  back into Voiceflow after the turn when needed
+- preserves existing guest-facing reservation flow and does not change Fast Path,
+  classifier, responder, templates, or Voiceflow prompt content
+- fixes structural carry-forward for known reservation fields: venue_name, service_date,
+  service_time, party_size, guest_name, contact_phone, and contact_email
+- leaves `notes` unchanged unless middleware already owns a structured value
+
 This version adds (v14.0.5):
 - adds deterministic handling for combined main-menu reset + language switch phrases
   in a single user turn (e.g. "main menu, spanish", "menu in english",
@@ -1428,6 +1441,111 @@ function applyReservationDateResolutionLock(text, reservationContext = {}, optio
   return `${instruction} ${text}`;
 }
  
+function buildMiddlewareReservationCandidate(session = null, reservationContext = null) {
+  if (session?.active_request?.type !== "reservation") return null;
+
+  const guestProfile =
+    session?.guest_profile || createGuestProfile(session?.user_id || "");
+
+  const ctx =
+    reservationContext ||
+    session?.reservation_context ||
+    createReservationContext();
+
+  const venueName =
+    ctx.venue_or_department ||
+    extractKnownReservationVenue(session?.selected_restaurant || "") ||
+    session?.selected_restaurant ||
+    null;
+
+  const candidate = {
+    intent: "reservation",
+    venue_name: venueName,
+    service_date: ctx.resolved_date || null,
+    service_time: ctx.service_time || null,
+    party_size: ctx.party_size || null,
+    guest_name: guestProfile.guest_name || null,
+    contact_phone: guestProfile.contact_phone || null,
+    contact_email: guestProfile.contact_email || null,
+    notes: null
+  };
+
+  const hasKnownDetail =
+    candidate.venue_name ||
+    candidate.service_date ||
+    candidate.service_time ||
+    candidate.party_size ||
+    candidate.guest_name ||
+    candidate.contact_phone ||
+    candidate.contact_email ||
+    candidate.notes;
+
+  return hasKnownDetail ? candidate : null;
+}
+
+function shouldHydrateReservationCandidate(vfCandidate = null, middlewareCandidate = null) {
+  if (!middlewareCandidate) return false;
+  if (!vfCandidate || typeof vfCandidate !== "object") return true;
+
+  const fields = [
+    "venue_name",
+    "service_date",
+    "service_time",
+    "party_size",
+    "guest_name",
+    "contact_phone",
+    "contact_email",
+    "notes"
+  ];
+
+  return fields.some(
+    (field) =>
+      middlewareCandidate[field] != null &&
+      (vfCandidate[field] == null || vfCandidate[field] === "")
+  );
+}
+
+async function patchVoiceflowVariables(userID, variables, reason = "merge") {
+  if (!VF_API_KEY || !VF_PROJECT_ID) {
+    console.error(
+      `[VF STATE PATCH] user=${userID} reason=${reason} status=skipped missing_config api_key=${!!VF_API_KEY} project_id=${!!VF_PROJECT_ID}`
+    );
+    return { ok: false, skipped: true, reason: "missing_config" };
+  }
+
+  try {
+    const response = await axios.patch(
+      `https://general-runtime.voiceflow.com/state/user/${encodeURIComponent(userID)}/variables`,
+      variables,
+      {
+        headers: {
+          authorization: VF_API_KEY,
+          projectID: VF_PROJECT_ID,
+          versionID: "production",
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    console.log(
+      `[VF STATE PATCH] user=${userID} reason=${reason} status=ok http=${response.status}`
+    );
+
+    return { ok: true, status: response.status };
+  } catch (err) {
+    const httpStatus = err?.response?.status || "n/a";
+    const errorBody = err?.response?.data
+      ? JSON.stringify(err.response.data)
+      : (err.message || String(err));
+
+    console.error(
+      `[VF STATE PATCH] user=${userID} reason=${reason} status=fail http=${httpStatus} body=${errorBody}`
+    );
+
+    return { ok: false, status: httpStatus, error: errorBody };
+  }
+}
+
 function buildVoiceflowStateVariables(session, userText = "", options = {}) {
   const runtimeContext = buildPanamaRuntimeContext(userText);
   const guestProfile = session?.guest_profile || createGuestProfile(session?.user_id || "");
@@ -1436,6 +1554,7 @@ function buildVoiceflowStateVariables(session, userText = "", options = {}) {
   const explicitLanguageSwitch = options.languageCommand || null;
   const reservationContext = options.reservationDateContext || session?.reservation_context || createReservationContext();
   const activeRequestType = session?.active_request?.type || null;
+  const middlewareReservationCandidate = buildMiddlewareReservationCandidate(session, reservationContext);
  
   // ── LEAN CORE: always-on variables sent on every turn (~25 fields) ──────────
   const core = {
@@ -1475,7 +1594,10 @@ function buildVoiceflowStateVariables(session, userText = "", options = {}) {
     middleware_reservation_service_time: reservationContext.service_time || null,
     middleware_reservation_venue_or_department: reservationContext.venue_or_department || null,
     middleware_reservation_party_size: reservationContext.party_size || null,
-    middleware_reservation_summary: reservationContext.reservation_summary || null
+    middleware_reservation_summary: reservationContext.reservation_summary || null,
+    reservation_candidate: middlewareReservationCandidate
+      ? JSON.stringify(middlewareReservationCandidate)
+      : null
   } : {};
  
   // ── CONFLICT GROUP: only when date is in conflict state ─────────────────────
@@ -3540,7 +3662,36 @@ app.post("/webhook", async (req, res) => {
       const vfStateResult = await readVfState(userID);
  
       if (vfStateResult.ok) {
-        readReservationCandidate(vfStateResult.state);
+        const bridgeCandidateResult = readReservationCandidate(vfStateResult.state);
+
+        const middlewareReservationCandidate = buildMiddlewareReservationCandidate(
+          sessions[userID],
+          sessions[userID]?.reservation_context || createReservationContext()
+        );
+
+        if (
+          shouldHydrateReservationCandidate(
+            bridgeCandidateResult?.candidate,
+            middlewareReservationCandidate
+          )
+        ) {
+          await patchVoiceflowVariables(
+            userID,
+            {
+              reservation_candidate: JSON.stringify(middlewareReservationCandidate)
+            },
+            "reservation_candidate_hydration"
+          );
+
+          console.log(
+            `[VF-BRIDGE-P1] hydration_applied fields=${
+              Object.entries(middlewareReservationCandidate)
+                .filter(([_, value]) => value != null)
+                .map(([key]) => key)
+                .join(",") || "(none)"
+            }`
+          );
+        }
       }
       // If !ok: readVfState already logged the failure with [VF-BRIDGE-P1] prefix.
       // Normal webhook behavior continues regardless.
