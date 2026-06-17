@@ -1,11 +1,29 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v14.0.4
-Date: 2026-05-11
+Version: v14.0.5
+Date: 2026-06-15
 Role: WhatsApp ↔ Voiceflow middleware webhook with V14 Fast Path trial
 Status: trial hybrid diagnostic candidate
 Base: webhook.v13.1.31.js
+ 
+This version adds (v14.0.5):
+- adds deterministic handling for combined main-menu reset + language switch phrases
+  in a single user turn (e.g. "main menu, spanish", "menu in english",
+  "menú principal en español", "menu principal ingles")
+- adds detectCombinedMenuLanguageCommand() helper: narrow substring detector that
+  fires only when the message contains both a menu-reset token and a language token;
+  returns "en" or "es"; returns null otherwise
+- new handler runs after the language gate and before the Fast Path block,
+  short-circuiting Voiceflow entirely for matched turns
+- on match: sets current_language, clears awaiting_language, sets fast_path_context
+  to "main_menu", clears active_request and selected_restaurant, sends the canonical
+  localized main menu from response templates, and returns
+- subsequent numeric input (e.g. "1") is then interpreted against the correct
+  language + main_menu context instead of a stale submenu
+- does not widen detectMenuCommand or detectLanguageCommand; both remain exact-match
+- does not affect plain "menu", plain "main menu", or single-word "spanish" / "english"
+- does not change Fast Path, Voiceflow, VF bridge, or any other reset path
  
 This version adds (v14.0.4):
 - preserves selected restaurant during reservation continuation when the guest is already inside restaurant follow-up context
@@ -1536,6 +1554,30 @@ function detectMenuCommand(text) {
   return menuPhrases.includes(t);
 }
  
+// ── COMBINED MENU + LANGUAGE SWITCH DETECTOR (v14.0.4-fix) ───────────────
+// Returns "en" or "es" when the message clearly requests BOTH a main-menu
+// reset AND a language switch in a single turn (e.g. "main menu, spanish",
+// "menu in english", "menú principal en español").
+// Intentionally narrow: only fires on phrases that unambiguously contain a
+// menu-reset token AND a language token. Does NOT overlap with plain "menu"
+// or plain "spanish" (those remain in their existing handlers).
+function detectCombinedMenuLanguageCommand(text) {
+  const t = normalizeText(text);
+
+  const menuTokens = ["menu", "main menu", "menu principal", "menu principal", "menú principal", "menú"];
+  const hasMenuToken = menuTokens.some((m) => t.includes(m));
+  if (!hasMenuToken) return null;
+
+  const hasEnglishToken = t.includes("english") || t.includes("ingles");
+  const hasSpanishToken = t.includes("spanish") || t.includes("espanol");
+
+  if (hasEnglishToken) return "en";
+  if (hasSpanishToken) return "es";
+
+  return null;
+}
+// ─────────────────────────────────────────────────────────────────────────
+
 function detectExitCommand(text) {
   const t = normalizeText(text);
  
@@ -2538,6 +2580,7 @@ app.post("/webhook", async (req, res) => {
     const restartCommand = detectRestartCommand(userText);
     const menuCommand = detectMenuCommand(userText);
     const exitCommand = detectExitCommand(userText);
+    const combinedMenuLanguageCommand = detectCombinedMenuLanguageCommand(userText);
     const greetingReentry = isGreetingReentry(userText);
     let detectedIntent = detectIntent(userText, session.active_request?.type || null);
     if (session.fast_path_context === "restaurant_followup_menu") {
@@ -2656,6 +2699,73 @@ app.post("/webhook", async (req, res) => {
       return;
     }
  
+    // ── COMBINED MENU + LANGUAGE SWITCH (v14.0.4-fix) ──────────────────────
+    // Handles "main menu, spanish", "menu in english", "menú principal en español"
+    // and similar combined reset+language-switch phrases deterministically.
+    // Must run: after language gate (language must already be set), before fast
+    // path, before Voiceflow. Never fires when awaiting_language is true.
+    if (combinedMenuLanguageCommand && !effectiveAwaitingLanguage) {
+      const targetLang = combinedMenuLanguageCommand;
+      const propertyDataForMenu = loadPropertyPackage(PROPERTY_ID);
+      const menuTemplates = propertyDataForMenu?.responseTemplates || {};
+      const mainMenuReply =
+        targetLang === "es"
+          ? menuTemplates.main_menu_prompt_es
+          : menuTemplates.main_menu_prompt_en;
+
+      if (mainMenuReply) {
+        updateSession(userID, {
+          current_language: targetLang,
+          awaiting_language: false,
+          fast_path_context: "main_menu",
+          active_request: null,
+          selected_restaurant: null,
+          side_chat_count: 0,
+          last_bot_reply: mainMenuReply
+        });
+        session.current_language = targetLang;
+        session.fast_path_context = "main_menu";
+
+        console.log(
+          `[COMBINED MENU+LANG RESET] user=${userID} session_id=${sessions[userID].session_id} lang=${targetLang}`
+        );
+
+        const _dryRunCombined =
+          FAST_PATH_DRY_RUN ||
+          userID === "test-user" ||
+          String(userID || "").startsWith("test-");
+
+        if (!_dryRunCombined) {
+          await axios.post(
+            `https://graph.facebook.com/v19.0/${WA_PHONE_ID}/messages`,
+            {
+              messaging_product: "whatsapp",
+              to: userID,
+              type: "text",
+              text: { body: mainMenuReply }
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${WA_TOKEN}`,
+                "Content-Type": "application/json"
+              }
+            }
+          );
+        } else {
+          console.log(
+            `[COMBINED MENU+LANG DRY RUN] user=${userID} reply="${mainMenuReply}"`
+          );
+        }
+
+        console.log(
+          `[FAST PATH OUTBOUND] user=${userID} session_id=${sessions[userID].session_id} reply="${mainMenuReply}"`
+        );
+        console.log(`[SESSION AFTER FAST PATH]`, getSessionSummary(sessions[userID]));
+        return;
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     // ── FAST PATH (V14.0.3 HYBRID) ────────────────────────────────────────
     // Runs only after language gate is satisfied and never on language-selection turns.
     // Hybrid rule:
