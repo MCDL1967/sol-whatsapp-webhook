@@ -1,12 +1,22 @@
 /*
 WEBHOOK
 File: webhook.js
-Version: v14.0.6
-Date: 2026-06-16
+Version: v14.0.7
+Date: 2026-06-24
 Role: WhatsApp ↔ Voiceflow middleware webhook with V14 Fast Path trial
 Status: trial hybrid diagnostic candidate
 Base: webhook.v13.1.31.js
  
+
+This version adds (v14.0.7):
+- adds session-scoped reservation draft memory using `reservations`, `active_reservation_id`, and `next_reservation_seq`
+- preserves the existing singular active reservation flow by mirroring the active draft into `reservation_context`
+- adds reservation draft helpers for creation, lookup, update, and active-draft synchronization
+- updates reservation processing so parsed date/time/venue/party-size values are written into the active reservation draft without deleting prior drafts in the same session
+- updates guest-profile propagation so active reservation drafts inherit guest_name / contact_phone / contact_email changes
+- updates Voiceflow variable projection to read the active reservation draft first while keeping current `reservation_context` compatibility
+- does not add multi-reservation selection UX yet, does not change Voiceflow prompts, and does not widen Fast Path/menu architecture
+
 
 This version adds (v14.0.6):
 - adds KB-grounded restaurant large-party routing with standard reservation size
@@ -325,11 +335,124 @@ function createNewSession(userID, now) {
     side_chat_count: 0,
     guest_profile: createGuestProfile(userID),
     reservation_context: createReservationContext(),
+    reservations: [],
+    active_reservation_id: null,
+    next_reservation_seq: 1,
     last_bot_reply: null,
     fast_path_context: "main_menu",
     created_at: now,
     last_seen: now
   };
+}
+
+function createReservationDraft(session = {}) {
+  const seq = Number.isInteger(session?.next_reservation_seq)
+    ? session.next_reservation_seq
+    : 1;
+
+  const nowIso = new Date().toISOString();
+  const guestProfile = session?.guest_profile || createGuestProfile(session?.user_id || "");
+
+  return {
+    local_id: `res_${String(seq).padStart(3, "0")}`,
+    status: "draft",
+    category: "restaurant",
+    venue_name: null,
+    service_date: null,
+    service_time: null,
+    party_size: null,
+    notes: null,
+    guest_name: guestProfile.guest_name || null,
+    contact_phone: guestProfile.contact_phone || null,
+    contact_email: guestProfile.contact_email || null,
+    source_language: session?.current_language || null,
+    created_at: nowIso,
+    updated_at: nowIso
+  };
+}
+
+function getActiveReservation(session = null) {
+  if (!session?.active_reservation_id) return null;
+  if (!Array.isArray(session?.reservations)) return null;
+
+  return session.reservations.find(
+    (reservation) => reservation?.local_id === session.active_reservation_id
+  ) || null;
+}
+
+function startNewReservationDraft(session = null) {
+  if (!session) return null;
+
+  const draft = createReservationDraft(session);
+  const currentReservations = Array.isArray(session.reservations)
+    ? session.reservations
+    : [];
+
+  session.reservations = [...currentReservations, draft];
+  session.active_reservation_id = draft.local_id;
+  session.next_reservation_seq = (session.next_reservation_seq || 1) + 1;
+
+  console.log(
+    `[RESERVATION DRAFT CREATED] user=${session.user_id || "—"} reservation_id=${draft.local_id}`
+  );
+
+  return draft;
+}
+
+function updateActiveReservation(session = null, patch = {}) {
+  if (!session || !Array.isArray(session.reservations) || !session.active_reservation_id) {
+    return null;
+  }
+
+  let updatedReservation = null;
+  session.reservations = session.reservations.map((reservation) => {
+    if (reservation?.local_id !== session.active_reservation_id) return reservation;
+
+    updatedReservation = {
+      ...reservation,
+      ...patch,
+      updated_at: new Date().toISOString()
+    };
+
+    return updatedReservation;
+  });
+
+  return updatedReservation;
+}
+
+function syncActiveReservationToReservationContext(session = null) {
+  if (!session) return createReservationContext();
+
+  const activeReservation = getActiveReservation(session);
+  if (!activeReservation) {
+    session.reservation_context = createReservationContext();
+    return session.reservation_context;
+  }
+
+  const baseContext = session.reservation_context || createReservationContext();
+  session.reservation_context = {
+    ...baseContext,
+    resolved_date: activeReservation.service_date || baseContext.resolved_date || null,
+    resolved_weekday: activeReservation.service_date
+      ? (baseContext.resolved_weekday || weekdayFromIsoDate(activeReservation.service_date))
+      : (baseContext.resolved_weekday || null),
+    service_time: activeReservation.service_time || baseContext.service_time || null,
+    venue_or_department: activeReservation.venue_name || baseContext.venue_or_department || null,
+    party_size: activeReservation.party_size || baseContext.party_size || null
+  };
+
+  return session.reservation_context;
+}
+
+function ensureActiveReservationDraft(session = null) {
+  if (!session) return null;
+
+  let activeReservation = getActiveReservation(session);
+  if (activeReservation) return activeReservation;
+
+  activeReservation = startNewReservationDraft(session);
+  syncActiveReservationToReservationContext(session);
+  return activeReservation;
 }
  
 function getOrCreateSession(userID) {
@@ -1501,6 +1624,7 @@ function buildVoiceflowStateVariables(session, userText = "", options = {}) {
   const responseLanguage = options.responseLanguage || session?.current_language || null;
   const userInputLanguage = options.userInputLanguage || detectLikelyTextLanguage(userText);
   const explicitLanguageSwitch = options.languageCommand || null;
+  const activeReservation = getActiveReservation(session);
   const reservationContext = options.reservationDateContext || session?.reservation_context || createReservationContext();
   const activeRequestType = session?.active_request?.type || null;
  
@@ -1536,12 +1660,12 @@ function buildVoiceflowStateVariables(session, userText = "", options = {}) {
  
   // ── RESERVATION GROUP: only when reservation is active ──────────────────────
   const reservationVars = activeRequestType === "reservation" ? {
-    middleware_reservation_resolved_date: reservationContext.resolved_date || null,
+    middleware_reservation_resolved_date: activeReservation?.service_date || reservationContext.resolved_date || null,
     middleware_reservation_resolved_weekday: reservationContext.resolved_weekday || null,
     middleware_reservation_date_resolution_status: reservationContext.resolution_status || null,
-    middleware_reservation_service_time: reservationContext.service_time || null,
-    middleware_reservation_venue_or_department: reservationContext.venue_or_department || null,
-    middleware_reservation_party_size: reservationContext.party_size || null,
+    middleware_reservation_service_time: activeReservation?.service_time || reservationContext.service_time || null,
+    middleware_reservation_venue_or_department: activeReservation?.venue_name || reservationContext.venue_or_department || null,
+    middleware_reservation_party_size: activeReservation?.party_size || reservationContext.party_size || null,
     middleware_reservation_summary: reservationContext.reservation_summary || null
   } : {};
  
@@ -2632,6 +2756,15 @@ app.post("/webhook", async (req, res) => {
       updateSession(userID, { guest_profile: mergedGuestProfile });
       session.guest_profile = mergedGuestProfile;
  
+      if (sessions[userID]?.active_request?.type === "reservation") {
+        updateActiveReservation(sessions[userID], {
+          guest_name: mergedGuestProfile.guest_name || null,
+          contact_phone: mergedGuestProfile.contact_phone || null,
+          contact_email: mergedGuestProfile.contact_email || null
+        });
+        syncActiveReservationToReservationContext(sessions[userID]);
+      }
+ 
       console.log(
         `[GUEST PROFILE UPDATED] user=${userID} guest_name=${mergedGuestProfile.guest_name || "—"} contact_email=${mergedGuestProfile.contact_email || "—"}`
       );
@@ -3210,8 +3343,52 @@ app.post("/webhook", async (req, res) => {
       }
     }
  
+    if (shouldEvaluateReservationDate && currentSessionAfterControl?.active_request?.type === "reservation") {
+      const activeReservation = ensureActiveReservationDraft(currentSessionAfterControl);
+
+      if (activeReservation) {
+        console.log(
+          `[RESERVATION DRAFT ACTIVE] user=${userID} reservation_id=${activeReservation.local_id}`
+        );
+      }
+
+      const activeReservationPatch = {};
+
+      if (mergedReservationContext?.resolved_date) {
+        activeReservationPatch.service_date = mergedReservationContext.resolved_date;
+      }
+
+      if (mergedReservationContext?.service_time) {
+        activeReservationPatch.service_time = mergedReservationContext.service_time;
+      }
+
+      if (mergedReservationContext?.party_size) {
+        activeReservationPatch.party_size = mergedReservationContext.party_size;
+      }
+
+      if (mergedReservationContext?.venue_or_department) {
+        activeReservationPatch.venue_name = mergedReservationContext.venue_or_department;
+      }
+
+      if (Object.keys(activeReservationPatch).length > 0) {
+        updateActiveReservation(currentSessionAfterControl, activeReservationPatch);
+        console.log(
+          `[RESERVATION DRAFT UPDATED] user=${userID} reservation_id=${currentSessionAfterControl.active_reservation_id} fields=${Object.keys(activeReservationPatch).join(",")}`
+        );
+      }
+
+      syncActiveReservationToReservationContext(currentSessionAfterControl);
+      mergedReservationContext = currentSessionAfterControl.reservation_context;
+      reservationContextChanged = true;
+    }
+
     if (shouldEvaluateReservationDate && reservationContextChanged) {
-      updateSession(userID, { reservation_context: mergedReservationContext });
+      updateSession(userID, {
+        reservation_context: mergedReservationContext,
+        reservations: currentSessionAfterControl?.reservations,
+        active_reservation_id: currentSessionAfterControl?.active_reservation_id,
+        next_reservation_seq: currentSessionAfterControl?.next_reservation_seq
+      });
       currentSessionAfterControl.reservation_context = mergedReservationContext;
     }
  
