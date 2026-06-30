@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">{{ title }}</h1>
+  <span class="page-count">{{ cases|length }} cases</span>
+</div>
+
+<!-- Filters -->
+<form class="filter-bar" method="GET" action="">
+  <input class="filter-input" type="text" name="q"
+         placeholder="Search ID, guest, summary…"
+         value="{{ filters.q }}">
+
+  <select class="filter-select" name="status">
+    <option value="">All statuses</option>
+    {% for s in statuses %}
+      <option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s }}</option>
+    {% endfor %}
+  </select>
+
+  {% if view == 'gm' %}
+  <select class="filter-select" name="dept_target">
+    <option value="">All depts</option>
+    <option value="FNB" {% if filters.dept_target == 'FNB' %}selected{% endif %}>FNB</option>
+    <option value="SEC" {% if filters.dept_target == 'SEC' %}selected{% endif %}>SEC</option>
+    <option value="ADM" {% if filters.dept_target == 'ADM' %}selected{% endif %}>ADM</option>
+  </select>
+  {% endif %}
+
+  <button class="btn btn-filter" type="submit">Filter</button>
+  <a class="btn btn-clear" href="{{ request.path }}">Clear</a>
+</form>
+
+<!-- Case list -->
+{% if cases %}
+<div class="table-wrap">
+<table class="case-table">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Date/Time</th>
+      {% if view == 'gm' %}<th>Dept</th>{% endif %}
+      <th>Type</th>
+      <th>Guest</th>
+      {% if view == 'sec' %}<th>Location</th>{% endif %}
+      {% if view in ('fnb', 'adm') %}<th>Venue</th>{% endif %}
+      {% if view in ('fnb', 'adm') %}<th>Service Date</th>{% endif %}
+      <th>Summary</th>
+      <th>Status</th>
+      <th>Urgency</th>
+      <th>Assigned</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in cases %}
+    <tr class="row-status-{{ c.status | replace(' ', '_') }}">
+      <td class="cell-id">
+        <a href="{{ url_for('case_detail', record_id=c.record_id) }}">{{ c.record_id }}</a>
+      </td>
+      <td class="cell-ts">{{ (c.timestamp or '')[:16] | replace('T', ' ') }}</td>
+      {% if view == 'gm' %}
+      <td>
+        {% if c.dept_target %}
+          <span class="dept-badge dept-{{ c.dept_target | lower }}">{{ c.dept_target }}</span>
+        {% else %}
+          <span class="dept-badge dept-gm">GM</span>
+        {% endif %}
+      </td>
+      {% endif %}
+      <td class="cell-type">{{ c.request_type or c.category or '—' }}</td>
+      <td>{{ c.guest_name or '—' }}</td>
+      {% if view == 'sec' %}<td>{{ c.location_section or '—' }}</td>{% endif %}
+      {% if view in ('fnb', 'adm') %}<td>{{ c.venue_or_department or '—' }}</td>{% endif %}
+      {% if view in ('fnb', 'adm') %}<td>{{ c.service_date or '—' }}</td>{% endif %}
+      <td class="cell-summary">{{ (c.summary or '')[:80] }}{% if (c.summary or '')|length > 80 %}…{% endif %}</td>
+      <td><span class="status-pill status-{{ c.status | replace(' ', '_') }}">{{ c.status or '—' }}</span></td>
+      <td><span class="urgency-{{ c.urgency or 'normal' }}">{{ c.urgency or 'normal' }}</span></td>
+      <td class="cell-assigned">{{ c.assigned_manager_or_queue or '—' }}</td>
+      <td><a class="btn btn-sm" href="{{ url_for('case_detail', record_id=c.record_id) }}">View</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="empty-state">
+  <p>No cases found{% if filters.q or filters.status %} matching current filters{% endif %}.</p>
+  {% if not filters.q and not filters.status %}
+    <p><a href="{{ url_for('seed') }}">Load seed data</a> to get started.</p>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

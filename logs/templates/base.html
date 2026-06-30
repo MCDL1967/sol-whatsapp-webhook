@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}LOGS v2{% endblock %} — SOL</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='logs.css') }}">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">
+    <span class="nav-logo">◈</span>
+    <span class="nav-title">LOGS <span class="nav-version">v2</span></span>
+  </div>
+  <div class="nav-links">
+    <a href="{{ url_for('view_gm') }}"  class="nav-link {% if view == 'gm'  %}active{% endif %}">
+      GM <span class="badge">{{ counts.total }}</span>
+    </a>
+    <a href="{{ url_for('view_fnb') }}" class="nav-link {% if view == 'fnb' %}active{% endif %}">
+      FNB <span class="badge badge-fnb">{{ counts.fnb }}</span>
+    </a>
+    <a href="{{ url_for('view_sec') }}" class="nav-link {% if view == 'sec' %}active{% endif %}">
+      SEC <span class="badge badge-sec">{{ counts.sec }}</span>
+    </a>
+    <a href="{{ url_for('view_adm') }}" class="nav-link {% if view == 'adm' %}active{% endif %}">
+      ADM <span class="badge badge-adm">{{ counts.adm }}</span>
+    </a>
+  </div>
+  <div class="nav-actions">
+    <span class="nav-open-count">{{ counts.open }} open</span>
+    <div class="export-menu">
+      <span class="export-label">Export ▾</span>
+      <div class="export-dropdown">
+        <a href="{{ url_for('trigger_export', view_name='gm') }}">GM Excel</a>
+        <a href="{{ url_for('trigger_export', view_name='fnb') }}">FNB Excel</a>
+        <a href="{{ url_for('trigger_export', view_name='sec') }}">SEC Excel</a>
+        <a href="{{ url_for('trigger_export', view_name='adm') }}">ADM Excel</a>
+        <a href="{{ url_for('trigger_export', view_name='all') }}" class="export-all">Export All</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-zone">
+      {% for category, msg in messages %}
+        <div class="flash flash-{{ category }}">{{ msg }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<main class="main">
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="footer">
+  LOGS v2 — SOL · GranSolux · DB is source of truth · Excel = export
+</footer>
+
+</body>
+</html>

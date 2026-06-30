@@ -1,0 +1,22 @@
+# Python
+logs/venv/
+logs/__pycache__/
+logs/*.pyc
+logs/*.old.py
+logs/*.old.sh
+logs/middleware/
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Node
+node_modules/
+
+# Mac
+.DS_Store
+
+# Environment variables
+.env
+.env.local
