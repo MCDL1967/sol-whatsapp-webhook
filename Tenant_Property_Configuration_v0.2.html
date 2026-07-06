@@ -1,0 +1,1142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SOL Tenant Property Configuration v0.2</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --paper: #ffffff;
+      --ink: #22303a;
+      --muted: #62717d;
+      --line: #d9e1e7;
+      --soft: #eef3f5;
+      --accent: #0d6b73;
+      --accent-dark: #09565d;
+      --ok: #21693f;
+      --warn: #a85d13;
+      --danger: #9d3441;
+      --shadow: 0 14px 34px rgba(28, 39, 48, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+
+    .app {
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .side {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      overflow: auto;
+      padding: 24px;
+      background: #142630;
+      color: #f9fcfd;
+    }
+
+    .brand {
+      display: flex;
+      gap: 13px;
+      align-items: center;
+    }
+
+    .mark {
+      display: grid;
+      width: 48px;
+      height: 48px;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--accent);
+      font-weight: 850;
+    }
+
+    .eyebrow {
+      margin: 0 0 4px;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .side .eyebrow { color: #acc1ca; }
+
+    h1, h2, h3, h4, p { margin-top: 0; }
+    h1 { margin-bottom: 0; font-size: 1.05rem; line-height: 1.2; }
+    h2 { margin-bottom: 8px; font-size: clamp(1.9rem, 4vw, 3.2rem); line-height: 1.05; letter-spacing: 0; }
+    h3 { margin-bottom: 4px; font-size: 1.34rem; letter-spacing: 0; }
+    h4 { margin-bottom: 6px; font-size: 1.02rem; }
+    p { color: var(--muted); }
+
+    .nav {
+      display: grid;
+      gap: 7px;
+    }
+
+    .nav button {
+      min-height: 42px;
+      padding: 0 12px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      color: #dce9ed;
+      text-align: left;
+      font-weight: 720;
+    }
+
+    .nav button:hover,
+    .nav button.is-active {
+      border-color: rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.09);
+      color: #fff;
+    }
+
+    .side-note {
+      margin-top: auto;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255,255,255,0.16);
+      color: #c7d8df;
+      font-size: 0.9rem;
+    }
+
+    .main {
+      min-width: 0;
+      padding: 28px;
+    }
+
+    .hero,
+    .section,
+    .card,
+    .venue-card,
+    .preview-panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 30px;
+      margin-bottom: 22px;
+    }
+
+    .hero p { max-width: 900px; }
+
+    .top-actions,
+    .section-head,
+    .row,
+    .venue-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .top-actions {
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    .button {
+      min-height: 40px;
+      padding: 0 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      color: var(--ink);
+      font-weight: 800;
+    }
+
+    .button:hover { border-color: #a9b8c3; }
+    .button.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .button.primary:hover { background: var(--accent-dark); }
+    .button.danger { border-color: #ecc8ce; background: #fff6f7; color: var(--danger); }
+
+    .section {
+      display: none;
+      padding: 24px;
+      margin-bottom: 22px;
+      scroll-margin-top: 18px;
+    }
+
+    .section.is-active { display: block; }
+    .section-head { margin-bottom: 18px; }
+    .section-head p { max-width: 780px; margin-bottom: 0; }
+
+    .kpis,
+    .cards,
+    .form-grid,
+    .rule-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .cards,
+    .form-grid,
+    .rule-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .card {
+      padding: 16px;
+    }
+
+    .card strong {
+      display: block;
+      margin: 3px 0 4px;
+      overflow-wrap: anywhere;
+      font-size: 1.12rem;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field label,
+    .check span {
+      color: var(--ink);
+      font-weight: 830;
+    }
+
+    .hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      min-height: 42px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .field textarea {
+      min-height: 86px;
+      resize: vertical;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      border-color: var(--accent);
+      outline: 3px solid rgba(13,107,115,0.16);
+    }
+
+    .check {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      min-height: 78px;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .check input {
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+    }
+
+    .stack { display: grid; gap: 14px; }
+    .venue-list { display: grid; gap: 14px; }
+
+    .venue-card {
+      padding: 18px;
+    }
+
+    .venue-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 13px;
+    }
+
+    .wide { grid-column: 1 / -1; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .pill.ok { background: #e7f4ec; color: var(--ok); }
+    .pill.warn { background: #fff0dc; color: var(--warn); }
+
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 0.62fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .preview-stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .preview-panel {
+      padding: 16px;
+      background: #f9fbfc;
+    }
+
+    .preview-panel h4 {
+      margin: 0 0 8px;
+    }
+
+    .preview-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .preview-list li {
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .pipeline {
+      display: grid;
+      gap: 7px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 760;
+    }
+
+    .phone-screen {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .phone-head {
+      padding: 12px;
+      background: #15333b;
+      color: #fff;
+      font-weight: 820;
+    }
+
+    .bubble {
+      margin: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      background: #edf7f5;
+      color: var(--ink);
+    }
+
+    .menu-preview {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0 12px 12px;
+      list-style: none;
+    }
+
+    .menu-preview li {
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .readiness {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .readiness li { margin: 8px 0; }
+    .readiness .ok { color: var(--ok); }
+    .readiness .warn { color: var(--warn); }
+
+    .json-box {
+      min-height: 360px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+
+    .review-note {
+      padding: 14px;
+      border: 1px solid #f1d9a7;
+      border-radius: 8px;
+      background: #fff9ec;
+      color: #725016;
+    }
+
+    @media (max-width: 1080px) {
+      .app { grid-template-columns: 1fr; }
+      .side { position: static; height: auto; }
+      .nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .split { grid-template-columns: 1fr; }
+      .venue-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 720px) {
+      .main, .side, .hero, .section { padding: 18px; }
+      .nav, .kpis, .cards, .form-grid, .rule-grid, .venue-grid { grid-template-columns: 1fr; }
+      .top-actions, .section-head, .row, .venue-head { flex-direction: column; align-items: stretch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">
+        <div class="mark">SOL</div>
+        <div>
+          <p class="eyebrow">Tenant tool mockup</p>
+          <h1>Property Configuration</h1>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Configuration sections">
+        <button class="is-active" type="button" data-tab="overview">Overview</button>
+        <button type="button" data-tab="basics">Property Basics</button>
+        <button type="button" data-tab="teams">Teams</button>
+        <button type="button" data-tab="venues">Venues</button>
+        <button type="button" data-tab="rules">Guest Rules</button>
+        <button type="button" data-tab="export">Review & Export</button>
+      </nav>
+
+      <div class="side-note">
+        <p class="eyebrow">Draft status</p>
+        <strong id="saveState">Not saved</strong>
+        <p>This page stores drafts in this browser only. It is a mockup, not a production admin system.</p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="hero">
+        <p class="eyebrow">SOL Webhook property adapter</p>
+        <h2>Configure what SOL says, routes, and asks for each property.</h2>
+        <p>
+          This mockup shows how a hotel, casino, or venue manager could update property details without editing code.
+          Plain-language help text explains each field, while live internal and external previews show what the configured tenant/property truth will produce.
+        </p>
+        <div class="top-actions">
+          <button class="button" id="loadDemo" type="button">Load Demo Property</button>
+          <button class="button" id="resetDraft" type="button">Reset Draft</button>
+          <button class="button primary" id="saveDraft" type="button">Save Draft</button>
+        </div>
+      </section>
+
+      <section class="section is-active" id="overview" data-panel="overview">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Start here</p>
+            <h3>Overview</h3>
+            <p>Use this page to define the property identity, guest-facing venue list, routing teams, and dining rules SOL should use.</p>
+          </div>
+        </div>
+
+        <div class="kpis">
+          <div class="card"><span class="eyebrow">Concierge name</span><strong id="kpiConcierge">SOL Concierge</strong><p>The assistant name guests see.</p></div>
+          <div class="card"><span class="eyebrow">Property</span><strong id="kpiProperty">Your Casino</strong><p>The client property being configured.</p></div>
+          <div class="card"><span class="eyebrow">Venues</span><strong id="kpiVenues">7</strong><p>Restaurants, bars, lounges, and services.</p></div>
+          <div class="card"><span class="eyebrow">Reservation venues</span><strong id="kpiReservations">2</strong><p>Venues where SOL should collect reservation details.</p></div>
+        </div>
+
+        <div class="split" style="margin-top:16px">
+          <div class="cards">
+            <div class="card">
+              <h4>Setup checklist</h4>
+              <ul class="readiness" id="readinessList"></ul>
+            </div>
+            <div class="card">
+              <h4>What this controls</h4>
+              <p>These settings replace hard-coded names and venue facts. The goal is for each tenant to own property truth while the runtime receives a deterministic published package.</p>
+              <p class="review-note">Review rule: nothing here should be wired to production until schema, migration, and runtime behavior are approved.</p>
+            </div>
+          </div>
+          <aside class="preview-stack" aria-label="Live configuration previews">
+            <div class="preview-panel">
+              <p class="eyebrow">Internal preview / Vista interna</p>
+              <h4 id="internalPreviewTenant">Your Casino Group</h4>
+              <ul class="preview-list">
+                <li><strong>Property:</strong> <span id="internalPreviewProperty">Your Casino</span></li>
+                <li><strong>Teams:</strong> <span id="internalPreviewTeams">Guest Services, Security, Food & Beverage</span></li>
+                <li><strong>Rules:</strong> <span id="internalPreviewRules">Reservations recommended for dinner.</span></li>
+              </ul>
+              <div class="pipeline" id="internalPreviewPipeline">
+                Normalized DB -> Menu Runtime Builder -> published menu runtime package -> SOL Menu Runtime Service
+              </div>
+            </div>
+            <div class="preview-panel">
+              <p class="eyebrow">External guest preview / Vista externa</p>
+              <div class="phone-screen">
+                <div class="phone-head" id="externalPreviewTitle">SOL Concierge</div>
+                <div class="bubble" id="externalPreviewIntro">Welcome to Your Casino. How can I help today?</div>
+                <ol class="menu-preview" id="externalPreviewMenu"></ol>
+                <div class="bubble" id="externalPreviewRules">For dinner, reservations are recommended.</div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section" id="basics" data-panel="basics">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Step 1</p>
+            <h3>Property Basics</h3>
+            <p>These fields tell SOL who it represents and how to speak to guests by default.</p>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label for="tenantName">Tenant account name</label>
+            <p class="hint">The customer or company account. Example: Your Casino Group.</p>
+            <input id="tenantName" type="text" autocomplete="organization">
+          </div>
+          <div class="field">
+            <label for="tenantSlug">Tenant key</label>
+            <p class="hint">A simple internal key. SOL uses this as a stable identifier, not guest-facing copy.</p>
+            <input id="tenantSlug" type="text" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="propertyName">Property name guests recognize</label>
+            <p class="hint">This appears in welcomes, confirmations, and staff-facing reports.</p>
+            <input id="propertyName" type="text" autocomplete="organization">
+          </div>
+          <div class="field">
+            <label for="conciergeName">Concierge name</label>
+            <p class="hint">The name SOL uses when introducing itself to guests.</p>
+            <input id="conciergeName" type="text" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="timezone">Property timezone</label>
+            <p class="hint">Used for reservation dates, reports, and same-day routing decisions.</p>
+            <select id="timezone">
+              <option value="America/Panama">America/Panama</option>
+              <option value="America/New_York">America/New_York</option>
+              <option value="America/Chicago">America/Chicago</option>
+              <option value="America/Los_Angeles">America/Los_Angeles</option>
+              <option value="Europe/Madrid">Europe/Madrid</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="languageDefault">Default guest language</label>
+            <p class="hint">The language SOL starts with before a guest chooses another language.</p>
+            <select id="languageDefault">
+              <option value="EN">English</option>
+              <option value="ES">Spanish</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="teams" data-panel="teams">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Step 2</p>
+            <h3>Teams</h3>
+            <p>Teams are where SOL sends requests when a guest needs staff support, approval, or live information.</p>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label for="team1">Guest support team</label>
+            <p class="hint">The default team for general help, live availability, and property questions.</p>
+            <input id="team1" type="text">
+          </div>
+          <div class="field">
+            <label for="team2">Reservation team</label>
+            <p class="hint">The team that receives new reservation requests, group bookings, and private dining requests.</p>
+            <input id="team2" type="text">
+          </div>
+          <div class="field">
+            <label for="team3">Safety or security team</label>
+            <p class="hint">The team for safety, incident, lost item, or urgent guest concern routing.</p>
+            <input id="team3" type="text">
+          </div>
+          <div class="card">
+            <h4>Plain English example</h4>
+            <p>If a guest asks for tonight's live table availability, SOL should not invent an answer. It should route that to the right staff team.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="venues" data-panel="venues">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Step 3</p>
+            <h3>Venues</h3>
+            <p>Add every restaurant, bar, lounge, service, or amenity guests may ask about. Clear descriptions help SOL answer naturally.</p>
+          </div>
+          <button class="button primary" id="addVenue" type="button">Add Venue</button>
+        </div>
+        <div class="venue-list" id="venueList"></div>
+      </section>
+
+      <section class="section" id="rules" data-panel="rules">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Step 4</p>
+            <h3>Guest Rules</h3>
+            <p>Rules tell SOL when it can answer directly, when it should collect details, and when it must hand the request to staff.</p>
+          </div>
+        </div>
+
+        <div class="rule-grid">
+          <label class="check">
+            <input id="dinnerRecommended" type="checkbox">
+            <span>Dinner reservations are recommended<br><small class="hint">SOL can tell guests that reservations are recommended for dinner.</small></span>
+          </label>
+          <label class="check">
+            <input id="walkIns" type="checkbox">
+            <span>Walk-ins depend on availability<br><small class="hint">SOL should avoid promising walk-in seating.</small></span>
+          </label>
+          <div class="field">
+            <label for="groupThreshold">Group threshold</label>
+            <p class="hint">If a party is larger than this number, SOL should encourage advance booking or staff confirmation.</p>
+            <input id="groupThreshold" type="number" min="1" max="99">
+          </div>
+          <div class="field">
+            <label for="diningDuration">Typical dining duration, minutes</label>
+            <p class="hint">Used for planning and staff context. It does not promise exact seating time.</p>
+            <input id="diningDuration" type="number" min="15" max="360">
+          </div>
+          <div class="field">
+            <label for="arrivalBuffer">Recommended arrival buffer, minutes</label>
+            <p class="hint">How early guests should arrive before a reservation.</p>
+            <input id="arrivalBuffer" type="number" min="0" max="120">
+          </div>
+          <label class="check">
+            <input id="hoursConfigured" type="checkbox">
+            <span>Venue-specific hours are configured<br><small class="hint">If unchecked, SOL should offer staff confirmation for exact hours.</small></span>
+          </label>
+        </div>
+      </section>
+
+      <section class="section" id="export" data-panel="export">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Step 5</p>
+            <h3>Review & Export</h3>
+            <p>Review the generated data shape. These downloads are a discussion artifact for schema and runtime planning.</p>
+          </div>
+        </div>
+
+        <div class="split">
+          <div class="stack">
+            <div class="card">
+              <h4>Export files</h4>
+              <p>These are draft examples of what the tenant configuration could produce.</p>
+              <div class="top-actions">
+                <button class="button" id="downloadTenant" type="button">Download tenant profile</button>
+                <button class="button" id="downloadConfig" type="button">Download property config</button>
+                <button class="button primary" id="downloadMaster" type="button">Download master data</button>
+              </div>
+            </div>
+            <div class="card">
+              <h4>Readiness</h4>
+              <ul class="readiness" id="exportReadiness"></ul>
+            </div>
+          </div>
+          <div class="field">
+            <label for="jsonPreview">Generated master data preview</label>
+            <p class="hint">This is the kind of structured data the webhook and LOGS could eventually read from Supabase.</p>
+            <textarea id="jsonPreview" class="json-box" readonly spellcheck="false"></textarea>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "sol_tenant_property_configuration_v02";
+
+    const demoState = {
+      tenant: {
+        name: "Your Casino",
+        slug: "your_casino",
+        property_name: "Your Casino",
+        concierge_name: "SOL Concierge",
+        timezone: "America/Panama",
+        language_default: "EN"
+      },
+      teams: {
+        team_name_1: "Guest Services",
+        team_name_2: "Reservations",
+        team_name_3: "Security"
+      },
+      dining_rules: {
+        dinner_reservations_recommended: true,
+        walk_ins_based_on_availability: true,
+        advance_reservations_recommended_for_groups_over: 8,
+        typical_dining_duration_minutes: 90,
+        recommended_arrival_minutes_before_reservation: 10,
+        venue_specific_hours_configured: false
+      },
+      venues: [
+        venueSeed("la_brasserie", "La Brasserie", "All-day cafe and restaurant", "International all-day dining", "All-day cafe serving breakfast, lunch, and dinner", "La Brasserie, brasserie", true, true),
+        venueSeed("larrys_sports_bar_terrace", "Larry's Sports Bar & Terrace", "Sports bar and casual dining venue", "Sports bar, casual food and beverages", "Casual sports bar with large screens and casual dining", "sports bar, Larry's sports bar", false, false),
+        venueSeed("acua_pool_lounge_bar", "Acua Pool Lounge & Bar", "Poolside lounge and bar", "Cocktails and light bites", "Poolside lounge for cocktails and light bites", "acua, pool bar", false, false),
+        venueSeed("larrys_market", "Larry's Market", "Coffee shop and grab-and-go venue", "Coffee, sandwiches, salads, smoothies", "Grab-and-go sandwiches, salads, smoothies, and coffee", "market, coffee shop", false, false),
+        venueSeed("garden_lobby_bar", "The Garden Lobby Bar", "Lobby cocktail lounge", "Cocktails and beverages", "Relaxed lobby cocktail lounge", "garden bar, lobby bar", false, false),
+        venueSeed("fenicia", "Fenicia", "Lebanese and Mediterranean restaurant", "Lebanese, Mediterranean", "Lebanese and Mediterranean restaurant with lounge and terrace", "fenicia restaurant, mediterranean, lebanese", true, true),
+        venueSeed("room_service", "Room Service", "In-room dining service", "In-room dining", "24-hour hotel room service for in-room dining", "room service, in-room dining", false, false, "available 24 hours")
+      ]
+    };
+
+    let state = loadDraft() || clone(demoState);
+
+    function venueSeed(key, name, type, cuisine, description, aliases, reservationLed, groupSupported, hours) {
+      return {
+        menu_key: key,
+        canonical_name: name,
+        aliases: aliases,
+        type: type,
+        cuisine_or_service_type: cuisine,
+        short_description_en: description,
+        supported_hours: hours || "exact hours not configured",
+        reservation_led: reservationLed,
+        group_reservation_supported: groupSupported,
+        handoff_team_key: "team_name_1",
+        escalation_note: "Live availability or exact current hours may require staff confirmation."
+      };
+    }
+
+    function $(id) { return document.getElementById(id); }
+    function clone(value) { return JSON.parse(JSON.stringify(value)); }
+
+    function loadDraft() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"); }
+      catch { return null; }
+    }
+
+    function saveDraft() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      $("saveState").textContent = "Saved " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+
+    function markUnsaved() {
+      $("saveState").textContent = "Unsaved changes";
+    }
+
+    function bindField(id, getter, setter) {
+      const el = $(id);
+      el.value = getter() ?? "";
+      el.addEventListener("input", () => {
+        setter(el.type === "number" ? Number(el.value || 0) : el.value);
+        markUnsaved();
+        render();
+      });
+    }
+
+    function bindCheck(id, getter, setter) {
+      const el = $(id);
+      el.checked = Boolean(getter());
+      el.addEventListener("change", () => {
+        setter(el.checked);
+        markUnsaved();
+        render();
+      });
+    }
+
+    function initialize() {
+      document.querySelectorAll("[data-tab]").forEach((button) => {
+        button.addEventListener("click", () => activate(button.dataset.tab));
+      });
+
+      bindField("tenantName", () => state.tenant.name, (v) => state.tenant.name = v);
+      bindField("tenantSlug", () => state.tenant.slug, (v) => state.tenant.slug = slug(v));
+      bindField("propertyName", () => state.tenant.property_name, (v) => state.tenant.property_name = v);
+      bindField("conciergeName", () => state.tenant.concierge_name, (v) => state.tenant.concierge_name = v);
+      bindField("timezone", () => state.tenant.timezone, (v) => state.tenant.timezone = v);
+      bindField("languageDefault", () => state.tenant.language_default, (v) => state.tenant.language_default = v);
+      bindField("team1", () => state.teams.team_name_1, (v) => state.teams.team_name_1 = v);
+      bindField("team2", () => state.teams.team_name_2, (v) => state.teams.team_name_2 = v);
+      bindField("team3", () => state.teams.team_name_3, (v) => state.teams.team_name_3 = v);
+      bindCheck("dinnerRecommended", () => state.dining_rules.dinner_reservations_recommended, (v) => state.dining_rules.dinner_reservations_recommended = v);
+      bindCheck("walkIns", () => state.dining_rules.walk_ins_based_on_availability, (v) => state.dining_rules.walk_ins_based_on_availability = v);
+      bindField("groupThreshold", () => state.dining_rules.advance_reservations_recommended_for_groups_over, (v) => state.dining_rules.advance_reservations_recommended_for_groups_over = v);
+      bindField("diningDuration", () => state.dining_rules.typical_dining_duration_minutes, (v) => state.dining_rules.typical_dining_duration_minutes = v);
+      bindField("arrivalBuffer", () => state.dining_rules.recommended_arrival_minutes_before_reservation, (v) => state.dining_rules.recommended_arrival_minutes_before_reservation = v);
+      bindCheck("hoursConfigured", () => state.dining_rules.venue_specific_hours_configured, (v) => state.dining_rules.venue_specific_hours_configured = v);
+
+      $("saveDraft").addEventListener("click", saveDraft);
+      $("loadDemo").addEventListener("click", () => {
+        state = clone(demoState);
+        refreshControls();
+        markUnsaved();
+        render();
+      });
+      $("resetDraft").addEventListener("click", () => {
+        if (!confirm("Clear this browser draft and reload demo values?")) return;
+        localStorage.removeItem(STORAGE_KEY);
+        state = clone(demoState);
+        refreshControls();
+        markUnsaved();
+        render();
+      });
+      $("addVenue").addEventListener("click", addVenue);
+      $("downloadTenant").addEventListener("click", () => downloadJson("tenant_profile.json", buildTenantProfile()));
+      $("downloadConfig").addEventListener("click", () => downloadJson("property_config.json", buildPropertyConfig()));
+      $("downloadMaster").addEventListener("click", () => downloadJson("property_master_data.json", buildMasterData()));
+
+      render();
+    }
+
+    function refreshControls() {
+      $("tenantName").value = state.tenant.name;
+      $("tenantSlug").value = state.tenant.slug;
+      $("propertyName").value = state.tenant.property_name;
+      $("conciergeName").value = state.tenant.concierge_name;
+      $("timezone").value = state.tenant.timezone;
+      $("languageDefault").value = state.tenant.language_default;
+      $("team1").value = state.teams.team_name_1;
+      $("team2").value = state.teams.team_name_2;
+      $("team3").value = state.teams.team_name_3;
+      $("dinnerRecommended").checked = state.dining_rules.dinner_reservations_recommended;
+      $("walkIns").checked = state.dining_rules.walk_ins_based_on_availability;
+      $("groupThreshold").value = state.dining_rules.advance_reservations_recommended_for_groups_over;
+      $("diningDuration").value = state.dining_rules.typical_dining_duration_minutes;
+      $("arrivalBuffer").value = state.dining_rules.recommended_arrival_minutes_before_reservation;
+      $("hoursConfigured").checked = state.dining_rules.venue_specific_hours_configured;
+    }
+
+    function activate(tabName) {
+      document.querySelectorAll("[data-tab]").forEach((button) => button.classList.toggle("is-active", button.dataset.tab === tabName));
+      document.querySelectorAll("[data-panel]").forEach((panel) => panel.classList.toggle("is-active", panel.dataset.panel === tabName));
+    }
+
+    function render() {
+      $("kpiConcierge").textContent = state.tenant.concierge_name || "Not set";
+      $("kpiProperty").textContent = state.tenant.property_name || "Not set";
+      $("kpiVenues").textContent = String(state.venues.length);
+      $("kpiReservations").textContent = String(state.venues.filter((v) => v.reservation_led).length);
+      renderInternalPreview();
+      renderExternalPreview();
+      renderReadiness();
+      renderVenues();
+      $("jsonPreview").value = JSON.stringify(buildMasterData(), null, 2);
+    }
+
+    function renderInternalPreview() {
+      const teamNames = [state.teams.team_name_1, state.teams.team_name_2, state.teams.team_name_3].filter((name) => String(name || "").trim());
+      const reservationVenues = state.venues.filter((v) => v.reservation_led).length;
+      const visibleVenues = state.venues.filter((v) => v.show_in_guest_menu).length;
+      $("internalPreviewTenant").textContent = state.tenant.name || "Tenant not set";
+      $("internalPreviewProperty").textContent = state.tenant.property_name || "Property not set";
+      $("internalPreviewTeams").textContent = teamNames.length ? teamNames.join(", ") : "No routing teams configured";
+      $("internalPreviewRules").textContent = [
+        reservationVenues + " reservation-led venues",
+        visibleVenues + " guest-visible venues",
+        state.dining_rules.dinner_reservations_recommended ? "dinner reservations recommended" : "dinner reservations optional",
+        "groups over " + state.dining_rules.advance_reservations_recommended_for_groups_over + " should book ahead"
+      ].join("; ") + ".";
+    }
+
+    function renderExternalPreview() {
+      const reservationVenues = state.venues.filter((v) => v.reservation_led && v.show_in_guest_menu).map((v) => v.canonical_name).filter(Boolean);
+      const infoVenues = state.venues.filter((v) => !v.reservation_led && v.show_in_guest_menu).map((v) => v.canonical_name).filter(Boolean);
+      const items = [];
+      if (reservationVenues.length) items.push("Make or change a reservation");
+      if (infoVenues.length) items.push("Explore restaurants, bars, and venues");
+      items.push("Loyalty and player card help", "Shows and entertainment", "General hotel information", "Speak with " + teamLabel());
+      $("externalPreviewTitle").textContent = state.tenant.concierge_name || "SOL Concierge";
+      $("externalPreviewIntro").textContent = "Welcome to " + (state.tenant.property_name || "this property") + ". How can I help today?";
+      $("externalPreviewMenu").innerHTML = items.map((item, index) => "<li>" + (index + 1) + ". " + escapeHtml(item) + "</li>").join("");
+      $("externalPreviewRules").textContent = state.dining_rules.dinner_reservations_recommended
+        ? "For dinner, reservations are recommended. Please arrive " + state.dining_rules.recommended_arrival_minutes_before_reservation + " minutes before your reservation."
+        : "Dining support is available. Walk-ins are " + (state.dining_rules.walk_ins_based_on_availability ? "based on availability." : "handled by staff.");
+    }
+
+    function teamLabel() {
+      return state.teams.team_name_1 || "staff";
+    }
+
+    function validationItems() {
+      const missingNames = state.venues.filter((v) => !String(v.canonical_name || "").trim()).length;
+      const duplicateKeys = duplicates(state.venues.map((v) => String(v.menu_key || "").trim()).filter(Boolean));
+      return [
+        [Boolean(state.tenant.property_name.trim()), "Property name is filled in.", "Property name is missing."],
+        [Boolean(state.tenant.concierge_name.trim()), "Concierge name is filled in.", "Concierge name is missing."],
+        [state.venues.length > 0, state.venues.length + " venues are configured.", "Add at least one venue."],
+        [missingNames === 0, "All venues have guest-facing names.", missingNames + " venue needs a name."],
+        [duplicateKeys.length === 0, "Venue keys are unique.", "Duplicate venue keys: " + duplicateKeys.join(", ")],
+        [Boolean(state.teams.team_name_1.trim()), "Default support team is configured.", "Default support team is missing."]
+      ];
+    }
+
+    function renderReadiness() {
+      const html = validationItems().map(([ok, yes, no]) => "<li class=\"" + (ok ? "ok" : "warn") + "\">" + escapeHtml(ok ? yes : no) + "</li>").join("");
+      $("readinessList").innerHTML = html;
+      $("exportReadiness").innerHTML = html;
+    }
+
+    function renderVenues() {
+      $("venueList").innerHTML = state.venues.map((venue, index) => {
+        const teamOptions = Object.entries(state.teams).map(([key, label]) => {
+          return "<option value=\"" + escapeAttr(key) + "\"" + (venue.handoff_team_key === key ? " selected" : "") + ">" + escapeHtml(label || key) + "</option>";
+        }).join("");
+
+        return `
+          <article class="venue-card">
+            <div class="venue-head">
+              <div>
+                <p class="eyebrow">Venue ${index + 1}</p>
+                <h4>${escapeHtml(venue.canonical_name || "Unnamed venue")}</h4>
+                <span class="pill ${venue.reservation_led ? "ok" : ""}">${venue.reservation_led ? "Reservation flow" : "Information only"}</span>
+              </div>
+              <button class="button danger" type="button" data-remove="${index}">Remove</button>
+            </div>
+            <div class="venue-grid">
+              ${field(index, "canonical_name", "Guest-facing name", "The name guests know and see in menus.", venue.canonical_name)}
+              ${field(index, "menu_key", "Internal venue key", "A stable key for code and database records. Lowercase is best.", venue.menu_key)}
+              ${field(index, "type", "Venue type", "Example: sports bar, lobby lounge, room service.", venue.type)}
+              ${field(index, "cuisine_or_service_type", "Cuisine or service", "A short category that helps guests choose.", venue.cuisine_or_service_type)}
+              ${field(index, "supported_hours", "Hours message", "Use exact hours only when approved and maintained.", venue.supported_hours)}
+              <div class="field">
+                <label>Handoff team</label>
+                <p class="hint">Where SOL should route staff questions for this venue.</p>
+                <select data-index="${index}" data-field="handoff_team_key">${teamOptions}</select>
+              </div>
+              ${check(index, "reservation_led", "Collect reservation details", "Turn on when SOL should ask date, time, party size, and special requests.", venue.reservation_led)}
+              ${check(index, "group_reservation_supported", "Supports group reservations", "Turn on when large parties should be routed as reservations or group bookings.", venue.group_reservation_supported)}
+              ${field(index, "aliases", "Other names guests may type", "Separate names with commas. Example: lobby bar, garden bar.", venue.aliases, "wide")}
+              ${area(index, "short_description_en", "Short guest description", "One plain sentence SOL can use when explaining this venue.", venue.short_description_en)}
+              ${area(index, "escalation_note", "When staff should confirm", "Tell SOL what it must not guess.", venue.escalation_note)}
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      document.querySelectorAll("[data-field]").forEach((input) => {
+        input.addEventListener("input", () => {
+          updateVenue(Number(input.dataset.index), input.dataset.field, input.value);
+          markUnsaved();
+          renderLight();
+        });
+        input.addEventListener("blur", render);
+      });
+
+      document.querySelectorAll("[data-check]").forEach((input) => {
+        input.addEventListener("change", () => {
+          updateVenue(Number(input.dataset.index), input.dataset.check, input.checked);
+          markUnsaved();
+          render();
+        });
+      });
+
+      document.querySelectorAll("[data-remove]").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.venues.splice(Number(button.dataset.remove), 1);
+          markUnsaved();
+          render();
+        });
+      });
+    }
+
+    function renderLight() {
+      $("kpiVenues").textContent = String(state.venues.length);
+      $("kpiReservations").textContent = String(state.venues.filter((v) => v.reservation_led).length);
+      renderInternalPreview();
+      renderExternalPreview();
+      renderReadiness();
+      $("jsonPreview").value = JSON.stringify(buildMasterData(), null, 2);
+    }
+
+    function addVenue() {
+      const next = state.venues.length + 1;
+      state.venues.push(venueSeed("venue_" + next, "New Venue " + next, "Venue", "Service type", "Short description guests can understand", "new venue", false, false));
+      markUnsaved();
+      render();
+    }
+
+    function updateVenue(index, key, value) {
+      if (!state.venues[index]) return;
+      if (key === "menu_key") value = slug(value);
+      state.venues[index][key] = value;
+    }
+
+    function field(index, key, label, hint, value, className) {
+      return `<div class="field ${className || ""}">
+        <label>${label}</label>
+        <p class="hint">${hint}</p>
+        <input type="text" data-index="${index}" data-field="${key}" value="${escapeAttr(value || "")}">
+      </div>`;
+    }
+
+    function area(index, key, label, hint, value) {
+      return `<div class="field wide">
+        <label>${label}</label>
+        <p class="hint">${hint}</p>
+        <textarea data-index="${index}" data-field="${key}">${escapeHtml(value || "")}</textarea>
+      </div>`;
+    }
+
+    function check(index, key, label, hint, checked) {
+      return `<label class="check">
+        <input type="checkbox" data-index="${index}" data-check="${key}" ${checked ? "checked" : ""}>
+        <span>${label}<br><small class="hint">${hint}</small></span>
+      </label>`;
+    }
+
+    function buildTenantProfile() {
+      return {
+        file: "tenant_profile.json",
+        tenant_name: state.tenant.name,
+        tenant_slug: state.tenant.slug,
+        property_name: state.tenant.property_name,
+        concierge_name: state.tenant.concierge_name,
+        timezone: state.tenant.timezone,
+        language_default: state.tenant.language_default,
+        status: "draft"
+      };
+    }
+
+    function buildPropertyConfig() {
+      return {
+        property_name: state.tenant.property_name,
+        concierge_name: state.tenant.concierge_name,
+        timezone: state.tenant.timezone,
+        language_default: state.tenant.language_default,
+        services_enabled: ["restaurants", "venues", "general_help", "staff_handoff"]
+      };
+    }
+
+    function buildMasterData() {
+      return {
+        file: "property_master_data.json",
+        version: "tenant-property-configuration-v0.2",
+        status: "draft_review_artifact",
+        source_notes: [
+          "Generated by the SOL Tenant Property Configuration mockup.",
+          "Review with schema and runtime owners before production use.",
+          "Intended path: Normalized DB -> Menu Runtime Builder -> published menu runtime package -> SOL Menu Runtime Service."
+        ],
+        property: {
+          property_name: state.tenant.property_name,
+          concierge_name: state.tenant.concierge_name,
+          timezone: state.tenant.timezone,
+          team_name_1: state.teams.team_name_1,
+          team_name_2: state.teams.team_name_2,
+          team_name_3: state.teams.team_name_3
+        },
+        dining: {
+          reservation_facts: {
+            dinner_reservations_recommended: state.dining_rules.dinner_reservations_recommended,
+            walk_ins_based_on_availability: state.dining_rules.walk_ins_based_on_availability,
+            advance_reservations_recommended_for_groups_over: Number(state.dining_rules.advance_reservations_recommended_for_groups_over) || 8,
+            typical_dining_duration_minutes: Number(state.dining_rules.typical_dining_duration_minutes) || 90,
+            recommended_arrival_minutes_before_reservation: Number(state.dining_rules.recommended_arrival_minutes_before_reservation) || 10,
+            required_new_reservation_fields: ["restaurant_name", "date", "time", "number_of_guests", "special_requests_if_any"]
+          },
+          hours_boundary: {
+            venue_specific_hours_configured: state.dining_rules.venue_specific_hours_configured,
+            guest_safe_rule: state.dining_rules.venue_specific_hours_configured
+              ? "Use configured venue hours and offer staff confirmation for live availability."
+              : "Do not provide exact outlet hours unless configured. Offer staff confirmation for live or same-day outlet hour questions."
+          },
+          venues: state.venues.map((venue, index) => ({
+            id: index + 1,
+            menu_key: venue.menu_key || slug(venue.canonical_name || "venue_" + (index + 1)),
+            canonical_name: venue.canonical_name,
+            aliases: String(venue.aliases || "").split(",").map((item) => item.trim()).filter(Boolean),
+            type: venue.type,
+            cuisine_or_service_type: venue.cuisine_or_service_type,
+            short_description_en: venue.short_description_en,
+            supported_hours: venue.supported_hours,
+            reservation_led: Boolean(venue.reservation_led),
+            group_reservation_supported: Boolean(venue.group_reservation_supported),
+            escalation_note: venue.escalation_note,
+            handoff_team_key: venue.handoff_team_key
+          }))
+        }
+      };
+    }
+
+    function downloadJson(filename, payload) {
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function slug(value) {
+      return String(value || "")
+        .toLowerCase()
+        .trim()
+        .replace(/&/g, " and ")
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .replace(/_+/g, "_");
+    }
+
+    function duplicates(values) {
+      const seen = new Set();
+      const dupes = new Set();
+      values.forEach((value) => {
+        if (seen.has(value)) dupes.add(value);
+        seen.add(value);
+      });
+      return [...dupes];
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replace(/`/g, "&#096;");
+    }
+
+    initialize();
+  </script>
+</body>
+</html>

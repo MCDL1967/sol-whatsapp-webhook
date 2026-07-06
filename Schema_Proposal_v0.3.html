@@ -1,0 +1,1906 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SOL Webhook Schema Proposal v0.3</title>
+  <style>
+    :root {
+      --bg: #f5f7f9;
+      --paper: #ffffff;
+      --ink: #1f2933;
+      --muted: #5f6f7b;
+      --line: #d8e1e8;
+      --soft: #edf3f7;
+      --accent: #0d6b73;
+      --accent-dark: #084f55;
+      --warn: #b55b13;
+      --danger: #a33a45;
+      --ok: #236b3f;
+      --shadow: 0 16px 40px rgba(31, 41, 51, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    button, input, select, textarea { font: inherit; }
+
+    a { color: var(--accent-dark); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 310px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .toc {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      padding: 24px;
+      background: #142630;
+      color: #f8fbfc;
+    }
+
+    .toc h1 {
+      margin: 0 0 4px;
+      font-size: 1.12rem;
+      line-height: 1.2;
+    }
+
+    .toc .version {
+      margin: 0 0 22px;
+      color: #b8cbd4;
+      font-size: 0.86rem;
+    }
+
+    .toc nav {
+      display: grid;
+      gap: 5px;
+    }
+
+    .toc a {
+      display: block;
+      padding: 8px 10px;
+      border-radius: 8px;
+      color: #deedf1;
+      font-size: 0.92rem;
+    }
+
+    .toc a:hover {
+      background: rgba(255,255,255,0.08);
+      text-decoration: none;
+    }
+
+    .toc .tools {
+      display: grid;
+      gap: 8px;
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255,255,255,0.16);
+    }
+
+    .reviewer-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255,255,255,0.16);
+    }
+
+    .reviewer-list h2 {
+      margin: 0;
+      color: #f8fbfc;
+      font-size: 0.9rem;
+      letter-spacing: 0;
+    }
+
+    .reviewer-list p {
+      margin: 0;
+      color: #b8cbd4;
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+
+    .reviewer-button {
+      min-height: 36px;
+      padding: 7px 9px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.04);
+      color: #deedf1;
+      cursor: pointer;
+      text-align: left;
+      font-weight: 760;
+    }
+
+    .reviewer-button:hover,
+    .reviewer-button.is-active {
+      border-color: rgba(124, 205, 170, 0.55);
+      background: rgba(124, 205, 170, 0.14);
+    }
+
+    .content {
+      min-width: 0;
+      padding: 28px;
+    }
+
+    .hero {
+      padding: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .eyebrow {
+      margin: 0 0 7px;
+      color: var(--muted);
+      font-size: 0.74rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .hero h2 {
+      margin: 0 0 14px;
+      font-size: clamp(2rem, 5vw, 4rem);
+      line-height: 1.02;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 880px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 1.04rem;
+    }
+
+    .meta-grid,
+    .kpi-grid,
+    .domain-grid,
+    .decision-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .meta-card,
+    .card,
+    .section,
+    .table-card,
+    .definition,
+    .decision-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .meta-card,
+    .card,
+    .definition,
+    .decision-card {
+      padding: 16px;
+    }
+
+    .meta-card strong,
+    .card strong {
+      display: block;
+      margin-top: 4px;
+      overflow-wrap: anywhere;
+      font-size: 1.02rem;
+    }
+
+    .section {
+      margin-top: 22px;
+      padding: 24px;
+      scroll-margin-top: 16px;
+    }
+
+    .section-header,
+    .sub-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    h3, h4, p { margin-top: 0; }
+
+    h3 {
+      margin-bottom: 4px;
+      font-size: 1.45rem;
+      letter-spacing: 0;
+    }
+
+    h4 {
+      margin-bottom: 8px;
+      font-size: 1.04rem;
+    }
+
+    .section > p,
+    .card p,
+    .definition p,
+    .decision-card p {
+      color: var(--muted);
+    }
+
+    .review-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .note-button,
+    .ok-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 38px;
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      color: var(--accent-dark);
+      cursor: pointer;
+      font-weight: 800;
+      position: relative;
+    }
+
+    .note-button:hover,
+    .ok-button:hover { border-color: var(--accent); }
+
+    .ok-button {
+      color: var(--ok);
+    }
+
+    .ok-button.is-ok {
+      border-color: rgba(22, 163, 74, 0.35);
+      background: rgba(22, 163, 74, 0.09);
+    }
+
+    .note-badge {
+      position: absolute;
+      top: -7px;
+      right: -7px;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.7rem;
+      line-height: 18px;
+    }
+
+    .review-dashboard {
+      margin-top: 18px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .review-dashboard-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .review-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 800;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: var(--danger);
+    }
+
+    .status-dot.is-mid { background: var(--warn); }
+    .status-dot.is-done { background: var(--ok); }
+
+    .review-progress {
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+    }
+
+    .review-progress span {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: var(--ok);
+      transition: width 0.18s ease;
+    }
+
+    .metric-completed,
+    .metric-pending {
+      transition: background-color 0.18s ease, border-color 0.18s ease;
+    }
+
+    .button {
+      min-height: 38px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      color: var(--ink);
+      cursor: pointer;
+      font-weight: 750;
+    }
+
+    .button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .button.primary:hover { background: var(--accent-dark); }
+    .button:hover { border-color: #aebbc6; }
+
+    .summary-list,
+    .scope-list,
+    .definition-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .architecture {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(130px, 1fr));
+      gap: 10px;
+      align-items: stretch;
+      margin-top: 12px;
+    }
+
+    .arch-node {
+      display: grid;
+      place-items: center;
+      min-height: 86px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft);
+      text-align: center;
+      font-weight: 800;
+    }
+
+    .arch-arrow {
+      display: none;
+    }
+
+    .architecture-map {
+      margin-top: 14px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfdfe;
+    }
+
+    .architecture-map-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .architecture-map-head h4 {
+      margin: 0;
+    }
+
+    .proposal-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 0 9px;
+      border: 1px solid rgba(181, 91, 19, 0.28);
+      border-radius: 999px;
+      background: #fff0dc;
+      color: var(--warn);
+      font-size: 0.72rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .architecture-zones {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .architecture-zone {
+      display: grid;
+      gap: 9px;
+      align-content: start;
+      padding: 12px;
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      position: relative;
+    }
+
+    .architecture-zone.governance-zone {
+      border-color: rgba(13, 107, 115, 0.45);
+      background: #f0f7f8;
+    }
+
+    .architecture-zone.build-zone {
+      border-color: rgba(181, 91, 19, 0.5);
+      background: #fff4e7;
+    }
+
+    .architecture-zone.runtime-zone {
+      border-color: rgba(35, 107, 63, 0.5);
+      background: #eef8f2;
+    }
+
+    .architecture-zone h5 {
+      margin: 0;
+      color: var(--accent-dark);
+      font-size: 0.76rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .architecture-tile {
+      min-height: 68px;
+      padding: 10px;
+      border: 1.5px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft);
+    }
+
+    .architecture-tile strong {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 0.9rem;
+    }
+
+    .architecture-tile span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.76rem;
+      line-height: 1.35;
+    }
+
+    .architecture-tile.source {
+      border-color: rgba(13, 107, 115, 0.72);
+      background: #fff;
+    }
+
+    .architecture-tile.build {
+      border-color: rgba(181, 91, 19, 0.68);
+      background: #fff7ec;
+    }
+
+    .architecture-tile.runtime {
+      border-color: rgba(35, 107, 63, 0.68);
+      background: #eaf6ef;
+    }
+
+    .architecture-tile.future,
+    .architecture-tile.readonly {
+      border-style: dashed;
+      background: #fff;
+    }
+
+    .architecture-tile.future {
+      border-width: 2px;
+      border-color: rgba(163, 58, 69, 0.72);
+      background: repeating-linear-gradient(
+        135deg,
+        #fff,
+        #fff 8px,
+        #f7eef0 8px,
+        #f7eef0 16px
+      );
+    }
+
+    .architecture-tile.future strong {
+      color: var(--danger);
+    }
+
+    .zone-flow {
+      justify-self: center;
+      color: var(--accent);
+      font-weight: 900;
+    }
+
+    .architecture-callout {
+      margin: 12px 0 0;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--accent);
+      border-radius: 8px;
+      background: var(--soft);
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .architecture-callout strong {
+      color: var(--ink);
+    }
+
+    .reporting-lane {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border: 2px dashed rgba(95, 111, 123, 0.48);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .reporting-lane strong {
+      color: var(--ink);
+    }
+
+    .domain-card {
+      padding: 16px;
+    }
+
+    .domain-card .tag,
+    .table-card .tag,
+    .hardcode-table .tag,
+    .field-table .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .tag.high { background: #ffe8e8; color: var(--danger); }
+    .tag.medium { background: #fff0dc; color: var(--warn); }
+    .tag.mvp { background: #e5f5eb; color: var(--ok); }
+
+    .table-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .table-tools input,
+    .table-tools select {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 0 10px;
+    }
+
+    .table-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .table-card {
+      padding: 16px;
+    }
+
+    .table-card header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .table-card ul {
+      margin-bottom: 0;
+      padding-left: 18px;
+      color: var(--muted);
+    }
+
+    .scroll-table {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 860px;
+    }
+
+    th,
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      font-size: 0.9rem;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #eef4f7;
+      color: #33444f;
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      z-index: 1;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .erd {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .erd-box {
+      min-height: 110px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft);
+    }
+
+    .erd-box strong {
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .erd-box span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .feedback-panel {
+      position: fixed;
+      inset: 0 0 0 auto;
+      width: min(520px, 100vw);
+      padding: 22px;
+      background: var(--paper);
+      border-left: 1px solid var(--line);
+      box-shadow: -20px 0 50px rgba(31,41,51,0.18);
+      transform: translateX(105%);
+      transition: transform 0.2s ease;
+      z-index: 20;
+      overflow: auto;
+    }
+
+    .feedback-panel.is-open { transform: translateX(0); }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 20, 28, 0.28);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 19;
+    }
+
+    .overlay.is-open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .feedback-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 12px;
+      font-weight: 800;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      min-height: 40px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 500;
+    }
+
+    .field textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .comment-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .comment {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft);
+    }
+
+    .comment-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 750;
+    }
+
+    .feedback-export {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .file-input {
+      max-width: 260px;
+    }
+
+    .review-target-id {
+      color: var(--muted);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.82rem;
+    }
+
+    .print-note {
+      display: none;
+    }
+
+    @media (max-width: 1120px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc {
+        position: static;
+        height: auto;
+      }
+      .toc nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .meta-grid,
+      .kpi-grid,
+      .domain-grid,
+      .decision-grid,
+      .architecture-zones,
+      .architecture,
+      .erd,
+      .table-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .content,
+      .toc,
+      .hero,
+      .section { padding: 18px; }
+      .toc nav,
+      .meta-grid,
+      .kpi-grid,
+      .domain-grid,
+      .decision-grid,
+      .architecture-zones,
+      .architecture,
+      .erd,
+      .table-grid {
+        grid-template-columns: 1fr;
+      }
+      .reporting-lane {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .section-header,
+      .sub-header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+    }
+
+    @media print {
+      .toc, .note-button, .ok-button, .feedback-panel, .overlay, .feedback-export, .table-tools { display: none !important; }
+      .layout { display: block; }
+      .content { padding: 0; }
+      body { background: #fff; }
+      .section, .hero, .card, .table-card { box-shadow: none; break-inside: avoid; }
+      .print-note { display: block; color: var(--muted); }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="toc" aria-label="Table of contents">
+      <h1>SOL Schema Proposal</h1>
+      <p class="version">v0.3 review portal</p>
+      <nav>
+        <a href="#executive-summary">Executive Summary</a>
+        <a href="#objectives">Objectives</a>
+        <a href="#definitions">Definitions</a>
+        <a href="#architecture">Architecture Overview</a>
+        <a href="#schema-domains">Schema Domains</a>
+        <a href="#table-catalog">Table Catalog</a>
+        <a href="#field-matrix">Field Matrix</a>
+        <a href="#hardcode-map">Hard-Code Map</a>
+        <a href="#relationship-map">Relationship Map</a>
+        <a href="#review-feedback">Review Feedback</a>
+        <a href="#mvp-scope">MVP Scope</a>
+        <a href="#open-decisions">Open Decisions</a>
+        <a href="#appendix">Appendix</a>
+      </nav>
+      <div class="reviewer-list" aria-label="Reviewers">
+        <h2>Reviewers / Revisores</h2>
+        <p>Select a collaborator to inspect their OKs, pending items, and comments.</p>
+        <div id="reviewerList"></div>
+      </div>
+      <div class="tools">
+        <button class="button primary" id="exportAllComments">Export feedback JSON</button>
+        <label class="button" for="importComments">Import feedback JSON</label>
+        <input id="importComments" class="file-input" type="file" accept="application/json" hidden>
+        <button class="button" onclick="window.print()">Print / Save PDF</button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <section class="hero" id="cover">
+        <p class="eyebrow">Review Draft</p>
+        <h2>SOL Webhook Schema Proposal</h2>
+        <p>
+          A single review surface for aligning Supabase schema design, tenant/property configuration,
+          deterministic menu publishing, the SOL Menu Runtime Service, and LOGS operational events before any production code changes.
+        </p>
+        <div class="meta-grid">
+          <div class="meta-card"><span class="eyebrow">Version</span><strong>v0.3</strong></div>
+          <div class="meta-card"><span class="eyebrow">Date</span><strong>2026-07-02</strong></div>
+          <div class="meta-card"><span class="eyebrow">Status</span><strong>Proposal for review</strong></div>
+          <div class="meta-card"><span class="eyebrow">Rule</span><strong>No coding without approval</strong></div>
+        </div>
+        <div class="review-dashboard" id="reviewDashboard">
+          <div class="review-dashboard-head">
+            <div>
+              <p class="eyebrow">Review tracker</p>
+              <h3>Schema review progress</h3>
+            </div>
+            <div class="review-status">
+              <span class="status-dot" id="reviewStatusDot"></span>
+              <span id="reviewStatusText">Pending review</span>
+            </div>
+          </div>
+          <div class="meta-grid">
+            <div class="meta-card"><span class="eyebrow">Revisado por</span><strong id="reviewReviewer">Pending</strong></div>
+            <div class="meta-card"><span class="eyebrow">Fecha</span><strong id="reviewDate">Pending</strong></div>
+            <div class="meta-card metric-completed" id="reviewCompletedCard"><span class="eyebrow">% Completado</span><strong id="reviewCompleted">0%</strong></div>
+            <div class="meta-card metric-pending" id="reviewPendingCard"><span class="eyebrow">% Pendiente</span><strong id="reviewPending">100%</strong></div>
+            <div class="meta-card"><span class="eyebrow"># Notas</span><strong id="reviewNotes">0</strong></div>
+          </div>
+          <div class="review-progress" aria-hidden="true"><span id="reviewProgressBar"></span></div>
+        </div>
+      </section>
+
+      <section class="section" id="executive-summary" data-review-id="section.executive_summary">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Section 1</p>
+            <h3>Executive Summary</h3>
+          </div>
+          <div class="review-actions is-static" data-review-target="section.executive_summary" data-review-label="Executive Summary"></div>
+        </div>
+        <p>
+          SOL Webhook currently mixes tenant/property facts across JSON packages and hard-coded runtime logic.
+          Supabase should become the database of record for tenant identity, property data, venue catalogs,
+          routing teams, templates, and operational events. A Menu Runtime Builder should publish a stable
+          runtime package for the SOL Menu Runtime Service, while LOGS should read operational event tables and views.
+        </p>
+        <div class="kpi-grid">
+          <div class="card"><span class="eyebrow">Goal</span><strong>One source of truth</strong><p>Reduce duplicated config and hard-coded tenant details.</p></div>
+          <div class="card"><span class="eyebrow">Method</span><strong>Supabase schema contract</strong><p>Define ownership before implementation.</p></div>
+          <div class="card"><span class="eyebrow">Runtime</span><strong>Published menu package</strong><p>Menu runtime reads deterministic packages, not scattered raw tables.</p></div>
+          <div class="card"><span class="eyebrow">Review</span><strong>Commentable artifact</strong><p>Every major target can receive feedback.</p></div>
+        </div>
+      </section>
+
+      <section class="section" id="objectives" data-review-id="section.objectives">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Section 2</p>
+            <h3>Objectives</h3>
+          </div>
+          <div class="review-actions is-static" data-review-target="section.objectives" data-review-label="Objectives"></div>
+        </div>
+        <ul class="summary-list">
+          <li>Create a shared Supabase schema that both Property Admin and LOGS can trust.</li>
+          <li>Move tenant/property-specific facts out of runtime code and into managed configuration.</li>
+          <li>Preserve existing webhook behavior until schema, migration, and runtime consumption are approved.</li>
+          <li>Separate deployment secrets from tenant-editable settings and operational event data.</li>
+          <li>Give reviewers a commentable, exportable, single-page artifact for schema feedback.</li>
+          <li>Define the boundary between normalized Supabase data, the Menu Runtime Builder, and the SOL Menu Runtime Service.</li>
+          <li>Align the Tenant Property Configuration Tool with the canonical schema, including its internal and external preview responsibilities.</li>
+          <li>Establish a PM review workflow for comparing collaborator OKs, pending items, and notes before DB construction.</li>
+          <li>Separate MVP data requirements from later voice, advanced configuration, analytics, and automation scope.</li>
+        </ul>
+      </section>
+
+      <section class="section" id="definitions" data-review-id="section.definitions">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Section 3</p>
+            <h3>Definitions</h3>
+          </div>
+          <div class="review-actions is-static" data-review-target="section.definitions" data-review-label="Definitions"></div>
+        </div>
+        <div class="domain-grid">
+          <div class="definition"><h4>Tenant</h4><p>The client account or organization using SOL.</p></div>
+          <div class="definition"><h4>Property</h4><p>A hotel, casino, venue, or site owned by a tenant.</p></div>
+          <div class="definition"><h4>Venue</h4><p>A restaurant, bar, room service, entertainment location, or guest-facing service point.</p></div>
+          <div class="definition"><h4>Runtime Package</h4><p>The stable published data shape consumed by deterministic menu runtime logic.</p></div>
+          <div class="definition"><h4>Template</h4><p>Localized guest-facing response text with variables.</p></div>
+          <div class="definition"><h4>Operational Event</h4><p>A logged inbound, outbound, status, reservation, complaint, or middleware event.</p></div>
+          <div class="definition"><h4>Hard-Code Replacement</h4><p>A current literal value that should move into env, tenant config, or a published menu runtime package.</p></div>
+          <div class="definition"><h4>Review Target</h4><p>A stable ID that comments attach to, such as <code>table.venues</code>.</p></div>
+        </div>
+      </section>
+
+      <section class="section" id="architecture" data-review-id="section.architecture">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Section 4</p>
+            <h3>Architecture Overview</h3>
+          </div>
+          <div class="review-actions is-static" data-review-target="section.architecture" data-review-label="Architecture Overview"></div>
+        </div>
+        <div class="architecture-map" aria-label="Proposed SOL architecture boundary map">
+          <div class="architecture-map-head">
+            <div>
+              <p class="eyebrow">Three-zone proposal</p>
+              <h4>Governed truth, published package, deterministic runtime</h4>
+            </div>
+            <span class="proposal-badge">Review artifact - not yet constructed</span>
+          </div>
+          <div class="architecture-zones">
+            <div class="architecture-zone governance-zone">
+              <h5>Review &amp; Governance</h5>
+              <div class="architecture-tile">
+                <strong>Schema Review Portal</strong>
+                <span>Local OKs, notes, exported feedback JSON, and PM consolidation before DB construction.</span>
+              </div>
+              <div class="architecture-tile">
+                <strong>Tenant Property Configuration Tool</strong>
+                <span>Writes managed tenant/property/menu truth; full tree-edit ownership remains TBD.</span>
+              </div>
+              <div class="architecture-tile source">
+                <strong>Proposed Supabase DB</strong>
+                <span>Normalized source of truth for ownership, validation, templates, venues, and routing.</span>
+              </div>
+            </div>
+            <div class="architecture-zone build-zone">
+              <h5>Build &amp; Publish</h5>
+              <div class="architecture-tile build">
+                <strong>Menu Runtime Builder</strong>
+                <span>Validates approved config and prepares deterministic runtime shape.</span>
+              </div>
+              <div class="zone-flow">↓</div>
+              <div class="architecture-tile build">
+                <strong>Published Menu Runtime Package</strong>
+                <span>Future approved package contract consumed during live execution.</span>
+              </div>
+            </div>
+            <div class="architecture-zone runtime-zone">
+              <h5>Runtime &amp; Channels</h5>
+              <div class="architecture-tile runtime">
+                <strong>SOL Menu Runtime Service</strong>
+                <span>Executes the package for deterministic choices, context transitions, and templates.</span>
+              </div>
+              <div class="zone-flow">↓</div>
+              <div class="architecture-tile runtime">
+                <strong>Webhook Transport</strong>
+                <span>Handles live guest turns without traversing raw normalized tables.</span>
+              </div>
+              <div class="architecture-tile runtime">
+                <strong>WhatsApp</strong>
+                <span>Active channel now.</span>
+              </div>
+              <div class="architecture-tile future">
+                <strong>Voice / ElevenLabs</strong>
+                <span>Future channel - architecture TBD.</span>
+              </div>
+            </div>
+            <div class="reporting-lane">
+              <strong>LOGS / Reporting:</strong>
+              <span>Reads operational events and reporting views only; does not own tenant/property truth.</span>
+            </div>
+          </div>
+          <p class="architecture-callout">
+            <strong>Runtime boundary:</strong> live guest turns should consume the published menu runtime package,
+            not reason across raw normalized Supabase tables.
+          </p>
+        </div>
+        <p>
+          Supabase is the proposed source of truth. The Tenant Property Configuration Tool writes managed configuration.
+          A Menu Runtime Builder should publish a deterministic menu runtime package by property. The SOL Menu Runtime
+          Service executes that package, and LOGS reads operational event tables and reporting views.
+        </p>
+        <div class="architecture">
+          <div class="arch-node">Tenant Property Configuration Tool</div>
+          <div class="arch-node">Supabase Tables</div>
+          <div class="arch-node">Menu Runtime Builder</div>
+          <div class="arch-node">SOL Menu Runtime Service</div>
+          <div class="arch-node">LOGS UI / Reports</div>
+        </div>
+      </section>
+
+      <section class="section" id="schema-domains" data-review-id="section.schema_domains">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Section 5</p>
+            <h3>Schema Domains</h3>
+          </div>
+          <div class="review-actions is-static" data-review-target="section.schema_domains" data-review-label="Schema Domains"></div>
+        </div>
+        <div class="domain-grid" id="domainGrid"></div>
+      </section>
+
+      <section class="section" id="table-catalog" data-review-id="section.table_catalog">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Section 6</p>
+            <h3>Table Catalog</h3>
+          </div>
+          <div class="review-actions is-static" data-review-target="section.table_catalog" data-review-label="Table Catalog"></div>
+        </div>
+        <div class="table-tools">
+          <input id="tableSearch" type="search" placeholder="Search tables, owners, uses">
+          <select id="domainFilter">
+            <option value="">All domains</option>
+          </select>
+          <select id="mvpFilter">
+            <option value="">All scope</option>
+            <option value="MVP">MVP</option>
+            <option value="Later">Later</option>
+          </select>
+        </div>
+        <div class="table-grid" id="tableCatalog"></div>
+      </section>
+
+      <section class="section" id="field-matrix" data-review-id="section.field_matrix">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Section 7</p>
+            <h3>Field Matrix</h3>
+          </div>
+          <div class="review-actions is-static" data-review-target="section.field_matrix" data-review-label="Field Matrix"></div>
+        </div>
+        <div class="scroll-table">
+          <table class="field-table">
+            <thead>
+              <tr>
+                <th>Table</th>
+                <th>Field</th>
+                <th>Type</th>
+                <th>Required</th>
+                <th>Tenant Editable</th>
+                <th>Webhook</th>
+                <th>LOGS</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="fieldRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="hardcode-map" data-review-id="section.hardcode_map">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Section 8</p>
+            <h3>Hard-Code Replacement Map</h3>
+          </div>
+          <div class="review-actions is-static" data-review-target="section.hardcode_map" data-review-label="Hard-Code Replacement Map"></div>
+        </div>
+        <div class="scroll-table">
+          <table class="hardcode-table">
+            <thead>
+              <tr>
+                <th>Current Value</th>
+                <th>Current Location</th>
+                <th>Future Source</th>
+                <th>Priority</th>
+                <th>Owner</th>
+                <th>Review</th>
+              </tr>
+            </thead>
+            <tbody id="hardcodeRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="relationship-map" data-review-id="section.relationship_map">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Section 9</p>
+            <h3>Relationship Map / ERD</h3>
+          </div>
+          <div class="review-actions is-static" data-review-target="section.relationship_map" data-review-label="Relationship Map"></div>
+        </div>
+        <div class="erd">
+          <div class="erd-box"><strong>tenants</strong><span>1:N properties</span><span>1:N tenant_users</span></div>
+          <div class="erd-box"><strong>properties</strong><span>1:N venues</span><span>1:N teams</span><span>1:N templates</span></div>
+          <div class="erd-box"><strong>venues</strong><span>1:N aliases</span><span>1:N descriptions</span><span>1:N hours</span></div>
+          <div class="erd-box"><strong>menu_branches</strong><span>1:N menu_options</span><span>N:1 response_templates</span></div>
+          <div class="erd-box"><strong>guest_threads</strong><span>1:N inbound_messages</span><span>1:N outbound_messages</span></div>
+          <div class="erd-box"><strong>reservation_requests</strong><span>N:1 property</span><span>N:1 venue</span><span>N:1 guest_thread</span></div>
+          <div class="erd-box"><strong>complaint_incidents</strong><span>N:1 team</span><span>N:1 guest_thread</span></div>
+          <div class="erd-box"><strong>operational_events</strong><span>Feeds LOGS views</span><span>Audit/reporting foundation</span></div>
+        </div>
+      </section>
+
+      <section class="section" id="review-feedback" data-review-id="section.review_feedback">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Section 10</p>
+            <h3>Review Feedback</h3>
+          </div>
+          <div class="review-actions is-static" data-review-target="section.review_feedback" data-review-label="Review Feedback"></div>
+        </div>
+        <p>
+          Use OK to mark a target as reviewed with no note, or use N to attach comments to stable review targets.
+          Comments are stored locally in this browser until exported. Export JSON and send it back for review consolidation.
+        </p>
+        <div class="feedback-export">
+          <button class="button primary" id="exportAllCommentsInline">Export feedback JSON</button>
+          <button class="button" id="clearAllComments">Clear local comments</button>
+        </div>
+        <div id="allComments" class="comment-list"></div>
+      </section>
+
+      <section class="section" id="mvp-scope" data-review-id="section.mvp_scope">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Section 11</p>
+            <h3>MVP Scope</h3>
+          </div>
+          <div class="review-actions is-static" data-review-target="section.mvp_scope" data-review-label="MVP Scope"></div>
+        </div>
+        <ul class="scope-list">
+          <li>MVP includes tenant, property, settings, teams, venues, aliases, templates, runtime flags, messages, reservations, and operational events.</li>
+          <li>MVP does not require a live property admin UI connected to Supabase.</li>
+          <li>MVP does not require live webhook turns to read raw normalized tables directly.</li>
+          <li>MVP should seed current demo data into the schema and publish a deterministic runtime package for validation.</li>
+          <li>MVP must preserve current webhook behavior until SOL Menu Runtime Service migration is approved.</li>
+        </ul>
+      </section>
+
+      <section class="section" id="open-decisions" data-review-id="section.open_decisions">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Section 12</p>
+            <h3>Open Decisions</h3>
+          </div>
+          <div class="review-actions is-static" data-review-target="section.open_decisions" data-review-label="Open Decisions"></div>
+        </div>
+        <div class="decision-grid" id="decisionGrid"></div>
+      </section>
+
+      <section class="section" id="appendix" data-review-id="section.appendix">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Section 13</p>
+            <h3>Appendix</h3>
+          </div>
+          <div class="review-actions is-static" data-review-target="section.appendix" data-review-label="Appendix"></div>
+        </div>
+        <p><strong>Source observations used:</strong> current demo property package, webhook constants, Fast Path responder/classifier, LOGS mapper/workbook, and Voiceflow bridge configuration.</p>
+        <p><strong>Approved artifact boundary:</strong> this file is a review proposal. It is not runtime code and should not be wired to production without review.</p>
+        <p class="print-note">Feedback is browser-local unless exported as JSON.</p>
+      </section>
+    </main>
+  </div>
+
+  <div class="overlay" id="overlay"></div>
+  <aside class="feedback-panel" id="feedbackPanel" aria-label="Feedback panel">
+    <div class="feedback-header">
+      <div>
+        <p class="eyebrow">Review Comment</p>
+        <h3 id="feedbackTitle">Comment</h3>
+        <p id="feedbackTarget" class="review-target-id"></p>
+      </div>
+      <button class="button" id="closeFeedback">Close</button>
+    </div>
+    <label class="field">
+      <span>Your name</span>
+      <input id="commentAuthor" type="text" placeholder="Reviewer name">
+    </label>
+    <label class="field">
+      <span>Priority</span>
+      <select id="commentPriority">
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+        <option value="low">Low</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>Status</span>
+      <select id="commentStatus">
+        <option value="open">Open</option>
+        <option value="accepted">Accepted</option>
+        <option value="rejected">Rejected</option>
+        <option value="resolved">Resolved</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>Comment</span>
+      <textarea id="commentText" placeholder="Write feedback for this section or item."></textarea>
+    </label>
+    <button class="button primary" id="saveComment">Save Comment</button>
+    <div class="comment-list" id="targetComments"></div>
+  </aside>
+
+  <script>
+    const STORAGE_KEY = "sol_schema_proposal_v03_comments";
+    const REVIEW_STATE_KEY = "sol_schema_proposal_v03_review_state";
+
+    const domains = [
+      ["Tenant & Property", "Identity, account, property-level defaults, timezone, default language.", "MVP"],
+      ["Venues & Services", "Restaurants, bars, room service, amenities, aliases, hours, reservation behavior.", "MVP"],
+      ["Menus & Templates", "Branches, options, lookup aliases, language-specific response templates.", "MVP"],
+      ["Routing & Teams", "Departments, handoff targets, escalation rules, routing categories.", "MVP"],
+      ["Runtime Flags", "Feature switches by tenant/property, including Fast Path behavior.", "MVP"],
+      ["Messages & Threads", "Guest conversation state, inbound/outbound messages, Meta status updates.", "MVP"],
+      ["Reservations", "Reservation request lifecycle, party size, date/time, venue, contact fields.", "MVP"],
+      ["Complaints / Incidents", "Guest complaints, security concerns, billing issues, lost and found.", "MVP"],
+      ["Audit / LOGS", "Operational events and reporting views for dashboard work.", "MVP"]
+    ];
+
+    const tables = [
+      { name: "tenants", domain: "Tenant & Property", owner: "Admin", scope: "MVP", purpose: "Client organization account.", usedBy: "Admin UI, auth, reporting", fields: ["id", "tenant_key", "display_name", "status"] },
+      { name: "properties", domain: "Tenant & Property", owner: "Admin", scope: "MVP", purpose: "Physical property/site under a tenant.", usedBy: "Webhook, Admin UI, LOGS", fields: ["id", "tenant_id", "property_key", "display_name", "timezone"] },
+      { name: "property_settings", domain: "Tenant & Property", owner: "Property Admin", scope: "MVP", purpose: "Concierge name, default language, runtime profile.", usedBy: "Webhook, templates, Admin UI", fields: ["property_id", "concierge_name", "default_language", "phone_region"] },
+      { name: "teams", domain: "Routing & Teams", owner: "Property Admin", scope: "MVP", purpose: "Guest Services, Reservations, Security, and other routing teams.", usedBy: "Webhook, LOGS, escalation", fields: ["id", "property_id", "team_key", "display_name", "scope"] },
+      { name: "venues", domain: "Venues & Services", owner: "Property Admin", scope: "MVP", purpose: "Restaurants, bars, room service, amenities.", usedBy: "Fast Path, reservations, templates", fields: ["id", "property_id", "venue_key", "display_name", "venue_type", "reservation_enabled"] },
+      { name: "venue_aliases", domain: "Venues & Services", owner: "Property Admin", scope: "MVP", purpose: "Search and natural-language aliases for venues.", usedBy: "Webhook venue detection", fields: ["id", "venue_id", "alias", "language"] },
+      { name: "venue_descriptions", domain: "Venues & Services", owner: "Property Admin", scope: "MVP", purpose: "Localized venue descriptions.", usedBy: "Fast Path restaurant list", fields: ["venue_id", "language", "short_description", "long_description"] },
+      { name: "venue_hours", domain: "Venues & Services", owner: "Property Admin", scope: "Later", purpose: "Configured operating hours and exceptions.", usedBy: "Guest answers, escalation guardrails", fields: ["venue_id", "day_of_week", "open_time", "close_time", "is_24_hours"] },
+      { name: "reservation_rules", domain: "Reservations", owner: "Property Admin", scope: "MVP", purpose: "Thresholds, required fields, timing, group policy.", usedBy: "Webhook reservation routing", fields: ["property_id", "large_party_threshold", "arrival_buffer_minutes", "required_fields"] },
+      { name: "menu_branches", domain: "Menus & Templates", owner: "Admin", scope: "MVP", purpose: "Top-level and nested guest menu branches.", usedBy: "Fast Path classifier", fields: ["id", "property_id", "branch_key", "parent_branch_key", "display_order"] },
+      { name: "menu_options", domain: "Menus & Templates", owner: "Admin", scope: "MVP", purpose: "Menu options and next-context routing.", usedBy: "Fast Path classifier/responder", fields: ["id", "branch_id", "option_key", "label_en", "label_es", "next_branch_key"] },
+      { name: "response_templates", domain: "Menus & Templates", owner: "Admin", scope: "MVP", purpose: "Localized response text with placeholders.", usedBy: "Webhook outbound replies", fields: ["id", "property_id", "template_key", "language", "body"] },
+      { name: "runtime_feature_flags", domain: "Runtime Flags", owner: "Admin", scope: "MVP", purpose: "Per-property toggles for runtime behavior.", usedBy: "Webhook startup/runtime", fields: ["property_id", "flag_key", "enabled", "value_json"] },
+      { name: "guest_threads", domain: "Messages & Threads", owner: "Runtime", scope: "MVP", purpose: "Conversation session identity and state references.", usedBy: "Webhook, LOGS", fields: ["id", "property_id", "wa_user_id", "current_language", "status"] },
+      { name: "inbound_messages", domain: "Messages & Threads", owner: "Runtime", scope: "MVP", purpose: "Guest inbound WhatsApp messages.", usedBy: "LOGS, audit, analytics", fields: ["id", "thread_id", "message_id", "body", "received_at"] },
+      { name: "outbound_messages", domain: "Messages & Threads", owner: "Runtime", scope: "MVP", purpose: "Messages sent by SOL to guests.", usedBy: "LOGS, Meta status", fields: ["id", "thread_id", "message_id", "body", "sent_at", "status"] },
+      { name: "reservation_requests", domain: "Reservations", owner: "Runtime", scope: "MVP", purpose: "Structured reservation request records.", usedBy: "LOGS, staff follow-up", fields: ["id", "property_id", "thread_id", "venue_id", "guest_name", "party_size", "requested_time"] },
+      { name: "complaint_incidents", domain: "Complaints / Incidents", owner: "Runtime", scope: "MVP", purpose: "Complaint, billing, safety, and incident records.", usedBy: "LOGS, escalation", fields: ["id", "property_id", "thread_id", "team_id", "category", "severity", "status"] },
+      { name: "operational_events", domain: "Audit / LOGS", owner: "Runtime", scope: "MVP", purpose: "Append-only event ledger for dashboards and audits.", usedBy: "LOGS UI, reports", fields: ["id", "property_id", "event_type", "thread_id", "payload", "created_at"] },
+      { name: "schema_review_comments", domain: "Audit / LOGS", owner: "Review", scope: "Later", purpose: "Optional hosted comments for this schema review flow.", usedBy: "Review portal", fields: ["id", "review_version", "target_id", "author_name", "comment_text", "status"] }
+    ];
+
+    const fieldRows = [
+      ["properties", "display_name", "text", "yes", "yes", "yes", "yes", "Replaces 'Your Casino'."],
+      ["properties", "timezone", "text", "yes", "yes", "yes", "yes", "Replaces America/Panama constant where property-specific."],
+      ["property_settings", "concierge_name", "text", "yes", "yes", "yes", "no", "Supports client-selected concierge identity."],
+      ["property_settings", "default_language", "text", "yes", "yes", "yes", "yes", "Controls language gate default."],
+      ["teams", "display_name", "text", "yes", "yes", "yes", "yes", "Replaces Guest Services / Reservations / Security literals."],
+      ["venues", "venue_key", "text", "yes", "yes", "yes", "yes", "Stable natural key for menus and runtime config."],
+      ["venues", "display_name", "text", "yes", "yes", "yes", "yes", "Replaces hard-coded restaurant names."],
+      ["venues", "reservation_enabled", "boolean", "yes", "yes", "yes", "yes", "Determines reservation-led flow."],
+      ["venue_aliases", "alias", "text", "yes", "yes", "yes", "no", "Replaces KNOWN_RESERVATION_VENUES aliases."],
+      ["venue_descriptions", "short_description", "text", "yes", "yes", "yes", "no", "Replaces Fast Path venue copy map."],
+      ["reservation_rules", "large_party_threshold", "integer", "yes", "yes", "yes", "yes", "Replaces STANDARD_RESTAURANT_PARTY_SIZE_MAX = 8."],
+      ["response_templates", "body", "text", "yes", "admin", "yes", "no", "Replaces hard-coded guest-facing prompts."],
+      ["runtime_feature_flags", "enabled", "boolean", "yes", "admin", "yes", "no", "Maps FAST_PATH_ENABLED-style behavior per property."],
+      ["operational_events", "payload", "jsonb", "yes", "no", "yes", "yes", "Base feed for LOGS dashboards."],
+      ["schema_review_comments", "target_id", "text", "yes", "reviewer", "no", "no", "Stable comment anchor for proposal review."]
+    ];
+
+    const hardcodes = [
+      ["sol_verify_123", "webhook.js:253", "deployment env: VERIFY_TOKEN", "High", "Deployment"],
+      ["America/Panama", "webhook.js:258", "properties.timezone", "High", "Property Admin"],
+      ["STANDARD_RESTAURANT_PARTY_SIZE_MAX = 8", "webhook.js:264", "reservation_rules.large_party_threshold", "High", "Property Admin"],
+      ["KNOWN_RESERVATION_VENUES", "webhook.js:1392", "venues + venue_aliases", "High", "Property Admin"],
+      ["Your Casino Club Card loyalty facts", "webhook.js:1548", "response_templates / loyalty config", "High", "Admin"],
+      ["Welcome to Your Casino", "webhook.js:1849", "response_templates + properties.display_name", "High", "Admin"],
+      ["Voiceflow project ID", "vf_bridge/vf_client.js:28", "deployment env: VF_PROJECT_ID", "High", "Deployment"],
+      ["Venue presentation copy", "src/fast_path/fast_path_responder.js:24", "venue_descriptions", "Medium", "Property Admin"],
+      ["Room Service exclusion", "src/fast_path/fast_path_responder.js:20", "venues.venue_type / visibility flag", "Medium", "Property Admin"],
+      ["Guest Services / Security", "logs_mapper.js:100", "teams + routing rules", "Medium", "LOGS/Admin"]
+    ];
+
+    const decisions = [
+      ["Menu runtime package", "Should live turns execute a published deterministic package instead of raw normalized tables?", "Recommended: yes"],
+      ["Tenant editable fields", "Which fields can client users edit directly?", "Needs approval"],
+      ["LOGS boundaries", "Should LOGS own only operational data, not property truth?", "Recommended: yes"],
+      ["Template governance", "Who approves guest-facing templates?", "Needs owner"],
+      ["Migration order", "Do we seed demo data first, then wire runtime?", "Recommended: yes"],
+      ["Comment hosting", "Keep feedback export-only or add schema_review_comments table?", "Later"]
+    ];
+
+    let comments = loadComments();
+    let reviewState = loadReviewState();
+    let selectedReviewer = null;
+    let activeTarget = null;
+
+    function noteButton(target, label) {
+      const count = (comments[target] || []).length;
+      return `<button class="note-button" data-note-target="${target}" data-note-label="${escapeHtml(label)}">N${count ? `<span class="note-badge">${count}</span>` : ""}</button>`;
+    }
+
+    function okButton(target, label) {
+      const reviewerName = selectedReviewer || reviewState.reviewer?.name || "";
+      const ok = hasOkForReviewer(target, reviewerName);
+      return `<button class="ok-button${ok ? " is-ok" : ""}" data-ok-target="${target}" data-ok-label="${escapeHtml(label)}" aria-pressed="${ok}">OK</button>`;
+    }
+
+    function reviewActions(target, label) {
+      return `<div class="review-actions">${okButton(target, label)}${noteButton(target, label)}</div>`;
+    }
+
+    function renderStaticReviewActions() {
+      document.querySelectorAll(".review-actions.is-static").forEach(node => {
+        node.innerHTML = okButton(node.dataset.reviewTarget, node.dataset.reviewLabel) + noteButton(node.dataset.reviewTarget, node.dataset.reviewLabel);
+      });
+    }
+
+    function renderDomains() {
+      const grid = document.getElementById("domainGrid");
+      grid.innerHTML = domains.map(([name, desc, scope]) => `
+        <div class="domain-card card">
+          <div class="sub-header">
+            <div>
+              <h4>${name}</h4>
+              <span class="tag mvp">${scope}</span>
+            </div>
+            ${reviewActions("domain." + slug(name), name)}
+          </div>
+          <p>${desc}</p>
+        </div>
+      `).join("");
+    }
+
+    function renderFilters() {
+      const select = document.getElementById("domainFilter");
+      const unique = [...new Set(tables.map(t => t.domain))];
+      select.innerHTML += unique.map(d => `<option value="${d}">${d}</option>`).join("");
+    }
+
+    function renderTables() {
+      const query = document.getElementById("tableSearch").value.toLowerCase();
+      const domain = document.getElementById("domainFilter").value;
+      const scope = document.getElementById("mvpFilter").value;
+      const container = document.getElementById("tableCatalog");
+      const rows = tables.filter(t => {
+        const hay = `${t.name} ${t.domain} ${t.owner} ${t.purpose} ${t.usedBy}`.toLowerCase();
+        return (!query || hay.includes(query)) && (!domain || t.domain === domain) && (!scope || t.scope === scope);
+      });
+
+      container.innerHTML = rows.map(t => `
+        <article class="table-card">
+          <header>
+            <div>
+              <h4>${t.name}</h4>
+              <span class="tag ${t.scope === "MVP" ? "mvp" : ""}">${t.scope}</span>
+              <span class="tag">${t.domain}</span>
+            </div>
+            ${reviewActions("table." + t.name, "Table: " + t.name)}
+          </header>
+          <p><strong>Purpose:</strong> ${t.purpose}</p>
+          <p><strong>Owner:</strong> ${t.owner}<br><strong>Used by:</strong> ${t.usedBy}</p>
+          <ul>${t.fields.map(f => `<li>${f} ${reviewActions("field." + t.name + "." + f, t.name + "." + f)}</li>`).join("")}</ul>
+        </article>
+      `).join("");
+      bindReviewButtons();
+    }
+
+    function renderFields() {
+      document.getElementById("fieldRows").innerHTML = fieldRows.map(r => `
+        <tr>
+          <td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td>
+          <td>${r[4]}</td><td>${r[5]}</td><td>${r[6]}</td>
+          <td>${r[7]} ${reviewActions("field." + r[0] + "." + r[1], r[0] + "." + r[1])}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderHardcodes() {
+      document.getElementById("hardcodeRows").innerHTML = hardcodes.map(h => {
+        const id = "hardcode." + slug(h[1]);
+        return `
+          <tr>
+            <td>${h[0]}</td>
+            <td><code>${h[1]}</code></td>
+            <td>${h[2]}</td>
+            <td><span class="tag ${h[3] === "High" ? "high" : "medium"}">${h[3]}</span></td>
+            <td>${h[4]}</td>
+            <td>${reviewActions(id, "Hard-code: " + h[0])}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function renderDecisions() {
+      document.getElementById("decisionGrid").innerHTML = decisions.map(d => `
+        <div class="decision-card">
+          <div class="sub-header">
+            <div>
+              <h4>${d[0]}</h4>
+              <span class="tag">${d[2]}</span>
+            </div>
+            ${reviewActions("decision." + slug(d[0]), "Decision: " + d[0])}
+          </div>
+          <p>${d[1]}</p>
+        </div>
+      `).join("");
+    }
+
+    function bindReviewButtons() {
+      document.querySelectorAll("[data-note-target]").forEach(button => {
+        button.onclick = () => openFeedback(button.dataset.noteTarget, button.dataset.noteLabel);
+      });
+      document.querySelectorAll("[data-ok-target]").forEach(button => {
+        button.onclick = () => toggleOk(button.dataset.okTarget, button.dataset.okLabel);
+      });
+    }
+
+    function toggleOk(target, label) {
+      const reviewer = ensureReviewer();
+      if (!reviewer) return;
+      reviewState.oks = reviewState.oks || {};
+      const key = okKey(reviewer, target);
+      if (reviewState.oks[key]) {
+        delete reviewState.oks[key];
+      } else {
+        reviewState.oks[key] = {
+          target_id: target,
+          target_label: label,
+          reviewer_name: reviewer,
+          reviewed_at: new Date().toISOString()
+        };
+      }
+      touchReviewer(reviewer);
+      reviewState.last_activity_at = new Date().toISOString();
+      saveReviewState();
+      renderAll();
+    }
+
+    function openFeedback(target, label) {
+      const reviewer = ensureReviewer();
+      if (!reviewer) return;
+      activeTarget = { target, label };
+      document.getElementById("feedbackTitle").textContent = label;
+      document.getElementById("feedbackTarget").textContent = target;
+      document.getElementById("commentAuthor").value = reviewer;
+      document.getElementById("commentText").value = "";
+      document.getElementById("feedbackPanel").classList.add("is-open");
+      document.getElementById("overlay").classList.add("is-open");
+      renderTargetComments();
+    }
+
+    function closeFeedback() {
+      document.getElementById("feedbackPanel").classList.remove("is-open");
+      document.getElementById("overlay").classList.remove("is-open");
+    }
+
+    function saveComment() {
+      if (!activeTarget) return;
+      const text = document.getElementById("commentText").value.trim();
+      if (!text) return;
+      const author = ensureReviewer() || document.getElementById("commentAuthor").value.trim() || "Reviewer";
+      const priority = document.getElementById("commentPriority").value;
+      const status = document.getElementById("commentStatus").value;
+      comments[activeTarget.target] = comments[activeTarget.target] || [];
+      comments[activeTarget.target].push({
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+        target_id: activeTarget.target,
+        target_label: activeTarget.label,
+        author_name: author,
+        priority,
+        status,
+        comment_text: text,
+        created_at: new Date().toISOString()
+      });
+      reviewState.last_activity_at = new Date().toISOString();
+      touchReviewer(author);
+      saveReviewState();
+      saveComments();
+      document.getElementById("commentText").value = "";
+      renderAll();
+      openFeedback(activeTarget.target, activeTarget.label);
+    }
+
+    function renderTargetComments() {
+      const list = document.getElementById("targetComments");
+      const rows = comments[activeTarget?.target] || [];
+      list.innerHTML = rows.length ? rows.map(renderComment).join("") : "<p>No comments for this target yet.</p>";
+    }
+
+    function renderAllComments() {
+      const list = document.getElementById("allComments");
+      const rows = Object.values(comments).flat()
+        .filter(c => !selectedReviewer || sameReviewer(c.author_name, selectedReviewer))
+        .sort((a, b) => a.created_at.localeCompare(b.created_at));
+      list.innerHTML = rows.length ? rows.map(renderComment).join("") : "<p>No review comments stored in this browser yet.</p>";
+    }
+
+    function renderComment(c) {
+      return `
+        <div class="comment">
+          <div class="comment-meta">
+            <span>${escapeHtml(c.author_name)}</span>
+            <span>${escapeHtml(c.priority)}</span>
+            <span>${escapeHtml(c.status)}</span>
+            <span>${new Date(c.created_at).toLocaleString()}</span>
+          </div>
+          <div class="review-target-id">${escapeHtml(c.target_id)} — ${escapeHtml(c.target_label)}</div>
+          <p>${escapeHtml(c.comment_text)}</p>
+        </div>
+      `;
+    }
+
+    function loadComments() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); }
+      catch { return {}; }
+    }
+
+    function saveComments() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(comments, null, 2));
+    }
+
+    function loadReviewState() {
+      try {
+        const stored = JSON.parse(localStorage.getItem(REVIEW_STATE_KEY) || "{}");
+        const state = {
+          reviewer: stored.reviewer || null,
+          reviewers: stored.reviewers || {},
+          oks: stored.oks || {},
+          last_activity_at: stored.last_activity_at || null
+        };
+        if (state.reviewer?.name) touchReviewerInState(state, state.reviewer.name, state.reviewer.first_activity_at || state.last_activity_at);
+        return state;
+      } catch {
+        return { reviewer: null, reviewers: {}, oks: {}, last_activity_at: null };
+      }
+    }
+
+    function saveReviewState() {
+      localStorage.setItem(REVIEW_STATE_KEY, JSON.stringify(reviewState, null, 2));
+    }
+
+    function ensureReviewer() {
+      if (reviewState.reviewer?.name) return reviewState.reviewer.name;
+      const existing = document.getElementById("commentAuthor").value.trim();
+      const name = existing || prompt("Nombre del revisor / Reviewer name:");
+      if (!name) return "";
+      reviewState.reviewer = {
+        name,
+        first_activity_at: new Date().toISOString()
+      };
+      reviewState.last_activity_at = reviewState.reviewer.first_activity_at;
+      touchReviewer(name);
+      saveReviewState();
+      return name;
+    }
+
+    function reviewerSlug(name) {
+      return slug(name || "reviewer");
+    }
+
+    function okKey(reviewerName, target) {
+      return reviewerSlug(reviewerName) + "::" + target;
+    }
+
+    function getOkRows() {
+      return Object.entries(reviewState.oks || {}).map(([key, ok]) => {
+        if (ok?.reviewer_name) return ok;
+        return { ...ok, reviewer_name: reviewState.reviewer?.name || "Reviewer" };
+      });
+    }
+
+    function hasOkForReviewer(target, reviewerName) {
+      if (!reviewerName) return Boolean(reviewState.oks?.[target]);
+      return getOkRows().some(ok => ok.target_id === target && sameReviewer(ok.reviewer_name, reviewerName));
+    }
+
+    function sameReviewer(a, b) {
+      return reviewerSlug(a) === reviewerSlug(b);
+    }
+
+    function touchReviewer(name, date) {
+      touchReviewerInState(reviewState, name, date);
+    }
+
+    function touchReviewerInState(state, name, date) {
+      const cleanName = String(name || "").trim();
+      if (!cleanName) return;
+      const key = reviewerSlug(cleanName);
+      const now = date || new Date().toISOString();
+      state.reviewers = state.reviewers || {};
+      state.reviewers[key] = state.reviewers[key] || { name: cleanName, first_activity_at: now, last_activity_at: now };
+      state.reviewers[key].name = cleanName;
+      state.reviewers[key].last_activity_at = now;
+    }
+
+    function getReviewerRows() {
+      const rows = new Map();
+      Object.values(reviewState.reviewers || {}).forEach(r => {
+        if (r?.name) rows.set(reviewerSlug(r.name), r);
+      });
+      if (reviewState.reviewer?.name) rows.set(reviewerSlug(reviewState.reviewer.name), {
+        name: reviewState.reviewer.name,
+        first_activity_at: reviewState.reviewer.first_activity_at,
+        last_activity_at: reviewState.last_activity_at || reviewState.reviewer.first_activity_at
+      });
+      Object.values(comments).flat().forEach(c => {
+        if (!c.author_name) return;
+        const key = reviewerSlug(c.author_name);
+        const existing = rows.get(key);
+        rows.set(key, {
+          name: c.author_name,
+          first_activity_at: existing?.first_activity_at || c.created_at,
+          last_activity_at: maxDate(existing?.last_activity_at, c.created_at)
+        });
+      });
+      getOkRows().forEach(ok => {
+        if (!ok.reviewer_name) return;
+        const key = reviewerSlug(ok.reviewer_name);
+        const existing = rows.get(key);
+        rows.set(key, {
+          name: ok.reviewer_name,
+          first_activity_at: existing?.first_activity_at || ok.reviewed_at,
+          last_activity_at: maxDate(existing?.last_activity_at, ok.reviewed_at)
+        });
+      });
+      return [...rows.values()].sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    }
+
+    function maxDate(a, b) {
+      if (!a) return b;
+      if (!b) return a;
+      return new Date(a) > new Date(b) ? a : b;
+    }
+
+    function getReviewTargets() {
+      const targets = new Map();
+      document.querySelectorAll("[data-review-target]").forEach(node => {
+        targets.set(node.dataset.reviewTarget, node.dataset.reviewLabel);
+      });
+      domains.forEach(([name]) => targets.set("domain." + slug(name), name));
+      tables.forEach(t => {
+        targets.set("table." + t.name, "Table: " + t.name);
+        t.fields.forEach(f => targets.set("field." + t.name + "." + f, t.name + "." + f));
+      });
+      fieldRows.forEach(r => targets.set("field." + r[0] + "." + r[1], r[0] + "." + r[1]));
+      hardcodes.forEach(h => targets.set("hardcode." + slug(h[1]), "Hard-code: " + h[0]));
+      decisions.forEach(d => targets.set("decision." + slug(d[0]), "Decision: " + d[0]));
+      return targets;
+    }
+
+    function getProgressSummary(reviewerName = selectedReviewer) {
+      const targets = getReviewTargets();
+      const okRows = getOkRows().filter(ok => targets.has(ok.target_id) && (!reviewerName || sameReviewer(ok.reviewer_name, reviewerName)));
+      const okCount = okRows.length;
+      const commentRows = Object.values(comments).flat().filter(c => targets.has(c.target_id) && (!reviewerName || sameReviewer(c.author_name, reviewerName)));
+      const noteTargets = commentRows.map(c => c.target_id);
+      const completedTargets = new Set([...okRows.map(ok => ok.target_id), ...noteTargets].filter(target => targets.has(target)));
+      const total = targets.size || 1;
+      const completed = completedTargets.size;
+      const completedPct = Math.round((completed / total) * 100);
+      return {
+        total,
+        ok_count: okCount,
+        note_count: commentRows.length,
+        completed_count: completed,
+        pending_count: Math.max(total - completed, 0),
+        completed_pct: completedPct,
+        pending_pct: Math.max(100 - completedPct, 0)
+      };
+    }
+
+    function renderReviewDashboard() {
+      const summary = getProgressSummary();
+      const reviewerRows = getReviewerRows();
+      const selectedRow = selectedReviewer ? reviewerRows.find(r => sameReviewer(r.name, selectedReviewer)) : null;
+      const reviewer = selectedReviewer || reviewState.reviewer?.name || "All reviewers";
+      const activity = selectedRow?.last_activity_at || reviewState.last_activity_at || reviewState.reviewer?.first_activity_at;
+      const dot = document.getElementById("reviewStatusDot");
+      dot.classList.toggle("is-mid", summary.completed_pct > 0 && summary.completed_pct < 100);
+      dot.classList.toggle("is-done", summary.completed_pct === 100);
+      document.getElementById("reviewStatusText").textContent = summary.completed_pct === 100 ? "Review complete" : summary.completed_pct > 0 ? "Review in progress" : "Pending review";
+      document.getElementById("reviewReviewer").textContent = reviewer;
+      document.getElementById("reviewDate").textContent = activity ? new Date(activity).toLocaleDateString() : "Pending";
+      document.getElementById("reviewCompleted").textContent = summary.completed_pct + "%";
+      document.getElementById("reviewPending").textContent = summary.pending_pct + "%";
+      document.getElementById("reviewNotes").textContent = String(summary.note_count);
+      document.getElementById("reviewProgressBar").style.width = summary.completed_pct + "%";
+      setMetricSaturation("reviewCompletedCard", "green", summary.completed_pct);
+      setMetricSaturation("reviewPendingCard", "red", summary.pending_pct);
+    }
+
+    function setMetricSaturation(id, color, percent) {
+      const card = document.getElementById(id);
+      const capped = Math.max(0, Math.min(50, percent / 2));
+      const alpha = capped / 100;
+      const borderAlpha = Math.min(0.55, alpha + 0.12);
+      const rgb = color === "green" ? "35, 107, 63" : "163, 58, 69";
+      card.style.backgroundColor = `rgba(${rgb}, ${alpha})`;
+      card.style.borderColor = `rgba(${rgb}, ${borderAlpha})`;
+    }
+
+    function renderReviewerList() {
+      const list = document.getElementById("reviewerList");
+      const reviewers = getReviewerRows();
+      const buttons = [
+        `<button class="reviewer-button${selectedReviewer ? "" : " is-active"}" data-reviewer-filter="">All reviewers</button>`
+      ];
+      reviewers.forEach(r => {
+        buttons.push(`<button class="reviewer-button${selectedReviewer && sameReviewer(r.name, selectedReviewer) ? " is-active" : ""}" data-reviewer-filter="${escapeAttr(r.name)}">${escapeHtml(r.name)}</button>`);
+      });
+      list.innerHTML = buttons.join("");
+      list.querySelectorAll("[data-reviewer-filter]").forEach(button => {
+        button.onclick = () => {
+          selectedReviewer = button.dataset.reviewerFilter || null;
+          renderAll();
+          document.getElementById("reviewDashboard").scrollIntoView({ behavior: "smooth", block: "start" });
+        };
+      });
+    }
+
+    function exportComments() {
+      const payload = {
+        review_title: "SOL Webhook Schema Proposal",
+        review_version: "v0.3",
+        exported_at: new Date().toISOString(),
+        reviewer: reviewState.reviewer,
+        reviewers: reviewState.reviewers || {},
+        review_progress: getProgressSummary(),
+        ok_reviews: getOkRows(),
+        comments: Object.values(comments).flat()
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "SOL_Schema_Proposal_v0.3_feedback.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importComments(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const payload = JSON.parse(reader.result);
+          const imported = Array.isArray(payload.comments) ? payload.comments : [];
+          imported.forEach(c => {
+            comments[c.target_id] = comments[c.target_id] || [];
+            comments[c.target_id].push(c);
+          });
+          if (payload.reviewer) reviewState.reviewer = payload.reviewer;
+          if (payload.reviewers && typeof payload.reviewers === "object") {
+            Object.values(payload.reviewers).forEach(r => touchReviewer(r.name, r.last_activity_at || r.first_activity_at));
+          }
+          if (Array.isArray(payload.ok_reviews)) {
+            reviewState.oks = reviewState.oks || {};
+            payload.ok_reviews.forEach(ok => {
+              if (ok.target_id) {
+                const reviewerName = ok.reviewer_name || payload.reviewer?.name || "Reviewer";
+                reviewState.oks[okKey(reviewerName, ok.target_id)] = { ...ok, reviewer_name: reviewerName };
+                touchReviewer(reviewerName, ok.reviewed_at);
+              }
+            });
+          }
+          imported.forEach(c => touchReviewer(c.author_name, c.created_at));
+          reviewState.last_activity_at = new Date().toISOString();
+          saveComments();
+          saveReviewState();
+          renderAll();
+        } catch (err) {
+          alert("Could not import feedback JSON.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function clearAllComments() {
+      if (!confirm("Clear all comments stored locally in this browser?")) return;
+      comments = {};
+      saveComments();
+      renderAll();
+    }
+
+    function slug(value) {
+      return String(value).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value);
+    }
+
+    function renderAll() {
+      renderStaticReviewActions();
+      renderDomains();
+      renderTables();
+      renderFields();
+      renderHardcodes();
+      renderDecisions();
+      renderAllComments();
+      renderReviewDashboard();
+      renderReviewerList();
+      bindReviewButtons();
+    }
+
+    document.getElementById("tableSearch").addEventListener("input", renderTables);
+    document.getElementById("domainFilter").addEventListener("change", renderTables);
+    document.getElementById("mvpFilter").addEventListener("change", renderTables);
+    document.getElementById("closeFeedback").addEventListener("click", closeFeedback);
+    document.getElementById("overlay").addEventListener("click", closeFeedback);
+    document.getElementById("saveComment").addEventListener("click", saveComment);
+    document.getElementById("exportAllComments").addEventListener("click", exportComments);
+    document.getElementById("exportAllCommentsInline").addEventListener("click", exportComments);
+    document.getElementById("clearAllComments").addEventListener("click", clearAllComments);
+    document.getElementById("importComments").addEventListener("change", event => {
+      if (event.target.files?.[0]) importComments(event.target.files[0]);
+      event.target.value = "";
+    });
+
+    renderFilters();
+    renderAll();
+  </script>
+</body>
+</html>
