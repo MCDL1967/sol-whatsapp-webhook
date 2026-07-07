@@ -242,6 +242,7 @@ const path = require("path");
 const logsService = require("./logs_service");
 const { readVfState }              = require('./vf_bridge/vf_state_reader');
 const { readReservationCandidate } = require('./vf_bridge/reservation_candidate_reader');
+const { writeReservationCase } = require('./supabase_bridge/supabase_client');
 const { loadPropertyPackage } = require('./src/fast_path/property_loader');
 const { classifyFastPath } = require('./src/fast_path/fast_path_classifier');
 const { buildResponse } = require('./src/fast_path/fast_path_responder');
@@ -4069,6 +4070,23 @@ app.post("/webhook", async (req, res) => {
           summary: closureSummary || null
         })
       );
+
+      // ---- SUPABASE RESERVATION WRITE (minimal walking-skeleton path — soft-fail, never blocks reply) ----
+      try {
+        const caseId = await writeReservationCase({
+          user_id: userID,
+          guest_name: preExitReservationClosure.guest_name,
+          contact_phone: preExitReservationClosure.contact_phone,
+          service_date: preExitReservationClosure.service_date,
+          service_time: preExitReservationClosure.service_time || null,
+          venue_or_department: preExitReservationClosure.venue_or_department || null,
+          party_size: preExitReservationClosure.party_size || null,
+          summary: closureSummary || null
+        });
+        console.log(`[SUPABASE RESERVATION WRITE] user=${userID} case_id=${caseId || "skipped"}`);
+      } catch (err) {
+        console.error(`[SUPABASE RESERVATION WRITE ERROR] user=${userID}`, err?.stack || err?.message || err);
+      }
     }
  
     updateSession(

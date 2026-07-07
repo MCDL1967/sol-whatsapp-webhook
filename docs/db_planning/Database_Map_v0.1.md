@@ -235,6 +235,7 @@ Default modeling:
 ```text
 Transportation -> service_request_details unless logistics require a dedicated table later.
 Shows -> venues with venue_type = show unless ticketing/seat/schedule complexity requires more later.
+Room Service -> service_request_details (service, not a venue). case_type is service_request, not reservation.
 ```
 
 ## Messages

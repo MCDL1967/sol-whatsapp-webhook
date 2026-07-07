@@ -1,6 +1,6 @@
 # SOL Physical Schema v0.1
 
-Status: draft for review, not executable
+Status: **partially live** — a 5-table subset has been built and applied; the rest is still draft for review, not executable
 Date: 2026-07-07
 Source: `Database_Map_v0.1.md`, `Schema_Proposal_v0.4.html`, accepted review decisions
 
@@ -8,7 +8,7 @@ Source: `Database_Map_v0.1.md`, `Schema_Proposal_v0.4.html`, accepted review dec
 
 This document translates the accepted logical database map into a first physical Supabase/Postgres schema draft.
 
-It is not a migration script. It does not authorize creating tables, changing runtime behavior, editing `webhook.js`, changing LOGS, or wiring Supabase to production.
+**Live status**: `tenants`, `properties`, `guest_threads`, `cases`, `reservation_details` are now actually created on the linked Supabase project (`sol_whatsapp_webhook_main`) via `supabase/migrations/20260707200539_minimal_reservation_path.sql`, with seed anchors applied. Full detail: `DB_Construction_Decisions_v0.1.md` → "Live Database State". Every other table in this document is still draft only — not yet migrated, does not authorize creating tables, changing runtime behavior, editing `webhook.js`, changing LOGS, or wiring Supabase to production.
 
 ## Replacement Placeholders
 
@@ -16,31 +16,31 @@ Use this table as the first stop when final project details are available. Each 
 
 | Placeholder | Location | Needed value | Current draft value |
 |---|---|---|---|
-| `{{SUPABASE_PROJECT_REF}}` | Section: Supabase Target | Dev Supabase project ref/name | TBD |
+| `{{SUPABASE_PROJECT_REF}}` | Section: Supabase Target | Supabase project ref/name | **Resolved**: `sol_whatsapp_webhook_main`, ref `muhahnfodnnplrizefhu`. Single project — free-tier project limit reached, no separate dev project. See `DB_Construction_Decisions_v0.1.md`. |
 | `{{DB_SCHEMA_NAME}}` | Section: Supabase Target | Postgres schema name | `public` |
 | `{{TENANT_KEY_DEMO}}` | Section: Seed Anchors | Canonical demo tenant key | `sol_demo` |
 | `{{PROPERTY_KEY_DEMO}}` | Section: Seed Anchors | Canonical demo property key | `demo` |
 | `{{PROPERTY_DISPLAY_NAME}}` | Section: Seed Anchors | Demo property display name | `Your Casino` |
 | `{{DEFAULT_TIMEZONE}}` | Section: Seed Anchors | Default property timezone | `America/Panama` |
 | `{{DEFAULT_LANGUAGE}}` | Section: Seed Anchors | Default runtime language | `en` |
-| `{{SERVICE_ROLE_NAME}}` | Section: Roles And Access | Runtime service role / DB role | TBD |
-| `{{LOGS_READ_ROLE}}` | Section: Roles And Access | LOGS read role / policy role | TBD |
-| `{{PROPERTY_ADMIN_ROLE}}` | Section: Roles And Access | Property admin app role | TBD |
-| `{{SOL_ADMIN_ROLE}}` | Section: Roles And Access | SOL admin app role | TBD |
-| `{{RUNTIME_PACKAGE_STORAGE}}` | Section: Runtime Package Publication | Storage mode for runtime package | TBD: JSONB row / generated file / cache |
-| `{{MIGRATION_TOOL}}` | Section: Migration Execution | Migration runner/tool | TBD: Supabase SQL editor / CLI / migrations |
+| `{{SERVICE_ROLE_NAME}}` | Section: Roles And Access | Runtime service role / DB role | **Resolved**: Supabase's built-in `service_role` — no custom role needed. |
+| `{{LOGS_READ_ROLE}}` | Section: Roles And Access | LOGS read role / policy role | Still TBD — no LOGS dashboard with real Supabase Auth users exists yet to scope a role against. |
+| `{{PROPERTY_ADMIN_ROLE}}` | Section: Roles And Access | Property admin app role | Still TBD — Tenant Property Configuration Tool doesn't have real Supabase Auth users yet. |
+| `{{SOL_ADMIN_ROLE}}` | Section: Roles And Access | SOL admin app role | Still TBD — no SOL Admin tool exists yet. |
+| `{{RUNTIME_PACKAGE_STORAGE}}` | Section: Runtime Package Publication | Storage mode for runtime package | **Resolved**: Supabase table row (`runtime_packages`, `package_json JSONB`). |
+| `{{MIGRATION_TOOL}}` | Section: Migration Execution | Migration runner/tool | **Resolved**: Supabase CLI, versioned migration files (`supabase migration new`, `supabase db push`), checked into the repo. |
 | `{{EXTENSION_UUID}}` | Section: Extensions | UUID extension choice | `pgcrypto` |
-| `{{EXTENSION_UPDATED_AT}}` | Section: Extensions | Updated-at trigger helper approach | TBD |
+| `{{EXTENSION_UPDATED_AT}}` | Section: Extensions | Updated-at trigger helper approach | **Resolved**: shared Postgres trigger function, applied to every table with `updated_at`. |
 
 ## Supabase Target
 
 ```text
-Project: {{SUPABASE_PROJECT_REF}}
-Schema: {{DB_SCHEMA_NAME}}
-Migration tool: {{MIGRATION_TOOL}}
+Project: sol_whatsapp_webhook_main (ref: muhahnfodnnplrizefhu)
+Schema: public
+Migration tool: Supabase CLI (supabase migration new / supabase db push)
 ```
 
-Recommendation for MVP: keep objects in `public` unless Supabase/RLS strategy requires a separate schema.
+Single project only — the free-tier project limit was reached, so there is no separate dev project. Working directly in `public` on this one project for now (no dev/prod schema separation). CLI is linked (`supabase link --project-ref muhahnfodnnplrizefhu`).
 
 ## Extensions
 
@@ -266,9 +266,10 @@ Constraints / indexes:
 ```sql
 unique (property_id, team_key)
 index (property_id, dept_target)
+check (dept_target in ('FNB','SEC','OPS'))
 ```
 
-Open item: final allowed `dept_target` values.
+Resolved: `GM` always receives every case (not itself a `dept_target` value); routes in addition to one of `FNB` / `SEC` / `OPS`. `HSK` folds into `OPS` for MVP.
 
 ### venues
 
@@ -280,9 +281,11 @@ Purpose: restaurants, bars, room service, amenities, shows, or guest-facing serv
 | `property_id` | uuid | yes | FK -> `properties.id` |
 | `venue_key` | text | yes | SOL/Admin owned stable key |
 | `display_name` | text | yes | Property editable |
-| `venue_type` | text | yes | Example: `restaurant`, `bar`, `room_service`, `show`, `amenity` |
+| `venue_type` | text | yes | Example: `restaurant`, `bar`, `show`, `amenity` (Room Service is not a venue — see Database_Map_v0.1.md) |
 | `reservation_enabled` | boolean | yes | Default false |
 | `show_in_runtime_menu` | boolean | yes | Default true |
+| `selectable` | boolean | yes | Default true. Guest can pick this venue directly for a reservation |
+| `show_in_restaurant_list` | boolean | yes | Default true. Appears when guest asks to see restaurants — replaces the hardcoded Room Service exclusion at `src/fast_path/fast_path_responder.js:20` |
 | `active` | boolean | yes | Default true |
 | `created_at` | timestamptz | yes | System |
 | `updated_at` | timestamptz | yes | System |
@@ -341,7 +344,7 @@ Purpose: configured operating hours and exceptions.
 |---|---:|---:|---|
 | `id` | uuid | yes | PK |
 | `venue_id` | uuid | yes | FK -> `venues.id` |
-| `day_of_week` | smallint | yes | 0-6 or 1-7 convention TBD |
+| `day_of_week` | smallint | yes | 0–6, Sunday = 0 (matches Postgres `EXTRACT(DOW)` and JS `Date.getDay()`) |
 | `open_time` | time | no | Null if closed or all-day |
 | `close_time` | time | no | Null if closed or all-day |
 | `is_closed` | boolean | yes | Default false |
@@ -349,8 +352,6 @@ Purpose: configured operating hours and exceptions.
 | `notes` | text | no | Guest-safe operational note |
 | `created_at` | timestamptz | yes | System |
 | `updated_at` | timestamptz | yes | System |
-
-Open item: final weekday convention.
 
 ### reservation_rules
 
@@ -404,6 +405,7 @@ Purpose: deterministic menu options and next-context routing.
 | `case_type` | text | no | Optional case type if option creates work |
 | `dept_target` | text | no | SOL/Admin routing |
 | `template_key` | text | no | Optional response template |
+| `target_file` | text | no | Optional KB source file reference (e.g. `dining_bars_guest_guide.txt`). Full KB governance deferred to later. |
 | `active` | boolean | yes | Default true |
 | `created_at` | timestamptz | yes | System |
 | `updated_at` | timestamptz | yes | System |
@@ -413,6 +415,67 @@ Constraints / indexes:
 ```sql
 unique (branch_id, option_key)
 index (branch_id, choice_number)
+```
+
+### menu_option_aliases
+
+Purpose: deterministic lookup aliases resolving guest input to an option within a branch. Replaces the demo package's `lookup`/`choice_aliases` structures.
+
+| Column | Type | Required | Notes |
+|---|---:|---:|---|
+| `id` | uuid | yes | PK |
+| `branch_id` | uuid | yes | FK -> `menu_branches.id` |
+| `option_key` | text | yes | Target option within the branch |
+| `alias_text` | text | yes | Guest-input text that resolves to `option_key` |
+| `language` | text | no | `language_code`, null means all |
+| `created_at` | timestamptz | yes | System |
+| `updated_at` | timestamptz | yes | System |
+
+Constraints / indexes:
+
+```sql
+unique (branch_id, alias_text, language)
+index (branch_id, alias_text)
+```
+
+### menu_branch_triggers
+
+Purpose: branch-level list-trigger phrases (e.g. "show list", "show all") that display every option in a context. Replaces the demo package's `list_triggers`.
+
+| Column | Type | Required | Notes |
+|---|---:|---:|---|
+| `id` | uuid | yes | PK |
+| `branch_id` | uuid | yes | FK -> `menu_branches.id` |
+| `trigger_text` | text | yes | Guest-input phrase that triggers the full option list |
+| `language` | text | no | `language_code`, null means all |
+| `created_at` | timestamptz | yes | System |
+| `updated_at` | timestamptz | yes | System |
+
+Constraints / indexes:
+
+```sql
+unique (branch_id, trigger_text, language)
+```
+
+### answer_boundaries
+
+Purpose: which topics the runtime may answer directly vs. must escalate to staff, plus guest-safety rules (e.g. "don't state exact hours unless configured"). Replaces the demo package's `sol_may_answer_directly` / `sol_must_escalate` / `hours_guest_safe_rule`.
+
+| Column | Type | Required | Notes |
+|---|---:|---:|---|
+| `id` | uuid | yes | PK |
+| `property_id` | uuid | yes | FK -> `properties.id` |
+| `boundary_type` | text | yes | `may_answer_directly` / `must_escalate` / `safe_rule` |
+| `topic` | text | no | Topic this boundary applies to (null for a general `safe_rule`) |
+| `rule_text` | text | no | Guidance text, used directly for `safe_rule` rows |
+| `created_at` | timestamptz | yes | System |
+| `updated_at` | timestamptz | yes | System |
+
+Constraints / indexes:
+
+```sql
+check (boundary_type in ('may_answer_directly','must_escalate','safe_rule'))
+index (property_id, boundary_type)
 ```
 
 ### response_templates
@@ -428,6 +491,8 @@ Purpose: localized response wording. Property Admin owns wording; SOL/Admin owns
 | `body` | text | yes | Property Admin editable wording |
 | `required_variables` | text[] | no | SOL/Admin owned |
 | `channel` | text | yes | Suggested: `text`, `voice`, `both` |
+| `approval_status` | text | yes | `draft` / `approved` / `needs_review`, default `approved`. Gates Property Admin wording edits before they go live to guests. |
+| `last_reviewed` | timestamptz | no | Audit timestamp — last time a human confirmed this template's wording is accurate |
 | `active` | boolean | yes | Default true |
 | `created_at` | timestamptz | yes | System |
 | `updated_at` | timestamptz | yes | System |
@@ -437,6 +502,7 @@ Constraints:
 ```sql
 unique (property_id, template_key, language)
 check (language in ('en','es'))
+check (approval_status in ('draft','approved','needs_review'))
 ```
 
 ### runtime_feature_flags
@@ -544,6 +610,7 @@ Constraints / indexes:
 check (case_type in ('reservation','complaint','incident','service_request'))
 check (status in ('new','open','assigned','waiting_guest','waiting_staff','resolved','closed','cancelled'))
 check (priority in ('low','normal','high','urgent'))
+check (dept_target in ('FNB','SEC','OPS'))
 index (property_id, status, created_at)
 index (property_id, dept_target, status)
 index (guest_thread_id, created_at)
@@ -620,6 +687,8 @@ Constraints:
 check (service_request_type in ('service_request_1','service_request_2','service_request_3'))
 ```
 
+Room Service is a service, not a venue — recommend it default to `service_request_1` given likely high frequency, leaving `service_request_2`/`_3` for Spa/Gym/Beach Club/etc. Its `case_type` is `service_request`, not `reservation`. Watch-item: only 3 slots defined for MVP; may need to grow if a property needs more than 3 distinct service types.
+
 ### operational_events
 
 Purpose: business/audit events for case history and manager-visible operational actions.
@@ -646,22 +715,9 @@ index (property_id, event_type, created_at)
 
 ## Runtime Package Publication
 
-Placeholder:
+Resolved: Supabase table row (`runtime_packages`), chosen over a generated file (no natural place to version inside Supabase), a materialized view (can't encode the validation rules in `Runtime_Config_Contract_v0.3.md`), or a cache object (no audit trail).
 
-```text
-{{RUNTIME_PACKAGE_STORAGE}}
-```
-
-Candidate physical approaches:
-
-1. Generated JSON file committed/exported from builder.
-2. Supabase table row, e.g. `runtime_packages`.
-3. SQL/materialized view feeding a builder.
-4. Cache object generated outside DB.
-
-No final table is proposed here until storage mode is selected.
-
-If using a table later, likely draft shape:
+Draft shape:
 
 | Column | Type | Required | Notes |
 |---|---:|---:|---|
@@ -702,25 +758,23 @@ default_language: {{DEFAULT_LANGUAGE}}
 
 ## Roles And Access
 
-Placeholders:
-
 ```text
-SOL admin role: {{SOL_ADMIN_ROLE}}
-Property admin role: {{PROPERTY_ADMIN_ROLE}}
-Runtime/webhook service role: {{SERVICE_ROLE_NAME}}
-LOGS read role: {{LOGS_READ_ROLE}}
+SOL admin role: TBD — no SOL Admin tool exists yet
+Property admin role: TBD — Tenant Property Configuration Tool doesn't have real Supabase Auth users yet
+Runtime/webhook service role: Supabase's built-in service_role (resolved — no custom role needed)
+LOGS read role: TBD — no LOGS dashboard with real Supabase Auth users yet
 ```
 
-RLS/policy draft:
+RLS/policy draft (unchanged from earlier planning, still the target design once those tools exist):
 
 | Role | Read | Write | Notes |
 |---|---|---|---|
 | SOL admin | all tables | config + admin-managed operational overrides | Owns stable keys, tenant status, routing, runtime flags |
 | Property admin | own tenant/property config rows | approved editable fields only | No secrets, stable keys, routing wiring, tenant status |
-| Runtime/webhook service | needed config, threads, messages, cases, details, events | operational writes | Uses service credentials, not tenant-editable role |
+| Runtime/webhook service | needed config, threads, messages, cases, details, events | operational writes | Uses `service_role`, which bypasses RLS entirely — not a tenant-editable role |
 | LOGS read | cases, details, messages, operational_events, reporting views | none by default | LOGS does not own property truth |
 
-Detailed RLS policies remain pending before execution.
+**Open — RLS baseline posture** (see `DB_Construction_Decisions_v0.1.md`): recommendation on the table, not yet confirmed — enable RLS on every table at creation time with zero policies defined yet. With no policies, RLS defaults to deny-all except `service_role` (which bypasses it), a safe baseline that doesn't block the webhook. Granular Property Admin / SOL Admin / LOGS-read policies get written once those tools exist with real Supabase Auth users to scope against.
 
 ## Index Checklist
 
@@ -737,6 +791,8 @@ venue_aliases(alias)
 menu_branches(property_id, branch_key)
 menu_options(branch_id, option_key)
 menu_options(branch_id, choice_number)
+menu_option_aliases(branch_id, alias_text)
+answer_boundaries(property_id, boundary_type)
 response_templates(property_id, template_key, language)
 guest_threads(property_id, channel, external_user_id)
 messages(guest_thread_id, sent_at)
@@ -750,13 +806,18 @@ operational_events(property_id, created_at)
 
 ## Execution Blockers
 
-Before turning this into SQL, resolve:
+Full decision record: `DB_Construction_Decisions_v0.1.md`.
 
-1. Final Supabase project target: `{{SUPABASE_PROJECT_REF}}`.
-2. Migration method: `{{MIGRATION_TOOL}}`.
-3. RLS policy details and app roles.
-4. Final `dept_target` allowed values.
-5. Final weekday convention for `venue_hours.day_of_week`.
-6. Runtime package storage mode: `{{RUNTIME_PACKAGE_STORAGE}}`.
-7. Whether to implement enums as Postgres enum types or text check constraints.
-8. Seed data source and exact seed values.
+Resolved:
+
+1. ~~Final Supabase project target~~ — `sol_whatsapp_webhook_main`, ref `muhahnfodnnplrizefhu`.
+2. ~~Migration method~~ — Supabase CLI, versioned migration files.
+3. ~~Final `dept_target` allowed values~~ — `FNB` / `SEC` / `OPS` (`GM` universal, `HSK` folds into `OPS`).
+4. ~~Final weekday convention for `venue_hours.day_of_week`~~ — 0–6, Sunday = 0.
+5. ~~Runtime package storage mode~~ — Supabase table row (`runtime_packages`).
+6. ~~Whether to implement enums as Postgres enum types or text check constraints~~ — `text check (...)`.
+
+Still open before writing executable SQL:
+
+7. RLS policy details and app roles — `service_role` bypass is resolved; the RLS-baseline posture (enable RLS everywhere with no policies yet) is recommended but not yet confirmed; per-tool policies (`{{PROPERTY_ADMIN_ROLE}}`, `{{SOL_ADMIN_ROLE}}`, `{{LOGS_READ_ROLE}}`) wait on those tools existing.
+8. Seed data source and exact seed values — anchors and mapping locations are resolved; actual content (teams, venues, menu tree, template bodies, reservation thresholds, service-request labels) still needs to be produced from the existing demo package files.

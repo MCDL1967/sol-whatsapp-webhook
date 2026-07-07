@@ -4,7 +4,8 @@
   "main": "webhook.js",
   "dependencies": {
     "express": "^4.18.2",
-    "axios": "^1.6.0"
+    "axios": "^1.6.0",
+    "@supabase/supabase-js": "^2.45.0"
   },
   "scripts": {
     "start": "node webhook.js"
