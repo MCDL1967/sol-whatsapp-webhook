@@ -3251,6 +3251,23 @@ app.post("/webhook", async (req, res) => {
             summary: preExitReservationClosure.reservation_summary || null
           })
         );
+
+        // ---- SUPABASE RESERVATION WRITE (minimal walking-skeleton path -- soft-fail, never blocks reply) ----
+        try {
+          const caseId = await writeReservationCase({
+            user_id: userID,
+            guest_name: preExitReservationClosure.guest_name,
+            contact_phone: preExitReservationClosure.contact_phone,
+            service_date: preExitReservationClosure.service_date,
+            service_time: preExitReservationClosure.service_time || null,
+            venue_or_department: preExitReservationClosure.venue_or_department || null,
+            party_size: preExitReservationClosure.party_size || null,
+            summary: preExitReservationClosure.reservation_summary || null
+          });
+          console.log(`[SUPABASE RESERVATION WRITE] user=${userID} case_id=${caseId || "skipped"}`);
+        } catch (err) {
+          console.error(`[SUPABASE RESERVATION WRITE ERROR] user=${userID}`, err?.stack || err?.message || err);
+        }
       }
  
       updateSession(userID, { state: "idle", active_request: null, last_bot_reply: exitReply });
