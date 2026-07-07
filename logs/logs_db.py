@@ -10,7 +10,7 @@ from pathlib import Path
 
 # Canonical DB path relative to this file's location
 BASE_DIR = Path(__file__).parent
-DB_PATH = BASE_DIR.parent / "logs_v2_runtime" / "logs.db"
+DB_PATH = BASE_DIR / "logs_v2_runtime" / "logs.db"
 
 
 def get_db() -> sqlite3.Connection:
