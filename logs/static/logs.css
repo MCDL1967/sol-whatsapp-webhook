@@ -23,7 +23,7 @@
 
   --fnb-color:  #0D6EFD;
   --sec-color:  #DC3545;
-  --adm-color:  #198754;
+  --ops-color:  #198754;
   --gm-color:   #6C757D;
 
   --radius: 6px;
@@ -128,7 +128,7 @@ body {
 }
 .badge-fnb { background: var(--fnb-color); }
 .badge-sec { background: var(--sec-color); }
-.badge-adm { background: var(--adm-color); }
+.badge-ops { background: var(--ops-color); }
 
 .dept-badge {
   font-size: 11px;
@@ -139,7 +139,7 @@ body {
 }
 .dept-fnb { background: #DBEAFE; color: var(--fnb-color); }
 .dept-sec { background: #FEE2E2; color: var(--sec-color); }
-.dept-adm { background: #D1FAE5; color: var(--adm-color); }
+.dept-ops { background: #D1FAE5; color: var(--ops-color); }
 .dept-gm  { background: #F3F4F6; color: var(--gm-color); }
 
 .status-pill {

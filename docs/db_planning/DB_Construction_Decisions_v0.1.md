@@ -36,14 +36,23 @@ Source: gaps and open questions surfaced by `Demo_Data_to_Schema_Mapping_v0.3.md
 
 ## Live Database State (mockup demo)
 
-**As of 2026-07-07, this is no longer just planning — a minimal slice is actually live on the linked Supabase project (`sol_whatsapp_webhook_main`, ref `muhahnfodnnplrizefhu`).**
+**As of 2026-07-07, the full table structure from `Physical_Schema_v0.1.md` is live on the linked Supabase project (`sol_whatsapp_webhook_main`, ref `muhahnfodnnplrizefhu`) — seed content is still the only thing outstanding.**
 
 - Migration `supabase/migrations/20260707200539_minimal_reservation_path.sql` applied via `supabase db push --linked --include-seed`. Confirmed applied both locally and remotely via `supabase migration list --linked` (timestamp `20260707200539` on both sides).
-- Tables live: `tenants`, `properties`, `guest_threads`, `cases`, `reservation_details` — a walking-skeleton subset of the full `Physical_Schema_v0.1.md` design (not a simplified/different version — every column matches the finalized shape), chosen to prove the WhatsApp → reservation-write path end-to-end before building the remaining ~15 tables.
+- Walking-skeleton tables live from that migration: `tenants`, `properties`, `guest_threads`, `cases`, `reservation_details` — chosen to prove the WhatsApp → reservation-write path end-to-end before building the rest.
 - `supabase/seed.sql` applied in the same push: one `tenants` row (`sol_demo`, "SOL Demo") and one `properties` row (`demo`, "Your Casino", `America/Panama`) — the resolved seed anchors, not full content.
-- **RLS baseline resolved and live** (supersedes the "Open" note that used to be here): all 5 tables have `alter table ... enable row level security` with **zero policies** — deny-all except `service_role`, which bypasses RLS entirely. This is the actual current state of the database, not just a recommendation.
-- Two FKs are intentionally **not yet enforced**: `reservation_details.venue_id` and `cases.assigned_team_id` are plain `uuid` columns with no FK constraint, because `venues` and `teams` don't exist yet. A follow-up migration adds those constraints once those tables are created.
-- **Rule going forward**: this migration has been applied — never edit it. Any change is a new migration file.
+- Migration `supabase/migrations/20260707235402_config_and_operational_tables.sql` applied via `supabase db push --linked`. Confirmed applied both locally and remotely via `supabase migration list --linked` (timestamp `20260707235402` on both sides; `supabase db push --linked --dry-run` reports "Remote database is up to date").
+- Remaining tables live from that migration: `property_settings`, `teams`, `venues`, `venue_aliases`, `venue_descriptions`, `venue_hours`, `reservation_rules`, `menu_branches`, `menu_options`, `menu_option_aliases`, `menu_branch_triggers`, `answer_boundaries`, `response_templates`, `runtime_feature_flags`, `messages`, `complaint_details`, `incident_details`, `service_request_details`, `operational_events`, `runtime_packages` — structure only, no seed rows in any of them yet.
+- **RLS baseline resolved and live** across all tables (both migrations): `alter table ... enable row level security` with **zero policies** — deny-all except `service_role`, which bypasses RLS entirely. This is the actual current state of the database, not just a recommendation.
+- The two previously-deferred FKs are now enforced: `reservation_details.venue_id → venues.id` and `cases.assigned_team_id → teams.id`, added via `alter table ... add constraint` at the end of the config-tables migration, now that `venues` and `teams` exist.
+- Enum `CHECK` constraint policy for this round: see "Resolved — Config-Table Migration Round" above.
+- **Rule going forward**: both migrations have been applied — never edit them. Any change is a new migration file.
+
+## Resolved — Config-Table Migration Round
+
+| Item | Decision |
+|---|---|
+| Enum `CHECK` constraint policy for columns not explicitly listed in a table's own Constraints block | Split by how settled/closed the enum is and whether anything writes to the column yet. **Add `CHECK`**: `venue_aliases.language`, `menu_option_aliases.language`, `menu_branch_triggers.language` (all nullable `en`/`es`), and `messages.channel` / `messages.sender_type` (closed, named enums with fixed drafts, zero current writers so zero migration risk). **Skip `CHECK`**: `menu_options.case_type` and `menu_options.dept_target` — the schema doc explicitly hedges these as "optional... if option creates work," reading as an evolving field rather than a settled enum; constraining now risks a migration just to add a routing value later. Rationale: unconstrained config-table enums fail silently as guest-facing conversation-quality bugs (e.g. a mistagged language alias silently not matching), not crashes — worth catching at write time where the enum is genuinely closed. |
 
 ## Open — needs resolution before the rest of the schema is built
 
@@ -51,21 +60,30 @@ Source: gaps and open questions surfaced by `Demo_Data_to_Schema_Mapping_v0.3.md
 |---|---|
 | Granular RLS policies | `service_role` bypass is live (see above). Property Admin / SOL Admin / LOGS-read policies still can't be written — those tools don't have real Supabase Auth users yet. |
 | Seed content production | Not yet produced. The seed *anchors* are now live (see above) and the *mapping locations* (`Demo_Data_to_Schema_Mapping_v0.3.md`) are resolved, but nobody has transformed the actual `property_master_data.json` / `menu_dictionary.json` / `response_templates_en.json` / `response_templates_es.json` content into concrete seed values (real team names, real venue list, real menu tree, real template bodies, real reservation thresholds, real service-request slot labels). |
-| Remaining ~15 tables | Not yet migrated — `venues`, `teams`, `menu_branches`/`menu_options`, `menu_option_aliases`, `menu_branch_triggers`, `answer_boundaries`, `response_templates`, `reservation_rules`, `runtime_feature_flags`, `property_settings`, `complaint_details`/`incident_details`/`service_request_details`, `operational_events`, `messages`, `runtime_packages`. All fully designed in `Physical_Schema_v0.1.md`, just not yet written as migration files. |
-| `webhook.js` integration | Not yet done — the actual write from a live WhatsApp reservation into `cases`/`reservation_details` hasn't been coded. In progress as of this session. |
+| Remaining ~15 tables | **Resolved 2026-07-07** — all migrated via `supabase/migrations/20260707235402_config_and_operational_tables.sql`. See "Live Database State" above. |
+| `webhook.js` integration | Done — `cases`/`reservation_details` writes are live at both reservation-closure code paths (commits 6402086, 6034563). |
 
-## Pending code changes (not yet executed — code edits deferred)
+## Pending code changes
 
-The `ADM`→`OPS` rename is approved but not yet applied to code. `Physical_Schema_v0.1.md`'s `teams.dept_target` example already reads `FNB, HSK, SEC, OPS`, so no planning-doc change was needed there. Scope for when code editing resumes:
+**Resolved 2026-07-07 — `ADM`→`OPS` rename applied.** Scope covered, wider than originally scoped since the rename also touched files not in the original list:
 
-| File | What changes |
+| File | What changed |
 |---|---|
-| `logs/logs_models.py` | `VALID_DEPTS`, all `"ADM"` values in `ROUTING_RULES`, all `"ADM"` values in `SECTION_TEAM_ROUTING` |
-| `logs/logs_app.py` | 2 SQL filters (`dept_target='ADM'`) |
-| `logs/logs_export.py` (+ `.old.py`) | SQL query filter; **separate decision needed**: the Google Drive export path is itself named `ADM/adm_team_log_live.xlsx` — decide whether to rename that folder/file too or keep the Drive path stable while the internal value changes |
-| `logs/logs_migrate_xls.py` | Same Drive path reference, env var `LOGS_PATH_ADM` |
-| `logs/logs_seed.py` | 4 seed records using `"section_team": "ADM"` |
-| Hard-Code Map (`Schema_Proposal_v0.4.html` or successor) | Entry for `logs_mapper.js:100` referencing `ADM` |
+| `logs/logs_models.py` | `VALID_DEPTS`, all `"ADM"` values in `ROUTING_RULES`, all `"ADM"` values in `SECTION_TEAM_ROUTING`, docstring |
+| `logs/logs_app.py` | Route `/adm`→`/ops`, function `view_adm`→`view_ops`, SQL filters, `_counts()` dict key `adm`→`ops`, export valid-view lists |
+| `logs/logs_export.py` | `ADM_COLUMNS`→`OPS_COLUMNS`, `VIEW_COLUMNS`/`VIEW_QUERIES`/`EXCEL_PATHS` dict key `adm`→`ops`, env var `LOGS_PATH_ADM`→`LOGS_PATH_OPS`, argparse choices |
+| `logs/logs_migrate_xls.py` | `WORKBOOK_SOURCES` key `adm`→`ops`, env var `LOGS_PATH_ADM`→`LOGS_PATH_OPS`, argparse choices |
+| `logs/logs_seed.py` | 4 seed records' `"section_team": "ADM"`→`"OPS"` |
+| `logs/logs_db.py` | Schema comment documenting `dept_target` valid values |
+| `logs/templates/base.html`, `logs/templates/list.html` (not in original scope, found during implementation) | Nav link, badge, export link, filter dropdown, view-membership checks |
+| `logs/static/logs.css` (not in original scope) | `--adm-color`→`--ops-color`, `.badge-adm`→`.badge-ops`, `.dept-adm`→`.dept-ops` |
+| `logs_v2_runtime/logs.db` (local dev data, not code) | 4 existing `dept_target='ADM'` rows updated to `'OPS'` via one-off `UPDATE`, so seeded demo data stays visible under the renamed view |
+
+**Google Drive export path decision**: kept stable, not renamed. `logs_export.py`'s `"ops"` entry and `logs_migrate_xls.py`'s `"ops"` source still point at the physical `ADM/adm_team_log_live.xlsx` file/folder on Drive — only the internal dept_target/route/view value changed to `OPS`. Reasoning: that path points to a real, already-in-use file on Google Drive (not something in this repo), and is hardcoded to a different local user (`MCDL1`) than the current dev machine, so it can't be verified or renamed from here.
+
+**Not changed**: `logs_seed.py`'s `"assigned_manager_or_queue": "ADM Manager"` — free-text descriptive seed content, not the `dept_target` enum, out of scope for this rename. `Schema_Proposal_v0.4.html`'s Hard-Code Map entry for `logs_mapper.js:100` — checked, `logs_mapper.js` doesn't actually contain the literal string `ADM`, so there was nothing to rename there. `.old.py` backup files (`logs_db.py.old.py`, `logs_export.py.old.py`) — left untouched as dead/superseded code, per standing "don't touch pre-existing dead code" convention.
+
+Verified via a live local run: `/ops` returns 200 with the correct title, the old `/adm` route now 404s, and the nav bar's OPS badge correctly counts the 4 updated rows.
 
 Supabase CLI installed and `supabase/migrations/` scaffolded; project linked (see Supabase project row above) — no longer pending.
 

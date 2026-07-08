@@ -38,7 +38,9 @@ WORKBOOK_SOURCES = [
     ("gm",  Path(_os.environ.get("LOGS_PATH_GM",  str(_GDRIVE / "GM"  / "gm_consolidated_log_live.xlsx")))),
     ("fnb", Path(_os.environ.get("LOGS_PATH_FNB", str(_GDRIVE / "FNB" / "fnb_team_log_live.xlsx")))),
     ("sec", Path(_os.environ.get("LOGS_PATH_SEC", str(_GDRIVE / "SEC" / "sec_team_log_live.xlsx")))),
-    ("adm", Path(_os.environ.get("LOGS_PATH_ADM", str(_GDRIVE / "ADM" / "adm_team_log_live.xlsx")))),
+    # Still points at the existing ADM/adm_team_log_live.xlsx Drive path — only
+    # the internal dept_target value renamed, not the physical Drive path.
+    ("ops", Path(_os.environ.get("LOGS_PATH_OPS", str(_GDRIVE / "ADM" / "adm_team_log_live.xlsx")))),
 ]
 
 
@@ -175,7 +177,7 @@ def main():
     parser.add_argument("--inspect",   action="store_true", help="Print headers/samples only")
     parser.add_argument("--dry-run",   action="store_true", help="Parse + map, no DB writes")
     parser.add_argument("--overwrite", action="store_true", help="Use INSERT OR REPLACE (overwrites existing rows)")
-    parser.add_argument("--source", choices=["gm","fnb","sec","adm","all"], default="all")
+    parser.add_argument("--source", choices=["gm","fnb","sec","ops","all"], default="all")
     args = parser.parse_args()
 
     if args.inspect:

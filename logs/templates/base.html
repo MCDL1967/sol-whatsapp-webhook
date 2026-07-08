@@ -23,8 +23,8 @@
     <a href="{{ url_for('view_sec') }}" class="nav-link {% if view == 'sec' %}active{% endif %}">
       SEC <span class="badge badge-sec">{{ counts.sec }}</span>
     </a>
-    <a href="{{ url_for('view_adm') }}" class="nav-link {% if view == 'adm' %}active{% endif %}">
-      ADM <span class="badge badge-adm">{{ counts.adm }}</span>
+    <a href="{{ url_for('view_ops') }}" class="nav-link {% if view == 'ops' %}active{% endif %}">
+      OPS <span class="badge badge-ops">{{ counts.ops }}</span>
     </a>
   </div>
   <div class="nav-actions">
@@ -35,7 +35,7 @@
         <a href="{{ url_for('trigger_export', view_name='gm') }}">GM Excel</a>
         <a href="{{ url_for('trigger_export', view_name='fnb') }}">FNB Excel</a>
         <a href="{{ url_for('trigger_export', view_name='sec') }}">SEC Excel</a>
-        <a href="{{ url_for('trigger_export', view_name='adm') }}">ADM Excel</a>
+        <a href="{{ url_for('trigger_export', view_name='ops') }}">OPS Excel</a>
         <a href="{{ url_for('trigger_export', view_name='all') }}" class="export-all">Export All</a>
       </div>
     </div>

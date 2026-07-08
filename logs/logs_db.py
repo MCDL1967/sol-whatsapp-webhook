@@ -48,7 +48,7 @@ def init_db():
                 routing_reason          TEXT,
 
                 -- Routing flags (derived; stored for query convenience)
-                dept_target             TEXT,   -- NULL | FNB | SEC | ADM
+                dept_target             TEXT,   -- NULL | FNB | SEC | OPS
 
                 -- Guest info
                 guest_name              TEXT,

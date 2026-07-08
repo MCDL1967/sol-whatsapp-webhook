@@ -12,7 +12,7 @@ Usage:
     python logs_export.py gm
     python logs_export.py fnb
     python logs_export.py sec
-    python logs_export.py adm
+    python logs_export.py ops
     python logs_export.py all
 """
 
@@ -35,16 +35,19 @@ BASE_DIR = Path(__file__).parent
 # ── Live workbook target paths ─────────────────────────────────────────────────
 # These point at the real Google Drive mounted paths on the Mac.
 # Override any individual path with an environment variable if needed:
-#   LOGS_PATH_GM, LOGS_PATH_FNB, LOGS_PATH_SEC, LOGS_PATH_ADM
+#   LOGS_PATH_GM, LOGS_PATH_FNB, LOGS_PATH_SEC, LOGS_PATH_OPS
 #
 # Real Drive targets (Mac, MCDL1):
+# Note: the OPS entry still points at the existing ADM/adm_team_log_live.xlsx
+# file/folder on Drive — only the internal dept_target value renamed, not the
+# physical Drive path (see DB_Construction_Decisions_v0.1.md).
 _GDRIVE = Path("/Users/MCDL1/Library/CloudStorage/GoogleDrive-sol.concierge.ai@gmail.com/My Drive/SOL_DEMO_1/LOGS")
 
 _DEFAULT_PATHS = {
     "gm":  _GDRIVE / "GM"  / "gm_consolidated_log_live.xlsx",
     "fnb": _GDRIVE / "FNB" / "fnb_team_log_live.xlsx",
     "sec": _GDRIVE / "SEC" / "sec_team_log_live.xlsx",
-    "adm": _GDRIVE / "ADM" / "adm_team_log_live.xlsx",
+    "ops": _GDRIVE / "ADM" / "adm_team_log_live.xlsx",
 }
 
 import os as _os
@@ -52,7 +55,7 @@ EXCEL_PATHS = {
     "gm":  Path(_os.environ.get("LOGS_PATH_GM",  str(_DEFAULT_PATHS["gm"]))),
     "fnb": Path(_os.environ.get("LOGS_PATH_FNB", str(_DEFAULT_PATHS["fnb"]))),
     "sec": Path(_os.environ.get("LOGS_PATH_SEC", str(_DEFAULT_PATHS["sec"]))),
-    "adm": Path(_os.environ.get("LOGS_PATH_ADM", str(_DEFAULT_PATHS["adm"]))),
+    "ops": Path(_os.environ.get("LOGS_PATH_OPS", str(_DEFAULT_PATHS["ops"]))),
 }
 
 SNAPSHOT_DIR = BASE_DIR.parent / "logs_v2_runtime" / "export_snapshots"
@@ -99,7 +102,7 @@ SEC_COLUMNS = [
     "issue_reopened", "final_closure_timestamp", "operator_notes",
 ]
 
-ADM_COLUMNS = [
+OPS_COLUMNS = [
     "record_id", "timestamp", "request_type", "status", "urgency",
     "guest_name", "contact_phone", "contact_email", "preferred_contact_method",
     "venue_or_department", "service_date", "service_time", "party_size",
@@ -114,7 +117,7 @@ VIEW_COLUMNS = {
     "gm":  GM_COLUMNS,
     "fnb": FNB_COLUMNS,
     "sec": SEC_COLUMNS,
-    "adm": ADM_COLUMNS,
+    "ops": OPS_COLUMNS,
 }
 
 # ── Query per view ─────────────────────────────────────────────────────────────
@@ -122,7 +125,7 @@ VIEW_QUERIES = {
     "gm": "SELECT * FROM cases ORDER BY timestamp DESC",
     "fnb": "SELECT * FROM cases WHERE dept_target = 'FNB' ORDER BY timestamp DESC",
     "sec": "SELECT * FROM cases WHERE dept_target = 'SEC' ORDER BY timestamp DESC",
-    "adm": "SELECT * FROM cases WHERE dept_target = 'ADM' ORDER BY timestamp DESC",
+    "ops": "SELECT * FROM cases WHERE dept_target = 'OPS' ORDER BY timestamp DESC",
 }
 
 
@@ -248,13 +251,13 @@ def export_view(view: str) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Export LOGS v2 DB to Excel workbooks")
-    parser.add_argument("target", choices=["gm", "fnb", "sec", "adm", "all"],
+    parser.add_argument("target", choices=["gm", "fnb", "sec", "ops", "all"],
                         help="Which view to export")
     args = parser.parse_args()
 
     init_db()
 
-    targets = ["gm", "fnb", "sec", "adm"] if args.target == "all" else [args.target]
+    targets = ["gm", "fnb", "sec", "ops"] if args.target == "all" else [args.target]
 
     results = []
     for view in targets:

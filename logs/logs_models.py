@@ -27,22 +27,22 @@ ROUTING_RULES = {
     "security_incident":            "SEC",
     "theft_report":                 "SEC",
 
-    "event_reservation":            "ADM",
-    "gaming_question":              "ADM",
-    "gaming_information":           "ADM",
-    "gaming":                       "ADM",
-    "general_info":                 "ADM",
-    "admin":                        "ADM",
-    "admin_request":                "ADM",
-    "guest_service_routing":        "ADM",
-    "general":                      "ADM",
-    "general_operational_request":  "ADM",
-    "player_request":               "ADM",
-    "guest_complaint":              "ADM",
-    "complaint":                    "ADM",
-    "triage_request":               "ADM",
-    "fallback_/_triage_routing":    "ADM",
-    "unclassified":                 "ADM",
+    "event_reservation":            "OPS",
+    "gaming_question":              "OPS",
+    "gaming_information":           "OPS",
+    "gaming":                       "OPS",
+    "general_info":                 "OPS",
+    "admin":                        "OPS",
+    "admin_request":                "OPS",
+    "guest_service_routing":        "OPS",
+    "general":                      "OPS",
+    "general_operational_request":  "OPS",
+    "player_request":               "OPS",
+    "guest_complaint":              "OPS",
+    "complaint":                    "OPS",
+    "triage_request":               "OPS",
+    "fallback_/_triage_routing":    "OPS",
+    "unclassified":                 "OPS",
 }
 
 # section_team → dept_target (fallback when request_type doesn't match)
@@ -51,20 +51,20 @@ SECTION_TEAM_ROUTING = {
     # canonical
     "FNB": "FNB",
     "SEC": "SEC",
-    "ADM": "ADM",
+    "OPS": "OPS",
     "GM":  None,
     # real workbook values
     "F&B":             "FNB",
     "Food & Beverage": "FNB",
     "Security":        "SEC",
-    "Guest Relations": "ADM",
-    "Guest Services":  "ADM",
-    "Players Desk":    "ADM",
-    "Player Desk":     "ADM",
-    "Triage":          "ADM",
-    "Admin":           "ADM",
-    "Complaint":       "ADM",
-    "Housekeeping":    "ADM",
+    "Guest Relations": "OPS",
+    "Guest Services":  "OPS",
+    "Players Desk":    "OPS",
+    "Player Desk":     "OPS",
+    "Triage":          "OPS",
+    "Admin":           "OPS",
+    "Complaint":       "OPS",
+    "Housekeeping":    "OPS",
 }
 
 VALID_STATUSES = [
@@ -78,13 +78,13 @@ VALID_STATUSES = [
     "reopened",
 ]
 
-VALID_DEPTS = ["FNB", "SEC", "ADM"]
+VALID_DEPTS = ["FNB", "SEC", "OPS"]
 
 
 def resolve_dept_target(record: dict) -> str | None:
     """
     Determine dept_target from request_type or section_team.
-    Returns 'FNB' | 'SEC' | 'ADM' | None.
+    Returns 'FNB' | 'SEC' | 'OPS' | None.
     request_type is normalized (lower, spaces→underscores) before lookup.
     section_team is matched as-is against SECTION_TEAM_ROUTING.
     """

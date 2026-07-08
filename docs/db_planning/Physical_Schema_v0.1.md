@@ -1,6 +1,6 @@
 # SOL Physical Schema v0.1
 
-Status: **partially live** — a 5-table subset has been built and applied; the rest is still draft for review, not executable
+Status: **structure fully live** — every table in this document has been built and applied; seed content (beyond the tenant/property anchors) is the only thing outstanding
 Date: 2026-07-07
 Source: `Database_Map_v0.1.md`, `Schema_Proposal_v0.4.html`, accepted review decisions
 
@@ -8,7 +8,7 @@ Source: `Database_Map_v0.1.md`, `Schema_Proposal_v0.4.html`, accepted review dec
 
 This document translates the accepted logical database map into a first physical Supabase/Postgres schema draft.
 
-**Live status**: `tenants`, `properties`, `guest_threads`, `cases`, `reservation_details` are now actually created on the linked Supabase project (`sol_whatsapp_webhook_main`) via `supabase/migrations/20260707200539_minimal_reservation_path.sql`, with seed anchors applied. Full detail: `DB_Construction_Decisions_v0.1.md` → "Live Database State". Every other table in this document is still draft only — not yet migrated, does not authorize creating tables, changing runtime behavior, editing `webhook.js`, changing LOGS, or wiring Supabase to production.
+**Live status**: every table in this document is now actually created on the linked Supabase project (`sol_whatsapp_webhook_main`) — the walking-skeleton set (`tenants`, `properties`, `guest_threads`, `cases`, `reservation_details`) via `supabase/migrations/20260707200539_minimal_reservation_path.sql`, and the remaining config/operational tables via `supabase/migrations/20260707235402_config_and_operational_tables.sql`. Seed anchors (1 tenant, 1 property) are applied; no other seed content has been loaded into any table yet. Full detail: `DB_Construction_Decisions_v0.1.md` → "Live Database State". This document is now a record of the live schema, not a proposal — treat any further change as requiring a new migration file, not an edit to the ones already applied.
 
 ## Replacement Placeholders
 

@@ -7,7 +7,7 @@ Views:
   /gm             → GM dashboard (all cases)
   /fnb            → FNB view (dining reservations)
   /sec            → SEC view (security / incidents)
-  /adm            → ADM view (gaming / events / admin)
+  /ops            → OPS view (gaming / events / admin)
   /case/<id>      → case detail + minimal edit form
   /case/<id>/edit → POST handler for edits
   /export/<view>  → trigger Excel export
@@ -83,10 +83,10 @@ def _counts() -> dict:
     total = conn.execute("SELECT COUNT(*) FROM cases").fetchone()[0]
     fnb   = conn.execute("SELECT COUNT(*) FROM cases WHERE dept_target='FNB'").fetchone()[0]
     sec   = conn.execute("SELECT COUNT(*) FROM cases WHERE dept_target='SEC'").fetchone()[0]
-    adm   = conn.execute("SELECT COUNT(*) FROM cases WHERE dept_target='ADM'").fetchone()[0]
+    ops   = conn.execute("SELECT COUNT(*) FROM cases WHERE dept_target='OPS'").fetchone()[0]
     open_ = conn.execute("SELECT COUNT(*) FROM cases WHERE status NOT IN ('closed')").fetchone()[0]
     conn.close()
-    return {"total": total, "fnb": fnb, "sec": sec, "adm": adm, "open": open_}
+    return {"total": total, "fnb": fnb, "sec": sec, "ops": ops, "open": open_}
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -126,12 +126,12 @@ def view_sec():
         statuses=VALID_STATUSES, counts=_counts())
 
 
-@app.route("/adm")
-def view_adm():
+@app.route("/ops")
+def view_ops():
     filters = _parse_filters(request.args)
-    cases   = _get_cases("dept_target = 'ADM'", filters)
+    cases   = _get_cases("dept_target = 'OPS'", filters)
     return render_template("list.html",
-        view="adm", title="ADM — Gaming / Events / Admin",
+        view="ops", title="OPS — Gaming / Events / Admin",
         cases=cases, filters=filters,
         statuses=VALID_STATUSES, counts=_counts())
 
@@ -179,12 +179,12 @@ def case_edit(record_id):
 
 @app.route("/export/<view_name>")
 def trigger_export(view_name):
-    valid = ["gm", "fnb", "sec", "adm", "all"]
+    valid = ["gm", "fnb", "sec", "ops", "all"]
     if view_name not in valid:
         abort(404)
     try:
         if view_name == "all":
-            for v in ["gm", "fnb", "sec", "adm"]:
+            for v in ["gm", "fnb", "sec", "ops"]:
                 export_view(v)
             flash("All Excel exports completed.", "success")
         else:
