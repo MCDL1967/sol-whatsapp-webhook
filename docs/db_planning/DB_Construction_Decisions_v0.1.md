@@ -83,6 +83,17 @@ Source: gaps and open questions surfaced by `Demo_Data_to_Schema_Mapping_v0.3.md
 
 **Not changed**: `logs_seed.py`'s `"assigned_manager_or_queue": "ADM Manager"` — free-text descriptive seed content, not the `dept_target` enum, out of scope for this rename. `Schema_Proposal_v0.4.html`'s Hard-Code Map entry for `logs_mapper.js:100` — checked, `logs_mapper.js` doesn't actually contain the literal string `ADM`, so there was nothing to rename there. `.old.py` backup files (`logs_db.py.old.py`, `logs_export.py.old.py`) — left untouched as dead/superseded code, per standing "don't touch pre-existing dead code" convention.
 
+Note: `logs/logs_seed.py` was fully rewritten in the LOGS-Supabase integration work below — the `"section_team"` field it referenced here no longer exists at all in the current file. This row documents what was true at the time of the ADM→OPS rename, not the current state of that file.
+
+## Resolved — LOGS-to-Supabase Integration
+
+Full decision record, root-cause analysis, and seed-data translation mapping: `whatsapp_db_logs_adaptation_v0.1.md` in this folder. Summary of the schema-relevant change:
+
+| Item | Decision |
+|---|---|
+| `cases.operator_notes` | New nullable `text` column, added via `supabase/migrations/20260714011758_add_cases_operator_notes.sql`, applied and confirmed live (`supabase db push --linked --dry-run` → "up to date"). Staff-authored free text, never written by the webhook — the one legacy LOGS concept (of many considered) judged worth preserving as a real column. Full rationale and the 11 other decisions made alongside it (teams seeding, library choice, credential reuse, dropped legacy fields, stubbed Excel export, env var delivery, seed data mapping) are in `whatsapp_db_logs_adaptation_v0.1.md` — each was confirmed individually with the repo owner, not batch-approved. |
+| LOGS dashboard data source | Switched from local SQLite (`logs_v2_runtime/logs.db`, fed only by manual seed/ingest) to direct Supabase reads/writes via `supabase-py`, using the same `service_role` credential as the webhook. Verified end-to-end: live queries, joins (`cases` + `reservation_details`/`teams`), edits (status/priority/team/operator_notes) all confirmed persisting correctly against the real Supabase project. |
+
 Verified via a live local run: `/ops` returns 200 with the correct title, the old `/adm` route now 404s, and the nav bar's OPS badge correctly counts the 4 updated rows.
 
 Supabase CLI installed and `supabase/migrations/` scaffolded; project linked (see Supabase project row above) — no longer pending.

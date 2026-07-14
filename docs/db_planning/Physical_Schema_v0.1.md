@@ -603,6 +603,7 @@ Purpose: parent operational source of truth for LOGS, routing, lifecycle, report
 | `updated_at` | timestamptz | yes | System |
 | `closed_at` | timestamptz | no | Closure timestamp |
 | `closed_by` | uuid | no | Future staff/admin user FK |
+| `operator_notes` | text | no | Staff-authored free text, LOGS-editable. Never written by the webhook. Added via `supabase/migrations/20260714011758_add_cases_operator_notes.sql`, see `whatsapp_db_logs_adaptation_v0.1.md`. |
 
 Constraints / indexes:
 
