@@ -98,5 +98,24 @@ Verified via a live local run: `/ops` returns 200 with the correct title, the ol
 
 Supabase CLI installed and `supabase/migrations/` scaffolded; project linked (see Supabase project row above) — no longer pending.
 
+## Resolved — venue_id Resolution (narrow fix)
+
+`reservation_details.venue_id` was null for every reservation (real or seeded) because the `venues` table was empty and `supabase_bridge/supabase_client.js` had no lookup logic — it stored the venue name as workaround text in `special_requests` instead. Scoped narrowly, not the full architecture (see "Open" below):
+
+| Item | Decision |
+|---|---|
+| Venue seed data | 6 real venues seeded for the `demo` property, sourced from `property_packages/demo/property_master_data.json`'s `dining.venues` list (excludes Room Service — already decided as a service, not a venue). `display_name` values match `webhook.js`'s `KNOWN_RESERVATION_VENUES` canonical strings exactly, since that registry already collapses guest text to one of a fixed set of names before anything reaches Supabase. Applied via direct `supabase-py` upsert, not `supabase db push --include-seed` — that path silently no-ops without Docker running locally (confirmed: it updates the tracked seed hash without executing the SQL). `supabase/seed.sql` was still updated with the equivalent SQL for documentation/future-Docker-availability, but treat the live database, not that file, as source of truth until re-verified with Docker running. |
+| `venue_aliases` | Explicitly **not** seeded. Would be inert: `webhook.js`'s alias/typo matching happens entirely before `venue_or_department` ever reaches Supabase (a typo that doesn't match `KNOWN_RESERVATION_VENUES` today stays `null` before and after this fix — no regression, no improvement). Seeding aliases now would be accurate but unused data until the full runtime-package architecture (see "Open" below) actually queries it. Revisit together with that work, not before. |
+| `supabase_bridge/supabase_client.js` lookup | Exact-match query (`venues.display_name = payload.venue_or_department`) at write-time, soft-fail internally (catches its own errors, returns `null` on any failure — never blocks the reservation write). `reservation_details.special_requests` changed from the venue-name workaround text to `null`, since no real guest "special requests" capture exists anywhere in the current conversation flow. |
+| LOGS dashboard | `logs_app.py`'s `CASE_SELECT` now embeds `reservation_details(*, venues(display_name))`; `list.html`/`detail.html` show the resolved venue name, falling back to the old `special_requests` text only for rows written before this fix (their `venue_id` stays permanently null — not retroactively fixed). |
+| Verification | No Node.js installed locally (confirmed: not found anywhere in PATH or standard install locations) — `webhook.js` has apparently never been run locally, only on Render. Verified via commit + deploy + live WhatsApp test instead of local execution. |
+
+## Open — flagged as future work, not started
+
+| Item | Status |
+|---|---|
+| Full runtime-package architecture | The intended full design (Property Admin configures venues/menus via the Tenant Property Configuration Tool → compiled into a `runtime_packages` row → webhook consumes it live) does not exist. Today, the webhook's guest-facing venue/menu matching runs entirely off static files in `property_packages/demo/*.json`, completely disconnected from the Supabase schema — a parallel system, not a source feeding it. The venue_id fix above is a narrow bridge (seed Supabase to match what the static files already produce), not this. Building the real pipeline is its own multi-session project: compile step, webhook rewire to consume Supabase config instead of static JSON, and a real backend for the Tenant Property Configuration Tool (currently a `localStorage`-only mockup with zero Supabase wiring). |
+| Typo/fuzzy venue matching | `webhook.js`'s `KNOWN_RESERVATION_VENUES` alias matching is exact-phrase regex only, no typo tolerance. A guest typo that isn't in the alias list produces `venue_or_department: null` today and will continue to after any Supabase-side change, since the matching happens before Supabase is ever consulted. Only worth revisiting alongside the full runtime-package architecture above, where alias matching could move to Supabase's `venue_aliases` table. |
+
 ## Reference
 Full context: `Physical_Schema_v0.1.md`, `Database_Map_v0.1.md`, `Runtime_Config_Contract_v0.3.md` in this folder.
