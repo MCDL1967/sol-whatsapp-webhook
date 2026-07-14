@@ -80,7 +80,7 @@
       <td class="cell-type">{{ c.case_type or '—' }}</td>
       <td>{{ c.guest_name or '—' }}</td>
       {% if view == 'sec' %}<td>{{ c.incident_details.location_text if c.incident_details else '—' }}</td>{% endif %}
-      {% if view in ('fnb', 'ops') %}<td>{{ c.reservation_details.special_requests if c.reservation_details else '—' }}</td>{% endif %}
+      {% if view in ('fnb', 'ops') %}<td>{{ c.reservation_details.venues.display_name if c.reservation_details and c.reservation_details.venues else (c.reservation_details.special_requests if c.reservation_details else '—') }}</td>{% endif %}
       {% if view in ('fnb', 'ops') %}<td>{{ c.reservation_details.requested_date if c.reservation_details else '—' }}</td>{% endif %}
       <td class="cell-summary">{{ (c.summary or '')[:80] }}{% if (c.summary or '')|length > 80 %}…{% endif %}</td>
       <td><span class="status-pill status-{{ c.status | replace(' ', '_') }}">{{ c.status or '—' }}</span></td>

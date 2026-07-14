@@ -25,7 +25,7 @@ from logs_models import VALID_STATUSES, EDITABLE_FIELDS
 app = Flask(__name__)
 app.secret_key = os.environ.get("LOGS_SECRET", "logs-v2-local-dev-key")
 
-CASE_SELECT = "*, reservation_details(*), complaint_details(*), incident_details(*), service_request_details(*), teams(id,team_key,display_name)"
+CASE_SELECT = "*, reservation_details(*, venues(display_name)), complaint_details(*), incident_details(*), service_request_details(*), teams(id,team_key,display_name)"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

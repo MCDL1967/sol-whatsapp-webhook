@@ -39,6 +39,7 @@
 
     {% if case.case_type == 'reservation' and case.reservation_details %}
     <div class="field-group">
+      <div class="field"><span class="label">Venue</span><span class="value">{{ case.reservation_details.venues.display_name if case.reservation_details.venues else '—' }}</span></div>
       <div class="field"><span class="label">Requested date</span><span class="value">{{ case.reservation_details.requested_date or '—' }}</span></div>
       <div class="field"><span class="label">Requested time</span><span class="value">{{ case.reservation_details.requested_time or '—' }}</span></div>
       <div class="field"><span class="label">Party size</span><span class="value">{{ case.reservation_details.party_size or '—' }}</span></div>
