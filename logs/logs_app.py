@@ -1,6 +1,7 @@
 """
 logs_app.py
 LOGS v2 Flask application — local-first, server-rendered HTML.
+Reads/writes Supabase directly. See docs/db_planning/whatsapp_db_logs_adaptation_v0.1.md.
 
 Views:
   /               → redirect to /gm
@@ -10,83 +11,83 @@ Views:
   /ops            → OPS view (gaming / events / admin)
   /case/<id>      → case detail + minimal edit form
   /case/<id>/edit → POST handler for edits
-  /export/<view>  → trigger Excel export
+  /export/<view>  → trigger Excel export (stubbed — see logs_export.py)
   /seed           → load seed data (dev helper)
 """
 
 import os
-from pathlib import Path
-from datetime import datetime
 
-import pytz
 from flask import Flask, render_template, request, redirect, url_for, flash, abort
 
-from logs_db import get_db, init_db
-from logs_models import VALID_STATUSES, EDITABLE_FIELDS, PANAMA_TZ, now_panama_iso
-from logs_export import export_view
+from logs_db import get_client, get_property_id
+from logs_models import VALID_STATUSES, EDITABLE_FIELDS
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("LOGS_SECRET", "logs-v2-local-dev-key")
+
+CASE_SELECT = "*, reservation_details(*), complaint_details(*), incident_details(*), service_request_details(*), teams(id,team_key,display_name)"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _parse_filters(args) -> dict:
     return {
-        "status":       args.get("status", "").strip(),
-        "dept_target":  args.get("dept_target", "").strip(),
-        "section_team": args.get("section_team", "").strip(),
-        "q":            args.get("q", "").strip(),
+        "status":      args.get("status", "").strip(),
+        "dept_target": args.get("dept_target", "").strip(),
+        "team_id":     args.get("team_id", "").strip(),
+        "q":           args.get("q", "").strip(),
     }
 
 
-def _build_query(base_where: str, filters: dict) -> tuple[str, list]:
-    """Build WHERE clause and params list from filters dict."""
-    clauses = []
-    params  = []
+def _get_teams() -> list:
+    client = get_client()
+    res = (
+        client.table("teams")
+        .select("id,team_key,display_name,dept_target")
+        .eq("property_id", get_property_id())
+        .order("display_name")
+        .execute()
+    )
+    return res.data
 
-    if base_where:
-        clauses.append(base_where)
 
+def _get_cases(dept_target: str | None, filters: dict) -> list:
+    client = get_client()
+    query = client.table("cases").select(CASE_SELECT).eq("property_id", get_property_id())
+
+    if dept_target:
+        query = query.eq("dept_target", dept_target)
     if filters.get("status"):
-        clauses.append("status = ?")
-        params.append(filters["status"])
-
-    if filters.get("dept_target"):
-        clauses.append("dept_target = ?")
-        params.append(filters["dept_target"])
-
-    if filters.get("section_team"):
-        clauses.append("section_team = ?")
-        params.append(filters["section_team"])
-
+        query = query.eq("status", filters["status"])
+    if filters.get("team_id"):
+        query = query.eq("assigned_team_id", filters["team_id"])
     if filters.get("q"):
-        q = f"%{filters['q']}%"
-        clauses.append("(guest_name LIKE ? OR summary LIKE ? OR record_id LIKE ?)")
-        params.extend([q, q, q])
+        q = filters["q"]
+        query = query.or_(f"guest_name.ilike.%{q}%,summary.ilike.%{q}%")
 
-    where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
-    return where, params
-
-
-def _get_cases(base_where: str, filters: dict) -> list:
-    where, params = _build_query(base_where, filters)
-    sql = f"SELECT * FROM cases {where} ORDER BY timestamp DESC LIMIT 500"
-    conn = get_db()
-    rows = [dict(r) for r in conn.execute(sql, params).fetchall()]
-    conn.close()
-    return rows
+    res = query.order("created_at", desc=True).limit(500).execute()
+    return res.data
 
 
 def _counts() -> dict:
     """Return case counts per view for the nav bar."""
-    conn = get_db()
-    total = conn.execute("SELECT COUNT(*) FROM cases").fetchone()[0]
-    fnb   = conn.execute("SELECT COUNT(*) FROM cases WHERE dept_target='FNB'").fetchone()[0]
-    sec   = conn.execute("SELECT COUNT(*) FROM cases WHERE dept_target='SEC'").fetchone()[0]
-    ops   = conn.execute("SELECT COUNT(*) FROM cases WHERE dept_target='OPS'").fetchone()[0]
-    open_ = conn.execute("SELECT COUNT(*) FROM cases WHERE status NOT IN ('closed')").fetchone()[0]
-    conn.close()
-    return {"total": total, "fnb": fnb, "sec": sec, "ops": ops, "open": open_}
+    client = get_client()
+    property_id = get_property_id()
+
+    def count(dept_target: str | None = None, status_not_closed: bool = False) -> int:
+        q = client.table("cases").select("id", count="exact").eq("property_id", property_id)
+        if dept_target:
+            q = q.eq("dept_target", dept_target)
+        if status_not_closed:
+            q = q.neq("status", "closed")
+        return q.execute().count or 0
+
+    return {
+        "total": count(),
+        "fnb":   count(dept_target="FNB"),
+        "sec":   count(dept_target="SEC"),
+        "ops":   count(dept_target="OPS"),
+        "open":  count(status_not_closed=True),
+    }
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -99,64 +100,72 @@ def index():
 @app.route("/gm")
 def view_gm():
     filters = _parse_filters(request.args)
-    cases   = _get_cases("", filters)
+    cases   = _get_cases(None, filters)
     return render_template("list.html",
         view="gm", title="GM — All Cases",
-        cases=cases, filters=filters,
+        cases=cases, filters=filters, teams=_get_teams(),
         statuses=VALID_STATUSES, counts=_counts())
 
 
 @app.route("/fnb")
 def view_fnb():
     filters = _parse_filters(request.args)
-    cases   = _get_cases("dept_target = 'FNB'", filters)
+    cases   = _get_cases("FNB", filters)
     return render_template("list.html",
         view="fnb", title="FNB — Dining Reservations",
-        cases=cases, filters=filters,
+        cases=cases, filters=filters, teams=_get_teams(),
         statuses=VALID_STATUSES, counts=_counts())
 
 
 @app.route("/sec")
 def view_sec():
     filters = _parse_filters(request.args)
-    cases   = _get_cases("dept_target = 'SEC'", filters)
+    cases   = _get_cases("SEC", filters)
     return render_template("list.html",
         view="sec", title="SEC — Security / Incidents",
-        cases=cases, filters=filters,
+        cases=cases, filters=filters, teams=_get_teams(),
         statuses=VALID_STATUSES, counts=_counts())
 
 
 @app.route("/ops")
 def view_ops():
     filters = _parse_filters(request.args)
-    cases   = _get_cases("dept_target = 'OPS'", filters)
+    cases   = _get_cases("OPS", filters)
     return render_template("list.html",
         view="ops", title="OPS — Gaming / Events / Admin",
-        cases=cases, filters=filters,
+        cases=cases, filters=filters, teams=_get_teams(),
         statuses=VALID_STATUSES, counts=_counts())
 
 
-@app.route("/case/<record_id>")
-def case_detail(record_id):
-    conn = get_db()
-    row = conn.execute("SELECT * FROM cases WHERE record_id = ?", (record_id,)).fetchone()
-    conn.close()
-    if not row:
+@app.route("/case/<case_id>")
+def case_detail(case_id):
+    client = get_client()
+    try:
+        res = (
+            client.table("cases")
+            .select(CASE_SELECT)
+            .eq("id", case_id)
+            .eq("property_id", get_property_id())
+            .single()
+            .execute()
+        )
+    except Exception:
         abort(404)
+
+    if not res.data:
+        abort(404)
+
     return render_template("detail.html",
-        case=dict(row),
+        case=res.data,
         statuses=VALID_STATUSES,
         editable=EDITABLE_FIELDS,
+        teams=_get_teams(),
         counts=_counts())
 
 
-@app.route("/case/<record_id>/edit", methods=["POST"])
-def case_edit(record_id):
-    conn = get_db()
-    row = conn.execute("SELECT record_id FROM cases WHERE record_id = ?", (record_id,)).fetchone()
-    if not row:
-        conn.close()
-        abort(404)
+@app.route("/case/<case_id>/edit", methods=["POST"])
+def case_edit(case_id):
+    client = get_client()
 
     updates = {}
     for field in EDITABLE_FIELDS:
@@ -164,17 +173,22 @@ def case_edit(record_id):
         if val is not None:
             updates[field] = val.strip() or None
 
-    updates["updated_at"] = now_panama_iso()
+    try:
+        result = (
+            client.table("cases")
+            .update(updates)
+            .eq("id", case_id)
+            .eq("property_id", get_property_id())
+            .execute()
+        )
+    except Exception:
+        abort(404)
 
-    set_clause = ", ".join(f"{k} = :{k}" for k in updates)
-    updates["record_id"] = record_id
+    if not result.data:
+        abort(404)
 
-    with conn:
-        conn.execute(f"UPDATE cases SET {set_clause} WHERE record_id = :record_id", updates)
-    conn.close()
-
-    flash(f"Case {record_id} updated.", "success")
-    return redirect(url_for("case_detail", record_id=record_id))
+    flash(f"Case updated.", "success")
+    return redirect(url_for("case_detail", case_id=case_id))
 
 
 @app.route("/export/<view_name>")
@@ -182,17 +196,7 @@ def trigger_export(view_name):
     valid = ["gm", "fnb", "sec", "ops", "all"]
     if view_name not in valid:
         abort(404)
-    try:
-        if view_name == "all":
-            for v in ["gm", "fnb", "sec", "ops"]:
-                export_view(v)
-            flash("All Excel exports completed.", "success")
-        else:
-            result = export_view(view_name)
-            flash(f"{view_name.upper()} exported: {result['rows']} rows.", "success")
-    except Exception as e:
-        flash(f"Export error: {e}", "error")
-
+    flash("Excel export is temporarily unavailable — pending a Supabase-schema rewrite of logs_export.py.", "error")
     return redirect(request.referrer or url_for("view_gm"))
 
 
@@ -210,5 +214,5 @@ def seed():
 # ── Startup ───────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    init_db()
+    get_property_id()  # fail fast if Supabase/tenant config is misconfigured
     app.run(host="127.0.0.1", port=5050, debug=True)

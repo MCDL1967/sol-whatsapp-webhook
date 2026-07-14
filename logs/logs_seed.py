@@ -1,320 +1,281 @@
 """
 logs_seed.py
-Loads plausible casino/hospitality demo cases into the LOGS v2 DB.
+Loads plausible casino/hospitality demo cases directly into Supabase.
 Run via: python logs_seed.py  OR  visit /seed in the running app.
+See docs/db_planning/whatsapp_db_logs_adaptation_v0.1.md for the translation
+mapping this file implements.
 """
 
-import json
-from pathlib import Path
-from logs_db import get_db, init_db
-from logs_models import record_to_case_row
+from logs_db import get_client, get_property_id
 
-SEED_RECORDS = [
+SEED_MARKER = "[SEED] "
+
+TEAMS = [
+    {"team_key": "fnb_team", "dept_target": "FNB", "display_name": "FNB Service Team"},
+    {"team_key": "sec_team", "dept_target": "SEC", "display_name": "Security Team"},
+    {"team_key": "ops_team", "dept_target": "OPS", "display_name": "Guest Services / OPS"},
+]
+
+# Each record: guest identity, case shape, and exactly one of
+# reservation/complaint/incident/service_request detail payloads.
+SEED_CASES = [
     # FNB — dining reservations
     {
-        "type": "upsert_operational_record",
-        "record_id": "F-SEED0001",
-        "timestamp": "2026-04-15T18:30:00Z",
-        "category": "reservation",
-        "section_team": "FNB",
-        "request_type": "dining_reservation",
-        "workflow_stage": "confirmed",
-        "status": "in_progress",
-        "urgency": "normal",
+        "external_user_id": "seed-F-SEED0001",
         "guest_name": "María Rodríguez",
-        "contact_phone": "6000-1111",
-        "contact_email": "maria.r@email.com",
-        "preferred_contact_method": "whatsapp",
-        "venue_or_department": "Fenicia",
-        "service_date": "2026-04-16",
-        "service_time": "20:00",
-        "party_size": 6,
-        "summary": "Anniversary dinner reservation, window table requested",
-        "special_requests_or_notes": "Anniversary. Cake arranged.",
-        "follow_up_required": "YES",
-        "follow_up_type": "reservation_confirmation",
-        "assigned_manager_or_queue": "Guest Services",
-        "internal_resolution_status": "in_progress",
-        "customer_confirmation_status": "sent",
-        "closure_status": "open",
-        "issue_reopened": "NO",
-        "routing_reason": "auto",
-        "request_category": "reservation",
+        "guest_phone": "6000-1111",
+        "case_type": "reservation",
+        "dept_target": "FNB",
+        "status": "assigned",  # old: in_progress
+        "priority": "normal",
+        "summary": SEED_MARKER + "Anniversary dinner reservation, window table requested",
+        "reservation_details": {
+            "requested_date": "2026-04-16",
+            "requested_time": "20:00",
+            "party_size": 6,
+            "special_requests": "Venue: Fenicia. Anniversary. Cake arranged.",
+        },
     },
     {
-        "type": "upsert_operational_record",
-        "record_id": "F-SEED0002",
-        "timestamp": "2026-04-14T12:15:00Z",
-        "category": "reservation",
-        "section_team": "FNB",
-        "request_type": "dining_reservation",
-        "workflow_stage": "intake",
-        "status": "open",
-        "urgency": "high",
+        "external_user_id": "seed-F-SEED0002",
         "guest_name": "James Whitfield",
-        "contact_phone": "6000-2222",
-        "preferred_contact_method": "call",
-        "venue_or_department": "La Brasserie",
-        "service_date": "2026-04-15",
-        "service_time": "13:00",
-        "party_size": 2,
-        "summary": "Same-day lunch reservation, VIP guest",
-        "special_requests_or_notes": "VIP — comp appetizer",
-        "follow_up_required": "YES",
-        "assigned_manager_or_queue": "FNB Manager",
-        "internal_resolution_status": "open",
-        "customer_confirmation_status": "not_sent",
-        "closure_status": "open",
-        "issue_reopened": "NO",
-        "routing_reason": "auto",
-        "request_category": "reservation",
+        "guest_phone": "6000-2222",
+        "case_type": "reservation",
+        "dept_target": "FNB",
+        "status": "new",  # old: open
+        "priority": "high",
+        "summary": SEED_MARKER + "Same-day lunch reservation, VIP guest",
+        "reservation_details": {
+            "requested_date": "2026-04-15",
+            "requested_time": "13:00",
+            "party_size": 2,
+            "special_requests": "Venue: La Brasserie. VIP — comp appetizer.",
+        },
     },
     {
-        "type": "upsert_operational_record",
-        "record_id": "F-SEED0003",
-        "timestamp": "2026-04-13T09:00:00Z",
-        "category": "reservation",
-        "section_team": "FNB",
-        "request_type": "dining_reservation",
-        "workflow_stage": "closed",
-        "status": "closed",
-        "urgency": "normal",
+        "external_user_id": "seed-F-SEED0003",
         "guest_name": "Sun Li",
-        "contact_phone": "6000-3333",
-        "preferred_contact_method": "whatsapp",
-        "venue_or_department": "Fenicia",
-        "service_date": "2026-04-13",
-        "service_time": "19:30",
-        "party_size": 4,
-        "summary": "Group dinner — completed successfully",
-        "internal_resolution_status": "resolved",
-        "customer_confirmation_status": "confirmed",
-        "closure_status": "closed",
-        "resolution_summary": "Party seated, no issues.",
-        "resolved_by": "Ana G.",
-        "resolution_timestamp": "2026-04-13T21:30:00Z",
-        "issue_reopened": "NO",
-        "routing_reason": "auto",
+        "guest_phone": "6000-3333",
+        "case_type": "reservation",
+        "dept_target": "FNB",
+        "status": "closed",
+        "priority": "normal",
+        "summary": SEED_MARKER + "Group dinner — completed successfully",
+        "reservation_details": {
+            "requested_date": "2026-04-13",
+            "requested_time": "19:30",
+            "party_size": 4,
+            "special_requests": "Venue: Fenicia. Party seated, no issues.",
+        },
     },
     # SEC — security / incidents
     {
-        "type": "upsert_operational_record",
-        "record_id": "S-SEED0001",
-        "timestamp": "2026-04-15T02:45:00Z",
-        "category": "incident",
-        "section_team": "SEC",
-        "request_type": "incident",
-        "workflow_stage": "investigation",
-        "status": "in_progress",
-        "urgency": "high",
-        "severity": "medium",
-        "guest_name": "Unknown",
-        "location_section": "Slot Floor B",
-        "incident_type": "theft",
-        "summary": "Guest reported missing wallet near slot machines on Floor B",
-        "special_requests_or_notes": "CCTV review requested for 02:30-02:45",
-        "assigned_manager_or_queue": "Security Supervisor",
-        "internal_resolution_status": "in_progress",
-        "closure_status": "open",
-        "follow_up_required": "YES",
-        "issue_reopened": "NO",
-        "routing_reason": "auto",
+        "external_user_id": "seed-S-SEED0001",
+        "guest_name": None,
+        "guest_phone": None,
+        "case_type": "incident",
+        "dept_target": "SEC",
+        "status": "assigned",  # old: in_progress
+        "priority": "high",
+        "summary": SEED_MARKER + "Guest reported missing wallet near slot machines on Floor B",
+        "incident_details": {
+            "incident_category": "theft",
+            "severity": "medium",
+            "location_text": "Slot Floor B",
+            "people_involved": "Unknown",
+            "resolution_notes": "CCTV review requested for 02:30-02:45",
+        },
     },
     {
-        "type": "upsert_operational_record",
-        "record_id": "S-SEED0002",
-        "timestamp": "2026-04-14T23:10:00Z",
-        "category": "incident",
-        "section_team": "SEC",
-        "request_type": "security_incident",
-        "workflow_stage": "reported",
-        "status": "open",
-        "urgency": "critical",
-        "severity": "high",
+        "external_user_id": "seed-S-SEED0002",
         "guest_name": "Roberto Salas",
-        "contact_phone": "6000-4444",
-        "location_section": "Main Entrance",
-        "incident_type": "security",
-        "summary": "Guest altercation at main entrance, security intervened",
-        "special_requests_or_notes": "Police called. Guest escorted off premises.",
-        "assigned_manager_or_queue": "Head of Security",
-        "internal_resolution_status": "open",
-        "closure_status": "open",
-        "issue_reopened": "NO",
-        "routing_reason": "auto",
-        "severity": "high",
+        "guest_phone": "6000-4444",
+        "case_type": "incident",
+        "dept_target": "SEC",
+        "status": "new",  # old: open
+        "priority": "urgent",  # old urgency: critical
+        "summary": SEED_MARKER + "Guest altercation at main entrance, security intervened",
+        "incident_details": {
+            "incident_category": "security",
+            "severity": "high",
+            "location_text": "Main Entrance",
+            "people_involved": "Roberto Salas",
+            "resolution_notes": "Police called. Guest escorted off premises.",
+        },
     },
     {
-        "type": "upsert_operational_record",
-        "record_id": "S-SEED0003",
-        "timestamp": "2026-04-12T16:00:00Z",
-        "category": "incident",
-        "section_team": "SEC",
-        "request_type": "incident",
-        "workflow_stage": "closed",
-        "status": "closed",
-        "urgency": "normal",
-        "severity": "low",
+        "external_user_id": "seed-S-SEED0003",
         "guest_name": "Carmen Vilez",
-        "location_section": "Restroom Area",
-        "incident_type": "incident",
-        "summary": "Guest slipped near restroom. No injury. Area marked.",
-        "internal_resolution_status": "resolved",
-        "closure_status": "closed",
-        "resolution_summary": "Area cleaned and marked. Report filed.",
-        "resolved_by": "Security Team",
-        "resolution_timestamp": "2026-04-12T16:45:00Z",
-        "issue_reopened": "NO",
-        "routing_reason": "auto",
+        "guest_phone": None,
+        "case_type": "incident",
+        "dept_target": "SEC",
+        "status": "closed",
+        "priority": "normal",
+        "summary": SEED_MARKER + "Guest slipped near restroom. No injury. Area marked.",
+        "incident_details": {
+            "incident_category": "incident",
+            "severity": "low",
+            "location_text": "Restroom Area",
+            "people_involved": "Carmen Vilez",
+            "resolution_notes": "Area cleaned and marked. Report filed.",
+        },
     },
     # OPS — gaming / events / admin
     {
-        "type": "upsert_operational_record",
-        "record_id": "A-SEED0001",
-        "timestamp": "2026-04-15T10:00:00Z",
-        "category": "gaming",
-        "section_team": "OPS",
-        "request_type": "gaming_question",
-        "workflow_stage": "responded",
-        "status": "in_progress",
-        "urgency": "normal",
+        "external_user_id": "seed-A-SEED0001",
         "guest_name": "David Park",
-        "contact_phone": "6000-5555",
-        "preferred_contact_method": "whatsapp",
-        "venue_or_department": "Gaming Floor",
-        "summary": "Guest asking about poker tournament schedule and buy-in amounts",
-        "assigned_manager_or_queue": "Gaming Host",
-        "internal_resolution_status": "in_progress",
-        "customer_confirmation_status": "not_sent",
-        "closure_status": "open",
-        "follow_up_required": "YES",
-        "issue_reopened": "NO",
-        "routing_reason": "auto",
-        "request_category": "gaming",
+        "guest_phone": "6000-5555",
+        "case_type": "service_request",
+        "dept_target": "OPS",
+        "status": "assigned",  # old: in_progress
+        "priority": "normal",
+        "summary": SEED_MARKER + "Guest asking about poker tournament schedule and buy-in amounts",
+        "service_request_details": {
+            "service_request_type": "service_request_1",
+            "service_area_label": "Gaming Floor",
+        },
     },
     {
-        "type": "upsert_operational_record",
-        "record_id": "A-SEED0002",
-        "timestamp": "2026-04-14T14:20:00Z",
-        "category": "event",
-        "section_team": "OPS",
-        "request_type": "event_reservation",
-        "workflow_stage": "confirmed",
-        "status": "in_progress",
-        "urgency": "normal",
+        "external_user_id": "seed-A-SEED0002",
         "guest_name": "Empresa XYZ S.A.",
-        "contact_phone": "6000-6666",
-        "contact_email": "eventos@xyz.com",
-        "preferred_contact_method": "email",
-        "venue_or_department": "Salón Cristal",
-        "service_date": "2026-04-25",
-        "service_time": "18:00",
-        "party_size": 80,
-        "summary": "Corporate event — product launch. AV, catering included.",
-        "special_requests_or_notes": "Requires projector, podium, cocktail setup.",
-        "assigned_manager_or_queue": "Events Coordinator",
-        "internal_resolution_status": "in_progress",
-        "customer_confirmation_status": "confirmed",
-        "closure_status": "open",
-        "follow_up_required": "YES",
-        "issue_reopened": "NO",
-        "routing_reason": "auto",
-        "request_category": "event",
+        "guest_phone": "6000-6666",
+        "case_type": "reservation",
+        "dept_target": "OPS",
+        "status": "assigned",  # old: in_progress
+        "priority": "normal",
+        "summary": SEED_MARKER + "Corporate event — product launch. AV, catering included.",
+        "reservation_details": {
+            "requested_date": "2026-04-25",
+            "requested_time": "18:00",
+            "party_size": 80,
+            "special_requests": "Venue: Salón Cristal. Requires projector, podium, cocktail setup.",
+        },
     },
     {
-        "type": "upsert_operational_record",
-        "record_id": "A-SEED0003",
-        "timestamp": "2026-04-15T08:30:00Z",
-        "category": "general",
-        "section_team": "OPS",
-        "request_type": "general_info",
-        "workflow_stage": "intake",
-        "status": "open",
-        "urgency": "normal",
+        "external_user_id": "seed-A-SEED0003",
         "guest_name": "Anónimo",
-        "contact_phone": "6000-7777",
-        "preferred_contact_method": "whatsapp",
-        "summary": "Guest asking about parking validation and hotel check-in hours",
-        "assigned_manager_or_queue": "Guest Services",
-        "internal_resolution_status": "open",
-        "customer_confirmation_status": "not_sent",
-        "closure_status": "open",
-        "follow_up_required": "NO",
-        "issue_reopened": "NO",
-        "routing_reason": "auto",
+        "guest_phone": "6000-7777",
+        "case_type": "service_request",
+        "dept_target": "OPS",
+        "status": "new",  # old: open
+        "priority": "normal",
+        "summary": SEED_MARKER + "Guest asking about parking validation and hotel check-in hours",
+        "service_request_details": {
+            "service_request_type": "service_request_2",
+            "service_area_label": "Guest Services",
+        },
     },
     {
-        "type": "upsert_operational_record",
-        "record_id": "A-SEED0004",
-        "timestamp": "2026-04-13T11:00:00Z",
-        "category": "complaint",
-        "section_team": "OPS",
-        "request_type": "admin",
-        "workflow_stage": "escalated",
-        "status": "reopened",
-        "urgency": "high",
+        "external_user_id": "seed-A-SEED0004",
         "guest_name": "Patricia Molina",
-        "contact_phone": "6000-8888",
-        "contact_email": "patricia.m@email.com",
-        "preferred_contact_method": "email",
-        "summary": "Guest complaint: billing discrepancy on players card statement",
-        "special_requests_or_notes": "Previously marked closed. Guest followed up disputing resolution.",
-        "assigned_manager_or_queue": "ADM Manager",
-        "internal_resolution_status": "under_review",
-        "customer_confirmation_status": "disputed",
-        "closure_status": "open",
-        "follow_up_required": "YES",
-        "issue_reopened": "YES",
-        "routing_reason": "auto",
-        "complaint_category": "billing",
+        "guest_phone": "6000-8888",
+        "case_type": "complaint",
+        "dept_target": "OPS",
+        "status": "open",  # old: reopened
+        "priority": "high",
+        "summary": SEED_MARKER + "Guest complaint: billing discrepancy on players card statement",
+        "complaint_details": {
+            "complaint_category": "billing",
+            "resolution_notes": "Previously marked closed. Guest followed up disputing resolution.",
+        },
     },
 ]
 
+DETAIL_TABLES = [
+    "reservation_details",
+    "complaint_details",
+    "incident_details",
+    "service_request_details",
+]
+
+
+def _seed_teams(client, property_id: str) -> None:
+    for team in TEAMS:
+        client.table("teams").upsert(
+            {**team, "property_id": property_id},
+            on_conflict="property_id,team_key",
+        ).execute()
+
+
+def _clear_prior_seed(client, property_id: str) -> None:
+    """Delete previously seeded cases (and their detail rows) for a clean re-seed."""
+    existing = (
+        client.table("cases")
+        .select("id")
+        .eq("property_id", property_id)
+        .like("summary", f"{SEED_MARKER}%")
+        .execute()
+    )
+    case_ids = [row["id"] for row in existing.data]
+    if not case_ids:
+        return
+
+    for table in DETAIL_TABLES:
+        client.table(table).delete().in_("case_id", case_ids).execute()
+
+    client.table("cases").delete().in_("id", case_ids).execute()
+
+
+def _upsert_guest_thread(client, property_id: str, tenant_id: str, external_user_id: str) -> str:
+    res = (
+        client.table("guest_threads")
+        .upsert(
+            {
+                "tenant_id": tenant_id,
+                "property_id": property_id,
+                "external_user_id": external_user_id,
+                "channel": "whatsapp",
+            },
+            on_conflict="property_id,channel,external_user_id",
+        )
+        .select("id")
+        .execute()
+    )
+    return res.data[0]["id"]
+
 
 def run_seed() -> int:
-    init_db()
-    conn = get_db()
+    client = get_client()
+    property_id = get_property_id()
+
+    tenant = client.table("properties").select("tenant_id").eq("id", property_id).single().execute()
+    tenant_id = tenant.data["tenant_id"]
+
+    _seed_teams(client, property_id)
+    _clear_prior_seed(client, property_id)
+
     count = 0
-    for rec in SEED_RECORDS:
-        row = record_to_case_row(rec)
-        try:
-            with conn:
-                conn.execute("""
-                    INSERT OR IGNORE INTO cases (
-                        record_id, timestamp, created_at, updated_at,
-                        category, section_team, request_type, workflow_stage,
-                        status, urgency, severity, complaint_category, request_category,
-                        routing_reason, dept_target,
-                        guest_name, contact_phone, contact_email, preferred_contact_method,
-                        location_section, venue_or_department,
-                        service_date, service_time, party_size,
-                        incident_type, summary, special_requests_or_notes,
-                        follow_up_required, follow_up_type, assigned_manager_or_queue,
-                        internal_resolution_status, customer_confirmation_status, closure_status,
-                        issue_reopened, resolution_summary, resolved_by, resolution_timestamp,
-                        final_closure_timestamp
-                    ) VALUES (
-                        :record_id, :timestamp, datetime('now'), :updated_at,
-                        :category, :section_team, :request_type, :workflow_stage,
-                        :status, :urgency, :severity, :complaint_category, :request_category,
-                        :routing_reason, :dept_target,
-                        :guest_name, :contact_phone, :contact_email, :preferred_contact_method,
-                        :location_section, :venue_or_department,
-                        :service_date, :service_time, :party_size,
-                        :incident_type, :summary, :special_requests_or_notes,
-                        :follow_up_required, :follow_up_type, :assigned_manager_or_queue,
-                        :internal_resolution_status, :customer_confirmation_status, :closure_status,
-                        :issue_reopened, :resolution_summary, :resolved_by, :resolution_timestamp,
-                        :final_closure_timestamp
-                    )
-                """, row)
-            count += 1
-        except Exception as e:
-            print(f"  [seed] skip {rec.get('record_id')}: {e}")
-    conn.close()
-    print(f"[seed] {count} records inserted (INSERT OR IGNORE — duplicates skipped)")
+    for record in SEED_CASES:
+        guest_thread_id = _upsert_guest_thread(
+            client, property_id, tenant_id, record["external_user_id"]
+        )
+
+        case_row = {
+            "tenant_id": tenant_id,
+            "property_id": property_id,
+            "guest_thread_id": guest_thread_id,
+            "case_type": record["case_type"],
+            "dept_target": record["dept_target"],
+            "status": record["status"],
+            "priority": record["priority"],
+            "guest_name": record["guest_name"],
+            "guest_phone": record["guest_phone"],
+            "source_channel": "whatsapp",
+            "summary": record["summary"],
+        }
+        case_res = client.table("cases").insert(case_row).select("id").execute()
+        case_id = case_res.data[0]["id"]
+
+        for table in DETAIL_TABLES:
+            key = table
+            if key in record:
+                client.table(table).insert({**record[key], "case_id": case_id}).execute()
+
+        count += 1
+
     return count
 
 
 if __name__ == "__main__":
-    run_seed()
+    n = run_seed()
+    print(f"[seed] {n} cases inserted (plus 3 teams upserted)")

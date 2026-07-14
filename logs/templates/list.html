@@ -10,7 +10,7 @@
 <!-- Filters -->
 <form class="filter-bar" method="GET" action="">
   <input class="filter-input" type="text" name="q"
-         placeholder="Search ID, guest, summary…"
+         placeholder="Search guest, summary…"
          value="{{ filters.q }}">
 
   <select class="filter-select" name="status">
@@ -29,6 +29,13 @@
   </select>
   {% endif %}
 
+  <select class="filter-select" name="team_id">
+    <option value="">All teams</option>
+    {% for t in teams %}
+      <option value="{{ t.id }}" {% if filters.team_id == t.id %}selected{% endif %}>{{ t.display_name }}</option>
+    {% endfor %}
+  </select>
+
   <button class="btn btn-filter" type="submit">Filter</button>
   <a class="btn btn-clear" href="{{ request.path }}">Clear</a>
 </form>
@@ -40,16 +47,16 @@
   <thead>
     <tr>
       <th>ID</th>
-      <th>Date/Time</th>
+      <th>Created</th>
       {% if view == 'gm' %}<th>Dept</th>{% endif %}
       <th>Type</th>
       <th>Guest</th>
       {% if view == 'sec' %}<th>Location</th>{% endif %}
-      {% if view in ('fnb', 'ops') %}<th>Venue</th>{% endif %}
+      {% if view in ('fnb', 'ops') %}<th>Venue / Notes</th>{% endif %}
       {% if view in ('fnb', 'ops') %}<th>Service Date</th>{% endif %}
       <th>Summary</th>
       <th>Status</th>
-      <th>Urgency</th>
+      <th>Priority</th>
       <th>Assigned</th>
       <th></th>
     </tr>
@@ -58,9 +65,9 @@
     {% for c in cases %}
     <tr class="row-status-{{ c.status | replace(' ', '_') }}">
       <td class="cell-id">
-        <a href="{{ url_for('case_detail', record_id=c.record_id) }}">{{ c.record_id }}</a>
+        <a href="{{ url_for('case_detail', case_id=c.id) }}">{{ c.id[:8] }}</a>
       </td>
-      <td class="cell-ts">{{ (c.timestamp or '')[:16] | replace('T', ' ') }}</td>
+      <td class="cell-ts">{{ (c.created_at or '')[:16] | replace('T', ' ') }}</td>
       {% if view == 'gm' %}
       <td>
         {% if c.dept_target %}
@@ -70,16 +77,16 @@
         {% endif %}
       </td>
       {% endif %}
-      <td class="cell-type">{{ c.request_type or c.category or '—' }}</td>
+      <td class="cell-type">{{ c.case_type or '—' }}</td>
       <td>{{ c.guest_name or '—' }}</td>
-      {% if view == 'sec' %}<td>{{ c.location_section or '—' }}</td>{% endif %}
-      {% if view in ('fnb', 'ops') %}<td>{{ c.venue_or_department or '—' }}</td>{% endif %}
-      {% if view in ('fnb', 'ops') %}<td>{{ c.service_date or '—' }}</td>{% endif %}
+      {% if view == 'sec' %}<td>{{ c.incident_details.location_text if c.incident_details else '—' }}</td>{% endif %}
+      {% if view in ('fnb', 'ops') %}<td>{{ c.reservation_details.special_requests if c.reservation_details else '—' }}</td>{% endif %}
+      {% if view in ('fnb', 'ops') %}<td>{{ c.reservation_details.requested_date if c.reservation_details else '—' }}</td>{% endif %}
       <td class="cell-summary">{{ (c.summary or '')[:80] }}{% if (c.summary or '')|length > 80 %}…{% endif %}</td>
       <td><span class="status-pill status-{{ c.status | replace(' ', '_') }}">{{ c.status or '—' }}</span></td>
-      <td><span class="urgency-{{ c.urgency or 'normal' }}">{{ c.urgency or 'normal' }}</span></td>
-      <td class="cell-assigned">{{ c.assigned_manager_or_queue or '—' }}</td>
-      <td><a class="btn btn-sm" href="{{ url_for('case_detail', record_id=c.record_id) }}">View</a></td>
+      <td><span class="urgency-{{ c.priority or 'normal' }}">{{ c.priority or 'normal' }}</span></td>
+      <td class="cell-assigned">{{ c.teams.display_name if c.teams else 'Unassigned' }}</td>
+      <td><a class="btn btn-sm" href="{{ url_for('case_detail', case_id=c.id) }}">View</a></td>
     </tr>
     {% endfor %}
   </tbody>

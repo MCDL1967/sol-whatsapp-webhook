@@ -1,20 +1,20 @@
 {% extends "base.html" %}
-{% block title %}{{ case.record_id }}{% endblock %}
+{% block title %}{{ case.id[:8] }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
     <a class="back-link" href="javascript:history.back()">← Back</a>
-    <h1 class="page-title">{{ case.record_id }}</h1>
-    <span class="page-subtitle">{{ (case.timestamp or '')[:16] | replace('T', ' ') }} UTC</span>
+    <h1 class="page-title">{{ case.id }}</h1>
+    <span class="page-subtitle">{{ (case.created_at or '')[:16] | replace('T', ' ') }} UTC</span>
   </div>
   <div class="detail-badges">
     <span class="status-pill status-{{ case.status | replace(' ', '_') }}">{{ case.status }}</span>
     {% if case.dept_target %}
       <span class="dept-badge dept-{{ case.dept_target | lower }}">{{ case.dept_target }}</span>
     {% endif %}
-    {% if case.urgency and case.urgency != 'normal' %}
-      <span class="urgency-{{ case.urgency }}">{{ case.urgency }}</span>
+    {% if case.priority and case.priority != 'normal' %}
+      <span class="urgency-{{ case.priority }}">{{ case.priority }}</span>
     {% endif %}
   </div>
 </div>
@@ -27,73 +27,73 @@
 
     <div class="field-group">
       <div class="field"><span class="label">Guest</span><span class="value">{{ case.guest_name or '—' }}</span></div>
-      <div class="field"><span class="label">Phone</span><span class="value">{{ case.contact_phone or '—' }}</span></div>
-      <div class="field"><span class="label">Email</span><span class="value">{{ case.contact_email or '—' }}</span></div>
-      <div class="field"><span class="label">Preferred contact</span><span class="value">{{ case.preferred_contact_method or '—' }}</span></div>
+      <div class="field"><span class="label">Phone</span><span class="value">{{ case.guest_phone or '—' }}</span></div>
+      <div class="field"><span class="label">Source channel</span><span class="value">{{ case.source_channel or '—' }}</span></div>
     </div>
 
     <div class="field-group">
-      <div class="field"><span class="label">Category</span><span class="value">{{ case.category or '—' }}</span></div>
-      <div class="field"><span class="label">Request type</span><span class="value">{{ case.request_type or '—' }}</span></div>
-      <div class="field"><span class="label">Section / Team</span><span class="value">{{ case.section_team or '—' }}</span></div>
+      <div class="field"><span class="label">Case type</span><span class="value">{{ case.case_type or '—' }}</span></div>
       <div class="field"><span class="label">Dept target</span><span class="value">{{ case.dept_target or 'GM only' }}</span></div>
-      <div class="field"><span class="label">Workflow stage</span><span class="value">{{ case.workflow_stage or '—' }}</span></div>
+      <div class="field"><span class="label">Assigned team</span><span class="value">{{ case.teams.display_name if case.teams else 'Unassigned' }}</span></div>
     </div>
 
+    {% if case.case_type == 'reservation' and case.reservation_details %}
     <div class="field-group">
-      <div class="field"><span class="label">Venue / Dept</span><span class="value">{{ case.venue_or_department or '—' }}</span></div>
-      <div class="field"><span class="label">Location</span><span class="value">{{ case.location_section or '—' }}</span></div>
-      <div class="field"><span class="label">Service date</span><span class="value">{{ case.service_date or '—' }}</span></div>
-      <div class="field"><span class="label">Service time</span><span class="value">{{ case.service_time or '—' }}</span></div>
-      <div class="field"><span class="label">Party size</span><span class="value">{{ case.party_size or '—' }}</span></div>
+      <div class="field"><span class="label">Requested date</span><span class="value">{{ case.reservation_details.requested_date or '—' }}</span></div>
+      <div class="field"><span class="label">Requested time</span><span class="value">{{ case.reservation_details.requested_time or '—' }}</span></div>
+      <div class="field"><span class="label">Party size</span><span class="value">{{ case.reservation_details.party_size or '—' }}</span></div>
+      <div class="field"><span class="label">Reservation name</span><span class="value">{{ case.reservation_details.reservation_name or '—' }}</span></div>
+      <div class="field field-full"><span class="label">Special requests</span><span class="value">{{ case.reservation_details.special_requests or '—' }}</span></div>
     </div>
+    {% endif %}
 
+    {% if case.case_type == 'complaint' and case.complaint_details %}
     <div class="field-group">
-      <div class="field"><span class="label">Incident type</span><span class="value">{{ case.incident_type or '—' }}</span></div>
-      <div class="field"><span class="label">Severity</span><span class="value">{{ case.severity or '—' }}</span></div>
-      <div class="field"><span class="label">Urgency</span><span class="value">{{ case.urgency or '—' }}</span></div>
+      <div class="field"><span class="label">Complaint category</span><span class="value">{{ case.complaint_details.complaint_category or '—' }}</span></div>
+      <div class="field"><span class="label">Severity</span><span class="value">{{ case.complaint_details.severity or '—' }}</span></div>
+      <div class="field"><span class="label">Location</span><span class="value">{{ case.complaint_details.location_text or '—' }}</span></div>
+      <div class="field field-full"><span class="label">Guest impact</span><span class="value">{{ case.complaint_details.guest_impact or '—' }}</span></div>
+      <div class="field field-full"><span class="label">Resolution notes</span><span class="value">{{ case.complaint_details.resolution_notes or '—' }}</span></div>
     </div>
+    {% endif %}
+
+    {% if case.case_type == 'incident' and case.incident_details %}
+    <div class="field-group">
+      <div class="field"><span class="label">Incident category</span><span class="value">{{ case.incident_details.incident_category or '—' }}</span></div>
+      <div class="field"><span class="label">Severity</span><span class="value">{{ case.incident_details.severity or '—' }}</span></div>
+      <div class="field"><span class="label">Location</span><span class="value">{{ case.incident_details.location_text or '—' }}</span></div>
+      <div class="field field-full"><span class="label">People involved</span><span class="value">{{ case.incident_details.people_involved or '—' }}</span></div>
+      <div class="field field-full"><span class="label">Resolution notes</span><span class="value">{{ case.incident_details.resolution_notes or '—' }}</span></div>
+    </div>
+    {% endif %}
+
+    {% if case.case_type == 'service_request' and case.service_request_details %}
+    <div class="field-group">
+      <div class="field"><span class="label">Service type</span><span class="value">{{ case.service_request_details.service_request_type or '—' }}</span></div>
+      <div class="field"><span class="label">Service area</span><span class="value">{{ case.service_request_details.service_area_label or '—' }}</span></div>
+      <div class="field"><span class="label">Requested date</span><span class="value">{{ case.service_request_details.requested_date or '—' }}</span></div>
+      <div class="field"><span class="label">Requested time</span><span class="value">{{ case.service_request_details.requested_time or '—' }}</span></div>
+      <div class="field"><span class="label">Guest count</span><span class="value">{{ case.service_request_details.guest_count or '—' }}</span></div>
+      <div class="field"><span class="label">Location</span><span class="value">{{ case.service_request_details.location_text or '—' }}</span></div>
+      <div class="field field-full"><span class="label">Notes</span><span class="value">{{ case.service_request_details.notes or '—' }}</span></div>
+    </div>
+    {% endif %}
 
     <div class="field-group">
       <div class="field field-full"><span class="label">Summary</span><span class="value">{{ case.summary or '—' }}</span></div>
-      <div class="field field-full"><span class="label">Notes / Special requests</span><span class="value">{{ case.special_requests_or_notes or '—' }}</span></div>
-    </div>
-
-    <div class="field-group">
-      <div class="field"><span class="label">Follow-up required</span><span class="value">{{ case.follow_up_required or '—' }}</span></div>
-      <div class="field"><span class="label">Follow-up type</span><span class="value">{{ case.follow_up_type or '—' }}</span></div>
-      <div class="field"><span class="label">Routing reason</span><span class="value">{{ case.routing_reason or '—' }}</span></div>
-    </div>
-
-    <div class="field-group">
-      <div class="field"><span class="label">Broadcast channel</span><span class="value">{{ case.broadcast_channel or '—' }}</span></div>
-      <div class="field"><span class="label">Broadcast status</span><span class="value">{{ case.broadcast_status or '—' }}</span></div>
-      <div class="field"><span class="label">Client msg status</span><span class="value">{{ case.client_message_status or '—' }}</span></div>
-    </div>
-
-    <div class="field-group">
-      <div class="field"><span class="label">Resolved by</span><span class="value">{{ case.resolved_by or '—' }}</span></div>
-      <div class="field"><span class="label">Resolution timestamp</span><span class="value">{{ case.resolution_timestamp or '—' }}</span></div>
-      <div class="field"><span class="label">Final closure</span><span class="value">{{ case.final_closure_timestamp or '—' }}</span></div>
-      <div class="field"><span class="label">Issue reopened</span><span class="value">{{ case.issue_reopened or '—' }}</span></div>
-    </div>
-
-    <div class="field-group">
-      <div class="field"><span class="label">Survey sent</span><span class="value">{{ case.survey_sent_timestamp or '—' }}</span></div>
-      <div class="field"><span class="label">Survey response</span><span class="value">{{ case.survey_response_timestamp or '—' }}</span></div>
-      <div class="field"><span class="label">Feedback score</span><span class="value">{{ case.customer_feedback_score or '—' }}</span></div>
     </div>
 
     <div class="field-group meta-group">
       <div class="field"><span class="label">Created</span><span class="value">{{ case.created_at or '—' }}</span></div>
       <div class="field"><span class="label">Updated</span><span class="value">{{ case.updated_at or '—' }}</span></div>
+      <div class="field"><span class="label">Closed</span><span class="value">{{ case.closed_at or '—' }}</span></div>
     </div>
   </div>
 
   <!-- RIGHT: Editable fields -->
   <div class="detail-panel panel-edit">
     <h2 class="panel-title">Update Case</h2>
-    <form method="POST" action="{{ url_for('case_edit', record_id=case.record_id) }}">
+    <form method="POST" action="{{ url_for('case_edit', case_id=case.id) }}">
 
       <div class="form-field">
         <label for="status">Status</label>
@@ -105,51 +105,32 @@
       </div>
 
       <div class="form-field">
-        <label for="internal_resolution_status">Internal resolution</label>
-        <select name="internal_resolution_status" id="internal_resolution_status">
-          {% for s in ['open','in_progress','under_review','resolved','escalated'] %}
-            <option value="{{ s }}" {% if case.internal_resolution_status == s %}selected{% endif %}>{{ s }}</option>
+        <label for="priority">Priority</label>
+        <select name="priority" id="priority">
+          {% for p in ['low', 'normal', 'high', 'urgent'] %}
+            <option value="{{ p }}" {% if case.priority == p %}selected{% endif %}>{{ p }}</option>
           {% endfor %}
         </select>
       </div>
 
       <div class="form-field">
-        <label for="customer_confirmation_status">Customer confirmation</label>
-        <select name="customer_confirmation_status" id="customer_confirmation_status">
-          {% for s in ['not_sent','sent','confirmed','disputed','no_response'] %}
-            <option value="{{ s }}" {% if case.customer_confirmation_status == s %}selected{% endif %}>{{ s }}</option>
+        <label for="assigned_team_id">Assigned team</label>
+        <select name="assigned_team_id" id="assigned_team_id">
+          <option value="">Unassigned</option>
+          {% for t in teams %}
+            <option value="{{ t.id }}" {% if case.assigned_team_id == t.id %}selected{% endif %}>{{ t.display_name }}</option>
           {% endfor %}
         </select>
       </div>
 
       <div class="form-field">
-        <label for="closure_status">Closure status</label>
-        <select name="closure_status" id="closure_status">
-          {% for s in ['open','pending','closed'] %}
-            <option value="{{ s }}" {% if case.closure_status == s %}selected{% endif %}>{{ s }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="form-field">
-        <label for="assigned_manager_or_queue">Assigned manager / queue</label>
-        <input type="text" name="assigned_manager_or_queue" id="assigned_manager_or_queue"
-               value="{{ case.assigned_manager_or_queue or '' }}">
-      </div>
-
-      <div class="form-field">
-        <label for="resolution_summary">Resolution summary</label>
-        <textarea name="resolution_summary" id="resolution_summary" rows="3">{{ case.resolution_summary or '' }}</textarea>
-      </div>
-
-      <div class="form-field">
-        <label for="operator_notes">Operator notes <span class="label-hint">(internal, not from ingest)</span></label>
+        <label for="operator_notes">Operator notes <span class="label-hint">(staff-authored, never overwritten by the webhook)</span></label>
         <textarea name="operator_notes" id="operator_notes" rows="4">{{ case.operator_notes or '' }}</textarea>
       </div>
 
       <div class="form-actions">
         <button type="submit" class="btn btn-save">Save changes</button>
-        <a class="btn btn-cancel" href="{{ url_for('case_detail', record_id=case.record_id) }}">Cancel</a>
+        <a class="btn btn-cancel" href="{{ url_for('case_detail', case_id=case.id) }}">Cancel</a>
       </div>
 
     </form>

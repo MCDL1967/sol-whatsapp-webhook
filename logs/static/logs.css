@@ -149,11 +149,14 @@ body {
   border-radius: 10px;
   white-space: nowrap;
 }
+.status-new                         { background: var(--status-open);    color: #92400E; }
 .status-open                        { background: var(--status-open);    color: #92400E; }
-.status-in_progress                 { background: var(--status-ip);      color: #1D4ED8; }
-.status-pending_customer_confirmation { background: var(--status-pending); color: #92400E; }
+.status-assigned                    { background: var(--status-ip);      color: #1D4ED8; }
+.status-waiting_guest                { background: var(--status-pending); color: #92400E; }
+.status-waiting_staff                { background: var(--status-pending); color: #92400E; }
+.status-resolved                    { background: var(--status-closed);  color: #166534; }
 .status-closed                      { background: var(--status-closed);  color: #166534; }
-.status-reopened                    { background: var(--status-reopened);color: #9D174D; }
+.status-cancelled                   { background: var(--status-reopened);color: #9D174D; }
 
 .urgency-critical { color: var(--sec-color); font-weight: 700; }
 .urgency-high     { color: #D97706; font-weight: 600; }
@@ -287,7 +290,7 @@ body {
 
 /* Row status tinting */
 .row-status-closed td      { opacity: .75; }
-.row-status-reopened td    { background: #FFF0F6; }
+.row-status-cancelled td   { background: #FFF0F6; }
 
 /* ── Empty state ─────────────────────────────── */
 .empty-state {

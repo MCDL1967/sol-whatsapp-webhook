@@ -67,15 +67,17 @@ SECTION_TEAM_ROUTING = {
     "Housekeeping":    "OPS",
 }
 
+# Matches the live Supabase `case_status` check constraint exactly — the LOGS
+# dashboard edit form must never offer a value Postgres would reject.
 VALID_STATUSES = [
+    "new",
     "open",
-    "in_progress",
-    "tentative",
-    "pending_customer_confirmation",
-    "pending_review",
-    "confirmed",
+    "assigned",
+    "waiting_guest",
+    "waiting_staff",
+    "resolved",
     "closed",
-    "reopened",
+    "cancelled",
 ]
 
 VALID_DEPTS = ["FNB", "SEC", "OPS"]
@@ -170,13 +172,21 @@ def record_to_case_row(record: dict) -> dict:
     }
 
 
-# Editable fields exposed in the case detail UI
+# Editable fields exposed in the case detail UI (cases table columns only).
+#
+# FUTURE UI EXPANSION FLAG: the legacy SQLite schema also had
+# internal_resolution_status, customer_confirmation_status, closure_status,
+# resolution_summary, and assigned_manager_or_queue as editable fields. None
+# of these have an equivalent column in the live Supabase schema today (see
+# docs/db_planning/whatsapp_db_logs_adaptation_v0.1.md, decision #6) —
+# status/priority/assigned_team_id/operator_notes are believed to cover the
+# same ground for now. If a real need for finer-grained resolution/confirmation
+# tracking comes up later, revisit adding those as new cases columns (or a
+# case_status_history table) rather than reintroducing the old free-text
+# fields as-is.
 EDITABLE_FIELDS = [
     "status",
-    "internal_resolution_status",
-    "customer_confirmation_status",
-    "closure_status",
-    "resolution_summary",
-    "assigned_manager_or_queue",
+    "priority",
+    "assigned_team_id",
     "operator_notes",
 ]
