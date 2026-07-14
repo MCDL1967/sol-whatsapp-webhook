@@ -5,9 +5,16 @@ Scope: tenants / properties / guest_threads / cases / reservation_details only.
 Status: single hardcoded tenant/property (sol_demo/demo via env vars) — real
         multi-tenant resolution is future work, see
         docs/db_planning/Tenant_Management_Future_Considerations_v0.1.md
-Known limitation: venue_or_department is not yet resolvable to a venue_id
-        (venues table does not exist yet) — stored as a labeled note in
-        special_requests until the venues table and matching are built.
+venue_id resolution: payload.venue_or_department is matched by exact string
+        against venues.display_name (webhook.js's KNOWN_RESERVATION_VENUES
+        registry already collapses guest text to one of a fixed set of
+        canonical names before this point, so an exact match is sufficient —
+        see docs/db_planning/whatsapp_db_logs_adaptation_v0.1.md). If no
+        match is found (e.g. a venue not yet seeded), venue_id stays null —
+        soft-fail, never blocks the reservation write.
+Known limitation: no real guest "special requests" capture exists anywhere
+        in the current conversation flow, so reservation_details.special_requests
+        is always null today.
 */
 
 const { createClient } = require("@supabase/supabase-js");
@@ -49,6 +56,29 @@ async function getDemoTenantAndProperty() {
   }
 
   return { tenantId: tenant.id, propertyId: property.id };
+}
+
+async function resolveVenueId(propertyId, venueName) {
+  if (!venueName) return null;
+
+  try {
+    const { data: venue, error } = await supabase
+      .from("venues")
+      .select("id")
+      .eq("property_id", propertyId)
+      .eq("display_name", venueName)
+      .maybeSingle();
+
+    if (error) {
+      console.error(`[SUPABASE VENUE LOOKUP ERROR] venue_name=${venueName}`, error.message);
+      return null;
+    }
+
+    return venue?.id || null;
+  } catch (err) {
+    console.error(`[SUPABASE VENUE LOOKUP ERROR] venue_name=${venueName}`, err?.message || err);
+    return null;
+  }
 }
 
 async function writeReservationCase(payload = {}) {
@@ -99,16 +129,15 @@ async function writeReservationCase(payload = {}) {
     throw new Error(`case insert failed: ${caseError?.message}`);
   }
 
-  const specialRequests = payload.venue_or_department
-    ? `Venue (unresolved, no venues table yet): ${payload.venue_or_department}`
-    : null;
+  const venueId = await resolveVenueId(propertyId, payload.venue_or_department);
 
   const { error: detailsError } = await supabase.from("reservation_details").insert({
     case_id: caseRow.id,
+    venue_id: venueId,
     requested_date: payload.service_date || null,
     requested_time: payload.service_time || null,
     party_size: payload.party_size || null,
-    special_requests: specialRequests
+    special_requests: null
   });
 
   if (detailsError) {
