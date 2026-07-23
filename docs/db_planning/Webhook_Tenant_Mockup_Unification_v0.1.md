@@ -1,7 +1,7 @@
 # Webhook ↔ Tenant Mockup Unification v0.1
 
-Status: context/handoff document — no implementation decisions made yet, written to let a fresh conversation pick this up without re-deriving the research below
-Date: 2026-07-15
+Status: context/handoff document. Sequencing decided and first execution step done 2026-07-21 (see "Sequencing — resolved" and "KB seed migration — done" below); written to let a fresh conversation pick this up without re-deriving the research below
+Date: 2026-07-15, updated 2026-07-21
 Source: live inspection of `webhook.js`, `src/fast_path/*.js`, `property_packages/demo/*.json`, `supabase_bridge/supabase_client.js`, cross-referenced with `docs/db_planning/Physical_Schema_v0.1.md`
 
 ## Why this document exists
@@ -25,15 +25,33 @@ While scoping a narrow fix (resolving `reservation_details.venue_id` at write-ti
 - **Supabase's only current read from the webhook side** is the narrow `venues` FK lookup in `resolveVenueId()` (`supabase_bridge/supabase_client.js`) added for the venue_id fix — an exact-match lookup only, not a general config read. Confirmed via repo-wide grep: nothing reads `menu_branches`, `menu_options`, `menu_option_aliases`, `menu_branch_triggers`, `answer_boundaries`, `response_templates`, `reservation_rules`, `runtime_feature_flags`, `property_settings`, or `teams` from Supabase anywhere in the webhook or `src/`.
 - **The Tenant Property Configuration Tool** (`Tenant_Property_Configuration_v0.2.html`, repo root) is a static HTML/CSS/JS mockup — state lives in browser `localStorage` only, zero backend, zero Supabase wiring, zero API calls. A UI hint string inside the file itself says *"This is the kind of structured data the webhook and LOGS could eventually read from Supabase"* — aspirational, not built.
 
-## The open sequencing question (not yet decided)
+## Sequencing — resolved 2026-07-21
 
-Three ways to approach unifying this, discussed but not chosen:
+The broader product framing, established this session: LOGS is the tenant-facing dashboard for triaging/assigning/tracking cases; the webhook captures guest intent; the Tenant Property Configuration Tool is where the knowledge base gets *authored*. The open question was how the tool's output becomes the webhook's source of truth. Three roughly-separable chokepoints were identified, in dependency order:
 
-1. **Unify the 3 in-repo sources first, bridge to Supabase second.** Lower risk, testable independently of Supabase — pick one canonical venue/menu model in-repo, migrate all 3 consumers (`extractKnownReservationVenue`, `fast_path_responder.js`, `fast_path_classifier.js`) to it, *then* build the Supabase bridge on top of one already-unified thing instead of three.
-2. **Design the full end-state architecture first** (Supabase config → compiled runtime package → webhook consumes), then work backward to see what in-repo unification the end-state design forces.
-3. **Patch-only, defer unification entirely.** Leave the 3 sources as-is, only fix specific gaps as they cause real problems (this is what the venue_id fix itself did — narrow, didn't touch this).
+1. **Runtime consumption model** — how the webhook loads config at request time (compiled package vs. live query, caching, which of the 3 in-repo sources becomes canonical). **Chosen to resolve first**, because the current fast-path runtime is 100% deterministic exact/alias matching (no fuzzy/semantic matching anywhere) — whatever the KB authoring workflow produces has to bottom out in that same structured shape, so the runtime's target shape has to be settled before the authoring UX or input modality can be designed against it. This also subsumes the existing technical debt (no build step, no caching, 3 disconnected sources) rather than treating it as separate pre-work — patching the old JSON-file system first would be throwaway work once a Supabase-backed runtime exists.
+2. **KB authoring workflow** — how a tenant actually builds their menu/services/deterministic flow in the tool; whether an AI-assisted step converts loose tenant input into structured KB rows (a distinct "authoring-time compile," separate from the runtime-time compile in #1).
+3. **Input modality** — PDF upload vs. structured form fields vs. hybrid. Judged the least architecturally binding — once the target schema is settled, this is a UX-layer decision on top of it.
 
-No decision was made on which path to take — that's the first thing to resolve in the next session.
+First concrete step under #1: since Supabase's config tables (`Physical_Schema_v0.1.md`) already existed but held none of the actual demo property's data, populate them from the current `property_packages/demo/*.json` files as the reference case — using the schema (and the already-resolved field mapping in `Demo_Data_to_Schema_Mapping_v0.3.md`) as the unification target, rather than unifying the 3 in-repo sources into a fourth throwaway format first. **Done — see "KB seed migration" below.** This intentionally does not yet touch `webhook.js` or `runtime_packages` (the compiled-package build step) — that's the next piece of chokepoint #1.
+
+## Runtime package compilation — design resolved 2026-07-22
+
+Working through chokepoint #1's second half (see "Sequencing — resolved" above). None of this has been built yet — design only, no code changes.
+
+1. **Trigger**: compile only when the tenant edits their configuration (adds a team, changes hours, edits a menu) — not per guest message, not on a schedule. The compiled package holds **only tenant-wide static config, never a specific guest's open request** — a reservation being built or an incident being reported stays in the existing `cases`/`reservation_details`/session-state machinery, which changes per-message. Bundling guest-specific data into the package would force recompilation on every turn and break the whole caching model below. (Aside, unrelated to this design but worth remembering: session state — `fast_path_context`, `selected_restaurant`, etc. — currently lives only in `webhook.js`'s in-memory `sessions` object, not Supabase at all, so it doesn't survive a Render restart. Pre-existing, separate concern.)
+2. **`menu_options.next_branch_key` completeness**: compile whatever the tenant actually defined; an option with no next branch just has an empty field — no validation, no compile error, no completeness requirement.
+3. **Versioning**: simple auto-incrementing integer (or timestamp) on `runtime_packages.runtime_package_version`, assigned automatically by the compile script — no tenant involvement.
+4. **Rollback / "bad publish"**: resolved by *not* building server-side package version history. Instead, the future Tenant Property Configuration Tool will let a tenant download their current config as a file — their own manual backup, restorable by re-uploading. Server-side history deferred, revisit only if actually needed later.
+5. **Compile logic**: a script, structurally the mirror of `logs/seed_kb_from_demo_package.py` — reads Supabase config tables → writes one `package_json` blob, instead of JSON files → Supabase tables. Starts as a manually-run script (same posture as the seed script); automating "tenant clicks Publish" waits until the mockup tool exists.
+6. **Package contents**: everything populated in the KB seed migration below — venues+aliases+descriptions, menu branches/options/aliases/triggers, response templates, reservation rules, answer boundaries, teams, property settings/feature flags — flattened into one blob per property. No guest-specific data (per #1).
+7. **Generic graph-walker, confirmed** over keeping `fast_path_classifier.js`/`fast_path_responder.js`'s hardcoded per-context `if` blocks — required because tenants need to be able to add new menu branches the code was never written to know about. **Gated**: the actual rewrite of those two files is deferred until the Tenant Property Configuration Tool exists and has been proven end-to-end with at least one tenant configured similarly to the demo property. The package shape and compile script can be built now; `webhook.js`/`fast_path_*.js` stay untouched until that gate is met.
+8. **Caching**: webhook loads the package once and keeps it in memory, reloading only when a new version is published — this falls directly out of #1 (config only changes on tenant edit, so there's nothing to gain from reloading more often).
+9. **Cutover strategy**: big-bang (swap all 4 JSON-load call sites at once) rather than an incremental parallel-run — acceptable because of the existing `dev`/`main` branch separation (temporary breakage in `dev` during the rewire is fine; `main` stays the safe rollback point). Distinguish this from #4: that's *config* rollback (tenant-side download), this is *code* rollback (git).
+
+## KB seed migration — done 2026-07-21
+
+`logs/seed_kb_from_demo_package.py` transformed `property_packages/demo/*.json` into the Supabase config tables. Full detail (what changed per table, decisions on ambiguous fields, idempotency handling) recorded in `DB_Construction_Decisions_v0.1.md` → "Resolved — KB Seed Migration (Demo Data → Config Tables round, 2026-07-21)". Growing list of items surfaced but deliberately deferred (case_type/dept_target/template_key are unbuilt and net-new for the mockup tool to define; `menu_branches` reprompt-template column; `"__back"` navigation semantics; `runtime_feature_flags` ownership should likely move to tenant/Property-Admin-editable) is recorded in that same doc's "Open — flagged as future work, not started" table — check there before re-deriving these from scratch.
 
 ## Critical files to load into context for this work
 
