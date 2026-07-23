@@ -2,7 +2,7 @@
 logs_db.py
 Database layer for LOGS v2.
 Reads/writes Supabase directly (no local SQLite, no ingestion script).
-See docs/db_planning/whatsapp_db_logs_adaptation_v0.1.md.
+See docs/db_planning/old_planning_docs/whatsapp_db_logs_adaptation_v0.1.md.
 """
 
 import os

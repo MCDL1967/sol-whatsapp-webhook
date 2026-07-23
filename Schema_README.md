@@ -135,4 +135,4 @@ Live guest turns should not require the webhook to reason across raw normalized 
 - Clean message fields are stored always; `raw_payload` is selective diagnostic/audit data.
 - `schema_review_comments` is not part of the product DB.
 - Voiceflow remains the current runtime boundary; init variables derive from approved DB/config variables.
-- See `docs/db_planning/Database_Map_v0.1.md` for the accepted database map.
+- See `docs/db_planning/old_planning_docs/Database_Map_v0.1.md` for the accepted database map.

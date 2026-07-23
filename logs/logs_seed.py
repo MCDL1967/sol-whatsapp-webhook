@@ -2,7 +2,7 @@
 logs_seed.py
 Loads plausible casino/hospitality demo cases directly into Supabase.
 Run via: python logs_seed.py  OR  visit /seed in the running app.
-See docs/db_planning/whatsapp_db_logs_adaptation_v0.1.md for the translation
+See docs/db_planning/old_planning_docs/whatsapp_db_logs_adaptation_v0.1.md for the translation
 mapping this file implements.
 """
 

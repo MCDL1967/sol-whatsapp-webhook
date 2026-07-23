@@ -4,12 +4,12 @@ Role: minimal reservation-write path into Supabase (walking-skeleton scope)
 Scope: tenants / properties / guest_threads / cases / reservation_details only.
 Status: single hardcoded tenant/property (sol_demo/demo via env vars) — real
         multi-tenant resolution is future work, see
-        docs/db_planning/Tenant_Management_Future_Considerations_v0.1.md
+        docs/db_planning/old_planning_docs/Tenant_Management_Future_Considerations_v0.1.md
 venue_id resolution: payload.venue_or_department is matched by exact string
         against venues.display_name (webhook.js's KNOWN_RESERVATION_VENUES
         registry already collapses guest text to one of a fixed set of
         canonical names before this point, so an exact match is sufficient —
-        see docs/db_planning/whatsapp_db_logs_adaptation_v0.1.md). If no
+        see docs/db_planning/old_planning_docs/whatsapp_db_logs_adaptation_v0.1.md). If no
         match is found (e.g. a venue not yet seeded), venue_id stays null —
         soft-fail, never blocks the reservation write.
 Known limitation: no real guest "special requests" capture exists anywhere

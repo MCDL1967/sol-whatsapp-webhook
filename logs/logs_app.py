@@ -1,7 +1,7 @@
 """
 logs_app.py
 LOGS v2 Flask application — local-first, server-rendered HTML.
-Reads/writes Supabase directly. See docs/db_planning/whatsapp_db_logs_adaptation_v0.1.md.
+Reads/writes Supabase directly. See docs/db_planning/old_planning_docs/whatsapp_db_logs_adaptation_v0.1.md.
 
 Views:
   /               → redirect to /gm

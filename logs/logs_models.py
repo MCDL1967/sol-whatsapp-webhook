@@ -178,7 +178,7 @@ def record_to_case_row(record: dict) -> dict:
 # internal_resolution_status, customer_confirmation_status, closure_status,
 # resolution_summary, and assigned_manager_or_queue as editable fields. None
 # of these have an equivalent column in the live Supabase schema today (see
-# docs/db_planning/whatsapp_db_logs_adaptation_v0.1.md, decision #6) —
+# docs/db_planning/old_planning_docs/whatsapp_db_logs_adaptation_v0.1.md, decision #6) —
 # status/priority/assigned_team_id/operator_notes are believed to cover the
 # same ground for now. If a real need for finer-grained resolution/confirmation
 # tracking comes up later, revisit adding those as new cases columns (or a

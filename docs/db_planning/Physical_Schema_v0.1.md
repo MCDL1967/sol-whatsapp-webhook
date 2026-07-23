@@ -2,7 +2,7 @@
 
 Status: **structure fully live** — every table in this document has been built and applied; seed content (beyond the tenant/property anchors) is the only thing outstanding
 Date: 2026-07-07
-Source: `Database_Map_v0.1.md`, `Schema_Proposal_v0.4.html`, accepted review decisions
+Source: `old_planning_docs/Database_Map_v0.1.md`, `Schema_Proposal_v0.4.html`, accepted review decisions
 
 ## Purpose
 
@@ -281,7 +281,7 @@ Purpose: restaurants, bars, room service, amenities, shows, or guest-facing serv
 | `property_id` | uuid | yes | FK -> `properties.id` |
 | `venue_key` | text | yes | SOL/Admin owned stable key |
 | `display_name` | text | yes | Property editable |
-| `venue_type` | text | yes | Example: `restaurant`, `bar`, `show`, `amenity` (Room Service is not a venue — see Database_Map_v0.1.md) |
+| `venue_type` | text | yes | Example: `restaurant`, `bar`, `show`, `amenity` (Room Service is not a venue — see old_planning_docs/Database_Map_v0.1.md) |
 | `reservation_enabled` | boolean | yes | Default false |
 | `show_in_runtime_menu` | boolean | yes | Default true |
 | `selectable` | boolean | yes | Default true. Guest can pick this venue directly for a reservation |
@@ -603,7 +603,7 @@ Purpose: parent operational source of truth for LOGS, routing, lifecycle, report
 | `updated_at` | timestamptz | yes | System |
 | `closed_at` | timestamptz | no | Closure timestamp |
 | `closed_by` | uuid | no | Future staff/admin user FK |
-| `operator_notes` | text | no | Staff-authored free text, LOGS-editable. Never written by the webhook. Added via `supabase/migrations/20260714011758_add_cases_operator_notes.sql`, see `whatsapp_db_logs_adaptation_v0.1.md`. |
+| `operator_notes` | text | no | Staff-authored free text, LOGS-editable. Never written by the webhook. Added via `supabase/migrations/20260714011758_add_cases_operator_notes.sql`, see `old_planning_docs/whatsapp_db_logs_adaptation_v0.1.md`. |
 
 Constraints / indexes:
 
@@ -716,7 +716,7 @@ index (property_id, event_type, created_at)
 
 ## Runtime Package Publication
 
-Resolved: Supabase table row (`runtime_packages`), chosen over a generated file (no natural place to version inside Supabase), a materialized view (can't encode the validation rules in `Runtime_Config_Contract_v0.3.md`), or a cache object (no audit trail).
+Resolved: Supabase table row (`runtime_packages`), chosen over a generated file (no natural place to version inside Supabase), a materialized view (can't encode the validation rules in `old_planning_docs/Runtime_Config_Contract_v0.3.md`), or a cache object (no audit trail).
 
 Draft shape:
 

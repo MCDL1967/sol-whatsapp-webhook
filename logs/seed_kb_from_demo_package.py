@@ -2,9 +2,9 @@
 seed_kb_from_demo_package.py
 One-off migration: transforms property_packages/demo/*.json into the
 corresponding Supabase config tables, per the mapping in
-docs/db_planning/Demo_Data_to_Schema_Mapping_v0.3.md and the decisions
+docs/db_planning/old_planning_docs/Demo_Data_to_Schema_Mapping_v0.3.md and the decisions
 recorded in docs/db_planning/DB_Construction_Decisions_v0.1.md and
-docs/db_planning/Webhook_Tenant_Mockup_Unification_v0.1.md.
+docs/db_planning/SOL_DB_Master_Plan_v1.0.md.
 
 Does not touch webhook.js or the runtime_packages table — this only
 populates config tables that nothing reads yet.
@@ -26,7 +26,7 @@ PKG_DIR = Path(__file__).parent.parent / "property_packages" / "demo"
 
 # Deeper menu transitions that fast_path_responder.js hardcodes in JS
 # rather than encoding in menu_dictionary.json's next_context field.
-# See docs/db_planning/Webhook_Tenant_Mockup_Unification_v0.1.md.
+# See docs/db_planning/SOL_DB_Master_Plan_v1.0.md.
 BRANCH_PARENTS = {
     "main_menu": None,
     "restaurants_menu": "main_menu",
