@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Teams{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h1>Teams</h1>
+  <p class="hint">Teams are where your AI sends requests when a guest needs staff support, approval, or live information.</p>
+
+  {% for team in teams %}
+    <form method="POST" action="{{ url_for('teams_save', team_id=team.id) }}">
+      <div class="field-grid">
+        <div class="field span-2">
+          <label>{{ team.team_key | replace("team_", "Team ") }}</label>
+          <p class="hint">Internal slot — SOL/Admin-owned, not editable here. Guests never see this; only the display name below.</p>
+        </div>
+        <div class="field">
+          <label for="display_name__{{ team.id }}">Display name</label>
+          <p class="hint">The name assigned to the team on guest-facing interactions.</p>
+          <input type="text" id="display_name__{{ team.id }}" name="display_name" value="{{ team.display_name }}">
+        </div>
+        <div class="field">
+          <label for="scope__{{ team.id }}">Scope</label>
+          <p class="hint">Optional plain-language description of what this team handles.</p>
+          <input type="text" id="scope__{{ team.id }}" name="scope" value="{{ team.scope or '' }}">
+        </div>
+      </div>
+      <div class="team-row-foot">
+        <button type="submit">Save</button>
+        <button type="submit" class="danger"
+          formaction="{{ url_for('teams_delete', team_id=team.id) }}" formnovalidate
+          onclick="return confirm(
+            {% if team.case_count %}
+              'Remove {{ team.display_name }}? It has {{ team.case_count }} case(s) — they keep their history, but the team key ({{ team.team_key }}) is retired, not reused.'
+            {% else %}
+              'Delete {{ team.display_name }}? It has no cases, so this removes it permanently and frees {{ team.team_key }} for reuse.'
+            {% endif %}
+          )">
+          Delete
+        </button>
+      </div>
+    </form>
+    {% if not loop.last %}<hr>{% endif %}
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>Add a team</h2>
+  <p class="hint">Creates a new team with the next available internal key. Rename it below after adding.</p>
+  <form method="POST" action="{{ url_for('teams_add') }}">
+    <div class="field-grid">
+      <div class="field">
+        <label for="new_team_name">Display name</label>
+        <input type="text" id="new_team_name" name="new_team_name" placeholder="e.g. Hospitality">
+      </div>
+    </div>
+    <button type="submit" class="secondary">Add team</button>
+  </form>
+</div>
+
+{% endblock %}

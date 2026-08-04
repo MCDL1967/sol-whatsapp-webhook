@@ -5,6 +5,9 @@ logs/*.pyc
 logs/*.old.py
 logs/*.old.sh
 logs/middleware/
+tenant_tool/venv/
+tenant_tool/__pycache__/
+tenant_tool/*.pyc
 
 # Database
 *.db

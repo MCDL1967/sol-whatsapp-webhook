@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Guest Rules{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h1>Guest Rules</h1>
+  <p class="hint">Rules tell your AI when it can answer directly, when it should collect details, and when it must hand the request to staff.</p>
+
+  <form method="POST" action="{{ url_for('guest_rules_save') }}">
+    <div class="field-grid">
+      <div class="field">
+        <label>Dinner reservations recommended</label>
+        <p class="hint">Your AI can tell guests that reservations are recommended for dinner.</p>
+        <label class="checkbox-inline">
+          <input type="checkbox" name="dinner_reservations_recommended" {% if rules.policy_json.dinner_reservations_recommended %}checked{% endif %}>
+          Yes, recommend dinner reservations
+        </label>
+      </div>
+      <div class="field">
+        <label>Walk-ins depend on availability</label>
+        <p class="hint">Your AI should avoid promising walk-in seating.</p>
+        <label class="checkbox-inline">
+          <input type="checkbox" name="walk_ins_based_on_availability" {% if rules.policy_json.walk_ins_based_on_availability %}checked{% endif %}>
+          Yes, walk-ins depend on availability
+        </label>
+      </div>
+
+      <div class="field">
+        <label for="large_party_threshold">Group threshold</label>
+        <p class="hint">If a party is larger than this number, your AI should encourage advance booking or staff confirmation.</p>
+        <input type="number" min="1" max="99" id="large_party_threshold" name="large_party_threshold" value="{{ rules.large_party_threshold }}">
+      </div>
+      <div class="field">
+        <label for="typical_duration_minutes">Typical dining duration, minutes</label>
+        <p class="hint">Used for planning and staff context. It does not promise exact seating time.</p>
+        <input type="number" min="15" max="360" id="typical_duration_minutes" name="typical_duration_minutes" value="{{ rules.typical_duration_minutes }}">
+      </div>
+
+      <div class="field">
+        <label for="arrival_buffer_minutes">Recommended arrival buffer, minutes</label>
+        <p class="hint">How early guests should arrive before a reservation.</p>
+        <input type="number" min="0" max="120" id="arrival_buffer_minutes" name="arrival_buffer_minutes" value="{{ rules.arrival_buffer_minutes }}">
+      </div>
+      <div class="field">
+        <label>Venue-specific hours</label>
+        <p class="hint">If unchecked, your AI should offer staff confirmation for exact hours.</p>
+        <label class="checkbox-inline">
+          <input type="checkbox" name="venue_specific_hours_configured" {% if rules.venue_specific_hours_configured %}checked{% endif %}>
+          Yes, venue-specific hours are configured
+        </label>
+      </div>
+    </div>
+
+    <button type="submit">Save</button>
+  </form>
+</div>
+
+{% endblock %}

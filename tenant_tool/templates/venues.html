@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Venues{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h1>Venues</h1>
+  <p class="hint">Add every restaurant, bar, lounge, service, or amenity guests may ask about. Clear descriptions help your AI answer naturally.</p>
+
+  {% for venue in venues %}
+    <form method="POST" action="{{ url_for('venues_save', venue_id=venue.id) }}">
+      <div class="field-grid">
+        <div class="field span-2">
+          <label>{{ venue.venue_key | replace("venue_", "Venue ") }}</label>
+          <p class="hint">Internal slot — SOL/Admin-owned, not editable here. Guests never see this; only the display name below.</p>
+        </div>
+
+        <div class="field">
+          <label for="display_name__{{ venue.id }}">Guest-facing name</label>
+          <p class="hint">The name guests know and see in menus.</p>
+          <input type="text" id="display_name__{{ venue.id }}" name="display_name" value="{{ venue.display_name }}">
+        </div>
+        <div class="field">
+          <label for="venue_type__{{ venue.id }}">Venue type</label>
+          <p class="hint">Example: restaurant, sports bar, lobby lounge, amenity.</p>
+          <input type="text" id="venue_type__{{ venue.id }}" name="venue_type" value="{{ venue.venue_type }}">
+        </div>
+
+        <div class="field span-2">
+          <label for="handoff_team_id__{{ venue.id }}">Handoff team</label>
+          <p class="hint">Where your AI should route staff questions for this venue.</p>
+          <select id="handoff_team_id__{{ venue.id }}" name="handoff_team_id">
+            <option value="">— none —</option>
+            {% for team in teams %}
+              <option value="{{ team.id }}" {% if venue.handoff_team_id == team.id %}selected{% endif %}>{{ team.display_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field span-2">
+          <label for="aliases__{{ venue.id }}">Other names guests may type</label>
+          <p class="hint">Separate names with commas. Example: lobby bar, garden bar.</p>
+          <input type="text" id="aliases__{{ venue.id }}" name="aliases" value="{{ venue.aliases }}">
+        </div>
+
+        <div class="field span-2">
+          <label for="short_description__{{ venue.id }}">Short guest description</label>
+          <p class="hint">One plain sentence your AI can use when explaining this venue.</p>
+          <textarea id="short_description__{{ venue.id }}" name="short_description">{{ venue.short_description }}</textarea>
+        </div>
+
+        <div class="field">
+          <label>Reservations</label>
+          <p class="hint">Turn on when your AI should ask date, time, party size, and special requests.</p>
+          <label class="checkbox-inline">
+            <input type="checkbox" name="reservation_enabled" {% if venue.reservation_enabled %}checked{% endif %}>
+            Collect reservation details
+          </label>
+        </div>
+        <div class="field">
+          <label>Selectable</label>
+          <p class="hint">Guest can pick this venue directly for a reservation.</p>
+          <label class="checkbox-inline">
+            <input type="checkbox" name="selectable" {% if venue.selectable %}checked{% endif %}>
+            Guest can select this venue
+          </label>
+        </div>
+        <div class="field">
+          <label>Restaurant list</label>
+          <p class="hint">Appears when a guest asks to see restaurants.</p>
+          <label class="checkbox-inline">
+            <input type="checkbox" name="show_in_restaurant_list" {% if venue.show_in_restaurant_list %}checked{% endif %}>
+            Show in restaurant list
+          </label>
+        </div>
+      </div>
+      <div class="team-row-foot">
+        <button type="submit">Save</button>
+        <button type="submit" class="danger"
+          formaction="{{ url_for('venues_delete', venue_id=venue.id) }}" formnovalidate
+          onclick="return confirm(
+            {% if venue.reservation_count %}
+              'Remove {{ venue.display_name }}? It has {{ venue.reservation_count }} reservation(s) — they keep their history, but the venue key ({{ venue.venue_key }}) is retired, not reused.'
+            {% else %}
+              'Delete {{ venue.display_name }}? It has no reservations, so this removes it permanently and frees {{ venue.venue_key }} for reuse.'
+            {% endif %}
+          )">
+          Delete
+        </button>
+      </div>
+    </form>
+    {% if not loop.last %}<hr>{% endif %}
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>Add a venue</h2>
+  <p class="hint">Creates a new venue with the next available internal key. Fill in the rest below after adding.</p>
+  <form method="POST" action="{{ url_for('venues_add') }}">
+    <div class="field-grid">
+      <div class="field">
+        <label for="new_venue_name">Guest-facing name</label>
+        <input type="text" id="new_venue_name" name="new_venue_name" placeholder="e.g. The Garden Lobby Bar">
+      </div>
+    </div>
+    <button type="submit" class="secondary">Add venue</button>
+  </form>
+</div>
+
+{% endblock %}

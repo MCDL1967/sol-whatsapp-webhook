@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Overview{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h1>Overview</h1>
+  <p class="hint">Live snapshot of this property's configuration. Pulled straight from Supabase — nothing here is a draft.</p>
+
+  <div class="kpis">
+    <div class="kpi">
+      <span class="eyebrow">Concierge name</span>
+      <strong>{{ concierge_name or "—" }}</strong>
+    </div>
+    <div class="kpi">
+      <span class="eyebrow">Property</span>
+      <strong>{{ property_name or "—" }}</strong>
+    </div>
+    <div class="kpi">
+      <span class="eyebrow">Active teams</span>
+      <strong>{{ team_count }}</strong>
+    </div>
+    <div class="kpi">
+      <span class="eyebrow">Latest published version</span>
+      <strong>{{ "v" + latest_package.runtime_package_version if latest_package else "Not published yet" }}</strong>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Readiness</h2>
+  <ul class="readiness">
+    {% for ok, label in readiness %}
+      <li class="{{ 'ok' if ok else 'pending' }}">{{ "✓" if ok else "○" }} {{ label }}</li>
+    {% endfor %}
+  </ul>
+</div>
+
+{% endblock %}

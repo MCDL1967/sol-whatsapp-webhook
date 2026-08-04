@@ -17,15 +17,11 @@
     <a href="{{ url_for('view_gm') }}"  class="nav-link {% if view == 'gm'  %}active{% endif %}">
       GM <span class="badge">{{ counts.total }}</span>
     </a>
-    <a href="{{ url_for('view_fnb') }}" class="nav-link {% if view == 'fnb' %}active{% endif %}">
-      FNB <span class="badge badge-fnb">{{ counts.fnb }}</span>
-    </a>
-    <a href="{{ url_for('view_sec') }}" class="nav-link {% if view == 'sec' %}active{% endif %}">
-      SEC <span class="badge badge-sec">{{ counts.sec }}</span>
-    </a>
-    <a href="{{ url_for('view_ops') }}" class="nav-link {% if view == 'ops' %}active{% endif %}">
-      OPS <span class="badge badge-ops">{{ counts.ops }}</span>
-    </a>
+    {% for t in teams %}
+      <a href="{{ url_for('view_team', team_key=t.team_key) }}" class="nav-link {% if view == 'team_' + t.team_key %}active{% endif %}">
+        {{ t.display_name }} <span class="badge">{{ counts.by_team.get(t.team_key, 0) }}</span>
+      </a>
+    {% endfor %}
   </div>
   <div class="nav-actions">
     <span class="nav-open-count">{{ counts.open }} open</span>
@@ -33,9 +29,9 @@
       <span class="export-label">Export ▾</span>
       <div class="export-dropdown">
         <a href="{{ url_for('trigger_export', view_name='gm') }}">GM Excel</a>
-        <a href="{{ url_for('trigger_export', view_name='fnb') }}">FNB Excel</a>
-        <a href="{{ url_for('trigger_export', view_name='sec') }}">SEC Excel</a>
-        <a href="{{ url_for('trigger_export', view_name='ops') }}">OPS Excel</a>
+        {% for t in teams %}
+          <a href="{{ url_for('trigger_export', view_name=t.team_key) }}">{{ t.display_name }} Excel</a>
+        {% endfor %}
         <a href="{{ url_for('trigger_export', view_name='all') }}" class="export-all">Export All</a>
       </div>
     </div>

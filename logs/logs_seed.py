@@ -11,13 +11,22 @@ from logs_db import get_client, get_property_id
 SEED_MARKER = "[SEED] "
 
 TEAMS = [
-    {"team_key": "fnb_team", "dept_target": "FNB", "display_name": "FNB Service Team"},
-    {"team_key": "sec_team", "dept_target": "SEC", "display_name": "Security Team"},
-    {"team_key": "ops_team", "dept_target": "OPS", "display_name": "Guest Services / OPS"},
+    {"team_key": "team_1", "dept_target": "team_1", "display_name": "FNB Service Team"},
+    {"team_key": "team_2", "dept_target": "team_2", "display_name": "Security Team"},
+    {"team_key": "team_3", "dept_target": "team_3", "display_name": "Guest Services / OPS"},
 ]
+
+# team_key is generic/backend-only now (routing is arbitrary per-tenant, not
+# a fixed FNB/SEC/OPS enum — see DB_Construction_Decisions_v0.1.md). This
+# grouping label is local to this seed script only, used below to resolve
+# each demo case's assigned_team_id; it is never written to the real
+# dept_target column.
+SEED_GROUP_TO_TEAM_KEY = {"FNB": "team_1", "SEC": "team_2", "OPS": "team_3"}
 
 # Each record: guest identity, case shape, and exactly one of
 # reservation/complaint/incident/service_request detail payloads.
+# "dept_target" here is the seed-script-local grouping label above, not the
+# real (now vestigial) dept_target column value.
 SEED_CASES = [
     # FNB — dining reservations
     {
@@ -234,6 +243,17 @@ def _upsert_guest_thread(client, property_id: str, tenant_id: str, external_user
     return res.data[0]["id"]
 
 
+def _team_id_by_key(client, property_id: str) -> dict:
+    rows = (
+        client.table("teams")
+        .select("id, team_key")
+        .eq("property_id", property_id)
+        .execute()
+        .data
+    )
+    return {row["team_key"]: row["id"] for row in rows}
+
+
 def run_seed() -> int:
     client = get_client()
     property_id = get_property_id()
@@ -244,18 +264,23 @@ def run_seed() -> int:
     _seed_teams(client, property_id)
     _clear_prior_seed(client, property_id)
 
+    team_id_by_key = _team_id_by_key(client, property_id)
+
     count = 0
     for record in SEED_CASES:
         guest_thread_id = _upsert_guest_thread(
             client, property_id, tenant_id, record["external_user_id"]
         )
 
+        team_key = SEED_GROUP_TO_TEAM_KEY[record["dept_target"]]
+
         case_row = {
             "tenant_id": tenant_id,
             "property_id": property_id,
             "guest_thread_id": guest_thread_id,
             "case_type": record["case_type"],
-            "dept_target": record["dept_target"],
+            "dept_target": team_key,
+            "assigned_team_id": team_id_by_key.get(team_key),
             "status": record["status"],
             "priority": record["priority"],
             "guest_name": record["guest_name"],

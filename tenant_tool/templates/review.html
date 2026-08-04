@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Review & Export{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h1>Review & Export</h1>
+  <p class="hint">Publish recompiles every config table (Property Basics, Teams, and everything added after) into a new <code>runtime_packages</code> version.</p>
+
+  <form method="POST" action="{{ url_for('publish') }}">
+    <button type="submit">Publish &amp; Recompile</button>
+  </form>
+</div>
+
+{% if published %}
+  <div class="card publish-result">
+    <h2>Published v{{ published.version }}</h2>
+    <p class="hint">Compiled <code>package_json</code> written to <code>runtime_packages</code>.</p>
+    <pre>{{ published.package | tojson(indent=2) }}</pre>
+  </div>
+{% endif %}
+
+{% endblock %}

@@ -10,9 +10,6 @@
   </div>
   <div class="detail-badges">
     <span class="status-pill status-{{ case.status | replace(' ', '_') }}">{{ case.status }}</span>
-    {% if case.dept_target %}
-      <span class="dept-badge dept-{{ case.dept_target | lower }}">{{ case.dept_target }}</span>
-    {% endif %}
     {% if case.priority and case.priority != 'normal' %}
       <span class="urgency-{{ case.priority }}">{{ case.priority }}</span>
     {% endif %}
@@ -33,7 +30,6 @@
 
     <div class="field-group">
       <div class="field"><span class="label">Case type</span><span class="value">{{ case.case_type or '—' }}</span></div>
-      <div class="field"><span class="label">Dept target</span><span class="value">{{ case.dept_target or 'GM only' }}</span></div>
       <div class="field"><span class="label">Assigned team</span><span class="value">{{ case.teams.display_name if case.teams else 'Unassigned' }}</span></div>
     </div>
 

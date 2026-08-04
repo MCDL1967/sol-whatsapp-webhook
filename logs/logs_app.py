@@ -4,15 +4,16 @@ LOGS v2 Flask application — local-first, server-rendered HTML.
 Reads/writes Supabase directly. See docs/db_planning/old_planning_docs/whatsapp_db_logs_adaptation_v0.1.md.
 
 Views:
-  /               → redirect to /gm
-  /gm             → GM dashboard (all cases)
-  /fnb            → FNB view (dining reservations)
-  /sec            → SEC view (security / incidents)
-  /ops            → OPS view (gaming / events / admin)
-  /case/<id>      → case detail + minimal edit form
-  /case/<id>/edit → POST handler for edits
-  /export/<view>  → trigger Excel export (stubbed — see logs_export.py)
-  /seed           → load seed data (dev helper)
+  /                 → redirect to /gm
+  /gm               → GM dashboard (all cases)
+  /team/<team_key>  → one dashboard per tenant-defined team (was the fixed
+                      /fnb /sec /ops routes — routing is now arbitrary
+                      per-tenant via teams/assigned_team_id, not a fixed
+                      dept_target enum. See DB_Construction_Decisions_v0.1.md.)
+  /case/<id>        → case detail + minimal edit form
+  /case/<id>/edit   → POST handler for edits
+  /export/<view>    → trigger Excel export (stubbed — see logs_export.py)
+  /seed             → load seed data (dev helper)
 """
 
 import os
@@ -31,10 +32,9 @@ CASE_SELECT = "*, reservation_details(*, venues(display_name)), complaint_detail
 
 def _parse_filters(args) -> dict:
     return {
-        "status":      args.get("status", "").strip(),
-        "dept_target": args.get("dept_target", "").strip(),
-        "team_id":     args.get("team_id", "").strip(),
-        "q":           args.get("q", "").strip(),
+        "status":  args.get("status", "").strip(),
+        "team_id": args.get("team_id", "").strip(),
+        "q":       args.get("q", "").strip(),
     }
 
 
@@ -44,22 +44,21 @@ def _get_teams() -> list:
         client.table("teams")
         .select("id,team_key,display_name,dept_target")
         .eq("property_id", get_property_id())
-        .order("display_name")
+        .eq("active", True)
+        .order("team_key")
         .execute()
     )
     return res.data
 
 
-def _get_cases(dept_target: str | None, filters: dict) -> list:
+def _get_cases(filters: dict) -> list:
     client = get_client()
     query = client.table("cases").select(CASE_SELECT).eq("property_id", get_property_id())
 
-    if dept_target:
-        query = query.eq("dept_target", dept_target)
-    if filters.get("status"):
-        query = query.eq("status", filters["status"])
     if filters.get("team_id"):
         query = query.eq("assigned_team_id", filters["team_id"])
+    if filters.get("status"):
+        query = query.eq("status", filters["status"])
     if filters.get("q"):
         q = filters["q"]
         query = query.or_(f"guest_name.ilike.%{q}%,summary.ilike.%{q}%")
@@ -69,24 +68,24 @@ def _get_cases(dept_target: str | None, filters: dict) -> list:
 
 
 def _counts() -> dict:
-    """Return case counts per view for the nav bar."""
+    """Return case counts per view for the nav bar: total, one per team, and open."""
     client = get_client()
     property_id = get_property_id()
 
-    def count(dept_target: str | None = None, status_not_closed: bool = False) -> int:
+    def count(team_id: str | None = None, status_not_closed: bool = False) -> int:
         q = client.table("cases").select("id", count="exact").eq("property_id", property_id)
-        if dept_target:
-            q = q.eq("dept_target", dept_target)
+        if team_id:
+            q = q.eq("assigned_team_id", team_id)
         if status_not_closed:
             q = q.neq("status", "closed")
         return q.execute().count or 0
 
+    by_team = {t["team_key"]: count(team_id=t["id"]) for t in _get_teams()}
+
     return {
         "total": count(),
-        "fnb":   count(dept_target="FNB"),
-        "sec":   count(dept_target="SEC"),
-        "ops":   count(dept_target="OPS"),
-        "open":  count(status_not_closed=True),
+        "by_team": by_team,
+        "open": count(status_not_closed=True),
     }
 
 
@@ -100,40 +99,26 @@ def index():
 @app.route("/gm")
 def view_gm():
     filters = _parse_filters(request.args)
-    cases   = _get_cases(None, filters)
+    cases   = _get_cases(filters)
     return render_template("list.html",
         view="gm", title="GM — All Cases",
         cases=cases, filters=filters, teams=_get_teams(),
         statuses=VALID_STATUSES, counts=_counts())
 
 
-@app.route("/fnb")
-def view_fnb():
+@app.route("/team/<team_key>")
+def view_team(team_key):
+    teams = _get_teams()
+    team = next((t for t in teams if t["team_key"] == team_key), None)
+    if not team:
+        abort(404)
+
     filters = _parse_filters(request.args)
-    cases   = _get_cases("FNB", filters)
+    filters["team_id"] = team["id"]
+    cases = _get_cases(filters)
     return render_template("list.html",
-        view="fnb", title="FNB — Dining Reservations",
-        cases=cases, filters=filters, teams=_get_teams(),
-        statuses=VALID_STATUSES, counts=_counts())
-
-
-@app.route("/sec")
-def view_sec():
-    filters = _parse_filters(request.args)
-    cases   = _get_cases("SEC", filters)
-    return render_template("list.html",
-        view="sec", title="SEC — Security / Incidents",
-        cases=cases, filters=filters, teams=_get_teams(),
-        statuses=VALID_STATUSES, counts=_counts())
-
-
-@app.route("/ops")
-def view_ops():
-    filters = _parse_filters(request.args)
-    cases   = _get_cases("OPS", filters)
-    return render_template("list.html",
-        view="ops", title="OPS — Gaming / Events / Admin",
-        cases=cases, filters=filters, teams=_get_teams(),
+        view=f"team_{team_key}", title=f"{team['display_name']} — Cases",
+        cases=cases, filters=filters, teams=teams,
         statuses=VALID_STATUSES, counts=_counts())
 
 
@@ -193,7 +178,7 @@ def case_edit(case_id):
 
 @app.route("/export/<view_name>")
 def trigger_export(view_name):
-    valid = ["gm", "fnb", "sec", "ops", "all"]
+    valid = {"gm", "all"} | {t["team_key"] for t in _get_teams()}
     if view_name not in valid:
         abort(404)
     flash("Excel export is temporarily unavailable — pending a Supabase-schema rewrite of logs_export.py.", "error")

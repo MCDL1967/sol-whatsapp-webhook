@@ -1,8 +1,8 @@
 """
-logs_db.py
-Database layer for LOGS v2.
-Reads/writes Supabase directly (no local SQLite, no ingestion script).
-See docs/db_planning/old_planning_docs/whatsapp_db_logs_adaptation_v0.1.md.
+db.py
+Database layer for the Tenant Property Configuration Tool.
+Reads/writes Supabase directly, same pattern as logs/logs_db.py (service_role
+key, no user auth — see docs/db_planning/SOL_DB_Master_Plan_v1.0.md section 8).
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ TENANT_KEY = os.environ.get("TENANT_KEY", "sol_demo")
 PROPERTY_KEY = os.environ.get("PROPERTY_ID", "demo")
 
 _client: Client | None = None
+_tenant_id: str | None = None
 _property_id: str | None = None
 
 
@@ -30,16 +31,16 @@ def get_client() -> Client:
     if _client is None:
         if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
             raise RuntimeError(
-                "SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set — check logs/.env"
+                "SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set — check tenant_tool/.env"
             )
         _client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     return _client
 
 
-def get_property_id() -> str:
-    """Resolve and cache the demo tenant/property id (sol_demo/demo)."""
-    global _property_id
-    if _property_id is None:
+def get_tenant_id() -> str:
+    """Resolve and cache the demo tenant id (sol_demo)."""
+    global _tenant_id
+    if _tenant_id is None:
         client = get_client()
         tenant = (
             client.table("tenants")
@@ -48,10 +49,19 @@ def get_property_id() -> str:
             .single()
             .execute()
         )
+        _tenant_id = tenant.data["id"]
+    return _tenant_id
+
+
+def get_property_id() -> str:
+    """Resolve and cache the demo tenant/property id (sol_demo/demo)."""
+    global _property_id
+    if _property_id is None:
+        client = get_client()
         prop = (
             client.table("properties")
             .select("id")
-            .eq("tenant_id", tenant.data["id"])
+            .eq("tenant_id", get_tenant_id())
             .eq("property_key", PROPERTY_KEY)
             .single()
             .execute()

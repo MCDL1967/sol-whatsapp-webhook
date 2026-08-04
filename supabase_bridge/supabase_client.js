@@ -58,26 +58,37 @@ async function getDemoTenantAndProperty() {
   return { tenantId: tenant.id, propertyId: property.id };
 }
 
-async function resolveVenueId(propertyId, venueName) {
-  if (!venueName) return null;
+// Resolves both the venue row and its handoff team in one lookup — venues
+// now carries handoff_team_id (FK -> teams.id, added alongside cases'
+// existing assigned_team_id pattern; see
+// docs/db_planning/DB_Construction_Decisions_v0.1.md). Soft-fails on any
+// error, same as the venue-only lookup this replaces: never blocks the
+// reservation write.
+async function resolveVenue(propertyId, venueName) {
+  const empty = { id: null, handoffTeamId: null, handoffTeamKey: null };
+  if (!venueName) return empty;
 
   try {
     const { data: venue, error } = await supabase
       .from("venues")
-      .select("id")
+      .select("id, handoff_team_id, teams(team_key)")
       .eq("property_id", propertyId)
       .eq("display_name", venueName)
       .maybeSingle();
 
     if (error) {
       console.error(`[SUPABASE VENUE LOOKUP ERROR] venue_name=${venueName}`, error.message);
-      return null;
+      return empty;
     }
 
-    return venue?.id || null;
+    return {
+      id: venue?.id || null,
+      handoffTeamId: venue?.handoff_team_id || null,
+      handoffTeamKey: venue?.teams?.team_key || null
+    };
   } catch (err) {
     console.error(`[SUPABASE VENUE LOOKUP ERROR] venue_name=${venueName}`, err?.message || err);
-    return null;
+    return empty;
   }
 }
 
@@ -109,6 +120,8 @@ async function writeReservationCase(payload = {}) {
     throw new Error(`guest_thread upsert failed: ${guestThreadError?.message}`);
   }
 
+  const venue = await resolveVenue(propertyId, payload.venue_or_department);
+
   const { data: caseRow, error: caseError } = await supabase
     .from("cases")
     .insert({
@@ -116,7 +129,14 @@ async function writeReservationCase(payload = {}) {
       property_id: propertyId,
       guest_thread_id: guestThread.id,
       case_type: "reservation",
-      dept_target: "FNB",
+      // Team routing is now arbitrary per-tenant (see
+      // docs/db_planning/DB_Construction_Decisions_v0.1.md). Routes to the
+      // venue's configured handoff team when one is set; if the venue
+      // didn't resolve or has no handoff team configured, stays visibly
+      // "unrouted" rather than guessing — matches the same
+      // don't-fail-silently philosophy as the referential-integrity design.
+      dept_target: venue.handoffTeamKey || "unrouted",
+      assigned_team_id: venue.handoffTeamId,
       guest_name: payload.guest_name || null,
       guest_phone: payload.contact_phone || null,
       source_channel: "whatsapp",
@@ -129,11 +149,9 @@ async function writeReservationCase(payload = {}) {
     throw new Error(`case insert failed: ${caseError?.message}`);
   }
 
-  const venueId = await resolveVenueId(propertyId, payload.venue_or_department);
-
   const { error: detailsError } = await supabase.from("reservation_details").insert({
     case_id: caseRow.id,
-    venue_id: venueId,
+    venue_id: venue.id,
     requested_date: payload.service_date || null,
     requested_time: payload.service_time || null,
     party_size: payload.party_size || null,

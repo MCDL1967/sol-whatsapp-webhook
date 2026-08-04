@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Basics{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h1>Property Basics</h1>
+  <p class="hint">These fields tell your AI who it represents and how to speak to guests by default.</p>
+
+  <form method="POST" action="{{ url_for('save') }}">
+    <div class="field-grid">
+      <div class="field">
+        <label for="tenant_name">Tenant account name</label>
+        <p class="hint">The customer or company account. Example: Your Casino Group.</p>
+        <input type="text" id="tenant_name" name="tenant_name" value="{{ tenant.display_name }}">
+      </div>
+      <div class="field">
+        <label>Tenant key</label>
+        <p class="hint">A simple internal key. Your AI uses this as a stable identifier, not guest-facing copy.</p>
+        <input type="text" value="{{ tenant.tenant_key }}" disabled>
+      </div>
+
+      <div class="field">
+        <label for="property_name">Property name guests recognize</label>
+        <p class="hint">This appears in welcomes, confirmations, and staff-facing reports.</p>
+        <input type="text" id="property_name" name="property_name" value="{{ property.display_name }}">
+      </div>
+      <div class="field">
+        <label for="concierge_name">Concierge name</label>
+        <p class="hint">The name your AI uses when introducing itself to guests.</p>
+        <input type="text" id="concierge_name" name="concierge_name" value="{{ settings.concierge_name }}">
+      </div>
+
+      <div class="field">
+        <label for="timezone_name">Property timezone</label>
+        <p class="hint">Used for reservation dates, reports, and same-day routing decisions.</p>
+        <input type="text" id="timezone_name" name="timezone_name" value="{{ property.timezone }}">
+      </div>
+      <div class="field">
+        <label for="default_language">Default language</label>
+        <p class="hint">The language your AI starts with before a guest chooses another language.</p>
+        <select id="default_language" name="default_language">
+          {% for lang in language_choices %}
+            <option value="{{ lang }}" {% if settings.default_language == lang %}selected{% endif %}>{{ lang }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Supported languages</label>
+        <p class="hint">Languages your AI can switch to when a guest asks for one by name.</p>
+        <div class="checks">
+          {% for lang in language_choices %}
+            <label>
+              <input type="checkbox" name="supported_languages" value="{{ lang }}"
+                {% if lang in settings.supported_languages %}checked{% endif %}>
+              {{ lang }}
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="field">
+        <label>Property key</label>
+        <p class="hint">SOL/Admin-owned stable identifier for this property. Not editable here.</p>
+        <input type="text" value="{{ property.property_key }}" disabled>
+      </div>
+    </div>
+
+    <button type="submit">Save</button>
+  </form>
+</div>
+
+{% endblock %}
