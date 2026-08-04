@@ -23,6 +23,7 @@
       <a href="{{ url_for('basics') }}" class="{% if active == 'basics' %}active{% endif %}">Property Basics</a>
       <a href="{{ url_for('teams') }}" class="{% if active == 'teams' %}active{% endif %}">Teams</a>
       <a href="{{ url_for('venues') }}" class="{% if active == 'venues' %}active{% endif %}">Venues</a>
+      <a href="{{ url_for('menu_tree', branch_key='main_menu') }}" class="{% if active == 'menu_tree' %}active{% endif %}">Menu Tree</a>
       <a href="{{ url_for('guest_rules') }}" class="{% if active == 'guest_rules' %}active{% endif %}">Guest Rules</a>
       <a href="{{ url_for('review') }}" class="{% if active == 'review' %}active{% endif %}">Review &amp; Export</a>
     </nav>

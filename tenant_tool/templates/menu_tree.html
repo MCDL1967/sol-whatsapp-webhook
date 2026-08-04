@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Menu Tree{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h1>Menu Tree</h1>
+  <p class="hint">The menu your AI walks guests through. Add, rename, or remove branches and options — bounded to {{ max_depth }} levels deep and {{ max_children }} options per branch.</p>
+
+  <p class="breadcrumb">
+    {% for key, label in breadcrumbs %}
+      {% if not loop.last %}
+        <a href="{{ url_for('menu_tree', branch_key=key) }}">{{ label }}</a><span class="crumb-sep">›</span>
+      {% else %}
+        <strong>{{ label }}</strong>
+      {% endif %}
+    {% endfor %}
+  </p>
+
+  {% if not options %}
+    <p class="muted-note">No options yet in this branch.</p>
+  {% endif %}
+
+  {% for option in options %}
+    <form method="POST" action="{{ url_for('menu_tree_option_save', option_id=option.id) }}">
+      <div class="field-grid">
+        <div class="field">
+          <label for="label_en__{{ option.id }}">{{ option.choice_number }}. Label (English)</label>
+          <input type="text" id="label_en__{{ option.id }}" name="label_en" value="{{ option.label_en }}">
+        </div>
+        <div class="field">
+          <label for="label_es__{{ option.id }}">Label (Spanish)</label>
+          <input type="text" id="label_es__{{ option.id }}" name="label_es" value="{{ option.label_es or '' }}">
+        </div>
+      </div>
+      <div class="team-row-foot">
+        {% if option.next_branch_key %}
+          <a href="{{ url_for('menu_tree', branch_key=option.next_branch_key, via=option.id) }}">→ View submenu</a>
+        {% else %}
+          <span class="muted-note">Terminal option</span>
+        {% endif %}
+        <div class="btn-group">
+          <button type="submit">Save</button>
+          <button type="submit" class="danger"
+            formaction="{{ url_for('menu_tree_option_delete', option_id=option.id) }}" formnovalidate
+            onclick="return confirm('Remove &quot;{{ option.label_en }}&quot;?{% if option.next_branch_key %} Its sub-branch must be empty for this to succeed.{% endif %}')">
+            Delete
+          </button>
+        </div>
+      </div>
+    </form>
+    {% if not loop.last %}<hr>{% endif %}
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>Add an option</h2>
+
+  {% if at_breadth_limit %}
+    <p class="hint">This branch is at the max of {{ max_children }} options — remove one before adding another.</p>
+  {% else %}
+    <form method="POST" action="{{ url_for('menu_tree_option_add', branch_key=branch_key) }}">
+      <div class="field-grid">
+        <div class="field">
+          <label for="label_en">Label (English)</label>
+          <input type="text" id="label_en" name="label_en" placeholder="e.g. Spa &amp; fitness">
+        </div>
+        <div class="field">
+          <label for="label_es">Label (Spanish)</label>
+          <input type="text" id="label_es" name="label_es">
+        </div>
+
+        <div class="field span-2">
+          <label>Routes to</label>
+          <div class="checks">
+            <label><input type="radio" name="routing" value="terminal" checked> Terminal (no submenu)</label>
+            {% if not at_depth_limit %}
+              <label><input type="radio" name="routing" value="new"> New sub-branch</label>
+            {% endif %}
+            {% if sibling_target_keys %}
+              <label><input type="radio" name="routing" value="existing"> Existing sub-branch (shared)</label>
+            {% endif %}
+          </div>
+          {% if at_depth_limit %}
+            <p class="hint">This branch is already {{ depth }} levels deep, so new sub-branches aren't allowed here (max {{ max_depth }}).</p>
+          {% endif %}
+        </div>
+
+        {% if sibling_target_keys %}
+          <div class="field span-2">
+            <label for="existing_target">Shared sub-branch</label>
+            <p class="hint">Only used when "Existing sub-branch" is selected above — reuses a submenu already reached from another option here, the way every restaurant here leads to the same follow-up questions.</p>
+            <select id="existing_target" name="existing_target">
+              {% for key in sibling_target_keys %}
+                <option value="{{ key }}">{{ key }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        {% endif %}
+      </div>
+      <button type="submit" class="secondary">Add option</button>
+    </form>
+  {% endif %}
+</div>
+
+{% endblock %}

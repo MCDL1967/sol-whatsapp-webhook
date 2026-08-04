@@ -454,6 +454,341 @@ def venues_add():
     return redirect(url_for("venues"))
 
 
+def _load_menu_tree(client, property_id):
+    branches = (
+        client.table("menu_branches")
+        .select("id, branch_key, parent_branch_key")
+        .eq("property_id", property_id)
+        .eq("active", True)
+        .execute()
+        .data
+    )
+    branches_by_key = {b["branch_key"]: b for b in branches}
+
+    options = []
+    if branches:
+        options = (
+            client.table("menu_options")
+            .select("id, branch_id, option_key, label_en, label_es, choice_number, next_branch_key")
+            .in_("branch_id", [b["id"] for b in branches])
+            .eq("active", True)
+            .order("choice_number")
+            .execute()
+            .data
+        )
+    options_by_branch_id = {}
+    for o in options:
+        options_by_branch_id.setdefault(o["branch_id"], []).append(o)
+
+    return branches_by_key, options_by_branch_id
+
+
+def _branch_depth(branches_by_key, branch_key):
+    # Walks parent_branch_key up to main_menu (depth 0). A branch's depth is
+    # a property of the branch itself, not of which option led to it, so
+    # this stays well-defined even when several sibling options share one
+    # next_branch_key (see restaurants_menu -> restaurant_followup_menu).
+    depth = 0
+    key = branch_key
+    seen = set()
+    while True:
+        branch = branches_by_key.get(key)
+        parent = branch["parent_branch_key"] if branch else None
+        if not parent or parent in seen:
+            return depth
+        depth += 1
+        seen.add(parent)
+        key = parent
+
+
+def _branch_label(branches_by_key, options_by_branch_id, branch_key):
+    # menu_branches has no display-name column — a branch's guest-facing
+    # label is whichever option's label led to it. Falls back to the raw
+    # key if no parent option is found (shouldn't happen outside main_menu).
+    if branch_key == "main_menu":
+        return "Main Menu"
+    branch = branches_by_key.get(branch_key)
+    parent = branches_by_key.get(branch["parent_branch_key"]) if branch else None
+    if not parent:
+        return branch_key
+    for option in options_by_branch_id.get(parent["id"], []):
+        if option["next_branch_key"] == branch_key:
+            return option["label_en"]
+    return branch_key
+
+
+def _breadcrumb_trail(branches_by_key, options_by_branch_id, branch_key, current_label=None):
+    # current_label overrides only the trailing (current-branch) crumb, so a
+    # shared branch (e.g. restaurant_followup_menu, reached by 7 different
+    # venue options) shows the option actually clicked rather than always
+    # the first sibling that happens to point there — see the "via" param
+    # on the menu_tree route.
+    trail = []
+    key = branch_key
+    seen = set()
+    first = True
+    while key and key not in seen:
+        seen.add(key)
+        label = current_label if (first and current_label is not None) else _branch_label(
+            branches_by_key, options_by_branch_id, key
+        )
+        trail.append((key, label))
+        first = False
+        branch = branches_by_key.get(key)
+        key = branch["parent_branch_key"] if branch else None
+    trail.reverse()
+    return trail
+
+
+def _next_option_key(client, branch_id):
+    rows = (
+        client.table("menu_options")
+        .select("option_key")
+        .eq("branch_id", branch_id)
+        .execute()
+        .data
+    )
+    used = {
+        int(m.group(1))
+        for row in rows
+        if (m := re.fullmatch(r"option_(\d+)", row["option_key"]))
+    }
+    n = 1
+    while n in used:
+        n += 1
+    return f"option_{n}"
+
+
+def _menu_limits(client, property_id):
+    return (
+        client.table("property_settings")
+        .select("menu_max_depth, menu_max_children_per_branch")
+        .eq("property_id", property_id)
+        .single()
+        .execute()
+        .data
+    )
+
+
+@app.route("/menu-tree/<branch_key>")
+def menu_tree(branch_key):
+    client = get_client()
+    property_id = get_property_id()
+    branches_by_key, options_by_branch_id = _load_menu_tree(client, property_id)
+
+    branch = branches_by_key.get(branch_key)
+    if not branch:
+        abort(404)
+
+    limits = _menu_limits(client, property_id)
+    options = options_by_branch_id.get(branch["id"], [])
+    depth = _branch_depth(branches_by_key, branch_key)
+
+    current_label = None
+    via_option_id = request.args.get("via")
+    parent = branches_by_key.get(branch["parent_branch_key"]) if branch["parent_branch_key"] else None
+    if via_option_id and parent:
+        for opt in options_by_branch_id.get(parent["id"], []):
+            if opt["id"] == via_option_id and opt["next_branch_key"] == branch_key:
+                current_label = opt["label_en"]
+                break
+
+    return render_template(
+        "menu_tree.html",
+        branch_key=branch_key,
+        options=options,
+        depth=depth,
+        max_depth=limits["menu_max_depth"],
+        max_children=limits["menu_max_children_per_branch"],
+        at_breadth_limit=len(options) >= limits["menu_max_children_per_branch"],
+        at_depth_limit=depth >= limits["menu_max_depth"],
+        sibling_target_keys=sorted({o["next_branch_key"] for o in options if o["next_branch_key"]}),
+        breadcrumbs=_breadcrumb_trail(branches_by_key, options_by_branch_id, branch_key, current_label),
+        active="menu_tree",
+    )
+
+
+@app.route("/menu-tree/<branch_key>/options/add", methods=["POST"])
+def menu_tree_option_add(branch_key):
+    client = get_client()
+    property_id = get_property_id()
+    branches_by_key, options_by_branch_id = _load_menu_tree(client, property_id)
+
+    branch = branches_by_key.get(branch_key)
+    if not branch:
+        abort(404)
+
+    label_en = request.form.get("label_en", "").strip()
+    label_es = request.form.get("label_es", "").strip()
+    routing = request.form.get("routing", "terminal")
+    existing_target = request.form.get("existing_target", "").strip()
+
+    if not label_en:
+        flash("New option needs a label.", "error")
+        return redirect(url_for("menu_tree", branch_key=branch_key))
+
+    options = options_by_branch_id.get(branch["id"], [])
+    limits = _menu_limits(client, property_id)
+
+    if len(options) >= limits["menu_max_children_per_branch"]:
+        flash(f"This branch already has the max {limits['menu_max_children_per_branch']} options.", "error")
+        return redirect(url_for("menu_tree", branch_key=branch_key))
+
+    next_branch_key = None
+    if routing == "new":
+        depth = _branch_depth(branches_by_key, branch_key)
+        if depth + 1 > limits["menu_max_depth"]:
+            flash(f"A new sub-branch here would be {depth + 1} levels deep — the max is {limits['menu_max_depth']}.", "error")
+            return redirect(url_for("menu_tree", branch_key=branch_key))
+        new_branch_key = _next_slot_key(client, "menu_branches", "branch_key", property_id, "branch")
+        client.table("menu_branches").insert(
+            {
+                "property_id": property_id,
+                "branch_key": new_branch_key,
+                "parent_branch_key": branch_key,
+                "display_order": len(options) + 1,
+                "active": True,
+            }
+        ).execute()
+        next_branch_key = new_branch_key
+    elif routing == "existing":
+        # Sibling reuse only — every option offered here already targets a
+        # branch whose parent_branch_key is this branch, so reusing it can't
+        # give that branch a second, structurally different parent.
+        sibling_keys = {o["next_branch_key"] for o in options if o["next_branch_key"]}
+        if existing_target not in sibling_keys:
+            flash("Choose one of this branch's existing sub-branches to reuse.", "error")
+            return redirect(url_for("menu_tree", branch_key=branch_key))
+        next_branch_key = existing_target
+
+    client.table("menu_options").insert(
+        {
+            "branch_id": branch["id"],
+            "option_key": _next_option_key(client, branch["id"]),
+            "label_en": label_en,
+            "label_es": label_es or None,
+            "choice_number": len(options) + 1,
+            "next_branch_key": next_branch_key,
+            "active": True,
+        }
+    ).execute()
+
+    flash(f'Added "{label_en}".', "success")
+    return redirect(url_for("menu_tree", branch_key=branch_key))
+
+
+@app.route("/menu-tree/options/<option_id>/save", methods=["POST"])
+def menu_tree_option_save(option_id):
+    client = get_client()
+    property_id = get_property_id()
+
+    option = (
+        client.table("menu_options")
+        .select("id, branch_id, option_key")
+        .eq("id", option_id)
+        .maybe_single()
+        .execute()
+        .data
+    )
+    if not option:
+        abort(404)
+    branch = (
+        client.table("menu_branches")
+        .select("branch_key, property_id")
+        .eq("id", option["branch_id"])
+        .single()
+        .execute()
+        .data
+    )
+    if not branch or branch["property_id"] != property_id:
+        abort(404)
+
+    label_en = request.form.get("label_en", "").strip()
+    label_es = request.form.get("label_es", "").strip()
+    if not label_en:
+        flash(f"{option['option_key']}: label is required.", "error")
+        return redirect(url_for("menu_tree", branch_key=branch["branch_key"]))
+
+    client.table("menu_options").update(
+        {"label_en": label_en, "label_es": label_es or None}
+    ).eq("id", option_id).execute()
+
+    flash("Saved to Supabase.", "success")
+    return redirect(url_for("menu_tree", branch_key=branch["branch_key"]))
+
+
+@app.route("/menu-tree/options/<option_id>/delete", methods=["POST"])
+def menu_tree_option_delete(option_id):
+    client = get_client()
+    property_id = get_property_id()
+
+    option = (
+        client.table("menu_options")
+        .select("id, branch_id, label_en, next_branch_key")
+        .eq("id", option_id)
+        .maybe_single()
+        .execute()
+        .data
+    )
+    if not option:
+        abort(404)
+    branch = (
+        client.table("menu_branches")
+        .select("id, branch_key, property_id")
+        .eq("id", option["branch_id"])
+        .single()
+        .execute()
+        .data
+    )
+    if not branch or branch["property_id"] != property_id:
+        abort(404)
+
+    if option["next_branch_key"]:
+        target_branch = (
+            client.table("menu_branches")
+            .select("id")
+            .eq("property_id", property_id)
+            .eq("branch_key", option["next_branch_key"])
+            .maybe_single()
+            .execute()
+            .data
+        )
+        if target_branch:
+            other_siblings_pointing_here = (
+                client.table("menu_options")
+                .select("id", count="exact")
+                .eq("branch_id", branch["id"])
+                .eq("next_branch_key", option["next_branch_key"])
+                .neq("id", option_id)
+                .execute()
+                .count
+                or 0
+            )
+            if other_siblings_pointing_here == 0:
+                # This is the last option pointing at the sub-branch — it
+                # only comes along for the ride if that sub-branch is empty.
+                options_inside_target = (
+                    client.table("menu_options")
+                    .select("id", count="exact")
+                    .eq("branch_id", target_branch["id"])
+                    .execute()
+                    .count
+                    or 0
+                )
+                if options_inside_target > 0:
+                    flash(
+                        f"\"{option['label_en']}\" leads to a sub-branch that still has "
+                        f"{options_inside_target} option(s) — remove those first.",
+                        "error",
+                    )
+                    return redirect(url_for("menu_tree", branch_key=branch["branch_key"]))
+                client.table("menu_branches").delete().eq("id", target_branch["id"]).execute()
+
+    client.table("menu_options").delete().eq("id", option_id).execute()
+    flash(f"Removed \"{option['label_en']}\".", "success")
+    return redirect(url_for("menu_tree", branch_key=branch["branch_key"]))
+
+
 GUEST_RULES_FLAG_KEY = "venue_specific_hours_configured"
 
 

@@ -182,6 +182,15 @@ button.danger:hover { background: #7d2933; }
 .team-row-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
 .team-row-foot button { margin-top: 0; }
 
+.btn-group { display: flex; gap: 10px; }
+
+.breadcrumb { margin: 0 0 16px; font-size: 0.9rem; color: var(--muted); }
+.breadcrumb a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.breadcrumb a:hover { text-decoration: underline; }
+.breadcrumb .crumb-sep { margin: 0 6px; color: var(--line); }
+
+.muted-note { color: var(--muted); font-size: 0.86rem; }
+
 .flash { padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 0.92rem; }
 .flash-success { background: #e4f3ea; color: var(--ok); }
 .flash-error { background: #f8e6e8; color: var(--danger); }
