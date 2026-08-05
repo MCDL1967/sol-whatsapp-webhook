@@ -110,6 +110,12 @@ function buildBranchEntryReply({ menuBranches, responseTemplates, venues, branch
   return buildOptionReply({ responseTemplates, venues, option: entryOption, session, language });
 }
 
+const NUMBER_EMOJI = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+
+function numberLabel(choiceNumber) {
+  return NUMBER_EMOJI[choiceNumber - 1] || `${choiceNumber}.`;
+}
+
 function buildGenericList(branch, venues, language) {
   const options = (branch.options || [])
     .filter((o) => o.choice_number != null)
@@ -117,11 +123,12 @@ function buildGenericList(branch, venues, language) {
 
   const lines = options.map((o) => {
     const label = (language === 'es' ? o.label_es : o.label_en) || o.label_en;
+    const number = numberLabel(o.choice_number);
     if (o.venue_id) {
       const description = venueDescription(findVenue(venues, o.venue_id), language);
-      return description ? `${o.choice_number}. ${label} — ${description}` : `${o.choice_number}. ${label}`;
+      return description ? `${number} ${label} — ${description}` : `${number} ${label}`;
     }
-    return `${o.choice_number}. ${label}`;
+    return `${number} ${label}`;
   });
 
   const intro = GENERIC_LIST_INTRO[language] || GENERIC_LIST_INTRO.en;

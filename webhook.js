@@ -3291,7 +3291,17 @@ app.post("/webhook", async (req, res) => {
             guest_name: preResetGuestProfile.guest_name || null,
             contact_phone: preResetGuestProfile.contact_phone || null,
             case_type: preResetCaseType,
-            summary: preResetCaseType === "incident" ? "Incident reported via WhatsApp" : "Complaint reported via WhatsApp"
+            // The LLM's own last reply is a real, specific account of what the
+            // guest reported (see the sample "Theft report" summary in a live
+            // test) -- far better than a fixed generic line, and free: it's
+            // already sitting in session state before the exit-reset below
+            // overwrites it. Still walking-skeleton-adjacent: this is raw
+            // conversational text, not structured complaint_details/
+            // incident_details fields (category/severity/location) -- see the
+            // "LLM text -> structured case fields" item flagged in the master
+            // plan for the real follow-up work.
+            summary: sessions[userID]?.last_bot_reply ||
+              (preResetCaseType === "incident" ? "Incident reported via WhatsApp" : "Complaint reported via WhatsApp")
           });
           console.log(`[SUPABASE ${preResetCaseType.toUpperCase()} WRITE] user=${userID} case_id=${caseId || "skipped"}`);
         } catch (err) {
