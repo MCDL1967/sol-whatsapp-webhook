@@ -321,6 +321,7 @@ function createReservationContext() {
     service_time: null,
     venue_or_department: null,
     party_size: null,
+    special_requests: null,
     reservation_summary: null
   };
 }
@@ -3242,6 +3243,7 @@ app.post("/webhook", async (req, res) => {
           service_time: preResetReservationContext.service_time || null,
           venue_or_department: preResetReservationContext.venue_or_department || null,
           party_size: preResetReservationContext.party_size || null,
+          special_requests: preResetReservationContext.special_requests || null,
           reservation_summary: closureSummary || null
         };
  
@@ -3275,6 +3277,7 @@ app.post("/webhook", async (req, res) => {
             service_time: preExitReservationClosure.service_time || null,
             venue_or_department: preExitReservationClosure.venue_or_department || null,
             party_size: preExitReservationClosure.party_size || null,
+            special_requests: preExitReservationClosure.special_requests || null,
             summary: preExitReservationClosure.reservation_summary || null
           });
           console.log(`[SUPABASE RESERVATION WRITE] user=${userID} case_id=${caseId || "skipped"}`);
@@ -3897,8 +3900,16 @@ app.post("/webhook", async (req, res) => {
  
  
     // ═══════════════════════════════════════════════════════════════════════════
-    // VF BRIDGE — PHASE 1 READ BLOCK (v13.1.21)
-    // Reads VF session state after interact resolves. Read/log only.
+    // VF BRIDGE — PHASE 2 (v14.0.7): guest_name/notes now flow from
+    // reservation_candidate into session state, on top of the original
+    // Phase 1 read/log block. Voiceflow's own extraction is more reliable
+    // than the narrow last_bot_reply-was-a-name-prompt heuristic
+    // (extractGuestName) for a natural conversation -- confirmed live, where
+    // a guest stating their name mid-conversation never reached
+    // session.guest_profile.guest_name under the old heuristic alone.
+    // contact_phone deliberately untouched here -- there's already a
+    // dedicated phone-reuse-confirmation flow this must not bypass.
+    // Reads VF session state after interact resolves.
     // Non-fatal: bridge failure cannot break the user-facing response path.
     // ═══════════════════════════════════════════════════════════════════════════
     const _vfEnd = Date.now();
@@ -3906,13 +3917,34 @@ app.post("/webhook", async (req, res) => {
     const _bridgeStart = Date.now();
     try {
       const vfStateResult = await readVfState(userID);
- 
+
       if (vfStateResult.ok) {
-        readReservationCandidate(vfStateResult.state);
+        const reservationCandidateResult = readReservationCandidate(vfStateResult.state);
+        const candidate = reservationCandidateResult?.candidate;
+
+        if (candidate?.guest_name) {
+          updateSession(userID, {
+            guest_profile: {
+              ...(sessions[userID]?.guest_profile || createGuestProfile(userID)),
+              guest_name: candidate.guest_name
+            }
+          });
+          console.log(`[VF-BRIDGE-P2] guest_name adopted from reservation_candidate user=${userID} guest_name=${candidate.guest_name}`);
+        }
+
+        if (candidate?.notes) {
+          updateSession(userID, {
+            reservation_context: {
+              ...(sessions[userID]?.reservation_context || createReservationContext()),
+              special_requests: candidate.notes
+            }
+          });
+          console.log(`[VF-BRIDGE-P2] special_requests adopted from reservation_candidate user=${userID} notes="${candidate.notes}"`);
+        }
       }
       // If !ok: readVfState already logged the failure with [VF-BRIDGE-P1] prefix.
       // Normal webhook behavior continues regardless.
- 
+
     } catch (bridgeErr) {
       // Belt-and-suspenders: catch any unexpected bridge error.
       // Must never reach the user-facing path.
@@ -4092,6 +4124,7 @@ app.post("/webhook", async (req, res) => {
         service_time: mergedReservationContext.service_time || null,
         venue_or_department: mergedReservationContext.venue_or_department || null,
         party_size: mergedReservationContext.party_size || null,
+        special_requests: mergedReservationContext.special_requests || null,
         reservation_summary: closureSummary || null
       };
  
@@ -4137,6 +4170,7 @@ app.post("/webhook", async (req, res) => {
           service_time: preExitReservationClosure.service_time || null,
           venue_or_department: preExitReservationClosure.venue_or_department || null,
           party_size: preExitReservationClosure.party_size || null,
+          special_requests: preExitReservationClosure.special_requests || null,
           summary: closureSummary || null
         });
         console.log(`[SUPABASE RESERVATION WRITE] user=${userID} case_id=${caseId || "skipped"}`);

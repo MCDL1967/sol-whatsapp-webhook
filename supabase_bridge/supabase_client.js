@@ -12,9 +12,10 @@ venue_id resolution: payload.venue_or_department is matched by exact string
         see docs/db_planning/old_planning_docs/whatsapp_db_logs_adaptation_v0.1.md). If no
         match is found (e.g. a venue not yet seeded), venue_id stays null —
         soft-fail, never blocks the reservation write.
-Known limitation: no real guest "special requests" capture exists anywhere
-        in the current conversation flow, so reservation_details.special_requests
-        is always null today.
+special_requests: sourced from the VF bridge's reservation_candidate.notes
+        field (webhook.js's "VF BRIDGE — PHASE 2" block), not from
+        conversation parsing here -- stays null if Voiceflow never captured
+        a notes value.
 */
 
 const { createClient } = require("@supabase/supabase-js");
@@ -161,7 +162,7 @@ async function writeReservationCase(payload = {}) {
     requested_date: payload.service_date || null,
     requested_time: payload.service_time || null,
     party_size: payload.party_size || null,
-    special_requests: null
+    special_requests: payload.special_requests || null
   });
 
   if (detailsError) {
