@@ -242,7 +242,7 @@ const path = require("path");
 const logsService = require("./logs_service");
 const { readVfState }              = require('./vf_bridge/vf_state_reader');
 const { readReservationCandidate } = require('./vf_bridge/reservation_candidate_reader');
-const { writeReservationCase } = require('./supabase_bridge/supabase_client');
+const { writeReservationCase, writeCaseFromActiveRequest } = require('./supabase_bridge/supabase_client');
 const { loadPropertyPackage } = require('./src/fast_path/property_loader');
 const { classifyFastPath } = require('./src/fast_path/fast_path_classifier');
 const { buildResponse } = require('./src/fast_path/fast_path_responder');
@@ -1494,13 +1494,13 @@ function extractReservationDetailContext(text = "", session = null) {
   const partySize = extractReservationPartySize(text);
  
   let venue = extractReservationVenue(text, session);
- 
-  if (
-    !venue &&
-    session?.fast_path_context === "restaurant_followup_menu" &&
-    session?.selected_restaurant
-  ) {
-    venue = extractKnownReservationVenue(session.selected_restaurant);
+
+  // session.selected_restaurant is now set only via a real menu_options.venue_id
+  // resolution (see src/fast_path/fast_path_responder.js) and cleared on every
+  // menu/restart/exit reset, so it no longer needs a fast_path_context branch-
+  // name check to avoid leaking a stale venue into an unrelated later turn.
+  if (!venue && session?.selected_restaurant) {
+    venue = session.selected_restaurant;
   }
  
   return {
@@ -1524,8 +1524,7 @@ function hasStructuredReservationDetails(text = "", session = null) {
  
 function buildRestaurantReservationHandoffPrefix(session = null, userText = "", detectedIntent = null) {
   if (!session?.selected_restaurant) return "";
-  if (session?.fast_path_context !== "restaurant_followup_menu") return "";
- 
+
   const isStructuredContinuation = hasStructuredReservationDetails(userText, session);
   const isReservationAlreadyActive = session?.active_request?.type === "reservation";
   const isExplicitReservationIntent = detectedIntent === "reservation";
@@ -1688,7 +1687,7 @@ function buildVoiceflowStateVariables(session, userText = "", options = {}) {
   } : {};
  
   // ── INCIDENT GROUP: only on complaint/security active requests ───────────────
-  const incidentVars = activeRequestType === "complaint" || activeRequestType === "security" ? {
+  const incidentVars = activeRequestType === "complaint" || activeRequestType === "incident" ? {
     middleware_relative_minutes_ago: runtimeContext.relative_minutes_ago,
     middleware_approximate_incident_date: runtimeContext.approximate_incident_date,
     middleware_approximate_incident_time: runtimeContext.approximate_incident_time
@@ -2234,27 +2233,7 @@ function detectIntent(text, currentRequestType = null) {
     "cargo",
     "charge",
     "mal servicio",
-    "wrong charge",
-    "robbed",
-    "stole",
-    "stolen",
-    "theft",
-    "theft report",
-    "wallet",
-    "cartera",
-    "robo",
-    "robbery",
-    "asalto",
-    "asaltaron",
-    "me robaron",
-    "security",
-    "seguridad",
-    "ambulance",
-    "ambulancia",
-    "police",
-    "policia",
-    "lost wallet",
-    "missing wallet"
+    "wrong charge"
   ];
  
   const reservationKeywords = [
@@ -2331,11 +2310,23 @@ function detectIntent(text, currentRequestType = null) {
     "pax"
   ];
  
-  if (currentRequestType === "complaint" && containsAny(t, securityLocationFollowupKeywords)) {
-    return "complaint";
+  if (
+    (currentRequestType === "complaint" || currentRequestType === "incident") &&
+    containsAny(t, securityLocationFollowupKeywords)
+  ) {
+    return currentRequestType;
   }
- 
-  if (containsAny(t, complaintKeywords) || containsAny(t, theftSignals)) {
+
+  // Theft/safety/security signals classify as "incident" (case_type
+  // "incident", written to incident_details), distinct from general
+  // service/billing complaints ("complaint", written to complaint_details) --
+  // previously both collapsed into "complaint" here, meaning incident_details
+  // could never receive a real write regardless of what the guest reported.
+  if (containsAny(t, theftSignals)) {
+    return "incident";
+  }
+
+  if (containsAny(t, complaintKeywords)) {
     return "complaint";
   }
  
@@ -2380,6 +2371,7 @@ function initialStatusForType(type) {
   switch (type) {
     case "reservation":
     case "complaint":
+    case "incident":
     case "info":
     default:
       return "inquiry";
@@ -2907,7 +2899,7 @@ app.post("/webhook", async (req, res) => {
     // path, before Voiceflow. Never fires when awaiting_language is true.
     if (combinedMenuLanguageCommand && !effectiveAwaitingLanguage) {
       const targetLang = combinedMenuLanguageCommand;
-      const propertyDataForMenu = loadPropertyPackage(PROPERTY_ID);
+      const propertyDataForMenu = await loadPropertyPackage(PROPERTY_ID);
       const menuTemplates = propertyDataForMenu?.responseTemplates || {};
       const mainMenuReply =
         targetLang === "es"
@@ -2978,16 +2970,16 @@ app.post("/webhook", async (req, res) => {
       allowNumericSelection: activeLanguagePromptContext
     })) {
       try {
-        const propertyData = loadPropertyPackage(PROPERTY_ID);
+        const propertyData = await loadPropertyPackage(PROPERTY_ID);
  
         const fastPathResult = classifyFastPath({
           input: userText,
           session,
-          menuDictionary: propertyData.menuDictionary
+          menuBranches: propertyData.menuBranches
         });
  
         if (fastPathResult) {
-          console.log(`[FAST PATH HIT] user=${userID} session_id=${session.session_id} type=${fastPathResult.type} key=${fastPathResult.key || "—"}`);
+          console.log(`[FAST PATH HIT] user=${userID} session_id=${session.session_id} type=${fastPathResult.type} key=${fastPathResult.option_key || fastPathResult.branch_key || "—"}`);
  
           const fastPathReply = buildResponse({
             result: fastPathResult,
@@ -3060,7 +3052,7 @@ app.post("/webhook", async (req, res) => {
               console.error(`[FAST PATH OUTBOUND ERROR → VF FALLBACK] user=${userID} session_id=${session.session_id} error=${sendErr?.response?.status || ""} ${sendErr?.message || sendErr}`);
             }
           } else {
-            console.log(`[FAST PATH NO REPLY → VF FALLBACK] user=${userID} session_id=${session.session_id} type=${fastPathResult.type} key=${fastPathResult.key || "—"}`);
+            console.log(`[FAST PATH NO REPLY → VF FALLBACK] user=${userID} session_id=${session.session_id} type=${fastPathResult.type} key=${fastPathResult.option_key || fastPathResult.branch_key || "—"}`);
           }
         }
       } catch (err) {
@@ -3073,6 +3065,16 @@ app.post("/webhook", async (req, res) => {
     let requestControlEvent = null;
     const wasActiveReservationBeforeReset =
       exitCommand && sessions[userID]?.active_request?.type === "reservation";
+    // Mirrors wasActiveReservationBeforeReset for the other two case-producing
+    // types — captures which one (if any) was active before exit resets the
+    // session, so the closure block below knows whether to write and which
+    // case_type/detail table to target.
+    const preResetCaseType =
+      exitCommand &&
+      (sessions[userID]?.active_request?.type === "complaint" ||
+        sessions[userID]?.active_request?.type === "incident")
+        ? sessions[userID].active_request.type
+        : null;
     const preResetGuestProfile = { ...(sessions[userID]?.guest_profile || createGuestProfile(userID)) };
     const preResetReservationContext = { ...(sessions[userID]?.reservation_context || createReservationContext()) };
     let preExitReservationClosure = null;
@@ -3086,20 +3088,29 @@ app.post("/webhook", async (req, res) => {
         side_chat_count: 0,
         guest_profile: createGuestProfile(userID),
         reservation_context: createReservationContext(),
+        selected_restaurant: null,
+        selected_venue_id: null,
         last_bot_reply: null,
         state: "idle",
         fast_path_context: "main_menu"
       });
- 
+
       console.log(`[REQUEST RESET] user=${userID} reason=restart_command`);
       await deleteVoiceflowState(userID, "restart_command");
       requestControlEvent = { request_action: "reset", reason: "restart_command" };
     } else if (menuCommand) {
+      // selected_restaurant/selected_venue_id follow the same keep-if-actively-
+      // reserving rule as reservation_context's venue fields just below --
+      // otherwise a guest who says "menu" mid-reservation would lose the venue
+      // the handoff prefix (buildRestaurantReservationHandoffPrefix) needs.
+      const isActivelyReserving = sessions[userID]?.active_request?.type === "reservation";
       updateSession(userID, {
         active_request: null,
         side_chat_count: 0,
         fast_path_context: "main_menu",
-        reservation_context: sessions[userID]?.active_request?.type === "reservation"
+        selected_restaurant: isActivelyReserving ? sessions[userID]?.selected_restaurant || null : null,
+        selected_venue_id: isActivelyReserving ? sessions[userID]?.selected_venue_id || null : null,
+        reservation_context: isActivelyReserving
           ? {
               ...createReservationContext(),
               venue_or_department: sessions[userID].reservation_context?.venue_or_department || null,
@@ -3120,11 +3131,13 @@ app.post("/webhook", async (req, res) => {
         side_chat_count: 0,
         guest_profile: createGuestProfile(userID),
         reservation_context: createReservationContext(),
+        selected_restaurant: null,
+        selected_venue_id: null,
         last_bot_reply: null,
         state: "idle",
         fast_path_context: "main_menu"
       });
- 
+
       console.log(`[REQUEST RESET] user=${userID} reason=exit_command`);
       await deleteVoiceflowState(userID, "exit_command");
       requestControlEvent = { request_action: "reset", reason: "exit_command" };
@@ -3269,7 +3282,23 @@ app.post("/webhook", async (req, res) => {
           console.error(`[SUPABASE RESERVATION WRITE ERROR] user=${userID}`, err?.stack || err?.message || err);
         }
       }
- 
+
+      // ---- SUPABASE COMPLAINT/INCIDENT WRITE (minimal walking-skeleton path -- soft-fail, never blocks reply) ----
+      if (preResetCaseType) {
+        try {
+          const caseId = await writeCaseFromActiveRequest({
+            user_id: userID,
+            guest_name: preResetGuestProfile.guest_name || null,
+            contact_phone: preResetGuestProfile.contact_phone || null,
+            case_type: preResetCaseType,
+            summary: preResetCaseType === "incident" ? "Incident reported via WhatsApp" : "Complaint reported via WhatsApp"
+          });
+          console.log(`[SUPABASE ${preResetCaseType.toUpperCase()} WRITE] user=${userID} case_id=${caseId || "skipped"}`);
+        } catch (err) {
+          console.error(`[SUPABASE ${preResetCaseType.toUpperCase()} WRITE ERROR] user=${userID}`, err?.stack || err?.message || err);
+        }
+      }
+
       updateSession(userID, { state: "idle", active_request: null, last_bot_reply: exitReply });
  
       console.log(`[SESSION AFTER]`, getSessionSummary(sessions[userID]));
@@ -3423,7 +3452,7 @@ app.post("/webhook", async (req, res) => {
       isRestaurantReservationScoped &&
       partySizeRoutingFromText.requires_vip_group_handoff
     ) {
-      const propertyDataForVipGroup = loadPropertyPackage(PROPERTY_ID);
+      const propertyDataForVipGroup = await loadPropertyPackage(PROPERTY_ID);
       const vipGroupReply =
         currentSessionAfterControl?.current_language === "es"
           ? propertyDataForVipGroup?.responseTemplates?.vip_group_handoff_restaurant_es
@@ -3597,7 +3626,7 @@ app.post("/webhook", async (req, res) => {
     const currentTurnHasTimeSignal = !!currentTurnRequestedTime;
     const isSafetySensitiveRequest =
       sessions[userID]?.active_request?.type === "complaint" ||
-      sessions[userID]?.active_request?.type === "security";
+      sessions[userID]?.active_request?.type === "incident";
  
     const isShortStructuredTurn =
       normalizeText(userText).length <= 60 &&
@@ -3934,7 +3963,7 @@ app.post("/webhook", async (req, res) => {
     // guest's choice (reuse / new number / decline).
     let _phoneReuseOfferApplied = false;
     try {
-      const _propertyDataForReuse = loadPropertyPackage(PROPERTY_ID);
+      const _propertyDataForReuse = await loadPropertyPackage(PROPERTY_ID);
       const _phoneReuseOffer = maybeBuildPhoneReuseOffer({
         reply: consolidatedReply,
         session: sessions[userID],
@@ -4105,7 +4134,23 @@ app.post("/webhook", async (req, res) => {
         console.error(`[SUPABASE RESERVATION WRITE ERROR] user=${userID}`, err?.stack || err?.message || err);
       }
     }
- 
+
+    // ---- SUPABASE COMPLAINT/INCIDENT WRITE (minimal walking-skeleton path — soft-fail, never blocks reply) ----
+    if (preResetCaseType) {
+      try {
+        const caseId = await writeCaseFromActiveRequest({
+          user_id: userID,
+          guest_name: preResetGuestProfile.guest_name || null,
+          contact_phone: preResetGuestProfile.contact_phone || null,
+          case_type: preResetCaseType,
+          summary: preResetCaseType === "incident" ? "Incident reported via WhatsApp" : "Complaint reported via WhatsApp"
+        });
+        console.log(`[SUPABASE ${preResetCaseType.toUpperCase()} WRITE] user=${userID} case_id=${caseId || "skipped"}`);
+      } catch (err) {
+        console.error(`[SUPABASE ${preResetCaseType.toUpperCase()} WRITE ERROR] user=${userID}`, err?.stack || err?.message || err);
+      }
+    }
+
     updateSession(
       userID,
       exitCommand

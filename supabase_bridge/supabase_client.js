@@ -92,23 +92,14 @@ async function resolveVenue(propertyId, venueName) {
   }
 }
 
-async function writeReservationCase(payload = {}) {
-  if (!supabase) {
-    console.error(
-      "[SUPABASE] SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set — skipping reservation write"
-    );
-    return null;
-  }
-
-  const { tenantId, propertyId } = await getDemoTenantAndProperty();
-
+async function upsertGuestThread(tenantId, propertyId, userId) {
   const { data: guestThread, error: guestThreadError } = await supabase
     .from("guest_threads")
     .upsert(
       {
         tenant_id: tenantId,
         property_id: propertyId,
-        external_user_id: payload.user_id,
+        external_user_id: userId,
         channel: "whatsapp"
       },
       { onConflict: "property_id,channel,external_user_id" }
@@ -119,6 +110,21 @@ async function writeReservationCase(payload = {}) {
   if (guestThreadError || !guestThread) {
     throw new Error(`guest_thread upsert failed: ${guestThreadError?.message}`);
   }
+
+  return guestThread;
+}
+
+async function writeReservationCase(payload = {}) {
+  if (!supabase) {
+    console.error(
+      "[SUPABASE] SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set — skipping reservation write"
+    );
+    return null;
+  }
+
+  const { tenantId, propertyId } = await getDemoTenantAndProperty();
+
+  const guestThread = await upsertGuestThread(tenantId, propertyId, payload.user_id);
 
   const venue = await resolveVenue(propertyId, payload.venue_or_department);
 
@@ -165,4 +171,66 @@ async function writeReservationCase(payload = {}) {
   return caseRow.id;
 }
 
-module.exports = { writeReservationCase };
+// Walking-skeleton write for complaint/incident cases — same soft-fail
+// pattern as writeReservationCase. No accumulated conversational context
+// exists for these yet (unlike reservation_context), so complaint_details/
+// incident_details only get case_id today; category/severity/location stay
+// null until that context-tracking is built. Ships unrouted
+// (dept_target: "unrouted", assigned_team_id: null) — no per-case-type
+// default-team mechanism exists yet, same as reservations before
+// venues.handoff_team_id existed. See docs/db_planning/DB_Construction_Decisions_v0.1.md.
+const CASE_DETAIL_TABLE_BY_TYPE = {
+  complaint: "complaint_details",
+  incident: "incident_details"
+};
+
+async function writeCaseFromActiveRequest(payload = {}) {
+  if (!supabase) {
+    console.error(
+      "[SUPABASE] SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set — skipping case write"
+    );
+    return null;
+  }
+
+  const detailTable = CASE_DETAIL_TABLE_BY_TYPE[payload.case_type];
+  if (!detailTable) {
+    throw new Error(`writeCaseFromActiveRequest: unsupported case_type "${payload.case_type}"`);
+  }
+
+  const { tenantId, propertyId } = await getDemoTenantAndProperty();
+
+  const guestThread = await upsertGuestThread(tenantId, propertyId, payload.user_id);
+
+  const { data: caseRow, error: caseError } = await supabase
+    .from("cases")
+    .insert({
+      tenant_id: tenantId,
+      property_id: propertyId,
+      guest_thread_id: guestThread.id,
+      case_type: payload.case_type,
+      dept_target: "unrouted",
+      assigned_team_id: null,
+      guest_name: payload.guest_name || null,
+      guest_phone: payload.contact_phone || null,
+      source_channel: "whatsapp",
+      summary: payload.summary || "Reported via WhatsApp"
+    })
+    .select("id")
+    .single();
+
+  if (caseError || !caseRow) {
+    throw new Error(`case insert failed: ${caseError?.message}`);
+  }
+
+  const { error: detailsError } = await supabase.from(detailTable).insert({
+    case_id: caseRow.id
+  });
+
+  if (detailsError) {
+    throw new Error(`${detailTable} insert failed: ${detailsError.message}`);
+  }
+
+  return caseRow.id;
+}
+
+module.exports = { writeReservationCase, writeCaseFromActiveRequest };

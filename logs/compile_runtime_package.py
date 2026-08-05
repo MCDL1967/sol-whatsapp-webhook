@@ -102,6 +102,7 @@ def fetch_venues(client, property_id):
 
     return [
         {
+            "id": v["id"],
             "venue_key": v["venue_key"],
             "display_name": v["display_name"],
             "venue_type": v["venue_type"],
@@ -188,6 +189,7 @@ def fetch_menu_branches(client, property_id):
                 "dept_target": o.get("dept_target"),
                 "template_key": o.get("template_key"),
                 "target_file": o.get("target_file"),
+                "venue_id": o.get("venue_id"),
             }
             for o in options_by_branch.get(b["id"], [])
         ]

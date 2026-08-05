@@ -1,352 +1,126 @@
 /*
 File: fast_path_classifier.js
-Version: v14.0.6
-Date: 2026-05-19
-Role: Fast Path classifier using menu_dictionary and context
-Status: additive loyalty Program-information submenu for V14 mid-track
+Role: Generic fast-path classifier driven entirely by the compiled
+      runtime_packages.package_json menu_branches data (aliases,
+      list_triggers, choice_number) instead of one hardcoded if-block per
+      branch name. Replaces the old per-context classifier -- see
+      docs/db_planning/SOL_DB_Master_Plan_v1.0.md section 3.
 
-This version changes (v14.0.5, additive only):
-- preserves all v14.0.4 main-menu, restaurants_menu, restaurant_followup_menu,
-  loyalty_rewards_menu, and cross-context textual fallback handling exactly
-- adds a new sub-context handler for `loyalty_program_info_menu` covering the
-  three KB-grounded sub-options: Club Card overview, Enrollment, Tier levels
-- accepts numeric (1/2/3), leading-digit, and word-form replies in EN and ES
-- returns a new result type `loyalty_program_info_selection` that webhook.js
-  maps to KB-grounded templates without invoking the responder
-- does NOT redesign the menu tree
-- does NOT change restaurant deterministic selection, follow-up submenu, or
-  reservation carry-forward
-- the sub-context lookup is intentionally local to the classifier to keep
-  menu_dictionary.json untouched (minimum patch surface)
+Matching behavior preserved from the old classifier:
+- Exact match of the full normalized input against any alias for the
+  current branch.
+- Prefix match: guest text starting with an alias followed by a word
+  boundary (e.g. "5 please" matching alias "5") resolves to that alias's
+  option, ignoring the trailing text -- longest alias wins so a more
+  specific phrase is preferred over a shorter one it contains.
+- choice_number and label_en/label_es are indexed as implicit aliases too,
+  same effective coverage as the old lookup maps (which already folded
+  numeric/label variants into their alias lists during the KB seed).
 
-This version changes (v14.0.4, additive only):
-- preserves all v14.0.3 main-menu, restaurants_menu, restaurant_followup_menu,
-  and loyalty_rewards_menu handling exactly
-- adds a final cross-context fallback that re-routes textual top-level keywords
-  (e.g. "loyalty", "loyalty and points", "rewards", "points", "club card") into
-  the approved main-menu branch when the guest is currently in a sub-context
-- bare numeric digits are intentionally excluded from the fallback so existing
-  numbered sub-menu choices (restaurants, restaurant follow-up, loyalty submenu)
-  continue to behave deterministically
-- does not invent new loyalty sub-branches
-- does not change restaurant deterministic selection, follow-up submenu, or
-  reservation carry-forward
+New, not present in the old per-branch classifier: back-navigation
+("__back", already seeded as real alias rows -- see
+docs/db_planning/DB_Construction_Decisions_v0.1.md) is now recognized
+uniformly in every branch, not just the 7 branches the old hardcoded
+classifier happened to check it for.
 */
 
-function normalize(text = "") {
-  return text.toLowerCase().trim();
+'use strict';
+
+// Checked universally for every branch, not sourced from menu_option_aliases,
+// because 3 of 10 demo branches (main_menu, restaurants_menu,
+// restaurant_followup_menu) have no seeded "__back" alias rows at all --
+// confirmed live. A back-navigation primitive shouldn't depend on whether a
+// given branch happens to have that data; the already-seeded __back alias
+// rows on the other 7 branches become redundant but harmless.
+const BACK_TRIGGER_PHRASES = ['0', 'back', 'atras', 'volver', 'menu', 'main menu', 'menu principal', 'home'];
+
+function normalize(text = '') {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
 }
 
-function buildAliasToChoiceMap(choiceAliases = {}) {
-  const aliasMap = {};
+function buildAliasIndex(branch) {
+  const index = new Map();
 
-  for (const [choice, aliases] of Object.entries(choiceAliases)) {
-    aliasMap[normalize(choice)] = choice;
+  const add = (aliasText, optionKey) => {
+    const normalized = normalize(String(aliasText || ''));
+    if (normalized) index.set(normalized, optionKey);
+  };
 
-    for (const alias of aliases || []) {
-      aliasMap[normalize(alias)] = choice;
-    }
+  for (const option of branch.options || []) {
+    add(option.choice_number, option.option_key);
+    add(option.label_en, option.option_key);
+    add(option.label_es, option.option_key);
+  }
+  for (const alias of branch.aliases || []) {
+    add(alias.alias_text, alias.option_key);
   }
 
-  return aliasMap;
+  return index;
 }
 
-function extractLeadingChoice(text = "", choiceAliases = {}) {
-  const normalized = normalize(text);
-  if (!normalized) return null;
-
-  const aliasMap = buildAliasToChoiceMap(choiceAliases);
-
-  const directMatch = aliasMap[normalized];
-  if (directMatch) {
-    return {
-      choice: directMatch,
-      remainder: ""
-    };
+function matchAlias(text, aliasIndex) {
+  if (aliasIndex.has(text)) {
+    return aliasIndex.get(text);
   }
 
-  const punctuationLeadingMatch = normalized.match(/^#?\d+\b/);
-  if (punctuationLeadingMatch) {
-    const token = punctuationLeadingMatch[0].replace(/^#/, "");
-    const mappedChoice = aliasMap[token] || token;
-    const remainder = normalized
-      .slice(punctuationLeadingMatch[0].length)
-      .replace(/^[\s,.)\-:]+/, "")
-      .trim();
-
-    return {
-      choice: mappedChoice,
-      remainder
-    };
-  }
-
-  const sortedAliases = Object.keys(aliasMap).sort((a, b) => b.length - a.length);
+  const sortedAliases = [...aliasIndex.keys()].sort((a, b) => b.length - a.length);
 
   for (const alias of sortedAliases) {
-    if (!alias) continue;
-
-    if (normalized === alias) {
-      return {
-        choice: aliasMap[alias],
-        remainder: ""
-      };
-    }
-
     if (
-      normalized.startsWith(`${alias} `) ||
-      normalized.startsWith(`${alias},`) ||
-      normalized.startsWith(`${alias}.`) ||
-      normalized.startsWith(`${alias}-`) ||
-      normalized.startsWith(`${alias}:`)
+      text.startsWith(`${alias} `) ||
+      text.startsWith(`${alias},`) ||
+      text.startsWith(`${alias}.`) ||
+      text.startsWith(`${alias}-`) ||
+      text.startsWith(`${alias}:`)
     ) {
-      const remainder = normalized
-        .slice(alias.length)
-        .replace(/^[\s,.)\-:]+/, "")
-        .trim();
-
-      return {
-        choice: aliasMap[alias],
-        remainder
-      };
+      return aliasIndex.get(alias);
     }
   }
 
   return null;
 }
 
-function classifyFastPath({ input = "", session = {}, menuDictionary = {} }) {
+function findOption(branch, optionKey) {
+  return (branch.options || []).find((o) => o.option_key === optionKey) || null;
+}
+
+function classifyFastPath({ input = '', session = {}, menuBranches = {} }) {
   const text = normalize(input);
-  const menus = menuDictionary.menus || {};
-  const context = session.fast_path_context || "main_menu";
+  const branchKey = session.fast_path_context || 'main_menu';
+  const branch = menuBranches[branchKey];
 
-  if (context === "main_menu" && menus.main_menu) {
-    const lookup = menus.main_menu.lookup || {};
-    if (lookup[text]) {
-      return {
-        type: "menu_selection",
-        key: lookup[text],
-        next_context: menus.main_menu.options[lookup[text]]?.next_context || null
-      };
-    }
+  if (!branch || !text) return null;
+
+  const triggers = (branch.list_triggers || []).map((t) => normalize(t.trigger_text));
+  if (triggers.some((trigger) => trigger && text.includes(trigger))) {
+    return { type: 'list_request', branch_key: branchKey };
   }
 
-  if (context === "restaurants_menu" && menus.restaurants_menu) {
-    const triggers = menus.restaurants_menu.list_triggers || {};
-    const listTriggers = [...(triggers.en || []), ...(triggers.es || [])];
-
-    if (listTriggers.some((t) => text.includes(normalize(t)))) {
-      return { type: "restaurant_list" };
-    }
-
-    const lookup = menus.restaurants_menu.lookup || {};
-    if (lookup[text]) {
-      return {
-        type: "restaurant_selection",
-        key: lookup[text]
-      };
-    }
-
-    const choiceAliases = menus.restaurants_menu.choice_aliases || {};
-    const leadingChoice = extractLeadingChoice(text, choiceAliases);
-
-    if (leadingChoice?.choice && lookup[leadingChoice.choice]) {
-      return {
-        type: "restaurant_selection",
-        key: lookup[leadingChoice.choice],
-        trailing_text: leadingChoice.remainder || null
-      };
-    }
+  if (BACK_TRIGGER_PHRASES.includes(text)) {
+    return { type: 'menu_back', branch_key: branchKey };
   }
 
-  if (context === "restaurant_followup_menu" && menus.restaurant_followup_menu) {
-    const lookup = menus.restaurant_followup_menu.lookup || {};
-    if (lookup[text]) {
-      return {
-        type: "restaurant_followup_selection",
-        key: lookup[text]
-      };
-    }
+  const aliasIndex = buildAliasIndex(branch);
+  const optionKey = matchAlias(text, aliasIndex);
 
-    const choiceAliases = menus.restaurant_followup_menu.choice_aliases || {};
-    const leadingChoice = extractLeadingChoice(text, choiceAliases);
+  if (!optionKey) return null;
 
-    if (leadingChoice?.choice && lookup[leadingChoice.choice]) {
-      return {
-        type: "restaurant_followup_selection",
-        key: lookup[leadingChoice.choice],
-        trailing_text: leadingChoice.remainder || null
-      };
-    }
+  if (optionKey === '__back') {
+    return { type: 'menu_back', branch_key: branchKey };
   }
 
-  if (context === "loyalty_rewards_menu" && menus.loyalty_rewards_menu) {
-    const lookup = menus.loyalty_rewards_menu.lookup || {};
-    if (lookup[text] === "__back") {
-      return { type: "menu_back" };
-    }
-    if (lookup[text]) {
-      return {
-        type: "loyalty_selection",
-        key: lookup[text]
-      };
-    }
+  const option = findOption(branch, optionKey);
+  if (!option) return null;
 
-    const choiceAliases = menus.loyalty_rewards_menu.choice_aliases || {};
-    const leadingChoice = extractLeadingChoice(text, choiceAliases);
-
-    if (leadingChoice?.choice && lookup[leadingChoice.choice]) {
-      return {
-        type: "loyalty_selection",
-        key: lookup[leadingChoice.choice],
-        trailing_text: leadingChoice.remainder || null
-      };
-    }
-  }
-
-  if (context === "loyalty_program_info_menu" && menus.loyalty_program_info_menu) {
-    const lookup = menus.loyalty_program_info_menu.lookup || {};
-    let resolvedKey = lookup[text] || null;
-
-    if (!resolvedKey) {
-      const choiceAliases = menus.loyalty_program_info_menu.choice_aliases || {};
-      const leadingChoice = extractLeadingChoice(text, choiceAliases);
-      if (leadingChoice?.choice && lookup[leadingChoice.choice]) {
-        resolvedKey = lookup[leadingChoice.choice];
-      }
-    }
-
-    if (resolvedKey === "__back") {
-      return { type: "menu_back" };
-    }
-    if (resolvedKey) {
-      return { type: "loyalty_program_selection", key: resolvedKey };
-    }
-  }
-
-  if (context === "loyalty_points_rewards_menu" && menus.loyalty_points_rewards_menu) {
-    const lookup = menus.loyalty_points_rewards_menu.lookup || {};
-    let resolvedKey = lookup[text] || null;
-
-    if (!resolvedKey) {
-      const choiceAliases = menus.loyalty_points_rewards_menu.choice_aliases || {};
-      const leadingChoice = extractLeadingChoice(text, choiceAliases);
-      if (leadingChoice?.choice && lookup[leadingChoice.choice]) {
-        resolvedKey = lookup[leadingChoice.choice];
-      }
-    }
-
-    if (resolvedKey === "__back") {
-      return { type: "menu_back" };
-    }
-    if (resolvedKey) {
-      return { type: "loyalty_points_selection", key: resolvedKey };
-    }
-  }
-
-  if (context === "shows_events_menu" && menus.shows_events_menu) {
-    const lookup = menus.shows_events_menu.lookup || {};
-    let resolvedKey = lookup[text] || null;
-
-    if (!resolvedKey) {
-      const choiceAliases = menus.shows_events_menu.choice_aliases || {};
-      const leadingChoice = extractLeadingChoice(text, choiceAliases);
-      if (leadingChoice?.choice && lookup[leadingChoice.choice]) {
-        resolvedKey = lookup[leadingChoice.choice];
-      }
-    }
-
-    if (resolvedKey === "__back") {
-      return { type: "menu_back" };
-    }
-    if (resolvedKey) {
-      return { type: "shows_selection", key: resolvedKey };
-    }
-  }
-
-  if (context === "casino_gaming_menu" && menus.casino_gaming_menu) {
-    const lookup = menus.casino_gaming_menu.lookup || {};
-    let resolvedKey = lookup[text] || null;
-
-    if (!resolvedKey) {
-      const choiceAliases = menus.casino_gaming_menu.choice_aliases || {};
-      const leadingChoice = extractLeadingChoice(text, choiceAliases);
-      if (leadingChoice?.choice && lookup[leadingChoice.choice]) {
-        resolvedKey = lookup[leadingChoice.choice];
-      }
-    }
-
-    if (resolvedKey === "__back") {
-      return { type: "menu_back" };
-    }
-    if (resolvedKey) {
-      return { type: "gaming_selection", key: resolvedKey };
-    }
-  }
-
-  if (context === "general_information_menu" && menus.general_information_menu) {
-    const lookup = menus.general_information_menu.lookup || {};
-    let resolvedKey = lookup[text] || null;
-
-    if (!resolvedKey) {
-      const choiceAliases = menus.general_information_menu.choice_aliases || {};
-      const leadingChoice = extractLeadingChoice(text, choiceAliases);
-      if (leadingChoice?.choice && lookup[leadingChoice.choice]) {
-        resolvedKey = lookup[leadingChoice.choice];
-      }
-    }
-
-    if (resolvedKey === "__back") {
-      return { type: "menu_back" };
-    }
-    if (resolvedKey) {
-      return { type: "general_info_selection", key: resolvedKey };
-    }
-  }
-
-  if (context === "complaints_menu" && menus.complaints_menu) {
-    const lookup = menus.complaints_menu.lookup || {};
-    let resolvedKey = lookup[text] || null;
-
-    if (!resolvedKey) {
-      const choiceAliases = menus.complaints_menu.choice_aliases || {};
-      const leadingChoice = extractLeadingChoice(text, choiceAliases);
-      if (leadingChoice?.choice && lookup[leadingChoice.choice]) {
-        resolvedKey = lookup[leadingChoice.choice];
-      }
-    }
-
-    if (resolvedKey === "__back") {
-      return { type: "menu_back" };
-    }
-    if (resolvedKey) {
-      return { type: "complaints_selection", key: resolvedKey };
-    }
-  }
-
-  // v14.0.4 additive: cross-context textual top-level fallback.
-  // When the guest types an explicit textual main-menu keyword (e.g. "loyalty",
-  // "loyalty and points", "rewards", "club card") from inside a sub-context such
-  // as restaurants_menu, restaurant_followup_menu, or loyalty_rewards_menu, the
-  // classifier re-routes them into the approved main-menu branch so the deeper
-  // sub-menus do not silently fall through to the LLM fallback (which has been
-  // observed to drift Loyalty into non-approved submenu wording).
-  //
-  // Bare numeric digits are excluded so that existing in-context numbered
-  // selections (1–7 for restaurants, 1–3 for restaurant follow-up, 1–3 for
-  // loyalty) continue to take precedence and the restaurant flow is preserved.
-  if (context !== "main_menu" && menus.main_menu) {
-    const lookup = menus.main_menu.lookup || {};
-    const isBareDigit = /^\d+$/.test(text);
-    if (!isBareDigit && text && lookup[text]) {
-      return {
-        type: "menu_selection",
-        key: lookup[text],
-        next_context: menus.main_menu.options[lookup[text]]?.next_context || null
-      };
-    }
-  }
-
-  return null;
+  return {
+    type: 'option_selected',
+    branch_key: branchKey,
+    option_key: option.option_key
+  };
 }
 
 module.exports = { classifyFastPath };

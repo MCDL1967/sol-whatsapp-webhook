@@ -1,425 +1,172 @@
 /*
 File: fast_path_responder.js
-Version: v14.0.4
-Date: 2026-05-19
-Role: Fast Path responder using property data
-Status: upgraded for restaurant continuation layer and loyalty branch population
+Role: Generic fast-path responder driven by the compiled runtime_packages
+      data instead of one hardcoded if-block per branch/option. Replaces
+      the old per-context responder -- see
+      docs/db_planning/SOL_DB_Master_Plan_v1.0.md section 3.
 
-This version changes:
-- preserves dynamic restaurant list rendering from property data
-- preserves selected restaurant in session for downstream continuity
-- preserves restaurant follow-up submenu handling
-- aligns top-level entry to the approved 6-branch menu tree
-- adds loyalty branch handling at the approved next useful tree level
-- keeps response logic branch-local and additive so future KB population can continue branch by branch
-- loyalty responses remain limited to KB-safe general guidance and escalation boundaries
+Key generalizations from the old responder:
+- Any option with venue_id set (menu_options.venue_id, added alongside this
+  rewrite) shares one property-wide "you selected this venue" template with
+  {{restaurant_name}}/{{short_description}} filled in from the real venues
+  data -- replaces the old restaurants_menu-specific handling, so a tenant's
+  Menu Tree edits to that branch actually take effect for guests.
+- No-match and "no reply resolvable" fall back to one generic bilingual
+  message rather than the old per-branch stayMap (which only covered 7 of
+  10 branches).
+- "__back" (already real alias data -- see
+  docs/db_planning/DB_Construction_Decisions_v0.1.md) now navigates to the
+  actual parent branch via parent_branch_key, re-showing whatever reply
+  would normally introduce that branch, instead of always jumping to
+  main_menu.
+
+Known gap, not solved here: a tenant-created option with no template_key
+(Menu Tree only lets tenants set structure/labels, not leaf wording -- see
+the Menu Tree section of the master plan) returns null and falls through to
+the normal Voiceflow path, same as any other no-match. Not a crash, but a
+real product gap once Response Templates editing doesn't exist yet either.
 */
 
-function getSelectableRestaurants(propertyMasterData) {
-  return (propertyMasterData?.dining?.venues || []).filter(
-    (v) => v.canonical_name !== "Room Service"
-  );
-}
+'use strict';
 
-function getRestaurantPresentation(language = "en") {
-  return {
-    en: {
-      numberEmojis: ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣"],
-      venueCopy: {
-        "La Brasserie": "All-day café serving breakfast, lunch, and dinner 🍽️",
-        "Larry's Sports Bar & Terrace": "Casual sports bar with large screens 🍻",
-        "Acua Pool Lounge & Bar": "Poolside lounge for cocktails and light bites 🏝️",
-        "Larry's Market": "Coffee shop / grab-and-go sandwiches and salads ☕",
-        "The Garden Lobby Bar": "Relaxed lobby cocktail lounge 🍸",
-        "Fenicia": "Lebanese / Mediterranean restaurant with lounge and terrace 🥙"
-      }
-    },
-    es: {
-      numberEmojis: ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣"],
-      venueCopy: {
-        "La Brasserie": "Café-restaurante todo el día (desayuno, almuerzo y cena) 🍽️",
-        "Larry's Sports Bar & Terrace": "Bar deportivo con pantallas y comida casual 🏈",
-        "Acua Pool Lounge & Bar": "Lounge junto a la piscina, cocteles y bocados ligeros 🏝️",
-        "Larry's Market": "Coffee shop y opción grab-and-go (sándwiches, ensaladas, café) ☕",
-        "The Garden Lobby Bar": "Bar de lobby relajado para bebidas y socializar 🍸",
-        "Fenicia": "Restaurante de cocina libanesa / mediterránea con terraza 🌿"
-      }
-    }
-  }[language] || {
-    numberEmojis: ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣"],
-    venueCopy: {}
-  };
-}
+const GENERIC_FALLBACK_TEMPLATE = {
+  en: 'Sorry, I didn\'t catch that — please choose a number from the list, or type "menu" to start over.',
+  es: 'Disculpa, no entendí eso — por favor elige un número de la lista, o escribe "menú" para comenzar de nuevo.'
+};
 
-function buildRestaurantList(propertyMasterData, language = "en") {
-  const venues = getSelectableRestaurants(propertyMasterData);
-  const presentation = getRestaurantPresentation(language);
+const GENERIC_LIST_INTRO = {
+  en: "Here's the full list:",
+  es: 'Aquí está la lista completa:'
+};
 
-  return venues
-    .map((v, i) => {
-      const numberLabel = presentation.numberEmojis[i] || `${i + 1}.`;
-      const description = presentation.venueCopy[v.canonical_name] || "";
-      return description
-        ? `${numberLabel} ${v.canonical_name} — ${description}`
-        : `${numberLabel} ${v.canonical_name}`;
-    })
-    .join("\n");
-}
-
-function resolveRestaurantByKey(propertyMasterData, restaurantKey) {
-  const venues = propertyMasterData?.dining?.venues || [];
-  const normalizedKey = String(restaurantKey || "").trim().toLowerCase();
-
-  return (
-    venues.find((v) => String(v.menu_key || "").toLowerCase() === normalizedKey) ||
-    null
-  );
-}
+// Every option that represents "the guest picked this venue" shares one
+// property-wide confirm template rather than needing its own per-option
+// template_key -- see the venue-linkage decision in
+// docs/db_planning/SOL_DB_Master_Plan_v1.0.md section 3.
+const VENUE_SELECTED_TEMPLATE_KEY = 'restaurant_selection_confirm';
+const MAIN_MENU_TEMPLATE_KEY = 'main_menu_prompt';
 
 function fillTemplate(template, replacements) {
-  return Object.entries(replacements).reduce((output, [key, value]) => {
-    return output.replace(new RegExp(`{{${key}}}`, "g"), value ?? "");
-  }, template);
+  return Object.entries(replacements).reduce(
+    (output, [key, value]) => output.replace(new RegExp(`{{${key}}}`, 'g'), value ?? ''),
+    template || ''
+  );
+}
+
+function templateFor(responseTemplates, templateKey, language) {
+  if (!templateKey) return null;
+  return responseTemplates[`${templateKey}_${language}`] || null;
+}
+
+function findVenue(venues, venueId) {
+  return (venues || []).find((v) => v.id === venueId) || null;
+}
+
+function venueDescription(venue, language) {
+  return venue?.descriptions?.[language]?.short_description || '';
+}
+
+// Finds the option (in whichever branch) whose next_branch_key routes into
+// branchKey -- i.e. how a guest normally arrives there. Reused both for a
+// forward selection (option.next_branch_key) and for __back landing on a
+// non-root branch, so "entering a branch" always resolves the same way.
+function findEntryOption(menuBranches, branchKey) {
+  for (const parentBranch of Object.values(menuBranches)) {
+    const option = (parentBranch.options || []).find((o) => o.next_branch_key === branchKey);
+    if (option) return option;
+  }
+  return null;
+}
+
+// A newly-selected venue (option.venue_id) always wins; otherwise falls back
+// to whichever venue was selected earlier in the conversation
+// (session.selected_venue_id), so leaf options further down
+// restaurant_followup_menu (e.g. "venue_info", whose template body still
+// references {{restaurant_name}}/{{short_description}}) resolve against the
+// venue the guest already picked rather than having no venue at all.
+function buildOptionReply({ responseTemplates, venues, option, session, language }) {
+  const isNewVenueSelection = !!option.venue_id;
+  const templateKey = isNewVenueSelection ? VENUE_SELECTED_TEMPLATE_KEY : option.template_key;
+  const template = templateFor(responseTemplates, templateKey, language);
+  if (!template) return null;
+
+  const venueId = option.venue_id || session?.selected_venue_id;
+  const venue = venueId ? findVenue(venues, venueId) : null;
+
+  return fillTemplate(template, {
+    restaurant_name: venue?.display_name || '',
+    short_description: venue ? venueDescription(venue, language) : ''
+  });
+}
+
+function buildBranchEntryReply({ menuBranches, responseTemplates, venues, branchKey, session, language }) {
+  if (!branchKey || branchKey === 'main_menu') {
+    return templateFor(responseTemplates, MAIN_MENU_TEMPLATE_KEY, language);
+  }
+
+  const entryOption = findEntryOption(menuBranches, branchKey);
+  if (!entryOption) return null;
+
+  return buildOptionReply({ responseTemplates, venues, option: entryOption, session, language });
+}
+
+function buildGenericList(branch, venues, language) {
+  const options = (branch.options || [])
+    .filter((o) => o.choice_number != null)
+    .sort((a, b) => a.choice_number - b.choice_number);
+
+  const lines = options.map((o) => {
+    const label = (language === 'es' ? o.label_es : o.label_en) || o.label_en;
+    if (o.venue_id) {
+      const description = venueDescription(findVenue(venues, o.venue_id), language);
+      return description ? `${o.choice_number}. ${label} — ${description}` : `${o.choice_number}. ${label}`;
+    }
+    return `${o.choice_number}. ${label}`;
+  });
+
+  const intro = GENERIC_LIST_INTRO[language] || GENERIC_LIST_INTRO.en;
+  return `${intro}\n${lines.join('\n')}`;
 }
 
 function buildResponse({ result, session, propertyData }) {
-  const { propertyMasterData, responseTemplates } = propertyData;
-  const language = session.current_language || "en";
+  const { menuBranches = {}, responseTemplates = {}, venues = [] } = propertyData || {};
+  const language = session.current_language || 'en';
 
   if (!result) {
-    const stayMap = {
-      "loyalty_rewards_menu": "loyalty_stay_reprompt",
-      "loyalty_program_info_menu": "loyalty_program_stay_reprompt",
-      "loyalty_points_rewards_menu": "loyalty_points_stay_reprompt",
-      "shows_events_menu": "shows_stay_reprompt",
-      "casino_gaming_menu": "gaming_stay_reprompt",
-      "general_information_menu": "general_info_stay_reprompt",
-      "complaints_menu": "complaints_stay_reprompt"
-    };
-    const templateBase = stayMap[session.fast_path_context];
-    if (templateBase) {
-      const key = `${templateBase}_${language === "es" ? "es" : "en"}`;
-      return responseTemplates[key] || null;
-    }
-    return null;
+    return GENERIC_FALLBACK_TEMPLATE[language] || GENERIC_FALLBACK_TEMPLATE.en;
   }
 
-  if (result.type === "menu_selection" && result.key === "restaurants") {
-    session.fast_path_context = "restaurants_menu";
-
-    return language === "es"
-      ? responseTemplates.restaurant_intro_es
-      : responseTemplates.restaurant_intro_en;
+  if (result.type === 'list_request') {
+    const branch = menuBranches[result.branch_key];
+    if (!branch) return null;
+    return buildGenericList(branch, venues, language);
   }
 
-  if (result.type === "menu_selection" && result.key === "loyalty_rewards") {
-    session.fast_path_context = "loyalty_rewards_menu";
-
-    return language === "es"
-      ? responseTemplates.loyalty_intro_es
-      : responseTemplates.loyalty_intro_en;
+  if (result.type === 'menu_back') {
+    const branch = menuBranches[result.branch_key];
+    const targetBranchKey = branch?.parent_branch_key || 'main_menu';
+    session.fast_path_context = targetBranchKey;
+    return buildBranchEntryReply({ menuBranches, responseTemplates, venues, branchKey: targetBranchKey, session, language });
   }
 
-  if (result.type === "menu_selection" && result.key === "shows_events") {
-    session.fast_path_context = "shows_events_menu";
-    return language === "es"
-      ? responseTemplates.shows_intro_es
-      : responseTemplates.shows_intro_en;
-  }
+  if (result.type === 'option_selected') {
+    const branch = menuBranches[result.branch_key];
+    const option = (branch?.options || []).find((o) => o.option_key === result.option_key);
+    if (!option) return null;
 
-  if (result.type === "menu_selection" && result.key === "casino_gaming") {
-    session.fast_path_context = "casino_gaming_menu";
-    return language === "es"
-      ? responseTemplates.gaming_intro_es
-      : responseTemplates.gaming_intro_en;
-  }
+    const reply = buildOptionReply({ responseTemplates, venues, option, session, language });
 
-  if (result.type === "menu_selection" && result.key === "general_information") {
-    session.fast_path_context = "general_information_menu";
-    return language === "es"
-      ? responseTemplates.general_info_intro_es
-      : responseTemplates.general_info_intro_en;
-  }
-
-  if (result.type === "menu_selection" && result.key === "complaints") {
-    session.fast_path_context = "complaints_menu";
-    return language === "es"
-      ? responseTemplates.complaints_intro_es
-      : responseTemplates.complaints_intro_en;
-  }
-
-  if (result.type === "restaurant_list") {
-    const list = buildRestaurantList(propertyMasterData, language);
-    const template = language === "es"
-      ? responseTemplates.restaurant_list_es
-      : responseTemplates.restaurant_list_en;
-
-    return template.replace("{{list}}", list);
-  }
-
-  if (result.type === "restaurant_selection") {
-    const selectedVenue = resolveRestaurantByKey(propertyMasterData, result.key);
-
-    if (!selectedVenue) {
-      return language === "es"
-        ? responseTemplates.restaurant_selection_invalid_es
-        : responseTemplates.restaurant_selection_invalid_en;
+    if (option.venue_id) {
+      const venue = findVenue(venues, option.venue_id);
+      session.selected_restaurant = venue?.display_name || null;
+      session.selected_venue_id = option.venue_id;
     }
 
-    session.selected_restaurant = selectedVenue.canonical_name;
-    session.selected_restaurant_key = selectedVenue.menu_key;
-    session.fast_path_context = "restaurant_followup_menu";
-
-    const template = language === "es"
-      ? responseTemplates.restaurant_selection_confirm_es
-      : responseTemplates.restaurant_selection_confirm_en;
-
-    return template.replace("{{restaurant_name}}", selectedVenue.canonical_name);
-  }
-
-  if (result.type === "restaurant_followup_selection") {
-    const selectedVenue = resolveRestaurantByKey(
-      propertyMasterData,
-      session.selected_restaurant_key
-    );
-
-    if (!selectedVenue) {
-      session.fast_path_context = "restaurants_menu";
-
-      return language === "es"
-        ? responseTemplates.restaurant_selection_invalid_es
-        : responseTemplates.restaurant_selection_invalid_en;
+    if (option.next_branch_key) {
+      session.fast_path_context = option.next_branch_key;
     }
 
-    if (result.key === "venue_info") {
-      const template = language === "es"
-        ? responseTemplates.restaurant_venue_info_es
-        : responseTemplates.restaurant_venue_info_en;
-
-      return fillTemplate(template, {
-        restaurant_name: selectedVenue.canonical_name,
-        short_description:
-          language === "es"
-            ? selectedVenue.short_description_es
-            : selectedVenue.short_description_en
-      });
-    }
-
-    if (result.key === "new_reservation") {
-      const template = language === "es"
-        ? responseTemplates.restaurant_new_reservation_prompt_es
-        : responseTemplates.restaurant_new_reservation_prompt_en;
-
-      return template.replace("{{restaurant_name}}", selectedVenue.canonical_name);
-    }
-
-    if (result.key === "existing_change_vip_group") {
-      return language === "es"
-        ? responseTemplates.restaurant_escalation_existing_change_vip_group_es
-        : responseTemplates.restaurant_escalation_existing_change_vip_group_en;
-    }
-  }
-
-  if (result.type === "loyalty_selection") {
-    if (result.key === "program_info") {
-      session.fast_path_context = "loyalty_program_info_menu";
-      return language === "es"
-        ? responseTemplates.loyalty_program_info_intro_es
-        : responseTemplates.loyalty_program_info_intro_en;
-    }
-
-    if (result.key === "rewards_points_info") {
-      session.fast_path_context = "loyalty_points_rewards_menu";
-      return language === "es"
-        ? responseTemplates.loyalty_points_rewards_intro_es
-        : responseTemplates.loyalty_points_rewards_intro_en;
-    }
-
-    if (result.key === "account_specific_issue") {
-      return language === "es"
-        ? responseTemplates.loyalty_account_issue_es
-        : responseTemplates.loyalty_account_issue_en;
-    }
-  }
-
-  if (result.type === "loyalty_program_selection") {
-    if (result.key === "program_name") {
-      return language === "es"
-        ? responseTemplates.loyalty_program_name_es
-        : responseTemplates.loyalty_program_name_en;
-    }
-    if (result.key === "enrollment") {
-      return language === "es"
-        ? responseTemplates.loyalty_enrollment_es
-        : responseTemplates.loyalty_enrollment_en;
-    }
-    if (result.key === "tier_levels") {
-      return language === "es"
-        ? responseTemplates.loyalty_tier_levels_es
-        : responseTemplates.loyalty_tier_levels_en;
-    }
-  }
-
-  if (result.type === "loyalty_points_selection") {
-    if (result.key === "earning") {
-      return language === "es"
-        ? responseTemplates.loyalty_points_earning_es
-        : responseTemplates.loyalty_points_earning_en;
-    }
-    if (result.key === "redeem") {
-      return language === "es"
-        ? responseTemplates.loyalty_points_redeem_es
-        : responseTemplates.loyalty_points_redeem_en;
-    }
-    if (result.key === "min_where") {
-      return language === "es"
-        ? responseTemplates.loyalty_points_min_where_es
-        : responseTemplates.loyalty_points_min_where_en;
-    }
-    if (result.key === "expiration") {
-      return language === "es"
-        ? responseTemplates.loyalty_points_expiration_es
-        : responseTemplates.loyalty_points_expiration_en;
-    }
-    if (result.key === "tiers") {
-      return language === "es"
-        ? responseTemplates.loyalty_points_tiers_overview_es
-        : responseTemplates.loyalty_points_tiers_overview_en;
-    }
-    if (result.key === "account_escalation") {
-      return language === "es"
-        ? responseTemplates.loyalty_points_account_escalation_es
-        : responseTemplates.loyalty_points_account_escalation_en;
-    }
-  }
-
-  if (result.type === "shows_selection") {
-    if (result.key === "what_we_host") {
-      return language === "es"
-        ? responseTemplates.shows_what_we_host_es
-        : responseTemplates.shows_what_we_host_en;
-    }
-    if (result.key === "where_shows_happen") {
-      return language === "es"
-        ? responseTemplates.shows_where_es
-        : responseTemplates.shows_where_en;
-    }
-    if (result.key === "tickets_arrival") {
-      return language === "es"
-        ? responseTemplates.shows_tickets_arrival_es
-        : responseTemplates.shows_tickets_arrival_en;
-    }
-    if (result.key === "tonight_specific") {
-      return language === "es"
-        ? responseTemplates.shows_tonight_specific_es
-        : responseTemplates.shows_tonight_specific_en;
-    }
-  }
-
-  if (result.type === "gaming_selection") {
-    if (result.key === "slots") {
-      return language === "es"
-        ? responseTemplates.gaming_slots_es
-        : responseTemplates.gaming_slots_en;
-    }
-    if (result.key === "tables") {
-      return language === "es"
-        ? responseTemplates.gaming_tables_es
-        : responseTemplates.gaming_tables_en;
-    }
-    if (result.key === "poker") {
-      return language === "es"
-        ? responseTemplates.gaming_poker_es
-        : responseTemplates.gaming_poker_en;
-    }
-    if (result.key === "sportsbook") {
-      return language === "es"
-        ? responseTemplates.gaming_sportsbook_es
-        : responseTemplates.gaming_sportsbook_en;
-    }
-    if (result.key === "entry_rules") {
-      return language === "es"
-        ? responseTemplates.gaming_entry_rules_es
-        : responseTemplates.gaming_entry_rules_en;
-    }
-    if (result.key === "gaming_escalation") {
-      return language === "es"
-        ? responseTemplates.gaming_escalation_es
-        : responseTemplates.gaming_escalation_en;
-    }
-  }
-
-  if (result.type === "general_info_selection") {
-    if (result.key === "overview_hours") {
-      return language === "es"
-        ? responseTemplates.general_property_overview_hours_es
-        : responseTemplates.general_property_overview_hours_en;
-    }
-    if (result.key === "rooms") {
-      return language === "es"
-        ? responseTemplates.general_rooms_es
-        : responseTemplates.general_rooms_en;
-    }
-    if (result.key === "spa_pool") {
-      return language === "es"
-        ? responseTemplates.general_spa_pool_es
-        : responseTemplates.general_spa_pool_en;
-    }
-    if (result.key === "transport_parking") {
-      return language === "es"
-        ? responseTemplates.general_transport_parking_es
-        : responseTemplates.general_transport_parking_en;
-    }
-    if (result.key === "accessibility_lost_found") {
-      return language === "es"
-        ? responseTemplates.general_accessibility_lostfound_es
-        : responseTemplates.general_accessibility_lostfound_en;
-    }
-    if (result.key === "contact") {
-      return language === "es"
-        ? responseTemplates.general_contact_es
-        : responseTemplates.general_contact_en;
-    }
-  }
-
-  if (result.type === "complaints_selection") {
-    if (result.key === "service_issue") {
-      return language === "es"
-        ? responseTemplates.complaints_service_issue_es
-        : responseTemplates.complaints_service_issue_en;
-    }
-    if (result.key === "billing") {
-      return language === "es"
-        ? responseTemplates.complaints_billing_es
-        : responseTemplates.complaints_billing_en;
-    }
-    if (result.key === "safety") {
-      return language === "es"
-        ? responseTemplates.complaints_safety_es
-        : responseTemplates.complaints_safety_en;
-    }
-    if (result.key === "responsible_gaming") {
-      return language === "es"
-        ? responseTemplates.complaints_responsible_gaming_es
-        : responseTemplates.complaints_responsible_gaming_en;
-    }
-    if (result.key === "lost_found") {
-      return language === "es"
-        ? responseTemplates.complaints_lost_found_es
-        : responseTemplates.complaints_lost_found_en;
-    }
-    if (result.key === "other") {
-      return language === "es"
-        ? responseTemplates.complaints_other_es
-        : responseTemplates.complaints_other_en;
-    }
-  }
-
-  if (result.type === "menu_back") {
-    session.fast_path_context = "main_menu";
-    return language === "es"
-      ? responseTemplates.main_menu_prompt_es
-      : responseTemplates.main_menu_prompt_en;
+    return reply;
   }
 
   return null;
