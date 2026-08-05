@@ -57,6 +57,20 @@ Planned properly before writing code, per this doc's own framing above — walke
 
 **Shape of the fix, once the hook point is found**: a `writeIncidentCase`/`writeComplaintCase` sibling to `writeReservationCase` in `supabase_bridge/supabase_client.js`, following the exact same soft-fail-never-blocks-the-reply pattern, writing to `cases` + `incident_details`/`complaint_details` (both tables already exist and are already used by `logs_seed.py`'s demo data, so the target shape is known).
 
+## Deferred to final edits: Response Templates / Answer Boundaries
+
+Confirmed 2026-08-04, no rework risk in deferring these two remaining `tenant_tool` sections to last, after the incident/complaint write path and the webhook rewire: neither has a mockup precedent to port from (unlike Venues/Teams/Guest Rules/Menu Tree, `Tenant_Property_Configuration_v0.2.html` never had a tab for either — checked directly, its 6 tabs are `overview`/`basics`/`teams`/`venues`/`rules`/`export`), so building them means fresh UI design against the real `response_templates`/`answer_boundaries` columns regardless of when it happens. `compile_runtime_package.py` already reads both tables directly from Supabase and compiles them correctly with zero UI involved, same as every other config table before its own section existed, and nothing else built or planned depends on a tenant-editable UI existing for them.
+
+One open design question for whenever they are built, not urgent: `response_templates.approval_status` already gates what compiles (`compile_runtime_package.py:240` filters `.eq("approval_status", "approved")`) — everything is currently pre-seeded `"approved"`, a no-op today. Whoever builds the edit UI needs to decide whether editing wording should flip it back to `draft`/`needs_review` as a real review gate, or save straight through like the rest of the tool does now.
+
+## After that: tenant_tool rework pass (style/paths, previews)
+
+Flagged 2026-08-04, not yet scoped in detail — a follow-up rework pass on `tenant_tool` after the incident/complaint write path, and likely touching the same surface as the webhook rewire since both concern how tenant-configured content actually reaches a guest:
+
+- **How tenant-typed text actually reaches guests through `webhook.js`** — spacing, emoji, and other formatting details in what a tenant types into Basics/Guest Rules/Menu Tree/(future) Response Templates vs. what `webhook.js` actually sends. Not an issue today since nothing tenant-typed reaches a guest live yet (the whole guest-facing path is still on static files, per the gated rewire above) — becomes real once that rewire lands.
+- **Menu Tree subsections beyond this pass's structure-only scope** — this session's build was deliberately labels-and-hierarchy only (see the Menu Tree section above); further subsections/fields were flagged for later without being specified yet.
+- **Section previews** — showing what a section actually looks like to a guest (e.g. a menu branch rendered as a WhatsApp list, a response template with its variables filled in) directly in `tenant_tool`, rather than only inferring it from raw field values. No preview rendering exists anywhere in the tool today.
+
 ## Smaller open items (not blocking, tracked in full in `SOL_DB_Master_Plan_v1.0.md` section 9)
 
 - `menu_options.case_type`/`dept_target`/`template_key` — genuinely new config surface, still undefined.
