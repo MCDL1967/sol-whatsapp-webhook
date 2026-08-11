@@ -20,11 +20,12 @@ Key generalizations from the old responder:
   would normally introduce that branch, instead of always jumping to
   main_menu.
 
-Known gap, not solved here: a tenant-created option with no template_key
-(Menu Tree only lets tenants set structure/labels, not leaf wording -- see
-the Menu Tree section of the master plan) returns null and falls through to
-the normal Voiceflow path, same as any other no-match. Not a crash, but a
-real product gap once Response Templates editing doesn't exist yet either.
+- A tenant-created option with no template_key (Menu Tree only lets tenants
+  set structure/labels, not leaf wording) now falls back to its branch's
+  menu_branches.fallback_template_key, when set, instead of always falling
+  through to the normal Voiceflow path. Unset (the default) means unchanged
+  behavior. See docs/db_planning/SOL_DB_Master_Plan_v1.0.md section 9,
+  "per-branch intro/fallback message."
 */
 
 'use strict';
@@ -84,10 +85,19 @@ function findEntryOption(menuBranches, branchKey) {
 // restaurant_followup_menu (e.g. "venue_info", whose template body still
 // references {{restaurant_name}}/{{short_description}}) resolve against the
 // venue the guest already picked rather than having no venue at all.
-function buildOptionReply({ responseTemplates, venues, option, session, language }) {
+// `branch` is whichever branch's fallback_template_key should stand in when
+// the option itself has no configured reply -- the branch being arrived at
+// for entry, or the branch currently being browsed for an in-branch
+// selection (see docs/db_planning/SOL_DB_Master_Plan_v1.0.md section 9,
+// "per-branch intro/fallback message"). Unset fallback_template_key means
+// unchanged behavior: falls through to Voiceflow, same as before this
+// existed.
+function buildOptionReply({ responseTemplates, venues, option, session, language, branch }) {
   const isNewVenueSelection = !!option.venue_id;
   const templateKey = isNewVenueSelection ? VENUE_SELECTED_TEMPLATE_KEY : option.template_key;
-  const template = templateFor(responseTemplates, templateKey, language);
+  const template =
+    templateFor(responseTemplates, templateKey, language) ||
+    templateFor(responseTemplates, branch?.fallback_template_key, language);
   if (!template) return null;
 
   const venueId = option.venue_id || session?.selected_venue_id;
@@ -101,13 +111,23 @@ function buildOptionReply({ responseTemplates, venues, option, session, language
 
 function buildBranchEntryReply({ menuBranches, responseTemplates, venues, branchKey, session, language }) {
   if (!branchKey || branchKey === 'main_menu') {
-    return templateFor(responseTemplates, MAIN_MENU_TEMPLATE_KEY, language);
+    return (
+      templateFor(responseTemplates, MAIN_MENU_TEMPLATE_KEY, language) ||
+      templateFor(responseTemplates, menuBranches.main_menu?.fallback_template_key, language)
+    );
   }
 
   const entryOption = findEntryOption(menuBranches, branchKey);
   if (!entryOption) return null;
 
-  return buildOptionReply({ responseTemplates, venues, option: entryOption, session, language });
+  return buildOptionReply({
+    responseTemplates,
+    venues,
+    option: entryOption,
+    session,
+    language,
+    branch: menuBranches[branchKey]
+  });
 }
 
 const NUMBER_EMOJI = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
@@ -161,7 +181,7 @@ function buildResponse({ result, session, propertyData }) {
     const option = (branch?.options || []).find((o) => o.option_key === result.option_key);
     if (!option) return null;
 
-    const reply = buildOptionReply({ responseTemplates, venues, option, session, language });
+    const reply = buildOptionReply({ responseTemplates, venues, option, session, language, branch });
 
     if (option.venue_id) {
       const venue = findVenue(venues, option.venue_id);

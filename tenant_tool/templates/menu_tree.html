@@ -23,7 +23,12 @@
       {% if entry_preview.es %}<p class="preview-text"><strong>ES</strong> — {{ entry_preview.es }}</p>{% endif %}
       <p class="muted-note">Static template text — won't change automatically if you rename options below.</p>
     {% else %}
-      <p class="preview-warning">⚠️ No response configured for this level — guests arriving here get a generic fallback message, not this level's own wording.</p>
+      <p class="preview-warning">⚠️ No response configured for this level — guests arriving here go to the AI assistant (Voiceflow) instead of this level's own wording.</p>
+    {% endif %}
+    {% if fallback_configured %}
+      <p class="muted-note">Branch fallback configured — used whenever an option here has no wording of its own, instead of the AI assistant.</p>
+    {% else %}
+      <p class="muted-note">No branch fallback configured yet — an option added here without its own wording still falls through to the AI assistant. (No tenant_tool UI to set this yet.)</p>
     {% endif %}
   </div>
 

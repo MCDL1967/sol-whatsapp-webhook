@@ -457,7 +457,7 @@ def venues_add():
 def _load_menu_tree(client, property_id):
     branches = (
         client.table("menu_branches")
-        .select("id, branch_key, parent_branch_key")
+        .select("id, branch_key, parent_branch_key, fallback_template_key")
         .eq("property_id", property_id)
         .eq("active", True)
         .execute()
@@ -618,17 +618,25 @@ def _load_venues_for_preview(client, property_id):
     return venues_by_id
 
 
-def _option_preview(option, response_templates, venues_by_id):
+def _option_preview(option, response_templates, venues_by_id, branch=None):
     # Read-only mirror of buildOptionReply in
     # src/fast_path/fast_path_responder.js, for tenant_tool display only —
     # never writes anything, so drift between the two just shows a wrong
     # preview rather than breaking a guest conversation.
+    #
+    # `branch` (menu_branches row, with fallback_template_key) mirrors the
+    # `branch` param buildOptionReply takes: when the option's own template
+    # is missing for a language, its branch's fallback_template_key stands
+    # in instead of leaving that language unconfigured.
+    fallback_key = (branch or {}).get("fallback_template_key")
+    fallback_template = response_templates.get(fallback_key, {}) if fallback_key else {}
+
     if option.get("venue_id"):
         template = response_templates.get(VENUE_SELECTED_TEMPLATE_KEY, {})
         venue = venues_by_id.get(option["venue_id"])
         preview = {}
         for lang in ("en", "es"):
-            body = template.get(lang)
+            body = template.get(lang) or fallback_template.get(lang)
             if not body or not venue:
                 preview[lang] = None
                 continue
@@ -638,10 +646,8 @@ def _option_preview(option, response_templates, venues_by_id):
             )
         return preview
 
-    template = response_templates.get(option["template_key"]) if option.get("template_key") else None
-    if not template:
-        return {"en": None, "es": None}
-    return {"en": template.get("en"), "es": template.get("es")}
+    template = response_templates.get(option["template_key"], {}) if option.get("template_key") else {}
+    return {lang: template.get(lang) or fallback_template.get(lang) for lang in ("en", "es")}
 
 
 # Mirrors MAIN_MENU_TEMPLATE_KEY in src/fast_path/fast_path_responder.js.
@@ -667,15 +673,21 @@ def _branch_entry_preview(branches_by_key, options_by_branch_id, branch_key, res
     # Read-only mirror of buildBranchEntryReply in
     # src/fast_path/fast_path_responder.js -- what a guest actually sees
     # arriving at the branch being viewed, not what any individual option
-    # inside it leads to next.
+    # inside it leads to next. The fallback owner is always branch_key's own
+    # branch (the one being arrived at), even though the routing option
+    # structurally lives in its parent's option list.
+    branch = branches_by_key.get(branch_key, {})
+    fallback_key = branch.get("fallback_template_key")
+    fallback_template = response_templates.get(fallback_key, {}) if fallback_key else {}
+
     if branch_key == "main_menu":
         template = response_templates.get(MAIN_MENU_TEMPLATE_KEY, {})
-        return {"en": template.get("en"), "es": template.get("es")}
+        return {lang: template.get(lang) or fallback_template.get(lang) for lang in ("en", "es")}
 
     entry_option = _find_entry_option(branches_by_key, options_by_branch_id, branch_key)
     if not entry_option:
         return {"en": None, "es": None}
-    return _option_preview(entry_option, response_templates, venues_by_id)
+    return _option_preview(entry_option, response_templates, venues_by_id, branch=branch)
 
 
 @app.route("/menu-tree/<branch_key>")
@@ -719,6 +731,7 @@ def menu_tree(branch_key):
         at_depth_limit=depth >= limits["menu_max_depth"],
         sibling_target_keys=sorted({o["next_branch_key"] for o in options if o["next_branch_key"]}),
         breadcrumbs=_breadcrumb_trail(branches_by_key, options_by_branch_id, branch_key, current_label),
+        fallback_configured=bool(branch.get("fallback_template_key")),
         active="menu_tree",
     )
 

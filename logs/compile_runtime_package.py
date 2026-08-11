@@ -196,6 +196,7 @@ def fetch_menu_branches(client, property_id):
         result[b["branch_key"]] = {
             "parent_branch_key": b.get("parent_branch_key"),
             "display_order": b["display_order"],
+            "fallback_template_key": b.get("fallback_template_key"),
             "options": options,
             "aliases": aliases_by_branch.get(b["id"], []),
             "list_triggers": triggers_by_branch.get(b["id"], []),
