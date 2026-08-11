@@ -469,7 +469,7 @@ def _load_menu_tree(client, property_id):
     if branches:
         options = (
             client.table("menu_options")
-            .select("id, branch_id, option_key, label_en, label_es, choice_number, next_branch_key")
+            .select("id, branch_id, option_key, label_en, label_es, choice_number, next_branch_key, template_key, venue_id")
             .in_("branch_id", [b["id"] for b in branches])
             .eq("active", True)
             .order("choice_number")
@@ -570,6 +570,114 @@ def _menu_limits(client, property_id):
     )
 
 
+# Mirrors VENUE_SELECTED_TEMPLATE_KEY in src/fast_path/fast_path_responder.js —
+# every option with venue_id set shares this one property-wide "you selected
+# this venue" template rather than its own template_key. Kept in sync by hand
+# since the JS/Python sides have no shared config; see that file if this
+# constant ever changes there.
+VENUE_SELECTED_TEMPLATE_KEY = "restaurant_selection_confirm"
+
+
+def _load_response_templates(client, property_id):
+    rows = (
+        client.table("response_templates")
+        .select("template_key, language, body")
+        .eq("property_id", property_id)
+        .eq("active", True)
+        .execute()
+        .data
+    )
+    templates = {}
+    for r in rows:
+        templates.setdefault(r["template_key"], {})[r["language"]] = r["body"]
+    return templates
+
+
+def _load_venues_for_preview(client, property_id):
+    venues = (
+        client.table("venues")
+        .select("id, display_name")
+        .eq("property_id", property_id)
+        .execute()
+        .data
+    )
+    venue_ids = [v["id"] for v in venues]
+    descriptions_by_venue = {}
+    if venue_ids:
+        for row in (
+            client.table("venue_descriptions")
+            .select("venue_id, language, short_description")
+            .in_("venue_id", venue_ids)
+            .execute()
+            .data
+        ):
+            descriptions_by_venue.setdefault(row["venue_id"], {})[row["language"]] = row["short_description"]
+    venues_by_id = {v["id"]: v for v in venues}
+    for venue_id, venue in venues_by_id.items():
+        venue["descriptions"] = descriptions_by_venue.get(venue_id, {})
+    return venues_by_id
+
+
+def _option_preview(option, response_templates, venues_by_id):
+    # Read-only mirror of buildOptionReply in
+    # src/fast_path/fast_path_responder.js, for tenant_tool display only —
+    # never writes anything, so drift between the two just shows a wrong
+    # preview rather than breaking a guest conversation.
+    if option.get("venue_id"):
+        template = response_templates.get(VENUE_SELECTED_TEMPLATE_KEY, {})
+        venue = venues_by_id.get(option["venue_id"])
+        preview = {}
+        for lang in ("en", "es"):
+            body = template.get(lang)
+            if not body or not venue:
+                preview[lang] = None
+                continue
+            description = (venue.get("descriptions", {}) or {}).get(lang) or ""
+            preview[lang] = body.replace("{{restaurant_name}}", venue["display_name"]).replace(
+                "{{short_description}}", description
+            )
+        return preview
+
+    template = response_templates.get(option["template_key"]) if option.get("template_key") else None
+    if not template:
+        return {"en": None, "es": None}
+    return {"en": template.get("en"), "es": template.get("es")}
+
+
+# Mirrors MAIN_MENU_TEMPLATE_KEY in src/fast_path/fast_path_responder.js.
+MAIN_MENU_TEMPLATE_KEY = "main_menu_prompt"
+
+
+def _find_entry_option(branches_by_key, options_by_branch_id, branch_key):
+    # The option (in the parent branch) whose next_branch_key routes into
+    # branch_key -- i.e. how a guest actually arrives here. Same lookup
+    # _branch_label already does for breadcrumbs, factored out so the entry
+    # preview below can reuse it directly.
+    branch = branches_by_key.get(branch_key)
+    parent = branches_by_key.get(branch["parent_branch_key"]) if branch and branch["parent_branch_key"] else None
+    if not parent:
+        return None
+    for option in options_by_branch_id.get(parent["id"], []):
+        if option["next_branch_key"] == branch_key:
+            return option
+    return None
+
+
+def _branch_entry_preview(branches_by_key, options_by_branch_id, branch_key, response_templates, venues_by_id):
+    # Read-only mirror of buildBranchEntryReply in
+    # src/fast_path/fast_path_responder.js -- what a guest actually sees
+    # arriving at the branch being viewed, not what any individual option
+    # inside it leads to next.
+    if branch_key == "main_menu":
+        template = response_templates.get(MAIN_MENU_TEMPLATE_KEY, {})
+        return {"en": template.get("en"), "es": template.get("es")}
+
+    entry_option = _find_entry_option(branches_by_key, options_by_branch_id, branch_key)
+    if not entry_option:
+        return {"en": None, "es": None}
+    return _option_preview(entry_option, response_templates, venues_by_id)
+
+
 @app.route("/menu-tree/<branch_key>")
 def menu_tree(branch_key):
     client = get_client()
@@ -593,10 +701,17 @@ def menu_tree(branch_key):
                 current_label = opt["label_en"]
                 break
 
+    response_templates = _load_response_templates(client, property_id)
+    venues_by_id = _load_venues_for_preview(client, property_id)
+    entry_preview = _branch_entry_preview(
+        branches_by_key, options_by_branch_id, branch_key, response_templates, venues_by_id
+    )
+
     return render_template(
         "menu_tree.html",
         branch_key=branch_key,
         options=options,
+        entry_preview=entry_preview,
         depth=depth,
         max_depth=limits["menu_max_depth"],
         max_children=limits["menu_max_children_per_branch"],

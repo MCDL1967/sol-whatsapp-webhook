@@ -191,6 +191,12 @@ button.danger:hover { background: #7d2933; }
 
 .muted-note { color: var(--muted); font-size: 0.86rem; }
 
+.preview-block { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: var(--soft); border: 1px solid var(--line); }
+.preview-label { margin: 0 0 4px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.preview-text { margin: 0 0 4px; font-size: 0.9rem; white-space: pre-line; }
+.preview-text:last-child { margin-bottom: 0; }
+.preview-warning { margin: 0; font-size: 0.88rem; font-weight: 600; color: var(--warn); }
+
 .flash { padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 0.92rem; }
 .flash-success { background: #e4f3ea; color: var(--ok); }
 .flash-error { background: #f8e6e8; color: var(--danger); }

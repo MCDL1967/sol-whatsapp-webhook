@@ -16,6 +16,17 @@
     {% endfor %}
   </p>
 
+  <div class="preview-block">
+    {% if entry_preview.en or entry_preview.es %}
+      <p class="preview-label">How this level looks to a guest arriving here</p>
+      {% if entry_preview.en %}<p class="preview-text"><strong>EN</strong> — {{ entry_preview.en }}</p>{% endif %}
+      {% if entry_preview.es %}<p class="preview-text"><strong>ES</strong> — {{ entry_preview.es }}</p>{% endif %}
+      <p class="muted-note">Static template text — won't change automatically if you rename options below.</p>
+    {% else %}
+      <p class="preview-warning">⚠️ No response configured for this level — guests arriving here get a generic fallback message, not this level's own wording.</p>
+    {% endif %}
+  </div>
+
   {% if not options %}
     <p class="muted-note">No options yet in this branch.</p>
   {% endif %}
@@ -32,6 +43,7 @@
           <input type="text" id="label_es__{{ option.id }}" name="label_es" value="{{ option.label_es or '' }}">
         </div>
       </div>
+
       <div class="team-row-foot">
         {% if option.next_branch_key %}
           <a href="{{ url_for('menu_tree', branch_key=option.next_branch_key, via=option.id) }}">→ View submenu</a>
