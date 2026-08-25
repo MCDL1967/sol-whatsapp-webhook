@@ -44,6 +44,20 @@ function normalize(text = '') {
     .trim();
 }
 
+// menu_option_aliases was originally seeded with explicit numeric-variant
+// rows per option ("6", "#6", "option 6", "opcion 6", "six", ...), folded in
+// at KB-seed time from each option's then-current choice_number (see the
+// file header). Those rows are now unreliable: they're frozen at whatever
+// choice_number existed at seed time, but a hidden venue (see below) shifts
+// every later option's *effective* number down. Trusting a stale "5" row
+// after the true position 5 has shifted to a different option would resolve
+// a guest's typed number to the wrong venue, not just a redundant one --
+// worse than simply not matching. Skipped entirely; getVisibleNumberedOptions
+// below is the only source of truth for numeric matching. Real guests only
+// ever typed bare digits in practice (confirmed live), so losing "#6"/"six"
+// phrasing is an acceptable trade for not silently mis-resolving a number.
+const LEGACY_NUMERIC_ALIAS = /^(#?\d+|option \d+|opcion \d+|one|two|three|four|five|six|seven|eight|nine|ten|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)$/;
+
 // Options linked to a venue with show_in_restaurant_list=false (e.g. a venue
 // closed for remodeling) are excluded entirely -- not just from the printed
 // list (see buildGenericList in fast_path_responder.js), but from every way
@@ -75,6 +89,7 @@ function buildAliasIndex(branch, venues) {
     add(option.label_es, option.option_key);
   }
   for (const alias of branch.aliases || []) {
+    if (LEGACY_NUMERIC_ALIAS.test(normalize(alias.alias_text))) continue;
     add(alias.alias_text, alias.option_key);
   }
 
