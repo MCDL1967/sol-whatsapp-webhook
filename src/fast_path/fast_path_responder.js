@@ -30,6 +30,8 @@ Key generalizations from the old responder:
 
 'use strict';
 
+const { getVisibleNumberedOptions } = require('./visible_options');
+
 const GENERIC_FALLBACK_TEMPLATE = {
   en: 'Sorry, I didn\'t catch that — please choose a number from the list, or type "menu" to start over.',
   es: 'Disculpa, no entendí eso — por favor elige un número de la lista, o escribe "menú" para comenzar de nuevo.'
@@ -136,14 +138,18 @@ function numberLabel(choiceNumber) {
   return NUMBER_EMOJI[choiceNumber - 1] || `${choiceNumber}.`;
 }
 
+// Venues with show_in_restaurant_list=false (e.g. closed for remodeling) are
+// excluded from the printed list, and the remaining options renumber
+// contiguously (getVisibleNumberedOptions, shared with
+// fast_path_classifier.js so a guest typing the number they were shown
+// always resolves to the same option) rather than skipping the hidden
+// option's original choice_number.
 function buildGenericList(branch, venues, language) {
-  const options = (branch.options || [])
-    .filter((o) => o.choice_number != null)
-    .sort((a, b) => a.choice_number - b.choice_number);
+  const options = getVisibleNumberedOptions(branch, venues);
 
   const lines = options.map((o) => {
     const label = (language === 'es' ? o.label_es : o.label_en) || o.label_en;
-    const number = numberLabel(o.choice_number);
+    const number = numberLabel(o.displayNumber);
     if (o.venue_id) {
       const description = venueDescription(findVenue(venues, o.venue_id), language);
       return description ? `${number} ${label} — ${description}` : `${number} ${label}`;

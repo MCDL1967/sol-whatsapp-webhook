@@ -26,6 +26,8 @@ classifier happened to check it for.
 
 'use strict';
 
+const { isVenueHidden, getVisibleNumberedOptions } = require('./visible_options');
+
 // Checked universally for every branch, not sourced from menu_option_aliases,
 // because 3 of 10 demo branches (main_menu, restaurants_menu,
 // restaurant_followup_menu) have no seeded "__back" alias rows at all --
@@ -42,16 +44,33 @@ function normalize(text = '') {
     .trim();
 }
 
-function buildAliasIndex(branch) {
+// Options linked to a venue with show_in_restaurant_list=false (e.g. a venue
+// closed for remodeling) are excluded entirely -- not just from the printed
+// list (see buildGenericList in fast_path_responder.js), but from every way
+// a guest could reach them: number, label, or an explicit alias row. Numeric
+// matching uses each option's renumbered displayNumber (from
+// visible_options.js), not its raw choice_number, so a guest typing the
+// number they were actually shown always resolves to the right option even
+// when something ahead of it in the list is hidden. See
+// docs/db_planning/SOL_DB_Master_Plan_v1.0.md section 9.
+function buildAliasIndex(branch, venues) {
   const index = new Map();
+  const hiddenOptionKeys = new Set(
+    (branch.options || [])
+      .filter((o) => isVenueHidden(venues, o.venue_id))
+      .map((o) => o.option_key)
+  );
 
   const add = (aliasText, optionKey) => {
+    if (hiddenOptionKeys.has(optionKey)) return;
     const normalized = normalize(String(aliasText || ''));
     if (normalized) index.set(normalized, optionKey);
   };
 
+  for (const option of getVisibleNumberedOptions(branch, venues)) {
+    add(option.displayNumber, option.option_key);
+  }
   for (const option of branch.options || []) {
-    add(option.choice_number, option.option_key);
     add(option.label_en, option.option_key);
     add(option.label_es, option.option_key);
   }
@@ -88,7 +107,7 @@ function findOption(branch, optionKey) {
   return (branch.options || []).find((o) => o.option_key === optionKey) || null;
 }
 
-function classifyFastPath({ input = '', session = {}, menuBranches = {} }) {
+function classifyFastPath({ input = '', session = {}, menuBranches = {}, venues = [] }) {
   const text = normalize(input);
   const branchKey = session.fast_path_context || 'main_menu';
   const branch = menuBranches[branchKey];
@@ -104,7 +123,7 @@ function classifyFastPath({ input = '', session = {}, menuBranches = {} }) {
     return { type: 'menu_back', branch_key: branchKey };
   }
 
-  const aliasIndex = buildAliasIndex(branch);
+  const aliasIndex = buildAliasIndex(branch, venues);
   const optionKey = matchAlias(text, aliasIndex);
 
   if (!optionKey) return null;

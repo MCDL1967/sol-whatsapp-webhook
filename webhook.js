@@ -2976,7 +2976,8 @@ app.post("/webhook", async (req, res) => {
         const fastPathResult = classifyFastPath({
           input: userText,
           session,
-          menuBranches: propertyData.menuBranches
+          menuBranches: propertyData.menuBranches,
+          venues: propertyData.venues
         });
  
         if (fastPathResult) {

@@ -162,6 +162,7 @@ async function writeReservationCase(payload = {}) {
     requested_date: payload.service_date || null,
     requested_time: payload.service_time || null,
     party_size: payload.party_size || null,
+    reservation_name: payload.guest_name || null,
     special_requests: payload.special_requests || null
   });
 
