@@ -457,20 +457,31 @@ function ensureActiveReservationDraft(session = null) {
   return activeReservation;
 }
  
-function getOrCreateSession(userID) {
+async function getOrCreateSession(userID) {
   const now = Date.now();
   const existing = sessions[userID];
- 
+
   if (!existing) {
     const newSession = createNewSession(userID, now);
     sessions[userID] = newSession;
     console.log(`[SESSION CREATED] user=${userID} session_id=${newSession.session_id}`);
     return newSession;
   }
- 
+
   const expired = now - existing.last_seen > SESSION_TIMEOUT_MS;
- 
+
   if (expired) {
+    // A guest who completed a reservation/complaint and then went quiet for
+    // 30+ minutes previously had it silently discarded here with no write --
+    // this is the one reset point that fires with no explicit guest command
+    // at all, purely from time passing. See maybeFlushPendingRequest.
+    await maybeFlushPendingRequest(userID, {
+      activeRequestType: existing.active_request?.type || null,
+      guestProfile: existing.guest_profile,
+      reservationContext: existing.reservation_context,
+      lastBotReply: existing.last_bot_reply || null
+    }, "session_expiry");
+
     const newSession = createNewSession(userID, now);
     sessions[userID] = newSession;
     console.log(
@@ -478,7 +489,7 @@ function getOrCreateSession(userID) {
     );
     return newSession;
   }
- 
+
   existing.last_seen = now;
   return existing;
 }
@@ -2557,7 +2568,98 @@ async function readLogsQueueSnapshot(queuePath) {
     throw err;
   }
 }
- 
+
+// Single place every point that resets/discards active_request or
+// reservation_context funnels through before losing a guest's in-progress
+// request. Previously only the exitCommand path ever persisted anything --
+// restartCommand, menuCommand, topic-switch abandonment, and session-expiry
+// all discarded a complete-but-unsaved reservation or complaint/incident
+// silently. See docs/db_planning/SOL_DB_Master_Plan_v1.0.md section 9.
+//
+// Minimum-completeness bar (decided explicitly, not incidental):
+// - reservation: venue + date + time + party size all present. Anything
+//   short of that (e.g. a guest who picked a venue and immediately
+//   wandered off) is not yet staff-actionable and is not written -- applies
+//   uniformly across all reset points, including exitCommand, which
+//   previously wrote unconditionally.
+// - complaint/incident: no structured fields exist yet to gate on
+//   (category/severity/location_text are never populated -- see the "LLM
+//   text -> structured case fields" item in the master plan), so the only
+//   bar is that detectIntent successfully resolved a case_type at all --
+//   unchanged from prior behavior.
+async function maybeFlushPendingRequest(userID, { activeRequestType, guestProfile, reservationContext, lastBotReply }, reason) {
+  if (activeRequestType === "reservation") {
+    const isComplete =
+      !!reservationContext?.venue_or_department &&
+      !!reservationContext?.resolved_date &&
+      !!reservationContext?.service_time &&
+      !!reservationContext?.party_size;
+
+    if (!isComplete) return;
+
+    const closureSummary =
+      reservationContext.reservation_summary || buildReservationContextSummary(reservationContext);
+
+    await runLogsHook(
+      "captureRequestClosure",
+      buildHookPayload({
+        user_id: userID,
+        guest_name: guestProfile?.guest_name || null,
+        contact_phone: guestProfile?.contact_phone || null,
+        contact_email: guestProfile?.contact_email || null,
+        service_date: reservationContext.resolved_date || null,
+        service_time: reservationContext.service_time || null,
+        venue_or_department: reservationContext.venue_or_department || null,
+        party_size: reservationContext.party_size || null,
+        summary: closureSummary || null
+      })
+    );
+
+    try {
+      const caseId = await writeReservationCase({
+        user_id: userID,
+        guest_name: guestProfile?.guest_name || null,
+        contact_phone: guestProfile?.contact_phone || null,
+        service_date: reservationContext.resolved_date || null,
+        service_time: reservationContext.service_time || null,
+        venue_or_department: reservationContext.venue_or_department || null,
+        party_size: reservationContext.party_size || null,
+        special_requests: reservationContext.special_requests || null,
+        summary: closureSummary || null
+      });
+      console.log(`[SUPABASE RESERVATION WRITE] user=${userID} reason=${reason} case_id=${caseId || "skipped"}`);
+    } catch (err) {
+      console.error(`[SUPABASE RESERVATION WRITE ERROR] user=${userID} reason=${reason}`, err?.stack || err?.message || err);
+    }
+    return;
+  }
+
+  if (activeRequestType === "complaint" || activeRequestType === "incident") {
+    try {
+      const caseId = await writeCaseFromActiveRequest({
+        user_id: userID,
+        guest_name: guestProfile?.guest_name || null,
+        contact_phone: guestProfile?.contact_phone || null,
+        case_type: activeRequestType,
+        // The LLM's own last reply is a real, specific account of what the
+        // guest reported (see the sample "Theft report" summary in a live
+        // test) -- far better than a fixed generic line, and free: it's
+        // already sitting in session state before the reset below overwrites
+        // it. Still walking-skeleton-adjacent: this is raw conversational
+        // text, not structured complaint_details/incident_details fields
+        // (category/severity/location) -- see the "LLM text -> structured
+        // case fields" item flagged in the master plan for the real
+        // follow-up work.
+        summary: lastBotReply ||
+          (activeRequestType === "incident" ? "Incident reported via WhatsApp" : "Complaint reported via WhatsApp")
+      });
+      console.log(`[SUPABASE ${activeRequestType.toUpperCase()} WRITE] user=${userID} reason=${reason} case_id=${caseId || "skipped"}`);
+    } catch (err) {
+      console.error(`[SUPABASE ${activeRequestType.toUpperCase()} WRITE ERROR] user=${userID} reason=${reason}`, err?.stack || err?.message || err);
+    }
+  }
+}
+
 // ---- WEBHOOK VERIFICATION ----
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
@@ -2742,7 +2844,7 @@ app.post("/webhook", async (req, res) => {
     // Serialize per user: this turn waits for the prior in-flight turn to finish
     enqueueForUser(userID, async () => {
       try {
-        const session = getOrCreateSession(userID);
+        const session = await getOrCreateSession(userID);
  
     const guestProfileUpdate = extractGuestProfileUpdate(userText, session);
     if (Object.keys(guestProfileUpdate).length > 0) {
@@ -3065,23 +3167,23 @@ app.post("/webhook", async (req, res) => {
  
     // ---- REQUEST CONTROL ----
     let requestControlEvent = null;
-    const wasActiveReservationBeforeReset =
-      exitCommand && sessions[userID]?.active_request?.type === "reservation";
-    // Mirrors wasActiveReservationBeforeReset for the other two case-producing
-    // types — captures which one (if any) was active before exit resets the
-    // session, so the closure block below knows whether to write and which
-    // case_type/detail table to target.
-    const preResetCaseType =
-      exitCommand &&
-      (sessions[userID]?.active_request?.type === "complaint" ||
-        sessions[userID]?.active_request?.type === "incident")
-        ? sessions[userID].active_request.type
-        : null;
+    // Captured unconditionally (not just for exitCommand) -- restartCommand,
+    // menuCommand, and exitCommand all reset active_request/reservation_context
+    // below, and each needs this pre-reset snapshot to flush through
+    // maybeFlushPendingRequest before the reset discards it.
+    const preResetActiveRequestType = sessions[userID]?.active_request?.type || null;
     const preResetGuestProfile = { ...(sessions[userID]?.guest_profile || createGuestProfile(userID)) };
     const preResetReservationContext = { ...(sessions[userID]?.reservation_context || createReservationContext()) };
-    let preExitReservationClosure = null;
- 
+    const preResetLastBotReply = sessions[userID]?.last_bot_reply || null;
+
     if (restartCommand) {
+      await maybeFlushPendingRequest(userID, {
+        activeRequestType: preResetActiveRequestType,
+        guestProfile: preResetGuestProfile,
+        reservationContext: preResetReservationContext,
+        lastBotReply: preResetLastBotReply
+      }, "restart_command");
+
       updateSession(userID, {
         session_id: generateSessionId(),
         active_request: null,
@@ -3101,6 +3203,13 @@ app.post("/webhook", async (req, res) => {
       await deleteVoiceflowState(userID, "restart_command");
       requestControlEvent = { request_action: "reset", reason: "restart_command" };
     } else if (menuCommand) {
+      await maybeFlushPendingRequest(userID, {
+        activeRequestType: preResetActiveRequestType,
+        guestProfile: preResetGuestProfile,
+        reservationContext: preResetReservationContext,
+        lastBotReply: preResetLastBotReply
+      }, "menu_command");
+
       // selected_restaurant/selected_venue_id follow the same keep-if-actively-
       // reserving rule as reservation_context's venue fields just below --
       // otherwise a guest who says "menu" mid-reservation would lose the venue
@@ -3125,6 +3234,13 @@ app.post("/webhook", async (req, res) => {
       console.log(`[REQUEST RESET] user=${userID} reason=menu_command`);
       requestControlEvent = { request_action: "reset", reason: "menu_command" };
     } else if (exitCommand) {
+      await maybeFlushPendingRequest(userID, {
+        activeRequestType: preResetActiveRequestType,
+        guestProfile: preResetGuestProfile,
+        reservationContext: preResetReservationContext,
+        lastBotReply: preResetLastBotReply
+      }, "exit_command");
+
       updateSession(userID, {
         session_id: generateSessionId(),
         active_request: null,
@@ -3182,18 +3298,38 @@ app.post("/webhook", async (req, res) => {
             type: detectedIntent,
             status: initialStatusForType(detectedIntent)
           };
- 
+
+          // Switching to a genuinely different intent discards the old
+          // reservation_context (below) -- flush whatever was pending under
+          // the previous type first, same as any other reset point.
+          await maybeFlushPendingRequest(userID, {
+            activeRequestType: previousType,
+            guestProfile: currentSession.guest_profile,
+            reservationContext: currentSession.reservation_context,
+            lastBotReply: currentSession.last_bot_reply || null
+          }, "intent_switch");
+
           updateSession(userID, { active_request: newRequest, awaiting_language: false, reservation_context: newRequest.type === "reservation" ? (sessions[userID]?.reservation_context || createReservationContext()) : createReservationContext() });
- 
+
           console.log(
             `[REQUEST SWITCH] user=${userID} from=${previousType} to=${newRequest.type} status=${newRequest.status}`
           );
           requestControlEvent = { request_action: "switched", previous_request_type: previousType, request_type: newRequest.type, request_status: newRequest.status };
         } else if (shouldClearActiveRequest(currentSession.active_request, detectedIntent, userText)) {
           const previousType = currentSession.active_request.type;
- 
+
+          // A guest asking an unrelated question mid-reservation/complaint
+          // silently wiped reservation_context here with no persistence
+          // check at all -- the least visible of the five reset points.
+          await maybeFlushPendingRequest(userID, {
+            activeRequestType: previousType,
+            guestProfile: currentSession.guest_profile,
+            reservationContext: currentSession.reservation_context,
+            lastBotReply: currentSession.last_bot_reply || null
+          }, "topic_switch_cleared");
+
           updateSession(userID, { active_request: null, reservation_context: createReservationContext() });
- 
+
           console.log(
             `[REQUEST CLEARED] user=${userID} from=${previousType} reason=non_continuation_unmatched_topic`
           );
@@ -3229,90 +3365,11 @@ app.post("/webhook", async (req, res) => {
         effectiveCurrentLanguage ||
         (detectedInputLanguage === "es" || detectedInputLanguage === "en" ? detectedInputLanguage : null);
       const exitReply = buildMiddlewareExitReply(exitReplyLanguage);
- 
-      if (wasActiveReservationBeforeReset) {
-        const closureSummary =
-          preResetReservationContext.reservation_summary ||
-          buildReservationContextSummary(preResetReservationContext);
- 
-        preExitReservationClosure = {
-          session_summary: getSessionSummary(sessions[userID]),
-          guest_name: preResetGuestProfile.guest_name || null,
-          contact_phone: preResetGuestProfile.contact_phone || null,
-          contact_email: preResetGuestProfile.contact_email || null,
-          service_date: preResetReservationContext.resolved_date || null,
-          service_time: preResetReservationContext.service_time || null,
-          venue_or_department: preResetReservationContext.venue_or_department || null,
-          party_size: preResetReservationContext.party_size || null,
-          special_requests: preResetReservationContext.special_requests || null,
-          reservation_summary: closureSummary || null
-        };
- 
-        console.log(
-          `[PRE-EXIT RESERVATION SNAPSHOT] user=${userID} venue=${preExitReservationClosure.venue_or_department || "—"} date=${preExitReservationClosure.service_date || "—"} time=${preExitReservationClosure.service_time || "—"} party_size=${preExitReservationClosure.party_size || "—"}`
-        );
- 
-        await runLogsHook(
-          "captureRequestClosure",
-          buildHookPayload({
-            user_id: userID,
-            session_summary: preExitReservationClosure.session_summary,
-            guest_name: preExitReservationClosure.guest_name,
-            contact_phone: preExitReservationClosure.contact_phone,
-            contact_email: preExitReservationClosure.contact_email,
-            service_date: preExitReservationClosure.service_date,
-            service_time: preExitReservationClosure.service_time || null,
-            venue_or_department: preExitReservationClosure.venue_or_department || null,
-            party_size: preExitReservationClosure.party_size || null,
-            summary: preExitReservationClosure.reservation_summary || null
-          })
-        );
 
-        // ---- SUPABASE RESERVATION WRITE (minimal walking-skeleton path -- soft-fail, never blocks reply) ----
-        try {
-          const caseId = await writeReservationCase({
-            user_id: userID,
-            guest_name: preExitReservationClosure.guest_name,
-            contact_phone: preExitReservationClosure.contact_phone,
-            service_date: preExitReservationClosure.service_date,
-            service_time: preExitReservationClosure.service_time || null,
-            venue_or_department: preExitReservationClosure.venue_or_department || null,
-            party_size: preExitReservationClosure.party_size || null,
-            special_requests: preExitReservationClosure.special_requests || null,
-            summary: preExitReservationClosure.reservation_summary || null
-          });
-          console.log(`[SUPABASE RESERVATION WRITE] user=${userID} case_id=${caseId || "skipped"}`);
-        } catch (err) {
-          console.error(`[SUPABASE RESERVATION WRITE ERROR] user=${userID}`, err?.stack || err?.message || err);
-        }
-      }
-
-      // ---- SUPABASE COMPLAINT/INCIDENT WRITE (minimal walking-skeleton path -- soft-fail, never blocks reply) ----
-      if (preResetCaseType) {
-        try {
-          const caseId = await writeCaseFromActiveRequest({
-            user_id: userID,
-            guest_name: preResetGuestProfile.guest_name || null,
-            contact_phone: preResetGuestProfile.contact_phone || null,
-            case_type: preResetCaseType,
-            // The LLM's own last reply is a real, specific account of what the
-            // guest reported (see the sample "Theft report" summary in a live
-            // test) -- far better than a fixed generic line, and free: it's
-            // already sitting in session state before the exit-reset below
-            // overwrites it. Still walking-skeleton-adjacent: this is raw
-            // conversational text, not structured complaint_details/
-            // incident_details fields (category/severity/location) -- see the
-            // "LLM text -> structured case fields" item flagged in the master
-            // plan for the real follow-up work.
-            summary: sessions[userID]?.last_bot_reply ||
-              (preResetCaseType === "incident" ? "Incident reported via WhatsApp" : "Complaint reported via WhatsApp")
-          });
-          console.log(`[SUPABASE ${preResetCaseType.toUpperCase()} WRITE] user=${userID} case_id=${caseId || "skipped"}`);
-        } catch (err) {
-          console.error(`[SUPABASE ${preResetCaseType.toUpperCase()} WRITE ERROR] user=${userID}`, err?.stack || err?.message || err);
-        }
-      }
-
+      // Reservation/complaint/incident closure already happened above, via
+      // maybeFlushPendingRequest in the exitCommand branch of REQUEST CONTROL
+      // (uses the same preResetGuestProfile/preResetReservationContext
+      // snapshot) -- no closure logic needed here anymore.
       updateSession(userID, { state: "idle", active_request: null, last_bot_reply: exitReply });
  
       console.log(`[SESSION AFTER]`, getSessionSummary(sessions[userID]));
@@ -3354,19 +3411,20 @@ app.post("/webhook", async (req, res) => {
     }
  
     const currentSessionAfterControl = sessions[userID];
+    // Note: this point is never reached when exitCommand is true -- that
+    // branch always returns at the closing brace above. The
+    // wasActiveReservationBeforeReset checks this block used to have here
+    // were therefore always false; removed along with that variable.
     const shouldEvaluateReservationDate =
       currentSessionAfterControl?.active_request?.type === "reservation" ||
-      detectedIntent === "reservation" ||
-      wasActiveReservationBeforeReset === true;
+      detectedIntent === "reservation";
     const reservationDateContextFromText = shouldEvaluateReservationDate
       ? resolveReservationDateContext(userText)
       : createReservationContext();
     const reservationDetailContextFromText = shouldEvaluateReservationDate
       ? extractReservationDetailContext(userText, currentSessionAfterControl)
       : {};
-    let mergedReservationContext = wasActiveReservationBeforeReset
-      ? preResetReservationContext
-      : (currentSessionAfterControl?.reservation_context || createReservationContext());
+    let mergedReservationContext = currentSessionAfterControl?.reservation_context || createReservationContext();
     let reservationContextChanged = false;
  
     if (shouldEvaluateReservationDate && reservationDateContextFromText.resolution_status) {
@@ -4109,92 +4167,18 @@ app.post("/webhook", async (req, res) => {
     }
  
     const combinedReplyForMemory = replies.join("\n\n");
- 
-    // ---- DEFERRED PRE-EXIT RESERVATION CLOSURE SNAPSHOT ----
-    if (wasActiveReservationBeforeReset) {
-      const closureSummary =
-        mergedReservationContext.reservation_summary ||
-        buildReservationContextSummary(mergedReservationContext);
- 
-      preExitReservationClosure = {
-        session_summary: getSessionSummary(sessions[userID]),
-        guest_name: preResetGuestProfile.guest_name || null,
-        contact_phone: preResetGuestProfile.contact_phone || null,
-        contact_email: preResetGuestProfile.contact_email || null,
-        service_date: mergedReservationContext.resolved_date || null,
-        service_time: mergedReservationContext.service_time || null,
-        venue_or_department: mergedReservationContext.venue_or_department || null,
-        party_size: mergedReservationContext.party_size || null,
-        special_requests: mergedReservationContext.special_requests || null,
-        reservation_summary: closureSummary || null
-      };
- 
-      console.log(
-        `[PRE-EXIT RESERVATION SNAPSHOT] user=${userID} venue=${preExitReservationClosure.venue_or_department || "—"} date=${preExitReservationClosure.service_date || "—"} time=${preExitReservationClosure.service_time || "—"} party_size=${preExitReservationClosure.party_size || "—"}`
-      );
-    }
- 
-    // ---- LOGS CLOSURE HOOK (reservation confirmed exit only — Block B) ----
-    if (preExitReservationClosure) {
-      const closureSummary =
-        preExitReservationClosure.reservation_summary ||
-        buildReservationContextSummary({
-          resolved_date: preExitReservationClosure.service_date || null,
-          service_time: preExitReservationClosure.service_time || null,
-          venue_or_department: preExitReservationClosure.venue_or_department || null,
-          party_size: preExitReservationClosure.party_size || null
-        });
- 
-      await runLogsHook(
-        "captureRequestClosure",
-        buildHookPayload({
-          user_id: userID,
-          session_summary: preExitReservationClosure.session_summary,
-          guest_name: preExitReservationClosure.guest_name,
-          contact_phone: preExitReservationClosure.contact_phone,
-          contact_email: preExitReservationClosure.contact_email,
-          service_date: preExitReservationClosure.service_date,
-          service_time: preExitReservationClosure.service_time || null,
-          venue_or_department: preExitReservationClosure.venue_or_department || null,
-          party_size: preExitReservationClosure.party_size || null,
-          summary: closureSummary || null
-        })
-      );
 
-      // ---- SUPABASE RESERVATION WRITE (minimal walking-skeleton path — soft-fail, never blocks reply) ----
-      try {
-        const caseId = await writeReservationCase({
-          user_id: userID,
-          guest_name: preExitReservationClosure.guest_name,
-          contact_phone: preExitReservationClosure.contact_phone,
-          service_date: preExitReservationClosure.service_date,
-          service_time: preExitReservationClosure.service_time || null,
-          venue_or_department: preExitReservationClosure.venue_or_department || null,
-          party_size: preExitReservationClosure.party_size || null,
-          special_requests: preExitReservationClosure.special_requests || null,
-          summary: closureSummary || null
-        });
-        console.log(`[SUPABASE RESERVATION WRITE] user=${userID} case_id=${caseId || "skipped"}`);
-      } catch (err) {
-        console.error(`[SUPABASE RESERVATION WRITE ERROR] user=${userID}`, err?.stack || err?.message || err);
-      }
-    }
-
-    // ---- SUPABASE COMPLAINT/INCIDENT WRITE (minimal walking-skeleton path — soft-fail, never blocks reply) ----
-    if (preResetCaseType) {
-      try {
-        const caseId = await writeCaseFromActiveRequest({
-          user_id: userID,
-          guest_name: preResetGuestProfile.guest_name || null,
-          contact_phone: preResetGuestProfile.contact_phone || null,
-          case_type: preResetCaseType,
-          summary: preResetCaseType === "incident" ? "Incident reported via WhatsApp" : "Complaint reported via WhatsApp"
-        });
-        console.log(`[SUPABASE ${preResetCaseType.toUpperCase()} WRITE] user=${userID} case_id=${caseId || "skipped"}`);
-      } catch (err) {
-        console.error(`[SUPABASE ${preResetCaseType.toUpperCase()} WRITE ERROR] user=${userID}`, err?.stack || err?.message || err);
-      }
-    }
+    // Removed: a "DEFERRED PRE-EXIT RESERVATION CLOSURE SNAPSHOT" block used
+    // to sit here, duplicating the reservation/complaint/incident write logic
+    // that also lived in the exitCommand handler earlier in this function.
+    // It was dead code: both variables it checked
+    // (wasActiveReservationBeforeReset, preResetCaseType) were only ever
+    // truthy when exitCommand was true, and the exitCommand branch always
+    // `return`s earlier in this same function before execution could reach
+    // this point -- it could never run. Removed as part of consolidating all
+    // reservation/case persistence into maybeFlushPendingRequest, called once
+    // per reset point instead of duplicated inline. See
+    // docs/db_planning/SOL_DB_Master_Plan_v1.0.md section 9.
 
     updateSession(
       userID,
